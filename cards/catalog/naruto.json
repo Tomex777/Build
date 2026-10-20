@@ -1,0 +1,1670 @@
+{
+  "version": 1,
+  "series": "naruto",
+  "name": "Naruto / NIGHT Collection",
+  "dimensions": [
+    3000,
+    4800
+  ],
+  "artworkPolicy": {
+    "distinctPerEdition": true
+  },
+  "tierPolicy": {
+    "mode": "power-selects-design"
+  },
+  "rightsNote": "Rights-reserved original official game art. Candidate review only; not publicly licensed.",
+  "powerPolicy": "Draft local assessments awaiting cross-universe consistency review",
+  "cards": [
+    {
+      "id": "naruto-child",
+      "number": 1,
+      "character": "naruto",
+      "name": "Naruto Uzumaki",
+      "title": "Naruto Uzumaki",
+      "form": "Child / Part I",
+      "formId": "child",
+      "aliases": [
+        "Naruto Uzumaki",
+        "naruto",
+        "Child / Part I"
+      ],
+      "designs": [
+        "crimson"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "bandai-storm4-official",
+        "page": "https://naruto-game.bngames.net/character/09_02.html",
+        "image": "https://naruto-game.bngames.net/images/character/09_02/img_character.png",
+        "credit": "Bandai Namco Naruto Shippuden Ultimate Ninja Storm 4 official site",
+        "rights": "© Masashi Kishimoto / Shueisha, TV Tokyo, Pierrot; © Bandai Namco Entertainment Inc. All rights reserved.",
+        "usage": "reference-only",
+        "localPath": "artwork/naruto/naruto-child.png",
+        "sha256": "bf5436a7cbf62b908ea70ef7a950a3b3e17c05fe10fba7a8ae3fbdf8b4c3b826",
+        "width": 770,
+        "height": 1500,
+        "artist": "Official Naruto: Ultimate Ninja STORM 4 game art"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          770,
+          1500
+        ],
+        "bottomPadding": 0.2,
+        "edgeFade": 0.006,
+        "bottomFade": 0.028,
+        "focal": [
+          0.5,
+          0.32
+        ],
+        "artworkPlacement": {
+          "crimson": {
+            "x": 0,
+            "y": 28,
+            "width": 1000
+          }
+        }
+      }
+    },
+    {
+      "id": "naruto-shippuden",
+      "number": 2,
+      "character": "naruto",
+      "name": "Naruto Uzumaki",
+      "title": "Naruto Uzumaki",
+      "form": "Shippuden / standard",
+      "formId": "shippuden",
+      "aliases": [
+        "Naruto Uzumaki",
+        "naruto",
+        "Shippuden / standard"
+      ],
+      "designs": [
+        "tidelight"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "bandai-storm4-official",
+        "page": "https://naruto-game.bngames.net/character/02_01.html",
+        "image": "https://naruto-game.bngames.net/images/character/02_01/img_character.png",
+        "credit": "Bandai Namco Naruto Shippuden Ultimate Ninja Storm 4 official site",
+        "rights": "© Masashi Kishimoto / Shueisha, TV Tokyo, Pierrot; © Bandai Namco Entertainment Inc. All rights reserved.",
+        "usage": "reference-only",
+        "localPath": "artwork/naruto/naruto-shippuden.png",
+        "sha256": "7f0fcc296ae45695081dff0f22674f929713ee6ae6aad545ded4123e08814231",
+        "width": 770,
+        "height": 1500,
+        "artist": "Official Naruto: Ultimate Ninja STORM 4 game art"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          770,
+          1500
+        ],
+        "bottomPadding": 0.2,
+        "edgeFade": 0.006,
+        "bottomFade": 0.028,
+        "focal": [
+          0.5,
+          0.32
+        ],
+        "artworkPlacement": {
+          "tidelight": {
+            "x": 0,
+            "y": 28,
+            "width": 1000
+          }
+        }
+      }
+    },
+    {
+      "id": "naruto-six-paths",
+      "number": 3,
+      "character": "naruto",
+      "name": "Naruto Uzumaki",
+      "title": "Naruto Uzumaki",
+      "form": "Six Paths Sage Mode",
+      "formId": "six-paths",
+      "aliases": [
+        "Naruto Uzumaki",
+        "naruto",
+        "Six Paths Sage Mode"
+      ],
+      "designs": [
+        "emberglass"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "bandai-storm4-official",
+        "page": "https://naruto-game.bngames.net/character/01_01.html",
+        "image": "https://naruto-game.bngames.net/images/character/01_01/img_character.png",
+        "credit": "Bandai Namco Naruto Shippuden Ultimate Ninja Storm 4 official site",
+        "rights": "© Masashi Kishimoto / Shueisha, TV Tokyo, Pierrot; © Bandai Namco Entertainment Inc. All rights reserved.",
+        "usage": "reference-only",
+        "localPath": "artwork/naruto/naruto-six-paths.png",
+        "sha256": "8a3e0097062532d51a8b63473db33ccb04528170c9fa53e5448b757e5e4cb867",
+        "width": 770,
+        "height": 1500,
+        "artist": "Official Naruto: Ultimate Ninja STORM 4 game art"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          770,
+          1500
+        ],
+        "bottomPadding": 0.2,
+        "edgeFade": 0.006,
+        "bottomFade": 0.028,
+        "focal": [
+          0.5,
+          0.32
+        ],
+        "artworkPlacement": {
+          "emberglass": {
+            "x": 0,
+            "y": 28,
+            "width": 1000
+          }
+        }
+      }
+    },
+    {
+      "id": "naruto-the-last",
+      "number": 4,
+      "character": "naruto",
+      "name": "Naruto Uzumaki",
+      "title": "Naruto Uzumaki",
+      "form": "The Last",
+      "formId": "the-last",
+      "aliases": [
+        "Naruto Uzumaki",
+        "naruto",
+        "The Last"
+      ],
+      "designs": [
+        "emberglass"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "bandai-storm4-official",
+        "page": "https://naruto-game.bngames.net/character/01_07.html",
+        "image": "https://naruto-game.bngames.net/images/character/01_07/img_character.png",
+        "credit": "Bandai Namco Naruto Shippuden Ultimate Ninja Storm 4 official site",
+        "rights": "© Masashi Kishimoto / Shueisha, TV Tokyo, Pierrot; © Bandai Namco Entertainment Inc. All rights reserved.",
+        "usage": "reference-only",
+        "localPath": "artwork/naruto/naruto-the-last.png",
+        "sha256": "12bdb82f2541d885f820e3b89613e526eeb3fd235b9080361ff033c2ef1a5e59",
+        "width": 770,
+        "height": 1500,
+        "artist": "Official Naruto: Ultimate Ninja STORM 4 game art"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          770,
+          1500
+        ],
+        "bottomPadding": 0.2,
+        "edgeFade": 0.006,
+        "bottomFade": 0.028,
+        "focal": [
+          0.5,
+          0.32
+        ],
+        "artworkPlacement": {
+          "emberglass": {
+            "x": 0,
+            "y": 28,
+            "width": 1000
+          }
+        }
+      }
+    },
+    {
+      "id": "sasuke-child",
+      "number": 5,
+      "character": "sasuke",
+      "name": "Sasuke Uchiha",
+      "title": "Sasuke Uchiha",
+      "form": "Child / Part I",
+      "formId": "child",
+      "aliases": [
+        "Sasuke Uchiha",
+        "sasuke",
+        "Child / Part I"
+      ],
+      "designs": [
+        "crimson"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "bandai-storm4-official",
+        "page": "https://naruto-game.bngames.net/character/09_12.html",
+        "image": "https://naruto-game.bngames.net/images/character/09_12/img_character.png",
+        "credit": "Bandai Namco Naruto Shippuden Ultimate Ninja Storm 4 official site",
+        "rights": "© Masashi Kishimoto / Shueisha, TV Tokyo, Pierrot; © Bandai Namco Entertainment Inc. All rights reserved.",
+        "usage": "reference-only",
+        "localPath": "artwork/naruto/sasuke-child.png",
+        "sha256": "e58d9ddf4d9a36279a45c9731306d448877118484512a3509c621b1f935dc1c9",
+        "width": 770,
+        "height": 1500,
+        "artist": "Official Naruto: Ultimate Ninja STORM 4 game art"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          770,
+          1500
+        ],
+        "bottomPadding": 0.2,
+        "edgeFade": 0.006,
+        "bottomFade": 0.028,
+        "focal": [
+          0.5,
+          0.32
+        ],
+        "artworkPlacement": {
+          "crimson": {
+            "x": 0,
+            "y": 28,
+            "width": 1000
+          }
+        }
+      }
+    },
+    {
+      "id": "sasuke-shippuden",
+      "number": 6,
+      "character": "sasuke",
+      "name": "Sasuke Uchiha",
+      "title": "Sasuke Uchiha",
+      "form": "Shippuden / standard",
+      "formId": "shippuden",
+      "aliases": [
+        "Sasuke Uchiha",
+        "sasuke",
+        "Shippuden / standard"
+      ],
+      "designs": [
+        "tidelight"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "bandai-storm4-official",
+        "page": "https://naruto-game.bngames.net/character/07_01.html",
+        "image": "https://naruto-game.bngames.net/images/character/07_01/img_character.png",
+        "credit": "Bandai Namco Naruto Shippuden Ultimate Ninja Storm 4 official site",
+        "rights": "© Masashi Kishimoto / Shueisha, TV Tokyo, Pierrot; © Bandai Namco Entertainment Inc. All rights reserved.",
+        "usage": "reference-only",
+        "localPath": "artwork/naruto/sasuke-shippuden.png",
+        "sha256": "7b2d3cd49915b26c735b4758a913105927d4a0c395da4d00fa8b6f1f573786a7",
+        "width": 770,
+        "height": 1500,
+        "artist": "Official Naruto: Ultimate Ninja STORM 4 game art"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          770,
+          1500
+        ],
+        "bottomPadding": 0.2,
+        "edgeFade": 0.006,
+        "bottomFade": 0.028,
+        "focal": [
+          0.5,
+          0.32
+        ],
+        "artworkPlacement": {
+          "tidelight": {
+            "x": 0,
+            "y": 28,
+            "width": 1000
+          }
+        }
+      }
+    },
+    {
+      "id": "sasuke-taka",
+      "number": 7,
+      "character": "sasuke",
+      "name": "Sasuke Uchiha",
+      "title": "Sasuke Uchiha",
+      "form": "Taka / Hawk",
+      "formId": "taka",
+      "aliases": [
+        "Sasuke Uchiha",
+        "sasuke",
+        "Taka / Hawk"
+      ],
+      "designs": [
+        "nocturne"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "bandai-storm4-official",
+        "page": "https://naruto-game.bngames.net/character/07_02.html",
+        "image": "https://naruto-game.bngames.net/images/character/07_02/img_character.png",
+        "credit": "Bandai Namco Naruto Shippuden Ultimate Ninja Storm 4 official site",
+        "rights": "© Masashi Kishimoto / Shueisha, TV Tokyo, Pierrot; © Bandai Namco Entertainment Inc. All rights reserved.",
+        "usage": "reference-only",
+        "localPath": "artwork/naruto/sasuke-taka.png",
+        "sha256": "69b84ee361a3a1f37a004b622f0097885f0f07eaad2ffc3d79b33dc4a1effd9d",
+        "width": 770,
+        "height": 1500,
+        "artist": "Official Naruto: Ultimate Ninja STORM 4 game art"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          770,
+          1500
+        ],
+        "bottomPadding": 0.2,
+        "edgeFade": 0.006,
+        "bottomFade": 0.028,
+        "focal": [
+          0.5,
+          0.32
+        ],
+        "artworkPlacement": {
+          "nocturne": {
+            "x": 0,
+            "y": 28,
+            "width": 1000
+          }
+        }
+      }
+    },
+    {
+      "id": "sasuke-eternal-mangekyo",
+      "number": 8,
+      "character": "sasuke",
+      "name": "Sasuke Uchiha",
+      "title": "Sasuke Uchiha",
+      "form": "Eternal Mangekyō",
+      "formId": "eternal-mangekyo",
+      "aliases": [
+        "Sasuke Uchiha",
+        "sasuke",
+        "Eternal Mangekyō"
+      ],
+      "designs": [
+        "nocturne"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "bandai-storm4-official",
+        "page": "https://naruto-game.bngames.net/character/07_06.html",
+        "image": "https://naruto-game.bngames.net/images/character/07_06/img_character.png",
+        "credit": "Bandai Namco Naruto Shippuden Ultimate Ninja Storm 4 official site",
+        "rights": "© Masashi Kishimoto / Shueisha, TV Tokyo, Pierrot; © Bandai Namco Entertainment Inc. All rights reserved.",
+        "usage": "reference-only",
+        "localPath": "artwork/naruto/sasuke-eternal-mangekyo.png",
+        "sha256": "168be74c031321f8a8b21e15ba9ee1d514f5f35b79e503a477cebbd9aba85593",
+        "width": 770,
+        "height": 1500,
+        "artist": "Official Naruto: Ultimate Ninja STORM 4 game art"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          770,
+          1500
+        ],
+        "bottomPadding": 0.2,
+        "edgeFade": 0.006,
+        "bottomFade": 0.028,
+        "focal": [
+          0.5,
+          0.32
+        ],
+        "artworkPlacement": {
+          "nocturne": {
+            "x": 0,
+            "y": 28,
+            "width": 1000
+          }
+        }
+      }
+    },
+    {
+      "id": "sasuke-rinne-sharingan",
+      "number": 9,
+      "character": "sasuke",
+      "name": "Sasuke Uchiha",
+      "title": "Sasuke Uchiha",
+      "form": "Rinnegan / Six Paths",
+      "formId": "six-paths-rinnegan",
+      "aliases": [
+        "Sasuke Uchiha",
+        "sasuke",
+        "Rinnegan / Six Paths"
+      ],
+      "designs": [
+        "emberglass"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "bandai-storm4-official",
+        "page": "https://naruto-game.bngames.net/character/01_02.html",
+        "image": "https://naruto-game.bngames.net/images/character/01_02/img_character.png",
+        "credit": "Bandai Namco Naruto Shippuden Ultimate Ninja Storm 4 official site",
+        "rights": "© Masashi Kishimoto / Shueisha, TV Tokyo, Pierrot; © Bandai Namco Entertainment Inc. All rights reserved.",
+        "usage": "reference-only",
+        "localPath": "artwork/naruto/sasuke-rinne-sharingan.png",
+        "sha256": "b12a27b542515280a6f2f47c190fac7b4e18c1c6d552ad6ae39528395e827cc9",
+        "width": 770,
+        "height": 1500,
+        "artist": "Official Naruto: Ultimate Ninja STORM 4 game art"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          770,
+          1500
+        ],
+        "bottomPadding": 0.2,
+        "edgeFade": 0.006,
+        "bottomFade": 0.028,
+        "focal": [
+          0.5,
+          0.32
+        ],
+        "artworkPlacement": {
+          "emberglass": {
+            "x": 0,
+            "y": 28,
+            "width": 1000
+          }
+        }
+      }
+    },
+    {
+      "id": "sasuke-five-kage",
+      "number": 10,
+      "character": "sasuke",
+      "name": "Sasuke Uchiha",
+      "title": "Sasuke Uchiha",
+      "form": "Five Kage Summit",
+      "formId": "five-kage-summit",
+      "aliases": [
+        "Sasuke Uchiha",
+        "sasuke",
+        "Five Kage Summit"
+      ],
+      "designs": [
+        "nocturne"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "bandai-storm4-official",
+        "page": "https://naruto-game.bngames.net/character/07_07.html",
+        "image": "https://naruto-game.bngames.net/images/character/07_07/img_character.png",
+        "credit": "Bandai Namco Naruto Shippuden Ultimate Ninja Storm 4 official site",
+        "rights": "© Masashi Kishimoto / Shueisha, TV Tokyo, Pierrot; © Bandai Namco Entertainment Inc. All rights reserved.",
+        "usage": "reference-only",
+        "localPath": "artwork/naruto/sasuke-five-kage.png",
+        "sha256": "a8261745330de19e35d660bce1e34f8e542f40bd800afc29b19a2aae3e7e3a6a",
+        "width": 770,
+        "height": 1500,
+        "artist": "Official Naruto: Ultimate Ninja STORM 4 game art"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          770,
+          1500
+        ],
+        "bottomPadding": 0.2,
+        "edgeFade": 0.006,
+        "bottomFade": 0.028,
+        "focal": [
+          0.5,
+          0.32
+        ],
+        "artworkPlacement": {
+          "nocturne": {
+            "x": 0,
+            "y": 28,
+            "width": 1000
+          }
+        }
+      }
+    },
+    {
+      "id": "sakura-child",
+      "number": 11,
+      "character": "sakura",
+      "name": "Sakura Haruno",
+      "title": "Sakura Haruno",
+      "form": "Child / Part I",
+      "formId": "child",
+      "aliases": [
+        "Sakura Haruno",
+        "sakura",
+        "Child / Part I"
+      ],
+      "designs": [
+        "voltage"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "bandai-storm4-official",
+        "page": "https://naruto-game.bngames.net/character/09_14.html",
+        "image": "https://naruto-game.bngames.net/images/character/09_14/img_character.png",
+        "credit": "Bandai Namco Naruto Shippuden Ultimate Ninja Storm 4 official site",
+        "rights": "© Masashi Kishimoto / Shueisha, TV Tokyo, Pierrot; © Bandai Namco Entertainment Inc. All rights reserved.",
+        "usage": "reference-only",
+        "localPath": "artwork/naruto/sakura-child.png",
+        "sha256": "2c668e065dac9913412d045870b9147425ec9a88277835d5c75a8b1a233ec179",
+        "width": 770,
+        "height": 1500,
+        "artist": "Official Naruto: Ultimate Ninja STORM 4 game art"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          770,
+          1500
+        ],
+        "bottomPadding": 0.2,
+        "edgeFade": 0.006,
+        "bottomFade": 0.028,
+        "focal": [
+          0.5,
+          0.32
+        ],
+        "artworkPlacement": {
+          "voltage": {
+            "x": 0,
+            "y": 28,
+            "width": 1000
+          }
+        }
+      }
+    },
+    {
+      "id": "kakashi-jonin",
+      "number": 12,
+      "character": "kakashi",
+      "name": "Kakashi Hatake",
+      "title": "Kakashi Hatake",
+      "form": "Jōnin / Sharingan",
+      "formId": "jonin",
+      "aliases": [
+        "Kakashi Hatake",
+        "kakashi",
+        "Jōnin / Sharingan"
+      ],
+      "designs": [
+        "nocturne"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "bandai-storm4-official",
+        "page": "https://naruto-game.bngames.net/character/02_03.html",
+        "image": "https://naruto-game.bngames.net/images/character/02_03/img_character.png",
+        "credit": "Bandai Namco Naruto Shippuden Ultimate Ninja Storm 4 official site",
+        "rights": "© Masashi Kishimoto / Shueisha, TV Tokyo, Pierrot; © Bandai Namco Entertainment Inc. All rights reserved.",
+        "usage": "reference-only",
+        "localPath": "artwork/naruto/kakashi-jonin.png",
+        "sha256": "779c8e7f8ef99e1d377f51de4fa03c1acbb5c1277b984b462e57c75e6a0fbbdd",
+        "width": 770,
+        "height": 1500,
+        "artist": "Official Naruto: Ultimate Ninja STORM 4 game art"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          770,
+          1500
+        ],
+        "bottomPadding": 0.2,
+        "edgeFade": 0.006,
+        "bottomFade": 0.028,
+        "focal": [
+          0.5,
+          0.32
+        ],
+        "artworkPlacement": {
+          "nocturne": {
+            "x": 0,
+            "y": 28,
+            "width": 1000
+          }
+        }
+      }
+    },
+    {
+      "id": "kakashi-child",
+      "number": 13,
+      "character": "kakashi",
+      "name": "Kakashi Hatake",
+      "title": "Kakashi Hatake",
+      "form": "Young shinobi",
+      "formId": "child",
+      "aliases": [
+        "Kakashi Hatake",
+        "kakashi",
+        "Young shinobi"
+      ],
+      "designs": [
+        "crimson"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "bandai-storm4-official",
+        "page": "https://naruto-game.bngames.net/character/02_25.html",
+        "image": "https://naruto-game.bngames.net/images/character/02_25/img_character.png",
+        "credit": "Bandai Namco Naruto Shippuden Ultimate Ninja Storm 4 official site",
+        "rights": "© Masashi Kishimoto / Shueisha, TV Tokyo, Pierrot; © Bandai Namco Entertainment Inc. All rights reserved.",
+        "usage": "reference-only",
+        "localPath": "artwork/naruto/kakashi-child.png",
+        "sha256": "9cf0edd4d3a16b188da9b998e1db0093da3e113d21cdd46cf8b8914e4c5a98ae",
+        "width": 770,
+        "height": 1500,
+        "artist": "Official Naruto: Ultimate Ninja STORM 4 game art"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          770,
+          1500
+        ],
+        "bottomPadding": 0.2,
+        "edgeFade": 0.006,
+        "bottomFade": 0.028,
+        "focal": [
+          0.5,
+          0.32
+        ],
+        "artworkPlacement": {
+          "crimson": {
+            "x": 0,
+            "y": 28,
+            "width": 1000
+          }
+        }
+      }
+    },
+    {
+      "id": "itachi-akatsuki",
+      "number": 14,
+      "character": "itachi",
+      "name": "Itachi Uchiha",
+      "title": "Itachi Uchiha",
+      "form": "Akatsuki",
+      "formId": "akatsuki",
+      "aliases": [
+        "Itachi Uchiha",
+        "itachi",
+        "Akatsuki"
+      ],
+      "designs": [
+        "nocturne"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "bandai-storm4-official",
+        "page": "https://naruto-game.bngames.net/character/08_11.html",
+        "image": "https://naruto-game.bngames.net/images/character/08_11/img_character.png",
+        "credit": "Bandai Namco Naruto Shippuden Ultimate Ninja Storm 4 official site",
+        "rights": "© Masashi Kishimoto / Shueisha, TV Tokyo, Pierrot; © Bandai Namco Entertainment Inc. All rights reserved.",
+        "usage": "reference-only",
+        "localPath": "artwork/naruto/itachi-akatsuki.png",
+        "sha256": "464b58f6a67c263da1154d1ad58f11988fe87cc6218a300cc9a490ac0dfe9c9c",
+        "width": 770,
+        "height": 1500,
+        "artist": "Official Naruto: Ultimate Ninja STORM 4 game art"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          770,
+          1500
+        ],
+        "bottomPadding": 0.2,
+        "edgeFade": 0.006,
+        "bottomFade": 0.028,
+        "focal": [
+          0.5,
+          0.32
+        ],
+        "artworkPlacement": {
+          "nocturne": {
+            "x": 0,
+            "y": 28,
+            "width": 1000
+          }
+        }
+      }
+    },
+    {
+      "id": "madara-war",
+      "number": 15,
+      "character": "madara",
+      "name": "Madara Uchiha",
+      "title": "Madara Uchiha",
+      "form": "Living / war-era",
+      "formId": "war",
+      "aliases": [
+        "Madara Uchiha",
+        "madara",
+        "Living / war-era"
+      ],
+      "designs": [
+        "emberglass"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "bandai-storm4-official",
+        "page": "https://naruto-game.bngames.net/character/08_08.html",
+        "image": "https://naruto-game.bngames.net/images/character/08_08/img_character.png",
+        "credit": "Bandai Namco Naruto Shippuden Ultimate Ninja Storm 4 official site",
+        "rights": "© Masashi Kishimoto / Shueisha, TV Tokyo, Pierrot; © Bandai Namco Entertainment Inc. All rights reserved.",
+        "usage": "reference-only",
+        "localPath": "artwork/naruto/madara-war.png",
+        "sha256": "2dbad30790959902f317801169c6fda276390e93233690c5a59bf1fba4248c95",
+        "width": 770,
+        "height": 1500,
+        "artist": "Official Naruto: Ultimate Ninja STORM 4 game art"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          770,
+          1500
+        ],
+        "bottomPadding": 0.2,
+        "edgeFade": 0.006,
+        "bottomFade": 0.028,
+        "focal": [
+          0.5,
+          0.32
+        ],
+        "artworkPlacement": {
+          "emberglass": {
+            "x": 0,
+            "y": 28,
+            "width": 1000
+          }
+        }
+      }
+    },
+    {
+      "id": "madara-edo",
+      "number": 16,
+      "character": "madara",
+      "name": "Madara Uchiha",
+      "title": "Madara Uchiha",
+      "form": "Reanimated / Edo Tensei",
+      "formId": "edo-tensei",
+      "aliases": [
+        "Madara Uchiha",
+        "madara",
+        "Reanimated / Edo Tensei"
+      ],
+      "designs": [
+        "emberglass"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "bandai-storm4-official",
+        "page": "https://naruto-game.bngames.net/character/10_20.html",
+        "image": "https://naruto-game.bngames.net/images/character/10_20/img_character.png",
+        "credit": "Bandai Namco Naruto Shippuden Ultimate Ninja Storm 4 official site",
+        "rights": "© Masashi Kishimoto / Shueisha, TV Tokyo, Pierrot; © Bandai Namco Entertainment Inc. All rights reserved.",
+        "usage": "reference-only",
+        "localPath": "artwork/naruto/madara-edo.png",
+        "sha256": "291b0e87c72245f5dcf91a373bc1c356637c87283b4022e38f81ddf202e3c6d7",
+        "width": 770,
+        "height": 1500,
+        "artist": "Official Naruto: Ultimate Ninja STORM 4 game art"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          770,
+          1500
+        ],
+        "bottomPadding": 0.2,
+        "edgeFade": 0.006,
+        "bottomFade": 0.028,
+        "focal": [
+          0.5,
+          0.32
+        ],
+        "artworkPlacement": {
+          "emberglass": {
+            "x": 0,
+            "y": 28,
+            "width": 1000
+          }
+        }
+      }
+    },
+    {
+      "id": "obito-war",
+      "number": 17,
+      "character": "obito",
+      "name": "Obito Uchiha",
+      "title": "Obito Uchiha",
+      "form": "Fourth Shinobi War",
+      "formId": "war",
+      "aliases": [
+        "Obito Uchiha",
+        "obito",
+        "Fourth Shinobi War"
+      ],
+      "designs": [
+        "nocturne"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "bandai-storm4-official",
+        "page": "https://naruto-game.bngames.net/character/10_24.html",
+        "image": "https://naruto-game.bngames.net/images/character/10_24/img_character.png",
+        "credit": "Bandai Namco Naruto Shippuden Ultimate Ninja Storm 4 official site",
+        "rights": "© Masashi Kishimoto / Shueisha, TV Tokyo, Pierrot; © Bandai Namco Entertainment Inc. All rights reserved.",
+        "usage": "reference-only",
+        "localPath": "artwork/naruto/obito-war.png",
+        "sha256": "1217f179efe0c938a77701b1a732cc925c8d4caf2ac19a21ccf01c5c952f49d4",
+        "width": 770,
+        "height": 1500,
+        "artist": "Official Naruto: Ultimate Ninja STORM 4 game art"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          770,
+          1500
+        ],
+        "bottomPadding": 0.2,
+        "edgeFade": 0.006,
+        "bottomFade": 0.028,
+        "focal": [
+          0.5,
+          0.32
+        ],
+        "artworkPlacement": {
+          "nocturne": {
+            "x": 0,
+            "y": 28,
+            "width": 1000
+          }
+        }
+      }
+    },
+    {
+      "id": "hashirama-edo",
+      "number": 18,
+      "character": "hashirama",
+      "name": "Hashirama Senju",
+      "title": "Hashirama Senju",
+      "form": "Edo Tensei",
+      "formId": "edo-tensei",
+      "aliases": [
+        "Hashirama Senju",
+        "hashirama",
+        "Edo Tensei"
+      ],
+      "designs": [
+        "emberglass"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "bandai-storm4-official",
+        "page": "https://naruto-game.bngames.net/character/10_21.html",
+        "image": "https://naruto-game.bngames.net/images/character/10_21/img_character.png",
+        "credit": "Bandai Namco Naruto Shippuden Ultimate Ninja Storm 4 official site",
+        "rights": "© Masashi Kishimoto / Shueisha, TV Tokyo, Pierrot; © Bandai Namco Entertainment Inc. All rights reserved.",
+        "usage": "reference-only",
+        "localPath": "artwork/naruto/hashirama-edo.png",
+        "sha256": "1ae1230ac0d7ad3d065cfe6d98e9fdf1cd2e96f6d2afb27fe94d18680d652e2b",
+        "width": 770,
+        "height": 1500,
+        "artist": "Official Naruto: Ultimate Ninja STORM 4 game art"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          770,
+          1500
+        ],
+        "bottomPadding": 0.2,
+        "edgeFade": 0.006,
+        "bottomFade": 0.028,
+        "focal": [
+          0.5,
+          0.32
+        ],
+        "artworkPlacement": {
+          "emberglass": {
+            "x": 0,
+            "y": 28,
+            "width": 1000
+          }
+        }
+      }
+    },
+    {
+      "id": "minato-hokage",
+      "number": 19,
+      "character": "minato",
+      "name": "Minato Namikaze",
+      "title": "Minato Namikaze",
+      "form": "Fourth Hokage",
+      "formId": "hokage",
+      "aliases": [
+        "Minato Namikaze",
+        "minato",
+        "Fourth Hokage"
+      ],
+      "designs": [
+        "nocturne"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "bandai-storm4-official",
+        "page": "https://naruto-game.bngames.net/character/02_20.html",
+        "image": "https://naruto-game.bngames.net/images/character/02_20/img_character.png",
+        "credit": "Bandai Namco Naruto Shippuden Ultimate Ninja Storm 4 official site",
+        "rights": "© Masashi Kishimoto / Shueisha, TV Tokyo, Pierrot; © Bandai Namco Entertainment Inc. All rights reserved.",
+        "usage": "reference-only",
+        "localPath": "artwork/naruto/minato-hokage.png",
+        "sha256": "32821704baea5bf60f1a981b4da8beb03509ed39ae72ea1b12ad6c1efeb84e96",
+        "width": 770,
+        "height": 1500,
+        "artist": "Official Naruto: Ultimate Ninja STORM 4 game art"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          770,
+          1500
+        ],
+        "bottomPadding": 0.2,
+        "edgeFade": 0.006,
+        "bottomFade": 0.028,
+        "focal": [
+          0.5,
+          0.32
+        ],
+        "artworkPlacement": {
+          "nocturne": {
+            "x": 0,
+            "y": 28,
+            "width": 1000
+          }
+        }
+      }
+    },
+    {
+      "id": "neji-shippuden",
+      "number": 20,
+      "character": "neji",
+      "name": "Neji Hyūga",
+      "title": "Neji Hyūga",
+      "form": "Shippuden / Byakugan",
+      "formId": "shippuden",
+      "aliases": [
+        "Neji Hyūga",
+        "neji",
+        "Shippuden / Byakugan"
+      ],
+      "designs": [
+        "tidelight"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "bandai-storm4-official",
+        "page": "https://naruto-game.bngames.net/character/02_07.html",
+        "image": "https://naruto-game.bngames.net/images/character/02_07/img_character.png",
+        "credit": "Bandai Namco Naruto Shippuden Ultimate Ninja Storm 4 official site",
+        "rights": "© Masashi Kishimoto / Shueisha, TV Tokyo, Pierrot; © Bandai Namco Entertainment Inc. All rights reserved.",
+        "usage": "reference-only",
+        "localPath": "artwork/naruto/neji-shippuden.png",
+        "sha256": "94f9489d89dd7ca6eeb678fcfc9f919c3c992eac167641f82fd5533ce8010694",
+        "width": 770,
+        "height": 1500,
+        "artist": "Official Naruto: Ultimate Ninja STORM 4 game art"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          770,
+          1500
+        ],
+        "bottomPadding": 0.2,
+        "edgeFade": 0.006,
+        "bottomFade": 0.028,
+        "focal": [
+          0.5,
+          0.32
+        ],
+        "artworkPlacement": {
+          "tidelight": {
+            "x": 0,
+            "y": 28,
+            "width": 1000
+          }
+        }
+      }
+    },
+    {
+      "id": "neji-child",
+      "number": 21,
+      "character": "neji",
+      "name": "Neji Hyūga",
+      "title": "Neji Hyūga",
+      "form": "Child / Part I",
+      "formId": "child",
+      "aliases": [
+        "Neji Hyūga",
+        "neji",
+        "Child / Part I"
+      ],
+      "designs": [
+        "crimson"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "bandai-storm4-official",
+        "page": "https://naruto-game.bngames.net/character/09_01.html",
+        "image": "https://naruto-game.bngames.net/images/character/09_01/img_character.png",
+        "credit": "Bandai Namco Naruto Shippuden Ultimate Ninja Storm 4 official site",
+        "rights": "© Masashi Kishimoto / Shueisha, TV Tokyo, Pierrot; © Bandai Namco Entertainment Inc. All rights reserved.",
+        "usage": "reference-only",
+        "localPath": "artwork/naruto/neji-child.png",
+        "sha256": "2fdb0729149d555ed3d34e3a4bdfd6571835319a65624fe1e2dc6cbfd89e5fc4",
+        "width": 770,
+        "height": 1500,
+        "artist": "Official Naruto: Ultimate Ninja STORM 4 game art"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          770,
+          1500
+        ],
+        "bottomPadding": 0.2,
+        "edgeFade": 0.006,
+        "bottomFade": 0.028,
+        "focal": [
+          0.5,
+          0.32
+        ],
+        "artworkPlacement": {
+          "crimson": {
+            "x": 0,
+            "y": 28,
+            "width": 1000
+          }
+        }
+      }
+    },
+    {
+      "id": "hinata-shippuden",
+      "number": 22,
+      "character": "hinata",
+      "name": "Hinata Hyūga",
+      "title": "Hinata Hyūga",
+      "form": "Shippuden / Byakugan",
+      "formId": "shippuden",
+      "aliases": [
+        "Hinata Hyūga",
+        "hinata",
+        "Shippuden / Byakugan"
+      ],
+      "designs": [
+        "crimson"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "bandai-storm4-official",
+        "page": "https://naruto-game.bngames.net/character/02_08.html",
+        "image": "https://naruto-game.bngames.net/images/character/02_08/img_character.png",
+        "credit": "Bandai Namco Naruto Shippuden Ultimate Ninja Storm 4 official site",
+        "rights": "© Masashi Kishimoto / Shueisha, TV Tokyo, Pierrot; © Bandai Namco Entertainment Inc. All rights reserved.",
+        "usage": "reference-only",
+        "localPath": "artwork/naruto/hinata-shippuden.png",
+        "sha256": "632e6dfd8567f399525441d3aa3d12109c60e5a1960447888e82ba9c720f4b23",
+        "width": 770,
+        "height": 1500,
+        "artist": "Official Naruto: Ultimate Ninja STORM 4 game art"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          770,
+          1500
+        ],
+        "bottomPadding": 0.2,
+        "edgeFade": 0.006,
+        "bottomFade": 0.028,
+        "focal": [
+          0.5,
+          0.32
+        ],
+        "artworkPlacement": {
+          "crimson": {
+            "x": 0,
+            "y": 28,
+            "width": 1000
+          }
+        }
+      }
+    },
+    {
+      "id": "hinata-child",
+      "number": 23,
+      "character": "hinata",
+      "name": "Hinata Hyūga",
+      "title": "Hinata Hyūga",
+      "form": "Child / Part I",
+      "formId": "child",
+      "aliases": [
+        "Hinata Hyūga",
+        "hinata",
+        "Child / Part I"
+      ],
+      "designs": [
+        "voltage"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "bandai-storm4-official",
+        "page": "https://naruto-game.bngames.net/character/09_04.html",
+        "image": "https://naruto-game.bngames.net/images/character/09_04/img_character.png",
+        "credit": "Bandai Namco Naruto Shippuden Ultimate Ninja Storm 4 official site",
+        "rights": "© Masashi Kishimoto / Shueisha, TV Tokyo, Pierrot; © Bandai Namco Entertainment Inc. All rights reserved.",
+        "usage": "reference-only",
+        "localPath": "artwork/naruto/hinata-child.png",
+        "sha256": "c90946669632133d395b6015ca06a4125de3606d9fea64810df65aa48308b03e",
+        "width": 770,
+        "height": 1500,
+        "artist": "Official Naruto: Ultimate Ninja STORM 4 game art"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          770,
+          1500
+        ],
+        "bottomPadding": 0.2,
+        "edgeFade": 0.006,
+        "bottomFade": 0.028,
+        "focal": [
+          0.5,
+          0.32
+        ],
+        "artworkPlacement": {
+          "voltage": {
+            "x": 0,
+            "y": 28,
+            "width": 1000
+          }
+        }
+      }
+    },
+    {
+      "id": "shisui-uchiha",
+      "number": 24,
+      "character": "shisui",
+      "name": "Shisui Uchiha",
+      "title": "Shisui Uchiha",
+      "form": "Uchiha / Mangekyō",
+      "formId": "mangekyo",
+      "aliases": [
+        "Shisui Uchiha",
+        "shisui",
+        "Uchiha / Mangekyō"
+      ],
+      "designs": [
+        "nocturne"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "bandai-storm4-official",
+        "page": "https://naruto-game.bngames.net/character/02_22.html",
+        "image": "https://naruto-game.bngames.net/images/character/02_22/img_character.png",
+        "credit": "Bandai Namco Naruto Shippuden Ultimate Ninja Storm 4 official site",
+        "rights": "© Masashi Kishimoto / Shueisha, TV Tokyo, Pierrot; © Bandai Namco Entertainment Inc. All rights reserved.",
+        "usage": "reference-only",
+        "localPath": "artwork/naruto/shisui-uchiha.png",
+        "sha256": "50b6d22e950a5e1912455ff3ee34444ba1848c84f1aa6ab8530f734063fdd8a1",
+        "width": 770,
+        "height": 1500,
+        "artist": "Official Naruto: Ultimate Ninja STORM 4 game art"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          770,
+          1500
+        ],
+        "bottomPadding": 0.2,
+        "edgeFade": 0.006,
+        "bottomFade": 0.028,
+        "focal": [
+          0.5,
+          0.32
+        ],
+        "artworkPlacement": {
+          "nocturne": {
+            "x": 0,
+            "y": 28,
+            "width": 1000
+          }
+        }
+      }
+    },
+    {
+      "id": "gaara-shippuden",
+      "number": 25,
+      "character": "gaara",
+      "name": "Gaara",
+      "title": "Gaara",
+      "form": "Kazekage",
+      "formId": "kazekage",
+      "aliases": [
+        "Gaara",
+        "gaara",
+        "Kazekage"
+      ],
+      "designs": [
+        "nocturne"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "bandai-storm4-official",
+        "page": "https://naruto-game.bngames.net/character/03_03.html",
+        "image": "https://naruto-game.bngames.net/images/character/03_03/img_character.png",
+        "credit": "Bandai Namco Naruto Shippuden Ultimate Ninja Storm 4 official site",
+        "rights": "© Masashi Kishimoto / Shueisha, TV Tokyo, Pierrot; © Bandai Namco Entertainment Inc. All rights reserved.",
+        "usage": "reference-only",
+        "localPath": "artwork/naruto/gaara-shippuden.png",
+        "sha256": "3818636356885507f1e2f28c02fa61d38813bb02e6dda86413e5b44015909fac",
+        "width": 770,
+        "height": 1500,
+        "artist": "Official Naruto: Ultimate Ninja STORM 4 game art"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          770,
+          1500
+        ],
+        "bottomPadding": 0.2,
+        "edgeFade": 0.006,
+        "bottomFade": 0.028,
+        "focal": [
+          0.5,
+          0.32
+        ],
+        "artworkPlacement": {
+          "nocturne": {
+            "x": 0,
+            "y": 28,
+            "width": 1000
+          }
+        }
+      }
+    },
+    {
+      "id": "gaara-child",
+      "number": 26,
+      "character": "gaara",
+      "name": "Gaara",
+      "title": "Gaara",
+      "form": "Child / Jinchūriki",
+      "formId": "child",
+      "aliases": [
+        "Gaara",
+        "gaara",
+        "Child / Jinchūriki"
+      ],
+      "designs": [
+        "tidelight"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "bandai-storm4-official",
+        "page": "https://naruto-game.bngames.net/character/09_06.html",
+        "image": "https://naruto-game.bngames.net/images/character/09_06/img_character.png",
+        "credit": "Bandai Namco Naruto Shippuden Ultimate Ninja Storm 4 official site",
+        "rights": "© Masashi Kishimoto / Shueisha, TV Tokyo, Pierrot; © Bandai Namco Entertainment Inc. All rights reserved.",
+        "usage": "reference-only",
+        "localPath": "artwork/naruto/gaara-child.png",
+        "sha256": "c72f830f68092d85dd05bd6a3934b772cbdf73f180bfc8778e58981f375ee972",
+        "width": 770,
+        "height": 1500,
+        "artist": "Official Naruto: Ultimate Ninja STORM 4 game art"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          770,
+          1500
+        ],
+        "bottomPadding": 0.2,
+        "edgeFade": 0.006,
+        "bottomFade": 0.028,
+        "focal": [
+          0.5,
+          0.32
+        ],
+        "artworkPlacement": {
+          "tidelight": {
+            "x": 0,
+            "y": 28,
+            "width": 1000
+          }
+        }
+      }
+    },
+    {
+      "id": "tsunade-hokage",
+      "number": 27,
+      "character": "tsunade",
+      "name": "Tsunade",
+      "title": "Tsunade",
+      "form": "Fifth Hokage",
+      "formId": "hokage",
+      "aliases": [
+        "Tsunade",
+        "tsunade",
+        "Fifth Hokage"
+      ],
+      "designs": [
+        "nocturne"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "bandai-storm4-official",
+        "page": "https://naruto-game.bngames.net/character/02_24.html",
+        "image": "https://naruto-game.bngames.net/images/character/02_24/img_character.png",
+        "credit": "Bandai Namco Naruto Shippuden Ultimate Ninja Storm 4 official site",
+        "rights": "© Masashi Kishimoto / Shueisha, TV Tokyo, Pierrot; © Bandai Namco Entertainment Inc. All rights reserved.",
+        "usage": "reference-only",
+        "localPath": "artwork/naruto/tsunade-hokage.png",
+        "sha256": "396326deb0052d72b66eba14b091d3f66ecb2a5eec8a8dfed3660b5e5269dc65",
+        "width": 770,
+        "height": 1500,
+        "artist": "Official Naruto: Ultimate Ninja STORM 4 game art"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          770,
+          1500
+        ],
+        "bottomPadding": 0.2,
+        "edgeFade": 0.006,
+        "bottomFade": 0.028,
+        "focal": [
+          0.5,
+          0.32
+        ],
+        "artworkPlacement": {
+          "nocturne": {
+            "x": 0,
+            "y": 28,
+            "width": 1000
+          }
+        }
+      }
+    },
+    {
+      "id": "pain-deva",
+      "number": 28,
+      "character": "pain",
+      "name": "Pain",
+      "title": "Pain",
+      "form": "Deva Path / Six Paths",
+      "formId": "deva-path",
+      "aliases": [
+        "Pain",
+        "pain",
+        "Deva Path / Six Paths"
+      ],
+      "designs": [
+        "nocturne"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "bandai-storm4-official",
+        "page": "https://naruto-game.bngames.net/character/08_06.html",
+        "image": "https://naruto-game.bngames.net/images/character/08_06/img_character.png",
+        "credit": "Bandai Namco Naruto Shippuden Ultimate Ninja Storm 4 official site",
+        "rights": "© Masashi Kishimoto / Shueisha, TV Tokyo, Pierrot; © Bandai Namco Entertainment Inc. All rights reserved.",
+        "usage": "reference-only",
+        "localPath": "artwork/naruto/pain-deva.png",
+        "sha256": "81d3cb45cdbf18b0824d3fcbef053035bff9bd856de8766e47f7f0cc49fa7fc2",
+        "width": 770,
+        "height": 1500,
+        "artist": "Official Naruto: Ultimate Ninja STORM 4 game art"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          770,
+          1500
+        ],
+        "bottomPadding": 0.2,
+        "edgeFade": 0.006,
+        "bottomFade": 0.028,
+        "focal": [
+          0.5,
+          0.32
+        ],
+        "artworkPlacement": {
+          "nocturne": {
+            "x": 0,
+            "y": 28,
+            "width": 1000
+          }
+        }
+      }
+    },
+    {
+      "id": "sarada-shinobi",
+      "number": 29,
+      "character": "sarada",
+      "name": "Sarada Uchiha",
+      "title": "Sarada Uchiha",
+      "form": "Boruto / young shinobi",
+      "formId": "young-shinobi",
+      "aliases": [
+        "Sarada Uchiha",
+        "sarada",
+        "Boruto / young shinobi"
+      ],
+      "designs": [
+        "crimson"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "bandai-storm4-official",
+        "page": "https://naruto-game.bngames.net/character/01_11.html",
+        "image": "https://naruto-game.bngames.net/images/character/01_11/img_character.png",
+        "credit": "Bandai Namco Naruto Shippuden Ultimate Ninja Storm 4 official site",
+        "rights": "© Masashi Kishimoto / Shueisha, TV Tokyo, Pierrot; © Bandai Namco Entertainment Inc. All rights reserved.",
+        "usage": "reference-only",
+        "localPath": "artwork/naruto/sarada-shinobi.png",
+        "sha256": "b9a4a41ba657e843a1d552082a070fb12529c1f7a99f1da992d1231f2a59469e",
+        "width": 770,
+        "height": 1500,
+        "artist": "Official Naruto: Ultimate Ninja STORM 4 game art"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          770,
+          1500
+        ],
+        "bottomPadding": 0.2,
+        "edgeFade": 0.006,
+        "bottomFade": 0.028,
+        "focal": [
+          0.5,
+          0.32
+        ],
+        "artworkPlacement": {
+          "crimson": {
+            "x": 0,
+            "y": 28,
+            "width": 1000
+          }
+        }
+      }
+    }
+  ],
+  "pendingForms": [
+    {
+      "id": "naruto-sage-mode",
+      "character": "naruto",
+      "form": "sage-mode",
+      "status": "pending-art",
+      "reason": "Requires independent verified official source cutout and form-specific feat assessment. Never relabel an existing portrait."
+    },
+    {
+      "id": "naruto-kcm1",
+      "character": "naruto",
+      "form": "kcm1",
+      "status": "pending-art",
+      "reason": "Requires independent verified official source cutout and form-specific feat assessment. Never relabel an existing portrait."
+    },
+    {
+      "id": "naruto-kcm2",
+      "character": "naruto",
+      "form": "kcm2",
+      "status": "pending-art",
+      "reason": "Requires independent verified official source cutout and form-specific feat assessment. Never relabel an existing portrait."
+    },
+    {
+      "id": "naruto-kurama-avatar",
+      "character": "naruto",
+      "form": "kurama-avatar",
+      "status": "pending-art",
+      "reason": "Requires independent verified official source cutout and form-specific feat assessment. Never relabel an existing portrait."
+    },
+    {
+      "id": "naruto-baryon-mode",
+      "character": "naruto",
+      "form": "baryon-mode",
+      "status": "pending-art",
+      "reason": "Requires independent verified official source cutout and form-specific feat assessment. Never relabel an existing portrait."
+    },
+    {
+      "id": "naruto-hokage-boruto",
+      "character": "naruto",
+      "form": "hokage-boruto",
+      "status": "pending-art",
+      "reason": "Requires independent verified official source cutout and form-specific feat assessment. Never relabel an existing portrait."
+    },
+    {
+      "id": "sasuke-complete-susanoo",
+      "character": "sasuke",
+      "form": "complete-susanoo",
+      "status": "pending-art",
+      "reason": "Requires independent verified official source cutout and form-specific feat assessment. Never relabel an existing portrait."
+    },
+    {
+      "id": "kakashi-double-mangekyo",
+      "character": "kakashi",
+      "form": "double-mangekyo",
+      "status": "pending-art",
+      "reason": "Requires independent verified official source cutout and form-specific feat assessment. Never relabel an existing portrait."
+    },
+    {
+      "id": "madara-ten-tails",
+      "character": "madara",
+      "form": "ten-tails",
+      "status": "pending-art",
+      "reason": "Requires independent verified official source cutout and form-specific feat assessment. Never relabel an existing portrait."
+    },
+    {
+      "id": "obito-ten-tails",
+      "character": "obito",
+      "form": "ten-tails",
+      "status": "pending-art",
+      "reason": "Requires independent verified official source cutout and form-specific feat assessment. Never relabel an existing portrait."
+    },
+    {
+      "id": "kaguya-rabbit-goddess",
+      "character": "kaguya",
+      "form": "rabbit-goddess",
+      "status": "pending-art",
+      "reason": "Requires independent verified official source cutout and form-specific feat assessment. Never relabel an existing portrait."
+    },
+    {
+      "id": "jigen-karma",
+      "character": "jigen",
+      "form": "karma",
+      "status": "pending-art",
+      "reason": "Requires independent verified official source cutout and form-specific feat assessment. Never relabel an existing portrait."
+    },
+    {
+      "id": "isshiki-otsutsuki",
+      "character": "isshiki",
+      "form": "awakened",
+      "status": "pending-art",
+      "reason": "Requires independent verified official source cutout and form-specific feat assessment. Never relabel an existing portrait."
+    },
+    {
+      "id": "boruto-karma",
+      "character": "boruto",
+      "form": "karma",
+      "status": "pending-art",
+      "reason": "Requires independent verified official source cutout and form-specific feat assessment. Never relabel an existing portrait."
+    },
+    {
+      "id": "kawaki-karma",
+      "character": "kawaki",
+      "form": "karma",
+      "status": "pending-art",
+      "reason": "Requires independent verified official source cutout and form-specific feat assessment. Never relabel an existing portrait."
+    },
+    {
+      "id": "sarada-two-blue-vortex",
+      "character": "sarada",
+      "form": "two-blue-vortex",
+      "status": "pending-art",
+      "reason": "Requires independent verified official source cutout and form-specific feat assessment. Never relabel an existing portrait."
+    }
+  ]
+}

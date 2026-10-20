@@ -1,0 +1,715 @@
+{
+  "version": 1,
+  "series": "naruto",
+  "universe": "naruto",
+  "scope": "in-universe",
+  "scale": "night-universe-power-v1",
+  "status": "editorial-proposal",
+  "notes": "Tentative form-specific ranks. Cross-universe calibration with BLEACH/Solo Leveling is required before approval.",
+  "assessments": {
+    "naruto-child": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "C",
+      "formId": "child",
+      "artworkSHA256": "bf5436a7cbf62b908ea70ef7a950a3b3e17c05fe10fba7a8ae3fbdf8b4c3b826",
+      "scope": "Naruto Uzumaki — Child / Part I",
+      "basis": "Shadow-clone combat and emerging jinchūriki chakra.",
+      "limits": "No later sage, tailed-beast or Six Paths powers.",
+      "references": [
+        "https://naruto-game.bngames.net/character/09_02.html",
+        "https://naruto-game.bngames.net/images/character/09_02/img_character.png"
+      ],
+      "universe": "naruto",
+      "continuity": "naruto-storm4"
+    },
+    "naruto-shippuden": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "B",
+      "formId": "shippuden",
+      "artworkSHA256": "7f0fcc296ae45695081dff0f22674f929713ee6ae6aad545ded4123e08814231",
+      "scope": "Naruto Uzumaki — Shippuden / standard",
+      "basis": "Rasengan, shadow clones and improved taijutsu.",
+      "limits": "Art is ordinary Shippuden Naruto, not Sage Mode or KCM.",
+      "references": [
+        "https://naruto-game.bngames.net/character/02_01.html",
+        "https://naruto-game.bngames.net/images/character/02_01/img_character.png"
+      ],
+      "universe": "naruto",
+      "continuity": "naruto-storm4"
+    },
+    "naruto-six-paths": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "S",
+      "formId": "six-paths",
+      "artworkSHA256": "8a3e0097062532d51a8b63473db33ccb04528170c9fa53e5448b757e5e4cb867",
+      "scope": "Naruto Uzumaki — Six Paths Sage Mode",
+      "basis": "Six Paths chakra and Truth-Seeking Orbs dramatically extend his combat options.",
+      "limits": "Not Baryon Mode, which belongs to later Boruto continuity.",
+      "references": [
+        "https://naruto-game.bngames.net/character/01_01.html",
+        "https://naruto-game.bngames.net/images/character/01_01/img_character.png"
+      ],
+      "universe": "naruto",
+      "continuity": "naruto-storm4"
+    },
+    "naruto-the-last": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "S",
+      "formId": "the-last",
+      "artworkSHA256": "12bdb82f2541d885f820e3b89613e526eeb3fd235b9080361ff033c2ef1a5e59",
+      "scope": "Naruto Uzumaki — The Last",
+      "basis": "Late-series mastery following the Fourth Shinobi War.",
+      "limits": "Costume art does not establish use of an unseen transformation.",
+      "references": [
+        "https://naruto-game.bngames.net/character/01_07.html",
+        "https://naruto-game.bngames.net/images/character/01_07/img_character.png"
+      ],
+      "universe": "naruto",
+      "continuity": "naruto-storm4"
+    },
+    "sasuke-child": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "C",
+      "formId": "child",
+      "artworkSHA256": "e58d9ddf4d9a36279a45c9731306d448877118484512a3509c621b1f935dc1c9",
+      "scope": "Sasuke Uchiha — Child / Part I",
+      "basis": "Sharingan, fire release and growing Chidori control.",
+      "limits": "No Mangekyō, Rinnegan, or advanced Susanoo.",
+      "references": [
+        "https://naruto-game.bngames.net/character/09_12.html",
+        "https://naruto-game.bngames.net/images/character/09_12/img_character.png"
+      ],
+      "universe": "naruto",
+      "continuity": "naruto-storm4"
+    },
+    "sasuke-shippuden": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "B",
+      "formId": "shippuden",
+      "artworkSHA256": "7b2d3cd49915b26c735b4758a913105927d4a0c395da4d00fa8b6f1f573786a7",
+      "scope": "Sasuke Uchiha — Shippuden / standard",
+      "basis": "Advanced speed, lightning release and sword combat.",
+      "limits": "Do not infer a later eye power from a general portrait.",
+      "references": [
+        "https://naruto-game.bngames.net/character/07_01.html",
+        "https://naruto-game.bngames.net/images/character/07_01/img_character.png"
+      ],
+      "universe": "naruto",
+      "continuity": "naruto-storm4"
+    },
+    "sasuke-taka": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "A",
+      "formId": "taka",
+      "artworkSHA256": "69b84ee361a3a1f37a004b622f0097885f0f07eaad2ffc3d79b33dc4a1effd9d",
+      "scope": "Sasuke Uchiha — Taka / Hawk",
+      "basis": "Strong Sharingan tactics and lethal close-range lightning techniques.",
+      "limits": "Version-specific equipment and eye abilities require checking.",
+      "references": [
+        "https://naruto-game.bngames.net/character/07_02.html",
+        "https://naruto-game.bngames.net/images/character/07_02/img_character.png"
+      ],
+      "universe": "naruto",
+      "continuity": "naruto-storm4"
+    },
+    "sasuke-eternal-mangekyo": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "A",
+      "formId": "eternal-mangekyo",
+      "artworkSHA256": "168be74c031321f8a8b21e15ba9ee1d514f5f35b79e503a477cebbd9aba85593",
+      "scope": "Sasuke Uchiha — Eternal Mangekyō",
+      "basis": "Amaterasu and Susanoo raise both offence and defence.",
+      "limits": "Not the later Six Paths Rinnegan state.",
+      "references": [
+        "https://naruto-game.bngames.net/character/07_06.html",
+        "https://naruto-game.bngames.net/images/character/07_06/img_character.png"
+      ],
+      "universe": "naruto",
+      "continuity": "naruto-storm4"
+    },
+    "sasuke-rinne-sharingan": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "S",
+      "formId": "six-paths-rinnegan",
+      "artworkSHA256": "b12a27b542515280a6f2f47c190fac7b4e18c1c6d552ad6ae39528395e827cc9",
+      "scope": "Sasuke Uchiha — Rinnegan / Six Paths",
+      "basis": "Six Paths ocular abilities, teleportation and advanced Susanoo.",
+      "limits": "Not a Boruto-era version or a claim of unlimited chakra.",
+      "references": [
+        "https://naruto-game.bngames.net/character/01_02.html",
+        "https://naruto-game.bngames.net/images/character/01_02/img_character.png"
+      ],
+      "universe": "naruto",
+      "continuity": "naruto-storm4"
+    },
+    "sasuke-five-kage": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "A",
+      "formId": "five-kage-summit",
+      "artworkSHA256": "a8261745330de19e35d660bce1e34f8e542f40bd800afc29b19a2aae3e7e3a6a",
+      "scope": "Sasuke Uchiha — Five Kage Summit",
+      "basis": "Mangekyō abilities and dangerous offensive ninjutsu.",
+      "limits": "Lacks future Eternal Mangekyō and Rinnegan abilities.",
+      "references": [
+        "https://naruto-game.bngames.net/character/07_07.html",
+        "https://naruto-game.bngames.net/images/character/07_07/img_character.png"
+      ],
+      "universe": "naruto",
+      "continuity": "naruto-storm4"
+    },
+    "sakura-child": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "D",
+      "formId": "child",
+      "artworkSHA256": "2c668e065dac9913412d045870b9147425ec9a88277835d5c75a8b1a233ec179",
+      "scope": "Sakura Haruno — Child / Part I",
+      "basis": "Precise chakra control and early shinobi training.",
+      "limits": "No later Byakugō seal release or war-era feats.",
+      "references": [
+        "https://naruto-game.bngames.net/character/09_14.html",
+        "https://naruto-game.bngames.net/images/character/09_14/img_character.png"
+      ],
+      "universe": "naruto",
+      "continuity": "naruto-storm4"
+    },
+    "kakashi-jonin": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "A",
+      "formId": "jonin",
+      "artworkSHA256": "779c8e7f8ef99e1d377f51de4fa03c1acbb5c1277b984b462e57c75e6a0fbbdd",
+      "scope": "Kakashi Hatake — Jōnin / Sharingan",
+      "basis": "Elite tactical versatility, lightning blade and Sharingan.",
+      "limits": "Not temporary Double Mangekyō Susanoo.",
+      "references": [
+        "https://naruto-game.bngames.net/character/02_03.html",
+        "https://naruto-game.bngames.net/images/character/02_03/img_character.png"
+      ],
+      "universe": "naruto",
+      "continuity": "naruto-storm4"
+    },
+    "kakashi-child": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "C",
+      "formId": "child",
+      "artworkSHA256": "9cf0edd4d3a16b188da9b998e1db0093da3e113d21cdd46cf8b8914e4c5a98ae",
+      "scope": "Kakashi Hatake — Young shinobi",
+      "basis": "Precocious ninja skill and early tactical talent.",
+      "limits": "Childhood portrayal is not his adult war-era strength.",
+      "references": [
+        "https://naruto-game.bngames.net/character/02_25.html",
+        "https://naruto-game.bngames.net/images/character/02_25/img_character.png"
+      ],
+      "universe": "naruto",
+      "continuity": "naruto-storm4"
+    },
+    "itachi-akatsuki": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "A",
+      "formId": "akatsuki",
+      "artworkSHA256": "464b58f6a67c263da1154d1ad58f11988fe87cc6218a300cc9a490ac0dfe9c9c",
+      "scope": "Itachi Uchiha — Akatsuki",
+      "basis": "Tsukuyomi, Amaterasu and Susanoo counterplay.",
+      "limits": "Illness, endurance and chakra costs remain meaningful.",
+      "references": [
+        "https://naruto-game.bngames.net/character/08_11.html",
+        "https://naruto-game.bngames.net/images/character/08_11/img_character.png"
+      ],
+      "universe": "naruto",
+      "continuity": "naruto-storm4"
+    },
+    "madara-war": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "S",
+      "formId": "war",
+      "artworkSHA256": "2dbad30790959902f317801169c6fda276390e93233690c5a59bf1fba4248c95",
+      "scope": "Madara Uchiha — Living / war-era",
+      "basis": "Exceptional ocular and battlefield control capabilities.",
+      "limits": "Not automatically Juubi-jinchūriki form.",
+      "references": [
+        "https://naruto-game.bngames.net/character/08_08.html",
+        "https://naruto-game.bngames.net/images/character/08_08/img_character.png"
+      ],
+      "universe": "naruto",
+      "continuity": "naruto-storm4"
+    },
+    "madara-edo": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "S",
+      "formId": "edo-tensei",
+      "artworkSHA256": "291b0e87c72245f5dcf91a373bc1c356637c87283b4022e38f81ddf202e3c6d7",
+      "scope": "Madara Uchiha — Reanimated / Edo Tensei",
+      "basis": "Immense chakra reserves and Edo Tensei regeneration.",
+      "limits": "Edo Tensei's reanimated body is distinct from both living Madara and his Ten-Tails jinchūriki state.",
+      "references": [
+        "https://naruto-game.bngames.net/character/10_20.html",
+        "https://naruto-game.bngames.net/images/character/10_20/img_character.png"
+      ],
+      "universe": "naruto",
+      "continuity": "naruto-storm4"
+    },
+    "obito-war": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "A",
+      "formId": "war",
+      "artworkSHA256": "1217f179efe0c938a77701b1a732cc925c8d4caf2ac19a21ccf01c5c952f49d4",
+      "scope": "Obito Uchiha — Fourth Shinobi War",
+      "basis": "Kamui phasing and powerful strategic versatility.",
+      "limits": "Artwork is not the Ten-Tails host transformation.",
+      "references": [
+        "https://naruto-game.bngames.net/character/10_24.html",
+        "https://naruto-game.bngames.net/images/character/10_24/img_character.png"
+      ],
+      "universe": "naruto",
+      "continuity": "naruto-storm4"
+    },
+    "hashirama-edo": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "S",
+      "formId": "edo-tensei",
+      "artworkSHA256": "1ae1230ac0d7ad3d065cfe6d98e9fdf1cd2e96f6d2afb27fe94d18680d652e2b",
+      "scope": "Hashirama Senju — Edo Tensei",
+      "basis": "Wood release, sage arts and enormous area control.",
+      "limits": "Edo state has distinct constraints from living prime.",
+      "references": [
+        "https://naruto-game.bngames.net/character/10_21.html",
+        "https://naruto-game.bngames.net/images/character/10_21/img_character.png"
+      ],
+      "universe": "naruto",
+      "continuity": "naruto-storm4"
+    },
+    "minato-hokage": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "A",
+      "formId": "hokage",
+      "artworkSHA256": "32821704baea5bf60f1a981b4da8beb03509ed39ae72ea1b12ad6c1efeb84e96",
+      "scope": "Minato Namikaze — Fourth Hokage",
+      "basis": "Flying Raijin, reflexes and Rasengan mastery.",
+      "limits": "Do not include Edo Kurama Chakra Mode without matching art.",
+      "references": [
+        "https://naruto-game.bngames.net/character/02_20.html",
+        "https://naruto-game.bngames.net/images/character/02_20/img_character.png"
+      ],
+      "universe": "naruto",
+      "continuity": "naruto-storm4"
+    },
+    "neji-shippuden": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "B",
+      "formId": "shippuden",
+      "artworkSHA256": "94f9489d89dd7ca6eeb678fcfc9f919c3c992eac167641f82fd5533ce8010694",
+      "scope": "Neji Hyūga — Shippuden / Byakugan",
+      "basis": "Gentle Fist chakra-point attacks and near-total defence.",
+      "limits": "Rotation and Byakugan have blindspots and stamina costs.",
+      "references": [
+        "https://naruto-game.bngames.net/character/02_07.html",
+        "https://naruto-game.bngames.net/images/character/02_07/img_character.png"
+      ],
+      "universe": "naruto",
+      "continuity": "naruto-storm4"
+    },
+    "neji-child": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "C",
+      "formId": "child",
+      "artworkSHA256": "2fdb0729149d555ed3d34e3a4bdfd6571835319a65624fe1e2dc6cbfd89e5fc4",
+      "scope": "Neji Hyūga — Child / Part I",
+      "basis": "Prodigious Gentle Fist and Byakugan.",
+      "limits": "Not later Shippuden maturation.",
+      "references": [
+        "https://naruto-game.bngames.net/character/09_01.html",
+        "https://naruto-game.bngames.net/images/character/09_01/img_character.png"
+      ],
+      "universe": "naruto",
+      "continuity": "naruto-storm4"
+    },
+    "hinata-shippuden": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "C",
+      "formId": "shippuden",
+      "artworkSHA256": "632e6dfd8567f399525441d3aa3d12109c60e5a1960447888e82ba9c720f4b23",
+      "scope": "Hinata Hyūga — Shippuden / Byakugan",
+      "basis": "Developing Gentle Fist and Byakugan scouting.",
+      "limits": "No unsupported Six Paths or Hamura chakra claims.",
+      "references": [
+        "https://naruto-game.bngames.net/character/02_08.html",
+        "https://naruto-game.bngames.net/images/character/02_08/img_character.png"
+      ],
+      "universe": "naruto",
+      "continuity": "naruto-storm4"
+    },
+    "hinata-child": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "D",
+      "formId": "child",
+      "artworkSHA256": "c90946669632133d395b6015ca06a4125de3606d9fea64810df65aa48308b03e",
+      "scope": "Hinata Hyūga — Child / Part I",
+      "basis": "Early Byakugan training and Gentle Fist foundations.",
+      "limits": "Not her adult or The Last version.",
+      "references": [
+        "https://naruto-game.bngames.net/character/09_04.html",
+        "https://naruto-game.bngames.net/images/character/09_04/img_character.png"
+      ],
+      "universe": "naruto",
+      "continuity": "naruto-storm4"
+    },
+    "shisui-uchiha": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "A",
+      "formId": "mangekyo",
+      "artworkSHA256": "50b6d22e950a5e1912455ff3ee34444ba1848c84f1aa6ab8530f734063fdd8a1",
+      "scope": "Shisui Uchiha — Uchiha / Mangekyō",
+      "basis": "Body Flicker mastery and formidable genjutsu.",
+      "limits": "Kotoamatsukami has significant use restrictions.",
+      "references": [
+        "https://naruto-game.bngames.net/character/02_22.html",
+        "https://naruto-game.bngames.net/images/character/02_22/img_character.png"
+      ],
+      "universe": "naruto",
+      "continuity": "naruto-storm4"
+    },
+    "gaara-shippuden": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "A",
+      "formId": "kazekage",
+      "artworkSHA256": "3818636356885507f1e2f28c02fa61d38813bb02e6dda86413e5b44015909fac",
+      "scope": "Gaara — Kazekage",
+      "basis": "Vast sand control, defence and battlefield sealing.",
+      "limits": "Do not assign One-Tail host strength after extraction.",
+      "references": [
+        "https://naruto-game.bngames.net/character/03_03.html",
+        "https://naruto-game.bngames.net/images/character/03_03/img_character.png"
+      ],
+      "universe": "naruto",
+      "continuity": "naruto-storm4"
+    },
+    "gaara-child": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "B",
+      "formId": "child",
+      "artworkSHA256": "c72f830f68092d85dd05bd6a3934b772cbdf73f180bfc8778e58981f375ee972",
+      "scope": "Gaara — Child / Jinchūriki",
+      "basis": "Automatic sand defence and Shukaku-linked power.",
+      "limits": "Young Gaara has unstable control and different limits.",
+      "references": [
+        "https://naruto-game.bngames.net/character/09_06.html",
+        "https://naruto-game.bngames.net/images/character/09_06/img_character.png"
+      ],
+      "universe": "naruto",
+      "continuity": "naruto-storm4"
+    },
+    "tsunade-hokage": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "A",
+      "formId": "hokage",
+      "artworkSHA256": "396326deb0052d72b66eba14b091d3f66ecb2a5eec8a8dfed3660b5e5269dc65",
+      "scope": "Tsunade — Fifth Hokage",
+      "basis": "Immense physical power and medical regeneration.",
+      "limits": "Byakugō duration and chakra expenditure limit her.",
+      "references": [
+        "https://naruto-game.bngames.net/character/02_24.html",
+        "https://naruto-game.bngames.net/images/character/02_24/img_character.png"
+      ],
+      "universe": "naruto",
+      "continuity": "naruto-storm4"
+    },
+    "pain-deva": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "A",
+      "formId": "deva-path",
+      "artworkSHA256": "81d3cb45cdbf18b0824d3fcbef053035bff9bd856de8766e47f7f0cc49fa7fc2",
+      "scope": "Pain — Deva Path / Six Paths",
+      "basis": "Gravity manipulation and remote coordinated Rinnegan powers.",
+      "limits": "Distance, timing and Nagato control limit techniques.",
+      "references": [
+        "https://naruto-game.bngames.net/character/08_06.html",
+        "https://naruto-game.bngames.net/images/character/08_06/img_character.png"
+      ],
+      "universe": "naruto",
+      "continuity": "naruto-storm4"
+    },
+    "sarada-shinobi": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "C",
+      "formId": "young-shinobi",
+      "artworkSHA256": "b9a4a41ba657e843a1d552082a070fb12529c1f7a99f1da992d1231f2a59469e",
+      "scope": "Sarada Uchiha — Boruto / young shinobi",
+      "basis": "Sharingan observation and trained ninjutsu.",
+      "limits": "No Two Blue Vortex Mangekyō feats assigned.",
+      "references": [
+        "https://naruto-game.bngames.net/character/01_11.html",
+        "https://naruto-game.bngames.net/images/character/01_11/img_character.png"
+      ],
+      "universe": "naruto",
+      "continuity": "boruto-storm4"
+    },
+    "naruto-sage-mode": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "formId": "sage-mode",
+      "artworkSHA256": null,
+      "scope": "naruto / sage-mode",
+      "basis": "Pending verified original form-specific illustration and feats.",
+      "limits": "Do not assign another form image or grade.",
+      "references": [
+        "https://naruto-game.bngames.net/character/"
+      ],
+      "universe": "naruto",
+      "continuity": "naruto-and-boruto"
+    },
+    "naruto-kcm1": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "formId": "kcm1",
+      "artworkSHA256": null,
+      "scope": "naruto / kcm1",
+      "basis": "Pending verified original form-specific illustration and feats.",
+      "limits": "Do not assign another form image or grade.",
+      "references": [
+        "https://naruto-game.bngames.net/character/"
+      ],
+      "universe": "naruto",
+      "continuity": "naruto-and-boruto"
+    },
+    "naruto-kcm2": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "formId": "kcm2",
+      "artworkSHA256": null,
+      "scope": "naruto / kcm2",
+      "basis": "Pending verified original form-specific illustration and feats.",
+      "limits": "Do not assign another form image or grade.",
+      "references": [
+        "https://naruto-game.bngames.net/character/"
+      ],
+      "universe": "naruto",
+      "continuity": "naruto-and-boruto"
+    },
+    "naruto-kurama-avatar": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "formId": "kurama-avatar",
+      "artworkSHA256": null,
+      "scope": "naruto / kurama-avatar",
+      "basis": "Pending verified original form-specific illustration and feats.",
+      "limits": "Do not assign another form image or grade.",
+      "references": [
+        "https://naruto-game.bngames.net/character/"
+      ],
+      "universe": "naruto",
+      "continuity": "naruto-and-boruto"
+    },
+    "naruto-baryon-mode": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "formId": "baryon-mode",
+      "artworkSHA256": null,
+      "scope": "naruto / baryon-mode",
+      "basis": "Pending verified original form-specific illustration and feats.",
+      "limits": "Do not assign another form image or grade.",
+      "references": [
+        "https://naruto-game.bngames.net/character/"
+      ],
+      "universe": "naruto",
+      "continuity": "naruto-and-boruto"
+    },
+    "naruto-hokage-boruto": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "formId": "hokage-boruto",
+      "artworkSHA256": null,
+      "scope": "naruto / hokage-boruto",
+      "basis": "Pending verified original form-specific illustration and feats.",
+      "limits": "Do not assign another form image or grade.",
+      "references": [
+        "https://naruto-game.bngames.net/character/"
+      ],
+      "universe": "naruto",
+      "continuity": "naruto-and-boruto"
+    },
+    "sasuke-complete-susanoo": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "formId": "complete-susanoo",
+      "artworkSHA256": null,
+      "scope": "sasuke / complete-susanoo",
+      "basis": "Pending verified original form-specific illustration and feats.",
+      "limits": "Do not assign another form image or grade.",
+      "references": [
+        "https://naruto-game.bngames.net/character/"
+      ],
+      "universe": "naruto",
+      "continuity": "naruto-and-boruto"
+    },
+    "kakashi-double-mangekyo": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "formId": "double-mangekyo",
+      "artworkSHA256": null,
+      "scope": "kakashi / double-mangekyo",
+      "basis": "Pending verified original form-specific illustration and feats.",
+      "limits": "Do not assign another form image or grade.",
+      "references": [
+        "https://naruto-game.bngames.net/character/"
+      ],
+      "universe": "naruto",
+      "continuity": "naruto-and-boruto"
+    },
+    "madara-ten-tails": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "formId": "ten-tails",
+      "artworkSHA256": null,
+      "scope": "madara / ten-tails",
+      "basis": "Pending verified original form-specific illustration and feats.",
+      "limits": "Do not assign another form image or grade.",
+      "references": [
+        "https://naruto-game.bngames.net/character/"
+      ],
+      "universe": "naruto",
+      "continuity": "naruto-and-boruto"
+    },
+    "obito-ten-tails": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "formId": "ten-tails",
+      "artworkSHA256": null,
+      "scope": "obito / ten-tails",
+      "basis": "Pending verified original form-specific illustration and feats.",
+      "limits": "Do not assign another form image or grade.",
+      "references": [
+        "https://naruto-game.bngames.net/character/"
+      ],
+      "universe": "naruto",
+      "continuity": "naruto-and-boruto"
+    },
+    "kaguya-rabbit-goddess": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "formId": "rabbit-goddess",
+      "artworkSHA256": null,
+      "scope": "kaguya / rabbit-goddess",
+      "basis": "Pending verified original form-specific illustration and feats.",
+      "limits": "Do not assign another form image or grade.",
+      "references": [
+        "https://naruto-game.bngames.net/character/"
+      ],
+      "universe": "naruto",
+      "continuity": "naruto-and-boruto"
+    },
+    "jigen-karma": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "formId": "karma",
+      "artworkSHA256": null,
+      "scope": "jigen / karma",
+      "basis": "Pending verified original form-specific illustration and feats.",
+      "limits": "Do not assign another form image or grade.",
+      "references": [
+        "https://naruto-game.bngames.net/character/"
+      ],
+      "universe": "naruto",
+      "continuity": "naruto-and-boruto"
+    },
+    "isshiki-otsutsuki": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "formId": "awakened",
+      "artworkSHA256": null,
+      "scope": "isshiki / awakened",
+      "basis": "Pending verified original form-specific illustration and feats.",
+      "limits": "Do not assign another form image or grade.",
+      "references": [
+        "https://naruto-game.bngames.net/character/"
+      ],
+      "universe": "naruto",
+      "continuity": "naruto-and-boruto"
+    },
+    "boruto-karma": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "formId": "karma",
+      "artworkSHA256": null,
+      "scope": "boruto / karma",
+      "basis": "Pending verified original form-specific illustration and feats.",
+      "limits": "Do not assign another form image or grade.",
+      "references": [
+        "https://naruto-game.bngames.net/character/"
+      ],
+      "universe": "naruto",
+      "continuity": "naruto-and-boruto"
+    },
+    "kawaki-karma": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "formId": "karma",
+      "artworkSHA256": null,
+      "scope": "kawaki / karma",
+      "basis": "Pending verified original form-specific illustration and feats.",
+      "limits": "Do not assign another form image or grade.",
+      "references": [
+        "https://naruto-game.bngames.net/character/"
+      ],
+      "universe": "naruto",
+      "continuity": "naruto-and-boruto"
+    },
+    "sarada-two-blue-vortex": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "formId": "two-blue-vortex",
+      "artworkSHA256": null,
+      "scope": "sarada / two-blue-vortex",
+      "basis": "Pending verified original form-specific illustration and feats.",
+      "limits": "Do not assign another form image or grade.",
+      "references": [
+        "https://naruto-game.bngames.net/character/"
+      ],
+      "universe": "naruto",
+      "continuity": "naruto-and-boruto"
+    }
+  }
+}
