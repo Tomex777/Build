@@ -57,13 +57,13 @@ missing_transformer_rules = [
     rule for rule in media3_transformer_keep_rules if rule not in current_rules
 ]
 if missing_transformer_rules:
-    separator = "" if current_rules.endswith("\\n") else "\\n"
+    separator = "" if current_rules.endswith("\n") else "\n"
     rules.write_text(
         current_rules
         + separator
-        + "# Protect Media3 Transformer release export on API <31 against R8 class merging.\\n"
-        + "\\n".join(missing_transformer_rules)
-        + "\\n"
+        + "# Protect Media3 Transformer release export on API <31 against R8 class merging.\n"
+        + "\n".join(missing_transformer_rules)
+        + "\n"
     )
 
 
