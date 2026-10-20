@@ -36,6 +36,19 @@ class NightLibraryRulesTest {
                 "https://user:password@example.com/folder/file.pdf?access_token=secret#fragment"))
     }
 
+    @Test fun signedAndAuthenticatedDownloadsCannotBeReplayedFromRedactedHistory() {
+        assertTrue(DownloadFileNames.canSafelyRetry("https://example.org/file.pdf"))
+        assertFalse(DownloadFileNames.canSafelyRetry(
+            "https://example.org/file.pdf?token=ONE_TIME_SIGNED_KEY"))
+        assertFalse(DownloadFileNames.canSafelyRetry(
+            "https://user:password@example.org/file.pdf"))
+        assertFalse(DownloadFileNames.canSafelyRetry("https://example.org/file.pdf#secret"))
+        assertFalse(DownloadFileNames.canSafelyRetry("https://example.org/file.pdf", true))
+        assertFalse(DownloadFileNames.canSafelyRetry("javascript:alert(1)"))
+        assertEquals("https://example.org/file.pdf",
+            GeckoDownloadNames.redactUrl("https://example.org/file.pdf?token=secret"))
+    }
+
     @Test fun urlsWithEmbeddedCredentialsAreNotBookmarkable() {
         assertFalse(LibraryRules.validWebUrl("https://user:password@example.com/private"))
         assertFalse(LibraryRules.validWebUrl("https:///empty-host"))
