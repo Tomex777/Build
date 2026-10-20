@@ -91,6 +91,8 @@ try{
  let mem=await saved('memory');
  // The v2 Memory engine owns a separate persistence key, not the older puzzle-room namespace.
  assert.equal(await page.locator('.memory-card').count(),30);
+ assert.equal(await page.locator('.memory-playing-board .memory-card[data-photo-requested]').count(),0,'face-down 6×5 cards do not fetch hidden remote photos');
+ assert.equal(await page.locator('.memory-playing-board img').count(),0,'large photo decks render with local fallbacks until revealed');
  assert.equal(await page.locator('.memory-playing-board').evaluate(el=>getComputedStyle(el).gridTemplateColumns.split(' ').length),6);
  const fit=await page.evaluate(()=>{
   const board=document.getElementById('board').getBoundingClientRect();
@@ -108,7 +110,9 @@ try{
  assert.equal(mem.cols,6);assert.equal(mem.rows,5);
  const first=mem.deck[0],mate=mem.deck.findIndex((x,i)=>i>0&&x===first);
  await page.locator('[data-memory="0"]').click();
+ assert.equal(await page.locator('.memory-card[data-photo-requested="1"]').count(),1,'first flip requests only its own photograph');
  await page.locator('[data-memory="'+mate+'"]').click();
+ assert.equal(await page.locator('.memory-card[data-photo-requested="1"]').count(),2,'matching pair does not eagerly load other faces');
  await page.waitForTimeout(420);
  console.log('NIGHT_MEMORY_FACES_IMAGE_BASE64='+(await page.screenshot({type:'jpeg',quality:59})).toString('base64'));
  await page.screenshot({path:path.join(folder,'memory-photo-faces-mobile.jpg'),type:'jpeg',quality:76});
@@ -132,6 +136,7 @@ try{
  assert.equal(await page.locator('.memory-card.flipped').count(),0,'mismatches flip back smoothly');
  await page.reload();
  assert.equal((await page.evaluate(()=>JSON.parse(localStorage.getItem('night-play-memory-v2')))).matched.filter(Boolean).length,2,'matched cards survive reload');
+ assert.equal(await page.locator('.memory-card[data-photo-requested="1"]').count(),2,'reload fetches only the two visible matched faces');
  mem=await page.evaluate(()=>JSON.parse(localStorage.getItem('night-play-memory-v2')));
  for(const id of new Set(mem.deck)){
   const indices=mem.deck.map((v,i)=>v===id?i:-1).filter(i=>i>=0);
@@ -151,6 +156,7 @@ try{
  assert.equal(mem.theme,'storybook');
  assert.equal(mem.deck.length,60,'six columns and TEN rows (60 cards)');
  assert.equal(new Set(mem.deck).size,30,'30 distinct original storybook characters');
+ assert.equal(await page.locator('.memory-card[data-photo-requested]').count(),0,'60-card deck starts without hidden network image requests');
  for(const [width,height] of [[320,568],[390,844],[412,915],[540,760],[768,1024]]){
   await page.setViewportSize({width,height});
   const m=await page.locator('#board').evaluate(el=>{
