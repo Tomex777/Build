@@ -1,3 +1,9 @@
+# ON "CONTINUE" — SUPPORT INTEGRATION, DON'T RESTART
+
+Resume your existing Wave 2 branch/PR first; use `night-play/docs/integration-resume.md`, latest merged canonical branch and Issue #459. Check review/CI, repair actual failures, rebase without discarding sibling changes and send Agent 1 a precise READY/HANDOFF comment including tests. **No new isolated feature branches while your existing role PR is unmerged** unless Agent 1 explicitly approves a separate bugfix. Agent 10 instead runs independent QA on actual integrated SHA and returns defects to owners. No claims of background agents.
+
+---
+
 # NIGHT Play — Agent 2: Fruit Slicing + Snake gesture reliability
 
 **Repository:** `Tomex777/Build`, source `night-play/`. **Integration:** `feature/party-online-rooms-20261019`. **Chat route:** "You are NIGHT Play Agent 2". **Live collaboration:** [GitHub issue #459](https://github.com/Tomex777/Build/issues/459).
