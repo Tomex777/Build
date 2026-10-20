@@ -20,12 +20,12 @@
 ## Verification status
 - Pure source parsing of `room.js` and `multiplayer/ttt/app.js`: passed when updating branch.
 - **Dedicated multi-browser QA passed** on commit `27408b57e34a64e8dc5570cb226091b384aab6ff`, GitHub Actions run `39351088941` (both scripts completed). The 12 generated screenshots were downloaded and visually inspected; a mobile connection notice previously below the visible board was corrected and the fixed state is shown in the new artifact.
-- **Full NIGHT Play Preview CI** run `39351088961` was still in progress at this checkpoint; integrated production deployment remains unverified.
+- **Full NIGHT Play Preview CI run `39351088961` FAILED on an unrelated Fruit Slice regression:** `night-play/qa/gameplay-gate.mjs:102` requires one real 320px touch crossing to score 10 but observed 0. Owner Agent 2 was notified via comment on merged Fruit PR #401. Agent 8 made no Fruit code edits. Multiplayer QA passed independently; combined-site CI and deployment remain blocked.
 - Tests use a shared simulated authoritative backend in two isolated guest browser contexts. They are NOT proof of the production MSCC deployment or physical phones.
 - Current Nomi production is separate: `Tomex777/Nomi` uses Supabase and Vercel, with its own `AGENTS.md` source-of-truth contract. **No Nomi prod deployment or account migration is included.**
 
 ## Remaining Agent 8 work / blockers
-1. Review and rerun Playwright tests `node night-play/party/room/mobile-smoke.mjs` and `node night-play/multiplayer/ttt/mobile-smoke.cjs`; inspect disconnect/reconnect screenshots at narrow widths and fix failures.
+1. Two-browser party and TTT Playwright tests **passed** on commit `27408b57`; inspect the 12 saved images again after future integration, rerun both scripts against the actual combined deployed backend, and retest on physical phones.
 2. Verify actual HTTPS signed `/api/account` to live MSCC with distinct verified WhatsApp accounts, guest cookies and real multi-device clients only after corresponding protected backend batch is released.
 3. Implement durable co-op Jigsaw rooms with authoritative shared image/theme/difficulty, per-piece versioned moves, presence, resume and conflict-safe drag; sync real device clients and preserve solo mode.
 4. Add online Chess and Draughts state adapters only after their engines expose an agreed legal-move/game-state interface with Agent 6. Do not edit Agent 6-owned game rules.
