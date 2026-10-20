@@ -31,15 +31,27 @@ async function move(page,from,to){
 
 }
 try{
- for(const width of [390,1280]){
+ for(const width of [320,360,390,412,1280]){
   const page=await browser.newPage({viewport:{width,height:850},isMobile:width<600,hasTouch:width<600});
   const errors=[],sounds=[];
   page.on('pageerror',e=>errors.push(String(e)));
   page.on('response',r=>{if(r.url().includes('/public/sfx/')||r.url().includes('/sfx/'))sounds.push({code:r.status(),url:r.url()})});
   await page.goto(base+'/strategy/');
   const sound=page.locator('#chessSound');
+  assert.equal(await page.locator('.match-side').count(),0,'No under-board controls/status panel');
+  assert.equal(await page.locator('#moveList').count(),0,'No numeric move notation panel');
+  const gear=page.locator('#chessSettingsOpen');
+  assert.equal(await gear.count(),1,'Exactly one chess settings icon');
+  assert.equal(await gear.locator('svg').count(),1,'Settings icon must be SVG');
+  const boardRect=await page.locator('.chess-board').boundingBox();
+  assert.ok(boardRect.width>Math.min(width*.77,580),'Board must be dominant at '+width);
+  await page.screenshot({path:path.join(out,'chess-board-clean-'+width+'.png'),fullPage:true});
+  await gear.click();
+  assert.equal(await page.locator('#chessSettings').evaluate(el=>el.open),true);
+  await page.screenshot({path:path.join(out,'chess-settings-'+width+'.png'),fullPage:true});
   assert.equal(await sound.getAttribute('aria-pressed'),'true');
   await page.locator('#vsLocal').click();
+  await page.locator('#chessSettingsClose').click();
   const seq=[['f2','f3'],['e7','e5'],['g2','g4'],['d8','h4']];
   for(const [from,to] of seq){
    const pre=await page.evaluate(()=>window.__nightChessQA().moves.length);
@@ -68,11 +80,14 @@ try{
   assert.equal(await overlay.getAttribute('data-result'),'draw');
   await page.screenshot({path:path.join(out,'chess-draw-'+width+'.png'),fullPage:true});
   await page.locator('#chessFinishAgain').click();
+  await gear.click();
   await sound.click();
   assert.equal(await sound.getAttribute('aria-pressed'),'false');
   const code=await page.evaluate(()=>window.__nightChessQA());
   assert.equal(code.soundOn,false);
+  await page.locator('#chessSettingsClose').click();
   await page.reload();
+  await page.locator('#chessSettingsOpen').click();
   assert.equal(await sound.getAttribute('aria-pressed'),'false','sound preference persists');
   assert.deepEqual(errors,[]);
   outcomes.push({width,win:true,draw:true,restart:true,sounds,renderedWithinFrame:true});

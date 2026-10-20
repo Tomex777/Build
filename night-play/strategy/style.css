@@ -15,3 +15,46 @@
 .chess-sound[aria-pressed="false"]{opacity:.65}
 @keyframes chessFinished{from{opacity:0}to{opacity:1}}
 @media(prefers-reduced-motion:reduce){.chess-finish{animation:none!important}}
+
+
+/* ABR: immersive chess board with one settings icon; never a second control panel. */
+.chess-layout{width:min(100%,738px);display:block;padding:clamp(10px,1.8vw,19px);margin-inline:auto}
+.chess-layout .board-column{width:100%}
+.chess-layout .title-row{margin:4px 1px 14px;align-items:center;min-height:52px}
+.chess-settings-trigger{width:45px;height:45px;border:1px solid #d6e1d8;border-radius:11px;background:#fff;color:#294837;display:grid;place-items:center;flex-shrink:0}
+.chess-settings-trigger svg{width:24px;height:24px}
+.chess-settings-trigger:focus-visible,.chess-settings-close:focus-visible,.chess-settings-dialog button:focus-visible{outline:3px solid #7abf93;outline-offset:2px}
+.chess-settings-trigger:hover{background:#e9f0eb}
+.chess-layout .opponent-row{margin-block:8px}
+.chess-layout .chess-frame{position:relative}
+.chess-settings-dialog{width:min(100% - 26px,430px);max-height:min(90dvh,640px);padding:0;border:1px solid #dce6dd;border-radius:18px;background:#fff;color:#19352a;box-shadow:0 22px 76px #0b201e4d;overflow:auto}
+.chess-settings-dialog:not([open]){display:none!important}
+.chess-settings-dialog::backdrop{background:#1028209e;backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
+.chess-settings-head{padding:18px 20px 15px;border-bottom:1px solid #ebefeb;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.chess-settings-head h2{font-size:21px;letter-spacing:-.6px;font-weight:850;margin:0}
+.chess-settings-close{width:43px;height:43px;border:0;background:#eff3ef;border-radius:11px;display:grid;place-items:center;color:#345041}
+.chess-settings-close svg{width:21px;height:21px}
+.chess-settings-body{padding:20px}
+.chess-setting-group{margin:0 0 21px}
+.chess-setting-group h3,.chess-difficulty label,.chess-sound-row span{font-size:13px;font-weight:790;color:#365343;margin:0 0 10px}
+.chess-settings-dialog .mode-switch{gap:5px}
+.chess-settings-dialog .mode-switch button{min-height:46px;font-size:13px}
+.chess-settings-dialog .chess-difficulty{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center}
+.chess-settings-dialog .chess-difficulty[hidden]{display:none!important}
+.chess-settings-dialog .chess-difficulty label{margin:0}
+.chess-settings-dialog .chess-difficulty select{font:750 13px/1.2 inherit;min-width:145px;min-height:45px;padding:0 35px 0 14px;border:1px solid #d0ded2;border-radius:10px;background:#f6faf7;color:#203c2c}
+.chess-settings-dialog .chess-sound-row{display:flex;justify-content:space-between;align-items:center;gap:16px}
+.chess-settings-dialog .chess-sound-row span{margin:0}
+.chess-settings-dialog .chess-sound{margin:0;font-size:12px;min-height:44px;min-width:108px;background:#f5f9f4}
+.chess-settings-dialog .side-actions{margin:12px 0 0}
+.chess-settings-dialog .side-actions button{min-height:46px}
+.chess-layout .sr-only,.sr-only{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+@media(max-width:760px){
+ .chess-layout{width:100%;max-width:600px;padding:8px clamp(7px,2vw,13px) 18px}
+ .chess-layout .title-row{margin:2px 2px 9px;min-height:47px}
+ .chess-layout .title-row h1{font-size:30px}
+ .chess-layout .chess-settings-trigger{width:44px;height:44px}
+ .chess-layout .opponent-row{margin-block:5px;min-height:42px}
+ .chess-layout .chess-frame{padding:clamp(4px,1.5vw,7px)}
+}
+@media(prefers-reduced-motion:reduce){.chess-settings-dialog{scroll-behavior:auto}}

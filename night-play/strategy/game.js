@@ -73,13 +73,6 @@ function gameLabel(){
  if(match.in_draw())return 'Game drawn';
  return match.turn()==='w'?'White to move':'Black to move';
 }
-function renderMoves(){
- const history=match.history(),el=$('moveList');
- if(!history.length){el.innerHTML='<span class="empty-moves">First move pending</span>';return}
- let html='';
- for(let i=0;i<history.length;i+=2)html+='<div class="move-row"><span class="move-num">'+(i/2+1)+'.</span><b>'+history[i]+'</b><b>'+(history[i+1]||'—')+'</b></div>';
- el.innerHTML=html;el.scrollTop=el.scrollHeight;
-}
 function render(){
  const current=match.turn(),legal=new Set(available.map(m=>m.to));
  const inCheck=match.in_check(),rows=[];
@@ -92,14 +85,11 @@ function render(){
   rows.push('<button type="button" role="gridcell" class="'+classes+'" data-square="'+sq+'" aria-label="'+sq+' '+(p?(p.color==='w'?'White ':'Black ')+({p:'pawn',r:'rook',n:'knight',b:'bishop',q:'queen',k:'king'}[p.type]):'empty')+'">'+(p?pieceSVG(p):'')+coord+'</button>');
  }
  board.innerHTML=rows.join('');
- $('matchStatus').textContent=gameLabel();
- $('matchMessage').textContent=match.game_over()?'Match finished. Start a new game to play again.':busy?'Piece moving…':inCheck?'Check! Your king must be protected.':
-  current==='b'&&mode==='computer'?'Computer is choosing a move.':selected?'Choose a highlighted square.':'Select a piece to see legal moves.';
+ $('chessAnnouncer').textContent=match.game_over()?gameLabel():inCheck?'Check! '+gameLabel():gameLabel();
  $('whiteTurn').textContent=match.game_over()?'FINISHED':current==='w'?'TO PLAY':'WAITING';
  $('blackTurn').textContent=match.game_over()?'FINISHED':current==='b'?'TO PLAY':'WAITING';
  $('whiteTurn').classList.toggle('active',!match.game_over()&&current==='w');
  $('blackTurn').classList.toggle('active',!match.game_over()&&current==='b');
- $('modeLabel').textContent=mode==='computer'?'VS COMPUTER':'LOCAL · 2 PLAYERS';
  $('blackName').textContent=mode==='computer'?'Computer':'Black';
  $('blackDetails').textContent=mode==='computer'?'CPU · BLACK':'PLAYER 2 · BLACK';
  $('whiteDetails').textContent=mode==='computer'?'YOU · WHITE':'PLAYER 1 · WHITE';
@@ -108,8 +98,7 @@ function render(){
  $('difficultyRow').hidden=mode!=='computer';
  $('cpuDifficulty').value=difficulty;
  $('undo').disabled=busy||!match.history().length;
- $('localNote').textContent=mode==='computer'?'Computer plays black.':'Two players on one device.';
- renderMoves();renderFinish();soundButton();save();
+ renderFinish();soundButton();save();
 }
 function cancel(){
  epoch++;busy=false;selected=null;available=[];promotionPending=null;
@@ -218,6 +207,12 @@ function queueCPU(){
  },65);
 }
 board.addEventListener('click',e=>{const cell=e.target.closest('[data-square]');if(cell)squareClicked(cell.dataset.square)});
+const settings=$('chessSettings');
+$('chessSettingsOpen').addEventListener('click',()=>settings.showModal());
+$('chessSettingsClose').addEventListener('click',()=>settings.close());
+settings.addEventListener('click',event=>{
+ if(event.target===settings)settings.close();
+});
 $('vsCpu').addEventListener('click',()=>{if(mode!=='computer')newMatch('computer')});
 $('vsLocal').addEventListener('click',()=>{if(mode!=='local')newMatch('local')});
 $('cpuDifficulty').addEventListener('change',event=>{
@@ -226,7 +221,7 @@ $('cpuDifficulty').addEventListener('change',event=>{
  if(mode==='computer'&&match.turn()==='b'&&!match.game_over()){cancel();render();queueCPU()}
  else save();
 });
-$('newMatch').addEventListener('click',()=>newMatch());
+$('newMatch').addEventListener('click',()=>{newMatch();settings.close()});
 $('chessFinishAgain').addEventListener('click',()=>newMatch());
 $('chessSound').addEventListener('click',()=>{soundOn=!soundOn;
  try{localStorage.setItem(SOUND_PREF,soundOn?'on':'off')}catch{}
@@ -234,6 +229,7 @@ $('chessSound').addEventListener('click',()=>{soundOn=!soundOn;
 });
 $('undo').addEventListener('click',()=>{
  if(busy||!match.history().length)return;
+ settings.close();
  cancel();
  if(mode==='computer'&&match.turn()==='w'&&match.history().length>=2)match.undo();
  match.undo();lastMove=match.history({verbose:true}).at(-1)||null;render();
@@ -244,6 +240,6 @@ $('promotionChoices').addEventListener('click',e=>{
  commitMove({...promotionPending,promotion:button.dataset.promote});
 });
 $('promotionCancel').addEventListener('click',()=>{promotionPending=null;promotionLayer.hidden=true;render()});
-window.__nightChessQA=()=>({fen:match.fen(),turn:match.turn(),moves:match.history(),gameOver:match.game_over(),inCheck:match.in_check(),mode,busy,legalSquares:available.map(m=>m.to),pendingPromotion:!!promotionPending,difficulty,thinking:!!cpuWorker||cpuTimer!==null,cpuWorkerReplies,lastCpuNodes,lastCpuDepth,soundOn,resultVisible:!$('chessFinish').hidden});
+window.__nightChessQA=()=>({settingsOpen:settings.open,visibleMoveHistory:document.querySelectorAll('.moves-wrap,#moveList').length,fen:match.fen(),turn:match.turn(),moves:match.history(),gameOver:match.game_over(),inCheck:match.in_check(),mode,busy,legalSquares:available.map(m=>m.to),pendingPromotion:!!promotionPending,difficulty,thinking:!!cpuWorker||cpuTimer!==null,cpuWorkerReplies,lastCpuNodes,lastCpuDepth,soundOn,resultVisible:!$('chessFinish').hidden});
 read();render();if(mode==='computer'&&match.turn()==='b'&&!match.game_over())queueCPU();
 })();
