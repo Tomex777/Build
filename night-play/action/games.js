@@ -22,7 +22,7 @@ const soundKey='night-play-action-sfx-v1',bestKey=id=>'night-play-v1-action-'+id
 const clamp=(n,a,b)=>Math.min(b,Math.max(a,n)),rand=(a,b)=>a+Math.random()*(b-a);
 let game='slice',state,started=false,over=false,paused=false,frame=0,raf=0,last=0,sfx=true,ctxAudio=null;
 try{sfx=localStorage.getItem(soundKey)!=='off'}catch{}
-const inputs={left:false,right:false,duck:false,drag:false,lastX:0,lastY:0};
+const inputs={left:false,right:false,duck:false,drag:false,lastX:0,lastY:0,slicePointerId:null};
 function audio(type='tap'){
  if(!sfx)return;
  try{ctxAudio=ctxAudio||new (window.AudioContext||window.webkitAudioContext)();
@@ -244,9 +244,24 @@ function paintSlice(){
  for(const f of state.fruits)drawFruit(f);
  for(const h of state.halves)drawHalf(h);
  for(const p of state.splashes){ctx.globalAlpha=1-p.age/p.life;disk(p.x,p.y,p.r,p.color);ctx.globalAlpha=1}
- if(state.trail.length>1){ctx.lineWidth=4;ctx.lineCap='round';
-  for(let i=1;i<state.trail.length;i++){const a=state.trail[i-1],b=state.trail[i];
-   ctx.strokeStyle='rgba(255,253,235,'+b.a+')';ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();}}
+ if(state.trail.length>1){
+  ctx.save();ctx.lineCap='round';ctx.lineJoin='round';
+  for(let i=1;i<state.trail.length;i++){
+   const a=state.trail[i-1],b=state.trail[i],alpha=Math.min(a.a,b.a);
+   if(Math.hypot(a.x-b.x,a.y-b.y)>130)continue;
+   ctx.strokeStyle='rgba(255,255,255,'+(alpha*.24)+')';ctx.lineWidth=12;
+   ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();
+   ctx.strokeStyle='rgba(255,249,206,'+(alpha*.87)+')';ctx.lineWidth=4.6;
+   ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();
+   ctx.strokeStyle='rgba(255,255,255,'+alpha+')';ctx.lineWidth=1.5;
+   ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();
+  }
+  ctx.restore();
+ }
+ for(const p of state.popups){
+  ctx.save();ctx.globalAlpha=Math.max(0,1-p.age/.65);
+  text('+'+p.points,p.x,p.y,19,'#fffdf3',850);ctx.restore();
+ }
  for(let i=0;i<5;i++)disk(30+i*21,30,7,i<5-state.misses?'#d87761':'#d7dcd3');
 }
 
@@ -610,7 +625,7 @@ function tick(timestamp){
 function reset(){
  state=INIT[game]();over=false;paused=false;started=false;frame=0;
  $('message').textContent='';$('pauseButton').setAttribute('aria-label','Pause game');$('pauseButton').querySelector('use').setAttribute('href','#icon-pause');
- inputs.left=inputs.right=inputs.drag=inputs.duck=false;
+ inputs.left=inputs.right=inputs.drag=inputs.duck=false;inputs.slicePointerId=null;
  updateHud();overlay('READY TO PLAY',defs[game].title,defs[game].rules,'Start game');
  render();
 }
@@ -645,17 +660,27 @@ function selectGame(type){
 function point(e){const r=canvas.getBoundingClientRect();return {x:clamp((e.clientX-r.left)/r.width*W,0,W),y:clamp((e.clientY-r.top)/r.height*H,0,H)}}
 function down(e){
  if(e.button!==undefined&&e.button!==0)return;
+ if(game==='slice'&&inputs.drag)return;
  const p=point(e);inputs.drag=true;inputs.lastX=p.x;inputs.lastY=p.y;inputs.dragStartY=p.y;
- if(started&&!over&&!paused){if(game==='runner')jumpRunner();if(game==='bricks')launchBall();if(game==='slice')state.trail.push({x:p.x,y:p.y,a:1})}
+ if(game==='slice')inputs.slicePointerId=e.pointerId;
+ if(started&&!over&&!paused){
+  if(game==='runner')jumpRunner();if(game==='bricks')launchBall();
+  if(game==='slice'){state.trail.length=0;state.trail.push({x:p.x,y:p.y,a:1})}
+ }
  try{canvas.setPointerCapture(e.pointerId)}catch{}
 }
 function move(e){
- if(!inputs.drag)return;
+ if(!inputs.drag||(game==='slice'&&e.pointerId!==inputs.slicePointerId))return;
  const p=point(e);if(game==='slice')sliceMove(inputs.lastX,inputs.lastY,p.x,p.y);
  if(game==='runner'&&p.y-inputs.dragStartY>28){duckRunner(true);state.duckTimer=.45}
  inputs.lastX=p.x;inputs.lastY=p.y;
 }
-function up(e){inputs.drag=false;if(game==='runner'){duckRunner(false)}try{canvas.releasePointerCapture(e.pointerId)}catch{}}
+function up(e){
+ if(game==='slice'&&e.pointerId!==inputs.slicePointerId)return;
+ inputs.drag=false;inputs.slicePointerId=null;
+ if(game==='runner')duckRunner(false);
+ try{canvas.releasePointerCapture(e.pointerId)}catch{}
+}
 canvas.addEventListener('pointerdown',down);canvas.addEventListener('pointermove',move);canvas.addEventListener('pointerup',up);canvas.addEventListener('pointercancel',up);
 $('touchControls').addEventListener('pointerdown',e=>{
  const b=e.target.closest('[data-control]');if(!b)return;e.preventDefault();
