@@ -336,8 +336,21 @@ class BrowserController(
 
     fun bookmark() { store.bookmark(active.url, active.title); notice = "Added to Library" }
 
-    fun newPeekSession(url: String): GeckoSession =
-        GeckoSession().also { peek ->
+    /**
+     * A9 may install Peek navigation/progress delegates BEFORE Gecko opens the
+     * disposable session or starts the first navigation. The default guard
+     * remains for old callers. Permission denial is installed last so an
+     * overlay cannot accidentally inherit the full browser's site grants.
+     * Only web pages can be passed to Peek.
+     */
+    fun newPeekSession(
+        url: String,
+        configure: (GeckoSession) -> Unit = {}
+    ): GeckoSession {
+        require(url.startsWith("https://", true) || url.startsWith("http://", true)) {
+            "Peek only supports HTTP(S) pages"
+        }
+        return GeckoSession().also { peek ->
             // Disposable previews are denied all powerful permissions. A Peek
             // must not become a second permission-owning browser profile.
             peek.permissionDelegate = object : GeckoSession.PermissionDelegate {
@@ -374,9 +387,34 @@ class BrowserController(
                     )
                 }
             }
+            // Existing default policy can be replaced by A9's stricter
+            // PeekNavigationPolicy in configure(). Both must forbid external
+            // app launches, local files and custom schemes.
+            configure(peek)
+            // Enforce no powerful permissions even if an overlay configured
+            // its own callback handler.
+            peek.permissionDelegate = object : GeckoSession.PermissionDelegate {
+                override fun onAndroidPermissionsRequest(
+                    session: GeckoSession, permissions: Array<out String>?,
+                    callback: GeckoSession.PermissionDelegate.Callback
+                ) { callback.reject() }
+                override fun onContentPermissionRequest(
+                    session: GeckoSession,
+                    perm: GeckoSession.PermissionDelegate.ContentPermission
+                ): GeckoResult<Int> = GeckoResult.fromValue(
+                    GeckoSession.PermissionDelegate.ContentPermission.VALUE_DENY
+                )
+                override fun onMediaPermissionRequest(
+                    session: GeckoSession, uri: String,
+                    video: Array<out GeckoSession.PermissionDelegate.MediaSource>?,
+                    audio: Array<out GeckoSession.PermissionDelegate.MediaSource>?,
+                    callback: GeckoSession.PermissionDelegate.MediaCallback
+                ) { callback.reject() }
+            }
             peek.open(runtime)
             peek.loadUri(url)
         }
+    }
 
     fun savePdfSnapshot() {
         val tab = active
