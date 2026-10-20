@@ -89,7 +89,11 @@ class HymnDataTest(unittest.TestCase):
                 "not_yet_matched",
             })
         self.assertEqual(sum(e["lyrics_imported"] for e in entries), 18)
-        self.assertEqual(sum(e["english_title_status"] == "verified_from_RH2006_index" for e in entries), 539)
+        self.assertEqual(sum(e["english_title_status"] == "verified_from_RH2006_index" for e in entries), 800)
+        self.assertTrue(all(e["title_en"] for e in entries))
+        self.assertEqual(entries[629]["title_en"], "Of Jesu’s love I’m singing")
+        self.assertEqual(entries[725]["title_en"], "Thy Name, O Lord, we bless")
+        self.assertEqual(entries[799]["title_en"], "‘Tis eventide and from Thy house")
         self.assertEqual(entries[448]["title_en"], "Lead us heav’nly Father, lead us")
         self.assertEqual(entries[449]["title_en"], "I need Jesus, my need I now confess")
         self.assertEqual(entries[538]["title_en"], "Behold the throne of grace")
@@ -101,7 +105,7 @@ class HymnDataTest(unittest.TestCase):
         for number in (178, 190, 200):
             self.assertEqual(entries[number - 1]["english_title_status"], "verified_from_RH2006_index")
         self.assertEqual(entries[176]["title_en"].lower(), "jesus was slain for me")
-        self.assertLess(sum(e["title_en"] is not None for e in entries), 800)
+        self.assertEqual(sum(e["title_en"] is not None for e in entries), 800)
 
     def test_provenance_of_english_alternative_texts(self):
         path = ROOT / "data/english-public-domain.json"
