@@ -243,6 +243,49 @@ class FoundationTest {
     }
 
     @Test
+    fun pageReadRejectsTargetThatPushesArchiveOverTotalExpandedLimit() {
+        val archive = zipOf(
+            "notes.txt" to ByteArray(6) { 1 },
+            "001.jpg" to ByteArray(10) { 2 },
+        )
+        assertEquals(
+            ArchivePageRead.Rejected("archive-too-large"),
+            ZipArchiveScanner.readPage(
+                ByteArrayInputStream(archive),
+                "001.jpg",
+                ArchiveLimits(maxSingleEntryBytes = 20, maxExpandedBytes = 12),
+            ),
+        )
+    }
+
+    @Test
+    fun pageReadRejectsFirstPageExceedingArchiveLimit() {
+        val archive = zipOf("001.jpg" to ByteArray(10) { 2 })
+        assertEquals(
+            ArchivePageRead.Rejected("archive-too-large"),
+            ZipArchiveScanner.readPage(
+                ByteArrayInputStream(archive),
+                "001.jpg",
+                ArchiveLimits(maxSingleEntryBytes = 20, maxExpandedBytes = 8),
+            ),
+        )
+    }
+
+    @Test
+    fun pageReadAcceptsTargetExactlyAtTotalExpandedLimit() {
+        val archive = zipOf(
+            "notes.txt" to ByteArray(6) { 1 },
+            "001.jpg" to ByteArray(10) { 2 },
+        )
+        val result = ZipArchiveScanner.readPage(
+            ByteArrayInputStream(archive),
+            "001.jpg",
+            ArchiveLimits(maxSingleEntryBytes = 20, maxExpandedBytes = 16),
+        )
+        assertContentEquals(ByteArray(10) { 2 }, assertIs<ArchivePageRead.Success>(result).bytes)
+    }
+
+    @Test
     fun extensionlessImagesAreRecognizedByRealImageMagic() {
         val jpg = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte(), 0xE0.toByte())
         val png = byteArrayOf(
