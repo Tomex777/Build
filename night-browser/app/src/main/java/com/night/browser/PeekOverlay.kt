@@ -36,6 +36,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import org.mozilla.geckoview.AllowOrDeny
+import org.mozilla.geckoview.GeckoResult
 import org.mozilla.geckoview.GeckoSession
 import org.mozilla.geckoview.GeckoView
 
@@ -67,6 +69,17 @@ fun PeekOverlay(
 
     DisposableEffect(peek) {
         peek.navigationDelegate = object : GeckoSession.NavigationDelegate {
+            // GeckoSession has a single navigationDelegate. Preserve Agent 4's
+            // scheme-blocking guarantee when replacing the Peek delegate;
+            // previews must never dispatch intent:, file:, javascript:, etc.
+            override fun onLoadRequest(
+                session: GeckoSession,
+                request: GeckoSession.NavigationDelegate.LoadRequest
+            ): GeckoResult<AllowOrDeny> = GeckoResult.fromValue(
+                if (PeekNavigationPolicy.allows(request.uri)) AllowOrDeny.ALLOW
+                else AllowOrDeny.DENY
+            )
+
             override fun onLocationChange(
                 session: GeckoSession,
                 pageUrl: String?,
