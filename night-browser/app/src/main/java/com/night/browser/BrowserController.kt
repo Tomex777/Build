@@ -10,6 +10,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import org.mozilla.geckoview.AllowOrDeny
+import org.mozilla.geckoview.WebRequestError
 import org.mozilla.geckoview.WebResponse
 import org.mozilla.geckoview.GeckoResult
 import org.mozilla.geckoview.GeckoRuntime
@@ -30,6 +31,7 @@ class BrowserTab(
     var canGoForward by mutableStateOf(false)
     var lastNode by mutableStateOf<String?>(null)
     var crashed by mutableStateOf(false)
+    var failedUrl by mutableStateOf<String?>(null)
     var secureConnection by mutableStateOf(false)
     var mixedContent by mutableStateOf(false)
     var knownSitePermissions by mutableStateOf<List<GeckoSession.PermissionDelegate.ContentPermission>>(emptyList())
@@ -85,6 +87,29 @@ class BrowserController(
         session.permissionDelegate = platform
         session.promptDelegate = platform
         session.navigationDelegate = object : GeckoSession.NavigationDelegate {
+            override fun onLoadError(
+                session: GeckoSession, uri: String?, error: WebRequestError
+            ): GeckoResult<String> {
+                tab.isLoading = false
+                // Certificate failures must never be bypassed automatically.
+                // Keep the original HTTP(S) address visible; internal error
+                // documents are never recorded in Journeys.
+                if (!uri.isNullOrBlank() && (
+                    uri.startsWith("https://", ignoreCase = true) ||
+                    uri.startsWith("http://", ignoreCase = true)
+                )) tab.failedUrl = uri
+                val kind = when (error.category) {
+                    WebRequestError.ERROR_CATEGORY_SECURITY ->
+                        BrowserErrorPage.Kind.SECURITY
+                    WebRequestError.ERROR_CATEGORY_SAFEBROWSING ->
+                        BrowserErrorPage.Kind.BLOCKED
+                    WebRequestError.ERROR_CATEGORY_NETWORK,
+                    WebRequestError.ERROR_CATEGORY_PROXY ->
+                        BrowserErrorPage.Kind.CONNECTION
+                    else -> BrowserErrorPage.Kind.UNKNOWN
+                }
+                return GeckoResult.fromValue(BrowserErrorPage.dataUri(kind))
+            }
             override fun onLoadRequest(
                 session: GeckoSession,
                 request: GeckoSession.NavigationDelegate.LoadRequest
@@ -115,6 +140,9 @@ class BrowserController(
                 hasUserGesture: Boolean
             ) {
                 if (url.isNullOrBlank()) return
+                // Local Gecko error data pages have no place in navigation
+                // history; keep the failed HTTPS URL as the address instead.
+                if (url.startsWith("data:", true) || url.startsWith("about:", true)) return
                 tab.knownSitePermissions = perms
                 if (tab.url != url) {
                     tab.url = url
@@ -199,13 +227,17 @@ class BrowserController(
             }
             override fun onPageStart(session: GeckoSession, url: String) {
                 tab.isLoading = true
+                if (url.startsWith("http://", true) || url.startsWith("https://", true)) {
+                    tab.failedUrl = null
+                }
                 // The prior origin's TLS indicator must not appear on a new page.
                 tab.secureConnection = false
                 tab.mixedContent = false
             }
             override fun onPageStop(session: GeckoSession, success: Boolean) {
                 tab.isLoading = false
-                if (!success) notice = "This page could not finish loading."
+                // A local error document already shows a usable explanation.
+                if (!success && tab.failedUrl == null) notice = "This page couldn't finish loading."
             }
             override fun onProgressChange(session: GeckoSession, progress: Int) {
                 tab.progress = progress
@@ -233,6 +265,7 @@ class BrowserController(
             notice = "Enter a valid website address or search query."
         } else {
             val tab = active
+            tab.failedUrl = null
             if (tab.crashed) {
                 recover(tab, address)
             } else {
@@ -245,7 +278,12 @@ class BrowserController(
     fun goForward() { if (active.canGoForward) active.session.goForward() }
     fun reload() {
         val tab = active
-        if (tab.crashed) recover(tab, tab.url)
+        val failedUrl = tab.failedUrl
+        if (failedUrl != null) {
+            tab.failedUrl = null
+            if (tab.crashed) recover(tab, failedUrl)
+            else tab.session.loadUri(failedUrl)
+        } else if (tab.crashed) recover(tab, tab.url)
         else tab.session.reload()
     }
 
