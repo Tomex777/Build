@@ -22,39 +22,36 @@ object BookStructure {
         val candidates = entries.filter { it.kind == LocalEntry.Kind.IMAGE || it.kind == LocalEntry.Kind.ARCHIVE }
         if (candidates.isEmpty()) return emptyList()
 
-        val archives = candidates.filter { it.kind == LocalEntry.Kind.ARCHIVE && '/' !in normalized(it.relativePath) }
-        val nestedImages = candidates.filter { it.kind == LocalEntry.Kind.IMAGE && '/' in normalized(it.relativePath) }
-
-        if (archives.isNotEmpty() && nestedImages.isEmpty()) {
-            return archives
-                .sortedWith(compareBy(NaturalOrder) { normalized(it.relativePath) })
-                .mapIndexed { index, entry ->
-                    DetectedChapter(titleWithoutArchive(entry.relativePath), index, listOf(entry))
-                }
-        }
-
-        if (nestedImages.isNotEmpty()) {
-            return nestedImages
-                .groupBy { normalized(it.relativePath).substringBeforeLast('/') }
-                .entries
-                .sortedWith(compareBy(NaturalOrder) { it.key })
-                .mapIndexed { index, (directory, pages) ->
-                    DetectedChapter(
-                        title = directory.substringAfterLast('/'),
-                        order = index,
-                        members = pages.sortedWith(compareBy(NaturalOrder) { normalized(it.relativePath) }),
-                    )
-                }
-        }
-
-        val rootImages = candidates.filter { it.kind == LocalEntry.Kind.IMAGE }
-            .sortedWith(compareBy(NaturalOrder) { normalized(it.relativePath) })
-
-        return if (rootImages.isEmpty()) {
-            emptyList()
-        } else {
-            listOf(DetectedChapter("Book", 0, rootImages))
-        }
+        // A library folder can contain chapter archives at any depth,
+        // alongside image chapter folders or root images. The original
+        // detection recognized only *root* ZIPs; nested CBZ chapter files were
+        // silently excluded and could leave the entire book empty.
+        val archiveChapters = candidates
+            .filter { it.kind == LocalEntry.Kind.ARCHIVE }
+            .map { archive ->
+                val path = normalized(archive.relativePath)
+                path to DetectedChapter(
+                    title = titleWithoutArchive(path),
+                    order = 0,
+                    members = listOf(archive),
+                )
+            }
+        val imageChapters = candidates
+            .filter { it.kind == LocalEntry.Kind.IMAGE }
+            .groupBy { normalized(it.relativePath).substringBeforeLast('/', "") }
+            .map { (directory, images) ->
+                val pages = images.sortedWith(compareBy(NaturalOrder) { normalized(it.relativePath) })
+                val chapterTitle = directory.substringAfterLast('/').ifBlank { "Book" }
+                val sortPath = if (directory.isEmpty()) pages.first().relativePath else directory
+                sortPath to DetectedChapter(
+                    title = chapterTitle,
+                    order = 0,
+                    members = pages,
+                )
+            }
+        return (archiveChapters + imageChapters)
+            .sortedWith(compareBy(NaturalOrder) { it.first })
+            .mapIndexed { index, (_, chapter) -> chapter.copy(order = index) }
     }
 
     private fun normalized(path: String) = path.replace('\\', '/').trim('/')
