@@ -129,15 +129,26 @@ tap_desc 'Add Ocean surf'
 tap_desc 'WEST'
 capture 05-sound-inspector.png
 assert_state 'Panel INSPECT'
+# Exercise the newly expanded third page with real device input, not
+# just a string-match against SoundKind.entries in source.
+tap_desc 'Close panel'
+tap_desc 'SOUNDS'
+tap_desc 'NEXT SOUNDS'
+tap_desc 'NEXT SOUNDS'
+assert_state 'Panel SOUNDS page 3'
+capture 06-expanded-sound-library.png
+tap_desc 'Add Sleet on windows'
+assert_state 'Panel INSPECT'
+capture 07-sleet-inspector.png
 # Close inspector and enter Explore mode.
 tap_desc 'Close panel'
 tap_desc 'EXPLORE'
-capture 06-explore.png
+capture 08-explore.png
 assert_state 'Mode EXPLORE'
 # Enter atmospheric editor from the header after returning to edit.
 tap_desc 'EDIT'
 tap_desc 'Edit rain, wind and storm'
-capture 07-atmosphere.png
+capture 09-atmosphere.png
 assert_state 'Panel ATMOSPHERE'
 adb shell pidof com.night.soundatlas
 adb logcat -d -s AndroidRuntime:E > SoundAtlas/qa/crashes.txt
