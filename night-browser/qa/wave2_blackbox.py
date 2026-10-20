@@ -315,9 +315,37 @@ class Device:
                 self.click("New tab")
 
     def upload(self):
+        """Select a synthetic file through Android DocumentsUI and verify exact posted bytes."""
+        from wave2_fixture import UPLOAD_BYTES
+        filename = "night-qa-upload.txt"
+        local = self.out / filename
+        local.write_bytes(UPLOAD_BYTES)
+        # The file belongs to this disposable emulator, never to the user's device.
+        adb("push", str(local), "/sdcard/Download/" + filename)
+        shell("am", "broadcast", "-a", "android.intent.action.MEDIA_SCANNER_SCAN_FILE",
+              "-d", "file:///sdcard/Download/" + filename, check=False)
         self.go("/upload")
-        self.click("Choose File", partial=True, timeout=8)
-        raise Blocked("File picker launched: requires OS picker navigation + byte assertion; not a verified upload")
+        before = hits("/upload/submit")
+        self.click("Choose File", partial=True, timeout=15)
+        # The live chooser is owned by Android DocumentsUI; never use an app-internal
+        # file path or shortcut to claim that the real SAF upload flow passed.
+        if self.find(filename, partial=True) is None:
+            for label in ("Browse", "Show roots", "Open navigation drawer"):
+                if self.find(label, partial=True) is not None:
+                    self.click(label, partial=True)
+                    break
+            if self.find("Downloads", partial=True) is not None:
+                self.click("Downloads", partial=True)
+        if self.find(filename, partial=True) is None:
+            raise Blocked("Android SAF chooser could not locate synthetic Downloads test file")
+        self.click(filename, partial=True, timeout=15)
+        self.click("Upload test file", partial=True, timeout=15)
+        wait_hit("/upload/submit", before)
+        expected_sha = hashlib.sha256(UPLOAD_BYTES).hexdigest()
+        actual_sha = fixture().get("upload_sha256")
+        if actual_sha != expected_sha:
+            raise AssertionError("SAF upload payload SHA256 mismatch or no file uploaded")
+        return "Gecko/SAF multipart upload bytes matched SHA256 on fixture server"
 
     @staticmethod
     def app_download_names():
