@@ -44,6 +44,7 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -128,10 +129,12 @@ fun NightStartPage(
         ) {
             Spacer(Modifier.height(22.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(20.dp).background(HomeAccent, RoundedCornerShape(5.dp)),
-                    contentAlignment = Alignment.Center) {
-                    Text("N", fontSize = 13.sp, fontWeight = FontWeight.Black, color = HomeBg)
-                }
+                Image(
+                    painter = painterResource(id = R.drawable.ic_night),
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp).clip(RoundedCornerShape(6.dp)),
+                    contentScale = ContentScale.Fit
+                )
                 Spacer(Modifier.width(10.dp))
                 Text("NIGHT", fontSize = 15.sp, letterSpacing = 2.5.sp,
                     fontWeight = FontWeight.Bold, color = HomeText)
