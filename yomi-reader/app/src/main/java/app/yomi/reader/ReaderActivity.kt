@@ -671,11 +671,17 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
     }
 
     private suspend fun prepareWindow(index: Int) {
+        // The selected chapter is the only blocking load. A preceding large
+        // SAF chapter archive must never delay opening the page the user asked
+        // for; adjacent chapters can be fetched in the background.
         withContext(Dispatchers.IO) {
-            viewerChapters.getOrNull(index - 1)?.load()
             viewerChapters.getOrNull(index)?.load()
-            viewerChapters.getOrNull(index + 1)?.load()
         }
+    }
+
+    private fun preloadNearbyChapters(index: Int) {
+        viewerChapters.getOrNull(index - 1)?.let(::requestPreloadChapter)
+        viewerChapters.getOrNull(index + 1)?.let(::requestPreloadChapter)
     }
 
     private fun window(index: Int = activeChapterIndex): ViewerChapters {
@@ -739,6 +745,7 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
             ),
         )
         viewer!!.setChapters(window())
+        preloadNearbyChapters(activeChapterIndex)
         applyPageColorMatrix()
         updatePositionLabel(lastLocation)
         refreshChrome()
@@ -831,6 +838,7 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
                     prepareWindow(chapterIndex)
                     if (activeChapterIndex == chapterIndex) {
                         viewer?.setChapters(window(chapterIndex))
+                        preloadNearbyChapters(chapterIndex)
                     }
                 } catch (_: Throwable) {
                     // Keep the current loaded page visible; the next interaction can retry.
@@ -950,6 +958,7 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
                 val chapter = viewerChapters[target]
                 lastLocation = null
                 viewer?.setChapters(window(target))
+                preloadNearbyChapters(target)
                 refreshChrome()
             }.onFailure {
                 Log.e(READER_TAG, "chapter-navigation-failed", it)
