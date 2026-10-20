@@ -22,7 +22,7 @@
 ## New automated safety net (Agent 10)
 
 - `scripts/verify-acceptance-frames.py` checks both **original device PNG files**, PNG CRC/integrity, canvas non-black/non-uniformity, equal image size and changed central 3D-region pixel fraction. It rejects identical frames and differences outside the central viewport. It emits a per-case JSON report with raw-image SHA-256 digests. The small default 0.1% gate in our ADB wrapper is a regression alarm, **not proof of model correctness/beauty**.
-- `scripts/fresh-editor-instrumentation.sh` now invokes that checker for actual Android before/after **humanoid**, **anime**, **bicycle** and **car** frames. It stores JSON beside the captured screenshots for reviewers. The already-existing test fixture still asserts state persistence, independently in Kotlin.
+- `scripts/fresh-editor-instrumentation.sh` now invokes that checker for actual Android before/appearance and appearance/posed **humanoid** frames separately, along with **anime**, **bicycle** and **car** pose/movement frames. It stores JSON beside the captured screenshots for reviewers. The already-existing test fixture still asserts state persistence, independently in Kotlin.
 - `.github/workflows/mise-agent10-frame-qa.yml` runs the six offline checker regressions, then API26 and API36 Android `humanoid`, `anime` and `bicycle` instrumented touch/render passes (maximum two jobs concurrent); uploads unmodified screenshots and JSON. It is not a replacement for manual visual review of the downloaded artifact. Car can be explicitly exercised by running `TEST_SUITE=car bash scripts/fresh-editor-instrumentation.sh` in an emulator.
 
 ## Manual interaction protocol and report format
