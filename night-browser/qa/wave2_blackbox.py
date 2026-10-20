@@ -435,6 +435,24 @@ class Device:
                 raise AssertionError("Repeat changed original or new bytes")
         return "Cancel wrote zero files; confirmation produced distinct exact PNG bytes"
 
+    def duplicate_after_restart(self):
+        """Completed normal downloads must be remembered after process restart."""
+        before = self.app_download_names()
+        if len([name for name in before if name.endswith("_night-qa.png")]) < 2:
+            raise AssertionError("Expected two completed original copies from C40")
+        shell("am", "force-stop", PKG)
+        shell("am", "start", "-W", "-n", PKG + "/.MainActivity")
+        self.go("/file.png")
+        deadline = time.monotonic() + 20
+        while self.find("Download again?") is None:
+            if time.monotonic() >= deadline:
+                raise AssertionError("After restart prior download was forgotten")
+            time.sleep(.7)
+        self.click("Cancel")
+        if self.app_download_names() != before:
+            raise AssertionError("Restart/cancel changed completed saved files")
+        return "Repeat confirmation survived app restart without downloading"
+
     def time_machine(self):
         self.go("/landing")
         self.click("More")
@@ -611,6 +629,8 @@ class Device:
                   prerequisites=("C01",))
         self.test("C40", "Repeat PNG download confirmation and cancel",
                   self.duplicate_download, prerequisites=("C24",))
+        self.test("C41", "Repeat warning survives application restart",
+                  self.duplicate_after_restart, prerequisites=("C40",))
         self.test("C26", "Time Machine PDF version saved", self.time_machine,
                   prerequisites=("C01",), screenshot=True)
         self.test("C27", "Peek link long-press dismiss", self.peek,
