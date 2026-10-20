@@ -304,6 +304,12 @@
       "url": "https://www.thehymnalproject.com/come-let-us-join-our-cheerful-songs",
       "name": "The Hymnal Project (Redemption 13 English hymn)",
       "notes": "Downloadable reference recordings, but recording uses specific hymn tune; obtain explicit redistribution licence and verify the correct TAC tune."
+    },
+    {
+      "platform": "church_website_pdf",
+      "url": "https://tacona-cincy.org/tac-redemption-hymnal",
+      "name": "The Apostolic Church North America, Cincinnati — TAC Hymnal resources",
+      "notes": "IMPORTANT new lead (2026-10-20): church-hosted 20-page PDF is an image/text printout of a directory index labeled /BLOG/wp-content/uploads/REDEMPTIONAL, enumerating numbered audio filenames 001.mp3 through 800.mp3, sometimes alternatives A/B/C, including descriptive 'RH 001...' filenames. This PDF does NOT contain the MP3 audio files or the source website hostname, nor does it grant recording ownership, download, public redistribution or in-app streaming rights. Verify where original files are hosted, whether recordings are sung or instrumental and what melody/verses they use, and contact rights holder for an authorized catalogue before using."
     }
   ],
   "sourcing_strategy": "Prefer permission-cleared standalone MP3/OGG master files for offline inclusion. YouTube URLs are reference links only, not downloads. Do not add third-party recordings to shipped audio_catalog.json without verifying performance, lyrics, tune, recording owners, and permissions."
