@@ -1,3 +1,9 @@
+# INTEGRATION RESUME MODE — AGENT 1 PRIORITY
+
+**Read `night-browser/docs/integration-resume.md` and issue #460 before other tasks.** Your primary work is the existing draft **PR #468**, with earlier #439 and specialist modules already partially assembled; **do not start a third independent browser assembly from scratch**. Inspect actual current #468 source/CI, repair compilation and plumbing, integrate duplicate/overlapping APIs carefully (MainActivity, BrowserController, manifest, tab private store, JourneyStore), run actual APK install/website navigation/privacy checks, then land reviewed working slices into shared integration. Update Issue #460 with the exact SHA, test proof, blockers and next action. The user asked for conflict resolution and completion, not more feature proposals.
+
+---
+
 # WAVE 2: NIGHT Browser Agent 1 — Coordinator: produce ONE working browser APK
 
 **Priority change:** This supersedes first-wave assignments below where outdated. **Same app, same integration branch `feature/night-browser-multi-agent-20261020`**, short-lived `agent/browser-v2-01-coordinator` branch. In your GitHub-connected chat, saying **"You are NIGHT Browser Agent 1"** or "Continue NIGHT Browser Wave 2" means: read this file, `night-browser/AGENTS.md`, `night-browser/docs/agent-backlog.md`, `night-browser/agents/README.md`, current source/PRs and [Issue #460](https://github.com/Tomex777/Build/issues/460) latest comments. Claim task on #460, coordinate shared edit file lock with Agent 1, implement immediately and create a PR to `feature/night-browser-multi-agent-20261020`. Don't claim other agents are automatically running. **Don't create another disconnected variant of an existing specialist module.**
