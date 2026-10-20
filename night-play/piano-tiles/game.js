@@ -32,7 +32,7 @@ function chart(){
  ];
  let t=2.15;const result=[];
  for(let i=0;i<phrase.length;i++){
-  const [lane,freq]=phrase[i],hold=[7,14,27,31].includes(i);
+  const [lane,freq]=phrase[i],hold=[7,14,26,31].includes(i);
   const beat=Math.max(.34,.535-i*.0045);
   const duration=hold?Math.max(.65,beat*1.55):0;
   result.push({lane,freq,at:t,duration,hold,state:"waiting",pointer:null,
