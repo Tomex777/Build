@@ -212,7 +212,7 @@ private fun NightBrowser(browser: BrowserController, openSaved: (File) -> Unit) 
                         })
                     Page.JOURNEYS -> JourneyScreen(
                         store = browser.store,
-                        onNew = { newJourneyDialog = true },
+                        onNew = { if (!current.isPrivate) newJourneyDialog = true },
                         onResume = { journey, node ->
                             // A private tab must not silently turn a Journey resume
                             // into a recorded normal-profile navigation.
@@ -339,7 +339,8 @@ private fun NightBrowser(browser: BrowserController, openSaved: (File) -> Unit) 
                         DropdownMenuItem(
                             text = { Text("Journeys") },
                             leadingIcon = { Icon(Icons.Rounded.AccountTree, null) },
-                            onClick = { dismiss { page = Page.JOURNEYS } })
+                            enabled = !current.isPrivate,
+                            onClick = { dismiss { if (!current.isPrivate) page = Page.JOURNEYS } })
                         DropdownMenuItem(
                             text = { Text("Library") },
                             leadingIcon = { Icon(Icons.Rounded.Bookmarks, null) },
@@ -459,10 +460,13 @@ private fun NightBrowser(browser: BrowserController, openSaved: (File) -> Unit) 
             },
             confirmButton = {
                 TextButton(onClick = {
-                    val journey = browser.store.newJourney(label)
-                    browser.newTab(journeyId = journey.id)
+                    // Do not create persistent Journey metadata from a private tab.
+                    if (!browser.active.isPrivate) {
+                        val journey = browser.store.newJourney(label)
+                        browser.newTab(journeyId = journey.id)
+                        page = Page.HOME
+                    }
                     newJourneyDialog = false
-                    page = Page.HOME
                 }) { Text("Create") }
             },
             dismissButton = {
