@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.database.Cursor
 import android.net.Uri
+import androidx.core.content.FileProvider
 import android.os.Environment
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -13,6 +14,13 @@ import androidx.compose.runtime.setValue
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
+import java.io.File
+import java.io.InputStream
+import java.util.UUID
+import java.util.concurrent.atomic.AtomicLong
+import android.os.Handler
+import android.os.Looper
+import org.mozilla.geckoview.WebResponse
 import java.net.URLDecoder
 import java.util.Locale
 
@@ -31,7 +39,9 @@ data class LibraryDownload(
     val status: Int = DownloadManager.STATUS_PENDING,
     val bytes: Long = 0,
     val totalBytes: Long = -1,
-    val reason: Int = 0
+    val reason: Int = 0,
+    /** App-owned Gecko response filename, never a user-controlled path. Empty for system records. */
+    val localFile: String = ""
 ) {
     val complete get() = status == DownloadManager.STATUS_SUCCESSFUL
 }
@@ -55,7 +65,32 @@ internal object DownloadFileNames {
     }
 }
 
-class DownloadLibrary(private val context: Context) {
+class DownloadLibrary private constructor(private val context: Context) {
+    companion object {
+        @Volatile private var singleton: DownloadLibrary? = null
+        fun shared(context: Context): DownloadLibrary = singleton ?: synchronized(this) {
+            singleton ?: DownloadLibrary(context.applicationContext).also { singleton = it }
+        }
+    }
+
+    private val mainThread = Handler(Looper.getMainLooper())
+    private val localIds = AtomicLong(-System.currentTimeMillis())
+    private val localDirectory get() = File(context.filesDir, "browser-downloads")
+    private fun findLocalFile(record: LibraryDownload): File {
+        require(record.localFile.isNotBlank()) { "Missing local file." }
+        // Only internally generated UUID-based names are valid, including after JSON reload.
+        require(Regex("[0-9a-f-]{36}_[^/\\\\]{1,110}").matches(record.localFile)) {
+            "Unsafe file name." 
+        }
+        return File(localDirectory, record.localFile)
+    }
+
+    private fun updateRow(id: Long, transform: (LibraryDownload) -> LibraryDownload) {
+        check(Looper.myLooper() == Looper.getMainLooper())
+        items = items.map { if (it.id == id) transform(it) else it }
+        persist()
+    }
+
     private val manager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
     private val prefs = context.getSharedPreferences("night_downloads_v1", Context.MODE_PRIVATE)
     var items by mutableStateOf(load())
@@ -99,6 +134,7 @@ class DownloadLibrary(private val context: Context) {
 
     fun refresh() {
         val updated = items.map { original ->
+            if (original.localFile.isNotBlank()) return@map original
             runCatching {
                 manager.query(DownloadManager.Query().setFilterById(original.id))?.use { cursor ->
                     if (cursor.moveToFirst()) original.copy(
@@ -120,20 +156,30 @@ class DownloadLibrary(private val context: Context) {
     }
 
     fun retry(record: LibraryDownload): Result<LibraryDownload> {
+        if (record.localFile.isNotBlank()) return Result.failure(
+            IOException("Retry this download from its original webpage."))
         val fresh = enqueue(record.url, record.fileName, record.mimeType)
         if (fresh.isSuccess) remove(record)
         return fresh
     }
 
     fun remove(record: LibraryDownload): Result<Unit> = runCatching {
-        manager.remove(record.id)
+        if (record.localFile.isBlank()) manager.remove(record.id)
+        else {
+            val file = findLocalFile(record)
+            if (file.exists() && !file.delete()) throw IOException("Could not delete the file.")
+        }
         items = items.filterNot { it.id == record.id }
         persist()
     }
 
     fun open(record: LibraryDownload): Result<Unit> = runCatching {
         require(record.complete) { "Download has not completed." }
-        val uri = manager.getUriForDownloadedFile(record.id)
+        val uri = if (record.localFile.isNotBlank()) {
+            val file = findLocalFile(record)
+            require(file.isFile) { "Downloaded file is missing." }
+            FileProvider.getUriForFile(context, context.packageName + ".files", file)
+        } else manager.getUriForDownloadedFile(record.id)
             ?: throw IOException("Downloaded file is missing.")
         val intent = Intent(Intent.ACTION_VIEW).setDataAndType(
             uri, record.mimeType.ifBlank { "application/octet-stream" }
@@ -148,15 +194,108 @@ class DownloadLibrary(private val context: Context) {
     /** Run from Dispatchers.IO after ACTION_CREATE_DOCUMENT returns a destination. */
     fun export(record: LibraryDownload, target: Uri): Result<Unit> = runCatching {
         require(record.complete) { "Download has not completed." }
-        val source = manager.getUriForDownloadedFile(record.id)
-            ?: throw IOException("Downloaded file is missing.")
         val resolver = context.contentResolver
-        val input = resolver.openInputStream(source) ?: throw IOException("Cannot read download.")
+        val input = if (record.localFile.isNotBlank()) {
+            findLocalFile(record).inputStream()
+        } else {
+            val source = manager.getUriForDownloadedFile(record.id)
+                ?: throw IOException("Downloaded file is missing.")
+            resolver.openInputStream(source) ?: throw IOException("Cannot read download.")
+        }
         input.use { src ->
             val output = resolver.openOutputStream(target, "w")
                 ?: throw IOException("Cannot write selected location.")
             output.use { dst -> src.copyTo(dst) }
         }
+    }
+
+    /**
+     * Save Gecko's ORIGINAL HTTP response stream, never a second HTTP fetch. This is essential
+     * for POST downloads, redirects, authenticated sessions and single-use signed links.
+     * Called by Agent 4's onExternalResponse UI-thread callback.
+     *
+     * The event body is always closed, even for errors, so Gecko's connection is released.
+     * The caller should show an explicit user confirmation before downloading from private tabs.
+     */
+    fun acceptGeckoResponse(response: WebResponse, onEvent: (String) -> Unit = {}) {
+        val body = response.body
+        val url = response.uri
+        val mime = response.headers.entries.firstOrNull {
+            it.key.equals("content-type", true)
+        }?.value?.substringBefore(';')?.trim().orEmpty().ifBlank { "application/octet-stream" }
+        val disposition = response.headers.entries.firstOrNull {
+            it.key.equals("content-disposition", true)
+        }?.value
+        val providedName = GeckoDownloadNames.fromDisposition(disposition)
+        val fromUrl = Uri.parse(url).lastPathSegment
+        val filename = DownloadFileNames.safe(providedName ?: fromUrl, mime)
+        val length = response.headers.entries.firstOrNull {
+            it.key.equals("content-length", true)
+        }?.value?.toLongOrNull()?.takeIf { it > 0 } ?: -1L
+
+        if (body == null || response.statusCode !in 200..299) {
+            runCatching { body?.close() }
+            onEvent("The site did not provide a downloadable file (HTTP " +
+                response.statusCode + ").")
+            return
+        }
+
+        val id = localIds.decrementAndGet()
+        val storedName = UUID.randomUUID().toString() + "_" + filename
+        val record = LibraryDownload(id, GeckoDownloadNames.redactUrl(url),
+            filename, mime, System.currentTimeMillis(),
+            DownloadManager.STATUS_RUNNING, 0, length, localFile = storedName)
+        items = listOf(record) + items
+        persist()
+        onEvent("Downloading " + filename)
+
+        Thread({
+            val directory = localDirectory
+            val temp = File(directory, storedName + ".part")
+            val destination = File(directory, storedName)
+            try {
+                directory.mkdirs()
+                var count = 0L
+                var reported = 0L
+                var lastUpdate = 0L
+                body.use { stream ->
+                    temp.outputStream().buffered().use { output ->
+                        val buffer = ByteArray(64 * 1024)
+                        while (true) {
+                            val n = stream.read(buffer)
+                            if (n == -1) break
+                            output.write(buffer, 0, n)
+                            count += n
+                            val now = System.currentTimeMillis()
+                            if (count - reported >= 512 * 1024 && now - lastUpdate > 450) {
+                                val progress = count
+                                mainThread.post { updateRow(id) { it.copy(bytes = progress) } }
+                                reported = count
+                                lastUpdate = now
+                            }
+                        }
+                    }
+                }
+                if (count == 0L && length > 0) throw IOException("Empty downloaded file.")
+                if (length > 0 && count != length) throw IOException("Incomplete download.")
+                if (!temp.renameTo(destination)) throw IOException("Could not finalize download.")
+                mainThread.post {
+                    updateRow(id) {
+                        it.copy(bytes = count, totalBytes = if (length > 0) length else count,
+                            status = DownloadManager.STATUS_SUCCESSFUL)
+                    }
+                    onEvent(filename + " downloaded")
+                }
+            } catch (error: Exception) {
+                // Close the response stream even if opening destination fails.
+                runCatching { body.close() }
+                temp.delete()
+                mainThread.post {
+                    updateRow(id) { it.copy(status = DownloadManager.STATUS_FAILED) }
+                    onEvent("Download failed: " + (error.message ?: "storage or connection error"))
+                }
+            }
+        }, "night-gecko-download").start()
     }
 
     fun statusText(row: LibraryDownload): String = when (row.status) {
@@ -175,7 +314,7 @@ class DownloadLibrary(private val context: Context) {
             DownloadManager.ERROR_UNHANDLED_HTTP_CODE -> "Server HTTP error"
             DownloadManager.ERROR_HTTP_DATA_ERROR -> "Connection error"
             DownloadManager.ERROR_FILE_ERROR -> "File/storage error"
-            else -> if (row.reason in 400..599) "HTTP " + row.reason else "Download failed"
+            else -> if (row.reason in 400..599) "HTTP " + row.reason else if (row.localFile.isNotBlank()) "Download interrupted" else "Download failed"
         }
         else -> "Unknown"
     }
@@ -190,7 +329,10 @@ class DownloadLibrary(private val context: Context) {
             LibraryDownload(x.getLong("id"), x.getString("url"), x.getString("file"),
                 x.optString("mime", "application/octet-stream"), x.optLong("created"),
                 x.optInt("status", DownloadManager.STATUS_PENDING),
-                x.optLong("bytes"), x.optLong("total", -1), x.optInt("reason"))
+                x.optLong("bytes"), x.optLong("total", -1), x.optInt("reason"), x.optString("localFile")).let { row ->
+                if (row.localFile.isNotBlank() && row.status == DownloadManager.STATUS_RUNNING)
+                    row.copy(status = DownloadManager.STATUS_FAILED) else row
+            }
         }
     }.getOrDefault(emptyList())
 
@@ -200,7 +342,8 @@ class DownloadLibrary(private val context: Context) {
             array.put(JSONObject().put("id", it.id).put("url", it.url).put("file", it.fileName)
                 .put("mime", it.mimeType).put("created", it.createdAt)
                 .put("status", it.status).put("bytes", it.bytes)
-                .put("total", it.totalBytes).put("reason", it.reason))
+                .put("total", it.totalBytes).put("reason", it.reason)
+                .put("localFile", it.localFile))
         }
         prefs.edit().putString("rows", array.toString()).apply()
     }
