@@ -27,7 +27,7 @@ def normal_text(value: object, field: str) -> str:
     clean = value.strip()
     require(clean == unicodedata.normalize("NFC", clean),
             f"{field} must use NFC Unicode (important for Yorùbá diacritics)")
-    require(not any(ch in clean for ch in "\\r\\n\\x00"),
+    require(not any(ord(ch) < 32 for ch in clean),
             f"{field} must not contain embedded line breaks")
     require(len(clean) < 1024, f"{field} is implausibly long")
     return clean
