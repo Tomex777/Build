@@ -160,3 +160,16 @@ This release implements the requested **small-APK hybrid strategy**. Bundling th
 - **305** Àkọkún numbers are reserved, with **299** first-line identities in the photographed index draft; **zero** verified full Àkọkún lyrics imported.
 - **Zero** published singing recordings have approved distribution rights or are bundled/downloadable in-app. Research links and YouTube search results are **not** licensable media assets.
 - As a result, **the software feature set can be built and tested, but it would be false to label the entire 1,105-hymn bilingual content library or singing catalogue complete**. Completing the published content requires a legitimately reusable text source and authorized sound recording masters, with verse/tune verification.
+
+## v0.7.1 — Redemption text and index expansion (20 October 2026)
+
+The Redemption edition contains **800 distinct hymn numbers**. In this release:
+- **234/800** English numbered first lines have been compared against the Redemption Hymnal 2006 index on Hymnary (the first continuous 234), including seven songs with public-domain English text; these are **metadata matches, not yet 234 lyric texts**.
+- **18** photo-backed TAC Yorùbá/English working lyric drafts: nos. 1–17 and 50, pending remaining edition/diacritic checks.
+- **7** additional public-domain English-only alternate full texts with transparent source attribution: **178, 187, 188, 190, 195, 200, 207**. They are searchable and readable in English, but should not be misrepresented as original printed TAC stanzas; the Yorùbá translations have not been fabricated or sourced.
+- Consequently **25/800 Redemption hymn entries now have at least some readable lyrics**, and 18 have bilingual working drafts. All other numbered records remain index-only, not falsely listed as completed reading pages.
+- Authenticated recording rights remain independent of text rights. No YouTube material is bundled or converted without appropriate permissions.
+- `tools/build_asset.py` keeps provenance-tagged public-domain English alternates separately in `data/english-public-domain.json`; source editions and translation status are checked by offline tests.
+- A genuine full 800-hymn **Yorùbá + English** text release requires a legitimate digital/photographic source for the remaining TAC words, permission for copyrighted translations, and review against the printed edition. Other denominations' hymn numbers or translations cannot simply be substituted.
+
+Sources: numbered index `https://hymnary.org/hymnal/RH2006?page=2`; historic text provenance in each `data/english-public-domain.json` record.
