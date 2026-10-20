@@ -69,7 +69,8 @@ class UniversalSearchProvider {
                 .put("model", model)
                 .put("messages", messages)
                 .put("response_format", JSONObject().put("type", "json_object"))
-                .put("temperature", 0.1)
+                .put("store", false)
+                .put("max_completion_tokens", 550)
                 .toString()
 
             connection = (endpoint.openConnection() as HttpURLConnection).apply {
@@ -98,6 +99,14 @@ class UniversalSearchProvider {
             }
             val raw = readAtMost(connection, 65536)
             val response = JSONObject(raw)
+            val choice = response.optJSONArray("choices")?.optJSONObject(0)
+            if (choice == null || choice.optString("finish_reason") != "stop" ||
+                !choice.optJSONObject("message")?.optString("refusal").isNullOrBlank()
+            ) {
+                return@withContext AiSearchOutcome.Unavailable(
+                    "Provider refused or truncated the answer; nothing was shown as grounded."
+                )
+            }
             val modelText = response.optJSONArray("choices")
                 ?.optJSONObject(0)?.optJSONObject("message")
                 ?.optString("content").orEmpty()
