@@ -58,9 +58,9 @@ object PrototypeScene {
         val isUnderTreeStudent = actor.metadata["misePose"] == UnderTreeScene.POSE_TAG &&
             actor.asset?.assetId in setOf(ANIME_ASSET_ID, ANIME_FEMALE_ASSET_ID)
         if (!isHero && !isUnderTreeStudent) return actor
-        val pose = actor.rig ?: return actor
+        // Purely one-time demo expression authoring; never replays on saved edits.\n        fun withSampleFace(next: Actor) = CharacterDemoStyling.resolve(next, definition)\n        val pose = actor.rig ?: return withSampleFace(actor)
         val discoveredIds = definition.bones.map { it.id }.toSet()
-        if (pose.joints.keys.all { it in discoveredIds }) return actor
+        if (pose.joints.keys.all { it in discoveredIds }) return withSampleFace(actor)
         // VRoid names joints J_Bip_L_UpperArm, J_Bip_R_LowerLeg, etc., while
         // other rigged imports use upperarm_l or LeftUpperArm. Match semantics
         // and left/right limbs, never depend on one vendor's skeleton prefix.
@@ -99,8 +99,8 @@ object PrototypeScene {
             }?.let { it.id to rotation }
         }.toMap()
         // An incomplete mapping must never silently discard authored pose keys.
-        if (mapped.size != pose.joints.size) return actor
-        return actor.copy(rig = pose.copy(joints = mapped))
+        if (mapped.size != pose.joints.size) return withSampleFace(actor)
+        return withSampleFace(actor.copy(rig = pose.copy(joints = mapped)))
     }
 
     /** Genuine CC0 VRoid anime avatar with a rendered face, hair, clothes and real skeleton. */
