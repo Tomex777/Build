@@ -368,7 +368,9 @@ private fun AddSiteTile(onClick: () -> Unit) {
 
 /** Requests only the website's own HTTPS origin favicon. No third-party icon tracker. */
 private object OriginFavicons {
-    private val cache = LruCache<String, Bitmap>(32)
+    private val cache = object : LruCache<String, Bitmap>(2 * 1024 * 1024) {
+        override fun sizeOf(key: String, value: Bitmap): Int = value.byteCount
+    }
     fun get(url: String): Bitmap? {
         val origin = runCatching {
             val uri = URI(url)
@@ -393,8 +395,11 @@ private object OriginFavicons {
                 }
             }
             val bytes = out.toByteArray()
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+            if (bounds.outWidth !in 1..512 || bounds.outHeight !in 1..512) return null
             val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-            if (bitmap != null && bitmap.width <= 512 && bitmap.height <= 512) {
+            if (bitmap != null) {
                 cache.put(origin.toString(), bitmap)
                 bitmap
             } else null
