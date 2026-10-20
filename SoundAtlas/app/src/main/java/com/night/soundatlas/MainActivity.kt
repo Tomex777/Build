@@ -586,7 +586,15 @@ class MainActivity : Activity() {
             }
         }
         private fun drawSheet(c:Canvas) {
-            val height=when(sheet){Sheet.SOUNDS->min(500f,hh*.75f);Sheet.INSPECT->min(400f,hh*.77f)
+            val height=when(sheet){
+                Sheet.SOUNDS->{
+                    // Two sounds on the final page should not open a giant,
+                    // mostly empty sheet that hides the acoustic map.
+                    val visible=(SoundKind.entries.size-soundPage*10).coerceIn(0,10)
+                    val rows=(visible+1)/2
+                    min(min(500f,hh*.75f),max(235f,130f+rows*73f))
+                }
+                Sheet.INSPECT->min(400f,hh*.77f)
                 Sheet.LIBRARY->min(530f,hh*.77f);Sheet.MATERIALS->340f
                 Sheet.ZONES->320f;Sheet.ATMOSPHERE->354f
                 else->0f}
