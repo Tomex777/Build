@@ -49,6 +49,8 @@ class BrowserController(
 ) {
     val store = JourneyStore(appContext)
     private val runtime: GeckoRuntime = GeckoRuntime.create(appContext)
+    val siteStudioStore = SiteStudioStore(appContext)
+    val siteStudio = SiteStudioBridge(runtime, siteStudioStore)
     private val tabStore = TabSessionStore(appContext)
     private val writes = Executors.newSingleThreadExecutor()
     private val handler = Handler(Looper.getMainLooper())
@@ -105,6 +107,7 @@ class BrowserController(
         }
         installDelegates(tab, session)
         session.open(runtime)
+        if (!tab.isPrivate) siteStudio.attach(session)
         tabs.add(tab)
         select(tab.id)
         if (restored != null) {
@@ -127,6 +130,7 @@ class BrowserController(
         val popup = BrowserTab(UUID.randomUUID().toString(),
             popupSession, parent.journeyId, parent.isPrivate)
         installDelegates(popup, popup.session)
+        if (!popup.isPrivate) siteStudio.attach(popup.session)
         tabs.add(popup)
         select(popup.id)
         return popup
@@ -326,6 +330,7 @@ class BrowserController(
         else if (tabId == activeId) select(tabs.first { it.id != tabId }.id)
         tabs.remove(tab)
         tab.thumbnail = null
+        if (!tab.isPrivate) siteStudio.detach(tab.session)
         if (tab.session.isOpen) tab.session.close()
         schedulePersist()
     }
@@ -368,7 +373,10 @@ class BrowserController(
         persistNow()
         isClosed = true
         handler.removeCallbacks(pendingSave)
-        tabs.forEach { if (it.session.isOpen) it.session.close() }
+        tabs.forEach {
+            if (!it.isPrivate) siteStudio.detach(it.session)
+            if (it.session.isOpen) it.session.close()
+        }
         writes.shutdown()
     }
 

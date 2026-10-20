@@ -47,6 +47,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.FileProvider
 import org.mozilla.geckoview.GeckoSession
+import com.night.browser.search.UniversalSearchPanel
 import org.mozilla.geckoview.GeckoView
 import java.io.File
 import java.text.DateFormat
@@ -61,7 +62,7 @@ private val Bright = Color(0xFFF3F5F9)
 private val Muted = Color(0xFF8F9BAC)
 private val Accent = Color(0xFFB9BEFF)
 
-private enum class Page { HOME, WEB, TABS, JOURNEYS, LIBRARY, TIME_MACHINE }
+private enum class Page { HOME, WEB, TABS, JOURNEYS, LIBRARY, TIME_MACHINE, AI_SEARCH }
 
 class MainActivity : ComponentActivity() {
     private lateinit var browser: BrowserController
@@ -128,6 +129,7 @@ private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> U
     var menuExpanded by remember { mutableStateOf(false) }
     var peekUrl by remember { mutableStateOf<String?>(null) }
     var newJourneyDialog by remember { mutableStateOf(false) }
+    var studioTabId by remember { mutableStateOf<String?>(null) }
     val current = browser.active
     val keyboard = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
@@ -208,6 +210,18 @@ private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> U
                     Page.LIBRARY -> NightLibraryScreen(browser,
                         onOpen = { browser.newTab(it); page = Page.WEB })
                     Page.TIME_MACHINE -> TimeMachinePanel(browser, openSaved)
+                    Page.AI_SEARCH -> UniversalSearchPanel(
+                        bookmarks = browser.store.bookmarks,
+                        journeys = browser.store.journeys,
+                        privateTab = current.isPrivate,
+                        onBack = { page = if (current.url.isBlank()) Page.HOME else Page.WEB },
+                        onOpenSource = { url ->
+                            if (!current.isPrivate) {
+                                browser.navigate(url)
+                                page = Page.WEB
+                            }
+                        }
+                    )
                 }
             }
 
@@ -304,6 +318,18 @@ private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> U
                             leadingIcon = { Icon(Icons.Rounded.History, null) },
                             onClick = { dismiss { page = Page.TIME_MACHINE } })
                         DropdownMenuItem(
+                            text = { Text("AI Search") },
+                            leadingIcon = { Icon(Icons.Rounded.Search, null) },
+                            enabled = !current.isPrivate,
+                            onClick = { dismiss { page = Page.AI_SEARCH } })
+                        DropdownMenuItem(
+                            text = { Text("Site Studio") },
+                            leadingIcon = { Icon(Icons.Rounded.Tune, null) },
+                            enabled = !current.isPrivate &&
+                                (current.url.startsWith("https://") ||
+                                 current.url.startsWith("http://")),
+                            onClick = { dismiss { studioTabId = current.id } })
+                        DropdownMenuItem(
                             text = { Text("Bookmark page") },
                             leadingIcon = { Icon(Icons.Rounded.BookmarkAdd, null) },
                             enabled = current.url.startsWith("http") && !current.isPrivate,
@@ -353,6 +379,64 @@ private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> U
                 peekUrl = null
                 page = Page.WEB
             })
+    }
+
+    studioTabId?.let { tabId ->
+        val editorTab = browser.tabs.firstOrNull { it.id == tabId }
+        if (editorTab == null || editorTab.isPrivate ||
+            (!editorTab.url.startsWith("http://") &&
+             !editorTab.url.startsWith("https://"))) {
+            LaunchedEffect(tabId) { studioTabId = null }
+        } else {
+            fun closeEditor() { studioTabId = null }
+            val studio = browser.siteStudio
+            val store = browser.siteStudioStore
+            SiteStudioEditor(
+                pageUrl = editorTab.url,
+                initial = studio.editorRule(editorTab.session, editorTab.url),
+                onPreview = { draft ->
+                    if (studio.preview(editorTab.session, draft)) {
+                        closeEditor()
+                        editorTab.session.reload()
+                    } else {
+                        browser.notice = "Site Studio preview could not be applied."
+                    }
+                },
+                onSave = { rule ->
+                    if (store.save(rule)) {
+                        studio.discardPreview(editorTab.session)
+                        closeEditor()
+                        editorTab.session.reload()
+                    } else {
+                        browser.notice = "Site Studio could not save these changes."
+                    }
+                },
+                onReset = {
+                    if (store.remove(editorTab.url)) {
+                        studio.discardPreview(editorTab.session)
+                        closeEditor()
+                        editorTab.session.reload()
+                    } else {
+                        browser.notice = "Site Studio couldn't reset this site."
+                    }
+                },
+                canUndo = store.canUndo(editorTab.url),
+                onUndo = {
+                    if (store.undo(editorTab.url)) {
+                        studio.discardPreview(editorTab.session)
+                        closeEditor()
+                        editorTab.session.reload()
+                    } else {
+                        browser.notice = "There is no Site Studio change to undo."
+                    }
+                },
+                onDismiss = {
+                    studio.discardPreview(editorTab.session)
+                    closeEditor()
+                    editorTab.session.reload()
+                }
+            )
+        }
     }
 
     if (newJourneyDialog) {
