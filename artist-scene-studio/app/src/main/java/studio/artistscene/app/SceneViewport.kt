@@ -78,6 +78,15 @@ import studio.artistscene.core.Vec3
 private const val VIEWPORT_LOG_TAG = "MiseRuntime"
 private const val MAX_RENDER_ASSET_BYTES = 128L * 1024L * 1024L
 
+/** Only legacy scenes without *any* authored light get the default studio sun. */
+internal fun sceneUsesFallbackSun(actors: List<Actor>): Boolean =
+    actors.none { it.kind == ActorKind.LIGHT && it.light != null }
+
+/** Shadows follow active visible lights, including local spot/point lights. */
+internal fun sceneNeedsShadowMaps(actors: List<Actor>): Boolean =
+    sceneUsesFallbackSun(actors) ||
+        actors.any { it.kind == ActorKind.LIGHT && it.visible && it.light?.castsShadow == true }
+
 /**
  * Renderer adapter. SceneProject is the input contract; Filament/SceneView nodes stay ephemeral.
  * All model actors are instantiated independently so duplicated scene actors remain independent.
@@ -146,6 +155,9 @@ fun SceneViewport(
     val secondaryLights = project.actors.filter { actor ->
         actor.kind == ActorKind.LIGHT && actor.visible && actor.id != sun?.id && actor.light != null
     }
+    // Artists may intentionally hide the sun or light a scene using ONLY spot/point lights.
+    // Never replace an authored (possibly hidden) light with a surprise default sunlight.
+    val fallbackSun = sceneUsesFallbackSun(project.actors)
     val activeCamera = project.cameras.firstOrNull { it.id == project.activeCameraId }
         ?: project.cameras.firstOrNull()
         ?: studio.artistscene.core.SceneCamera("camera-main", "Camera")
@@ -194,17 +206,18 @@ fun SceneViewport(
                 settings.direction.z,
             )
             mainLightNode.isShadowCaster = settings.castsShadow && shadowingSupported
-        } else {
+        } else if (fallbackSun) {
+            // Backward compatibility for legacy scenes that have no lighting actors.
             mainLightNode.intensity = 72_000f
             mainLightNode.color = sceneLightColor("#FFFFFF")
             mainLightNode.lightDirection = Direction(-0.45f, -1f, -0.35f)
             mainLightNode.isShadowCaster = shadowingSupported
+        } else {
+            // Honor the explicit lights: there may be a hidden sun, or only point/spot lights.
+            mainLightNode.intensity = 0f
+            mainLightNode.isShadowCaster = false
         }
-        view.setShadowingEnabled(
-            shadowingSupported && (sun == null || project.actors.any { actor ->
-                actor.kind == ActorKind.LIGHT && actor.visible && actor.light?.castsShadow == true
-            }),
-        )
+        view.setShadowingEnabled(shadowingSupported && sceneNeedsShadowMaps(project.actors))
     }
 
     val camera = rememberCameraNode(engine) {
@@ -283,7 +296,7 @@ fun SceneViewport(
                 append(viewportSize.width).append('x').append(viewportSize.height)
             }
             if (projectionFingerprint.getAndSet(fingerprint) != fingerprint) {
-                applyProjectCameraProjection(camera, cameraConfig)
+                applyProjectCameraProjection(camera, cameraConfig, viewportSize.width, viewportSize.height)
             }
             val modelReady = modelReadyForFrame.get()
             if (hasReportedSurfaceFrame.compareAndSet(false, true)) {
@@ -840,8 +853,25 @@ private class ProjectCameraManipulator(
     }
 }
 
-private fun applyProjectCameraProjection(camera: io.github.sceneview.node.CameraNode, config: SceneCamera) {
-    val aspect = camera.getViewPortAspect().takeIf { it.isFinite() && it > 0.0 } ?: 1.0
+/**
+ * Project aspect must be derived from the CURRENT viewport, not a camera's previous projection.
+ * CameraNode's last perspective/ortho aspect can lag one orientation behind after a surface
+ * recreation, stretching models and producing a mismatched PNG until another camera edit.
+ */
+internal fun viewportAspectOrFallback(width: Int, height: Int, previousAspect: Double): Double =
+    if (width > 0 && height > 0) {
+        width.toDouble() / height.toDouble()
+    } else {
+        previousAspect.takeIf { it.isFinite() && it > 0.0 } ?: 1.0
+    }
+
+private fun applyProjectCameraProjection(
+    camera: io.github.sceneview.node.CameraNode,
+    config: SceneCamera,
+    viewportWidth: Int,
+    viewportHeight: Int,
+) {
+    val aspect = viewportAspectOrFallback(viewportWidth, viewportHeight, camera.getViewPortAspect())
     val near = config.nearMeters.coerceAtLeast(0.001f)
     val far = config.farMeters.coerceAtLeast(near + 0.01f)
     when (config.projection) {
