@@ -9,19 +9,19 @@ from build_asset import ROOT, compile_asset
 class HymnDataTest(unittest.TestCase):
     def test_catalogue_is_unique_and_contiguous(self):
         hymns = compile_asset()["hymns"]
-        self.assertEqual([h["number"] for h in hymns], [*range(1, 18), 50, 178, 190, 200])
-        self.assertEqual(len(hymns), 21)
+        self.assertEqual([h["number"] for h in hymns], [*range(1, 18), 50, 178, 187, 188, 190, 195, 200, 207])
+        self.assertEqual(len(hymns), 25)
 
     def test_all_photo_hymns_have_lyrics_in_both_languages(self):
         hymns = {h["number"]: h for h in compile_asset()["hymns"]}
         self.assertEqual({n for n, h in hymns.items() if h["verses_yo"]}, set([*range(1, 18), 50]))
         self.assertEqual(
             {n for n, h in hymns.items() if h["verses_en"]},
-            set([*range(1, 18), 50, 178, 190, 200])
+            set([*range(1, 18), 50, 178, 187, 188, 190, 195, 200, 207])
         )
         for h in hymns.values():
             if not h["verses_yo"]:
-                self.assertIn(h["number"], {178, 190, 200})
+                self.assertIn(h["number"], {178, 187, 188, 190, 195, 200, 207})
                 self.assertEqual(h["text_status"], "public_domain_english_alternate_needs_edition_review")
                 self.assertEqual(h["source_pages"], [])
             else:
@@ -31,12 +31,12 @@ class HymnDataTest(unittest.TestCase):
     def test_verse_counts_and_partial_hymn(self):
         hymns = compile_asset()["hymns"]
         for hymn in hymns:
-            if hymn["number"] not in {178, 190, 200}:
+            if hymn["number"] not in {178, 187, 188, 190, 195, 200, 207}:
                 self.assertEqual(len(hymn["verses_yo"]), len(hymn["verses_en"]))
                 self.assertGreater(len(hymn["verses_yo"]), 0)
                 self.assertTrue(hymn["source_pages"])
             else:
-                self.assertEqual(len(hymn["verses_en"]), 5)
+                self.assertGreaterEqual(len(hymn["verses_en"]), 3)
                 self.assertFalse(hymn["verses_yo"])
             self.assertEqual(hymn["source_pages"], sorted(hymn["source_pages"]))
             for verse in hymn["verses_yo"] + hymn["verses_en"]:
@@ -46,7 +46,7 @@ class HymnDataTest(unittest.TestCase):
         self.assertEqual(hymns[16]["source_pages"], [6])
         self.assertEqual(hymns[16]["number"], 17)
         self.assertEqual(hymns[17]["number"], 50)
-        self.assertEqual(hymns[-1]["number"], 200)
+        self.assertEqual(hymns[-1]["number"], 207)
 
     def test_assets_are_committed_and_up_to_date(self):
         output = ROOT / "android/app/src/main/assets/hymns.json"
@@ -89,7 +89,7 @@ class HymnDataTest(unittest.TestCase):
                 "not_yet_matched",
             })
         self.assertEqual(sum(e["lyrics_imported"] for e in entries), 18)
-        self.assertEqual(sum(e["english_title_status"] == "verified_from_RH2006_index" for e in entries), 208)
+        self.assertEqual(sum(e["english_title_status"] == "verified_from_RH2006_index" for e in entries), 234)
         for number in (178, 190, 200):
             self.assertEqual(entries[number - 1]["english_title_status"], "verified_from_RH2006_index")
         self.assertEqual(entries[176]["title_en"].lower(), "jesus was slain for me")
@@ -98,12 +98,12 @@ class HymnDataTest(unittest.TestCase):
     def test_provenance_of_english_alternative_texts(self):
         path = ROOT / "data/english-public-domain.json"
         entries = json.loads(path.read_text(encoding="utf-8"))["hymns"]
-        self.assertEqual([h["number"] for h in entries], [178, 190, 200])
+        self.assertEqual([h["number"] for h in entries], [178, 187, 188, 190, 195, 200, 207])
         for hymn in entries:
             self.assertEqual(hymn["rights"], "public_domain_historical_english_text")
             self.assertEqual(hymn["text_status"], "public_domain_english_alternate_needs_edition_review")
             self.assertTrue(hymn["source_url"].startswith("https://hymnary.org/"))
-            self.assertEqual(len(hymn["verses_en"]), 5)
+            self.assertGreaterEqual(len(hymn["verses_en"]), 3)
             self.assertFalse("verses_yo" in hymn)
 
     def test_akokun_is_a_distinct_addendum(self):
