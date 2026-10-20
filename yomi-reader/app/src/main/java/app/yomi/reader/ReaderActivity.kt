@@ -5,6 +5,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.ContentResolver
 import android.content.Context
+import android.content.res.Configuration
 import android.content.res.ColorStateList
 import android.content.Intent
 import android.graphics.Bitmap
@@ -906,6 +907,18 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
 
     override fun dispatchGenericMotionEvent(ev: MotionEvent): Boolean {
         return viewer?.handleGenericMotionEvent(ev) == true || super.dispatchGenericMotionEvent(ev)
+    }
+
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        // Manifest handles orientation itself (as in Mihon), so Android does
+        // not recreate this activity. Refresh the image viewer using its
+        // selected page and new window dimensions; otherwise Webtoon rows
+        // retain their old portrait/landscape aspect-ratio heights.
+        if (::root.isInitialized && viewer != null && viewerChapters.isNotEmpty() && !isFinishing) {
+            installViewer()
+            applyImmersive()
+        }
     }
 
     override fun onStop() {
