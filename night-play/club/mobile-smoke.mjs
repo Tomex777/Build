@@ -531,6 +531,51 @@ try{
   await page.screenshot({path:'night-play/visual-output/CHECKERS-CPU-AFTER-MOVES.jpg',type:'jpeg',quality:78});
   await page.locator('[data-checker-mode="local"]').click();
   assert.equal(await page.evaluate(()=>window.__nightCheckersQA().mode),'local');
+
+  // Real multi-jump rules, mandatory capture priority and winning state.
+  await page.evaluate(()=>{
+   const saved=JSON.parse(localStorage.getItem('night-play-club-v1'));
+   const cells=Array(64).fill(null);
+   cells[40]='w';cells[44]='w';cells[33]='b';cells[19]='b';
+   saved.checkers={cells,turn:'w',selected:null,forced:null,winner:null,mode:'local',msg:'Capture chain test.'};
+   localStorage.setItem('night-play-club-v1',JSON.stringify(saved));
+  });
+  await page.reload();
+  await page.locator('[data-checker="44"]').click();
+  assert.equal(await page.locator('.checker-square.target').count(),0,'mandatory capture blocks ordinary piece moves');
+  await page.locator('[data-checker="40"]').click();
+  assert.equal(await page.locator('[data-checker="26"].target').count(),1,'only capture landing may be chosen');
+  await page.locator('[data-checker="26"]').click();
+  await page.waitForFunction(()=>{
+   const q=window.__nightCheckersQA();
+   return !q.busy&&q.pieces[26]==='w'&&q.pieces[33]===null;
+  },null,{timeout:4000});
+  assert.equal(await page.locator('[data-checker="12"].target').count(),1,'the same piece must continue the capture chain');
+  await page.locator('[data-checker="12"]').click();
+  await page.waitForFunction(()=>window.__nightCheckersQA().winner==='w'&&!window.__nightCheckersQA().busy,null,{timeout:4000});
+  assert.equal(await page.locator('.checker-piece').count(),2,'both captured discs are removed');
+  assert.ok((await page.locator('.checker-game-call strong').innerText()).includes('White wins'),'winning the last forced capture ends the game');
+  await page.screenshot({path:'night-play/visual-output/CHECKERS-CHAIN-CAPTURE-WIN.jpg',type:'jpeg',quality:80});
+
+  // Promotion creates a real king, and the king can travel backwards.
+  await page.evaluate(()=>{
+   const saved=JSON.parse(localStorage.getItem('night-play-club-v1'));
+   const cells=Array(64).fill(null);
+   cells[10]='w';cells[49]='b';
+   saved.checkers={cells,turn:'w',selected:null,forced:null,winner:null,mode:'local',msg:'Crowning test.'};
+   localStorage.setItem('night-play-club-v1',JSON.stringify(saved));
+  });
+  await page.reload();
+  await page.locator('[data-checker="10"]').click();
+  await page.locator('[data-checker="1"]').click();
+  await page.waitForFunction(()=>window.__nightCheckersQA().pieces[1]==='W'&&!window.__nightCheckersQA().busy,null,{timeout:4000});
+  assert.equal(await page.locator('.checker-crown').count(),1,'the promoted disc has a proper crown SVG');
+  await page.locator('[data-checker="49"]').click();
+  await page.locator('[data-checker="56"]').click();
+  await page.waitForFunction(()=>window.__nightCheckersQA().turn==='w'&&!window.__nightCheckersQA().busy,null,{timeout:4000});
+  await page.locator('[data-checker="1"]').click();
+  assert.equal(await page.locator('[data-checker="10"].target').count(),1,'crowned white king can legally move backwards');
+  await page.screenshot({path:'night-play/visual-output/CHECKERS-KING-BACKWARD.jpg',type:'jpeg',quality:80});
   for(const name of ["ludo","estate","whot","colors","draw","snakes","checkers"]){
     await page.goto(base+"/club/?game="+name);
     assert.equal(await page.locator("#gameTitle").innerText(),({ludo:"Nigerian Ludo",estate:"NIGHT Estates",whot:"WHOT",colors:"Colour Clash",draw:"Draw & Guess",snakes:"Snakes & Ladders",checkers:"Draughts"})[name]);
