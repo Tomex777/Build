@@ -108,10 +108,12 @@ try{
   const client=await page.context().newCDPSession(page);
   const swipe=async(x1,y1,x2,y2)=>{
    await client.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[coord(x1,y1)]});
-   for(let i=1;i<=8;i++){
+   // A short, deliberate real fingertip flick: do not let browser scheduler
+   // latency move an apex target a full fruit diameter before the cut ends.
+   for(let i=1;i<=4;i++){
     await client.send('Input.dispatchTouchEvent',{type:'touchMove',
-     touchPoints:[coord(x1+(x2-x1)*i/8,y1+(y2-y1)*i/8)]});
-    await page.waitForTimeout(12);
+     touchPoints:[coord(x1+(x2-x1)*i/4,y1+(y2-y1)*i/4)]});
+    await page.waitForTimeout(4);
    }
    await client.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
   };
@@ -181,6 +183,101 @@ try{
   assert.equal(hit.score,0,'cutting a bomb must not award points');
   await shot(page,'fruit-bomb');await page.close();
   report.push({game:'slice',case:'real bomb collision ends round without points',over:hit.over});
+ }
+ // A high-frequency mobile swipe through a double volley is one physical
+ // action that slices BOTH bodies and gives increasing, earned combo points.
+ // Seeded RNG controls spawn arrangement; touch moves still go via Chromium CDP.
+ {
+  const page=await pageFor('slice',.1);
+  // Choose the two bodies genuinely passing through their shared apex.
+  // Other volleys can coexist farther down the screen, so do not require
+  // ALL live fruit to equal two; do require exactly two apex targets.
+  const atApex=fruits=>fruits.filter(f=>f.kind!=='bomb'&&!f.hit&&
+   Math.abs(f.vy)<75&&f.y>110&&f.y<300);
+  // Playwright serializes this function into the browser realm: it cannot
+  // capture the Node-side atApex helper from above.
+  await waitFor(page,()=>window.__nightActionTest.snapshot().fruits.filter(f=>
+   f.kind!=='bomb'&&!f.hit&&Math.abs(f.vy)<75&&f.y>110&&f.y<300).length===2,5000);
+  const targets=atApex((await snap(page)).fruits);
+  assert.equal(targets.length,2,'two distinct fruit are at the apex of their real volley');
+  assert.ok(Math.abs(targets[0].x-targets[1].x)>80,'volley fruits remain visually distinguishable');
+  const targetY=targets[0].y,left=Math.max(6,Math.min(...targets.map(f=>f.x))-44),
+   right=Math.min(384,Math.max(...targets.map(f=>f.x))+44);
+  const box=await page.locator('canvas').boundingBox();
+  const coord=(x,y)=>({x:box.x+x/390*box.width,y:box.y+y/550*box.height});
+  const cdp=await page.context().newCDPSession(page);
+  const id=204;
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{...coord(left,targetY),id}]});
+  for(let i=1;i<=4;i++){
+   await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{
+    ...coord(left+(right-left)*i/4,targetY),id}]});
+   await page.waitForTimeout(4);
+  }
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+  const hit=await snap(page);
+  assert.equal(hit.score,25,'a two-fruit real touchscreen combo scores 10 then 15 earned points');
+  assert.equal(hit.halves.length,4,'both genuinely cut fruit split into two visible pieces each');
+  assert.ok(hit.popups.some(p=>p.label==='2× COMBO'),'one visible combo indicator rewards the real simultaneous cut');
+  await shot(page,'fruit-double-combo');
+  report.push({game:'slice',case:'real touch double-fruit combo',score:hit.score,halves:hit.halves.length});
+  await page.close();
+ }
+ // A bomb and fruit intersected by the SAME continuous blade segment
+ // cannot grant fruit points just because fruit was inserted first in state.
+ // Here the two distinct launch lanes are visible and the low-level CDP
+ // swipe intentionally spans BOTH in one native touchMove.
+ {
+  const page=await browser.newPage({viewport:{width:390,height:844},hasTouch:true,isMobile:true});
+  page.on('pageerror',error=>{throw error});
+  await page.addInitScript(()=>{
+   const values=[.1,.5,.5,.5,.5,.5,.5,.5,.5,.5,.01];
+   let index=0;Math.random=()=>values[index++]??.5;
+  });
+  await page.goto(url+'/action/?game=slice');
+  await page.locator('#overlayStart').click();
+  await waitFor(page,()=>{
+   const s=window.__nightActionTest.snapshot();
+   return s.fruits.length===2&&s.fruits.some(f=>f.kind==='bomb')&&
+    s.fruits.some(f=>f.kind!=='bomb')&&s.fruits.every(f=>Math.abs(f.vy)<70&&f.y>110&&f.y<300);
+  },5000);
+  const targets=(await snap(page)).fruits,box=await page.locator('canvas').boundingBox();
+  assert.equal(targets[0].kind!=='bomb',true,'nonbomb fruit is first in processing order');
+  assert.equal(targets[1].kind,'bomb','lethal target is last in processing order');
+  const coord=(x,y)=>({x:box.x+x/390*box.width,y:box.y+y/550*box.height,id:415});
+  const y=targets[0].y,left=Math.max(4,Math.min(...targets.map(f=>f.x))-45),
+   right=Math.min(386,Math.max(...targets.map(f=>f.x))+45);
+  const cdp=await page.context().newCDPSession(page);
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[coord(left,y)]});
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[coord(right,y)]});
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+  const result=await snap(page);
+  assert.equal(result.over,true,'the actual cross-board slash hits the bomb');
+  assert.equal(result.score,0,'lethal same-segment bomb contact awards no earlier fruit points');
+  report.push({game:'slice',case:'one real touch segment intersects bomb and fruit; bomb wins',score:result.score});
+  await shot(page,'fruit-bomb-priority');await page.close();
+ }
+ // Some browsers deliver the last gesture sample as pointerup; previously
+ // that final motion was thrown away, causing apparently ignored swipes.
+ // This supplemental event-sequencing check uses exact pointerup geometry;
+ // the separate tests above exercise full native Chromium CDP touch streams.
+ {
+  const page=await pageFor('slice',.5);
+  await waitFor(page,()=>window.__nightActionTest.snapshot().fruits.some(f=>
+   f.kind!=='bomb'&&!f.hit&&Math.abs(f.vy)<70&&f.y>110&&f.y<300),5000);
+  const fruit=(await snap(page)).fruits.find(f=>
+   f.kind!=='bomb'&&!f.hit&&Math.abs(f.vy)<70&&f.y>110&&f.y<300);
+  const bounds=await page.locator('canvas').boundingBox(),canvas=page.locator('canvas');
+  const coord=(x,y)=>({clientX:bounds.x+x/390*bounds.width,clientY:bounds.y+y/550*bounds.height});
+  await canvas.dispatchEvent('pointerdown',{bubbles:true,pointerType:'touch',pointerId:901,
+   button:0,...coord(fruit.x-41,fruit.y)});
+  await canvas.dispatchEvent('pointerup',{bubbles:true,pointerType:'touch',pointerId:901,
+   button:0,...coord(fruit.x+41,fruit.y)});
+  const after=await snap(page);
+  assert.equal(after.score,10,'final pointerup segment slices without requiring a second gesture');
+  assert.equal(after.halves.length,2,'finger lift must produce two visible cut halves');
+  report.push({game:'slice',case:'last pointerup segment is not dropped',score:after.score});
+  await shot(page,'fruit-finger-lift');
+  await page.close();
  }
  // 5. Centre-controlled ball impacts only ONE brick at a time, rebounds in
  // its physical collision axis, and cannot tunnel along a full row.
