@@ -139,6 +139,32 @@ try{
  assert.equal(await tiles.locator('.tile[data-v="3"]').count(),0,'invalid scores and impossible tiles are rejected');
  console.log('AGENT5_2048_PLAYED '+JSON.stringify({milestone:true,winScore:2048,undo:true,touchSwipe:true,loss:true,highTiles:true,badSaveRejected:true}));
 
+ // The settings also offer 5×5 and 6×6. Play a genuine merge on each,
+ // including undo and persisted score. Never mistake a selectable setting
+ // for verified gameplay, particularly at the most cramped phone width.
+ for(const size of [5,6]){
+  const savedGrid=Array.from({length:size},(_,row)=>
+   Array.from({length:size},(_,col)=>row===0&&col<2?2:0));
+  await tiles.evaluate(({size,grid})=>{
+   localStorage.setItem('night-play-setting-2048-size',String(size));
+   localStorage.setItem('night-play-save-2048-'+size,JSON.stringify({size,grid,score:0,updatedAt:Date.now()}));
+  },{size,grid:savedGrid});
+  await tiles.reload();
+  assert.equal(await tiles.locator('#board2048 .tile').count(),size*size,'correct live board dimensions for '+size+'×'+size);
+  await tiles.keyboard.press('ArrowLeft');
+  assert.equal(await tiles.locator('#score').textContent(),'4','real merge earns 4 on '+size+'×'+size);
+  assert.equal(await tiles.locator('#board2048 .tile[data-v="4"]').count(),1);
+  await tiles.locator('#undo2048').click();
+  assert.equal(await tiles.locator('#score').textContent(),'0','undo works on '+size+'×'+size);
+  await tiles.keyboard.press('ArrowLeft');
+  await tiles.reload();
+  assert.equal(await tiles.locator('#score').textContent(),'4','score resumes on '+size+'×'+size);
+  const geom=await tiles.evaluate(()=>({viewport:innerWidth,scrollWidth:document.documentElement.scrollWidth}));
+  assert.ok(geom.scrollWidth<=geom.viewport+2,'no '+size+'×'+size+' horizontal overflow: '+JSON.stringify(geom));
+  await tiles.screenshot({path:path.join(output,'agent5-2048-'+size+'x'+size+'-390.jpg'),quality:73,type:'jpeg'});
+ }
+ console.log('AGENT5_2048_ALL_SIZES_PLAYED '+JSON.stringify({sizes:['4x4','5x5','6x6'],moves:true,undo:true,resume:true}));
+
  // Small phones still fit both games without horizontal scrolling.
  const narrow=await browser.newPage({viewport:{width:320,height:640},deviceScaleFactor:2,isMobile:true,hasTouch:true});
  await narrow.route('https://images.unsplash.com/**',route=>route.abort());
