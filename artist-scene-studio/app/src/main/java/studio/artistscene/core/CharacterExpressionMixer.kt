@@ -20,7 +20,7 @@ object CharacterExpressionMixer {
     /** Exclude body/hair morphs that happen to contain an emotion-like name. */
     private fun isFaceMorph(target: RigMorphTarget): Boolean {
         val mesh = target.meshName?.let(::normalized) ?: return true
-        return mesh.contains("face") || mesh.contains("head") || mesh.contains("facial")
+        return mesh.contains("face") || mesh.contains("head") || mesh.contains("facial") ||\n            mesh.contains("eye") || mesh.contains("mouth")
     }
 
     private fun matching(targets: List<RigMorphTarget>, expression: FaceExpression): Set<String> {
