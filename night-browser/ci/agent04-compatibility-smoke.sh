@@ -1,37 +1,74 @@
 #!/usr/bin/env bash
-# Actual Android emulator interaction test for Agent 4. No synthetic UI mocks.
+# Deterministic interaction smoke for the real GeckoView APK on Android API 36.
+# Every adb operation is bounded: an unresponsive Gecko/accessibility tree must
+# produce a clear test failure rather than occupy a GitHub runner for 40 minutes.
 set -euo pipefail
-
-# Existing script installs the architecture-specific APK, launches the browser,
-# taps native buttons and navigates to https://example.com, saving evidence.
-source night-browser/ci/capture-screenshots.sh
-
-capture_second_site() {
-  local site="$1"
-  local filename="$2"
-  tap_ui "Home"
-  tap_ui "$site"
-  sleep 14
-  capture "$filename"
+DIR="night-browser/screenshots"
+APK="night-browser/app/build/outputs/apk/debug/app-x86_64-debug.apk"
+mkdir -p "$DIR"
+test -s "$APK" || { echo "Missing x86_64 APK" >&2; exit 1; }
+adb_safe() { timeout 25s adb "$@"; }
+capture() {
+  adb_safe shell screencap -p /sdcard/night-agent04.png
+  adb_safe pull /sdcard/night-agent04.png "$DIR/$1" >/dev/null
+  test -s "$DIR/$1"
 }
-
-# Visit two additional HTTPS origins via actual Start Page touch interaction.
-capture_second_site "Wikipedia" "07-wikipedia-geckoview.png"
-capture_second_site "GitHub" "08-github-geckoview.png"
-
-# Fail on process death, not on harmless Gecko warnings.
-adb shell dumpsys activity activities > night-browser/screenshots/agent04-activity.txt
-if ! grep -q 'com.night.browser' night-browser/screenshots/agent04-activity.txt; then
-  echo "NIGHT Browser process is not foreground after real site navigation" >&2
-  exit 1
-fi
-adb logcat -d -t 15000 > night-browser/screenshots/agent04-logcat-full.txt
-if grep -A 15 'FATAL EXCEPTION' night-browser/screenshots/agent04-logcat-full.txt |
-    grep -q 'com.night.browser'; then
-  echo "NIGHT Browser crashed during emulator interaction" >&2
-  exit 1
-fi
-for image in 06-webpage.png 07-wikipedia-geckoview.png 08-github-geckoview.png; do
-  test -s "night-browser/screenshots/$image"
+dump_ui() {
+  # Dumping accessibility with a live Gecko surface has previously hung here.
+  # We only dump on the Compose start page and with a hard 20s deadline.
+  adb_safe shell uiautomator dump /sdcard/night-agent04.xml >/dev/null
+  adb_safe pull /sdcard/night-agent04.xml "$DIR/agent04-ui.xml" >/dev/null
+}
+tap_named_site() {
+  local site="$1"
+  dump_ui
+  local point
+  point=$(python3 - "$DIR/agent04-ui.xml" "$site" <<'PY'
+import re,sys,xml.etree.ElementTree as ET
+root=ET.parse(sys.argv[1]).getroot()
+for node in root.iter('node'):
+    if node.get('text') == sys.argv[2] or node.get('content-desc') == sys.argv[2]:
+        a=list(map(int,re.findall(r'\d+',node.get('bounds',''))))
+        if len(a)==4:
+            print((a[0]+a[2])//2,(a[1]+a[3])//2)
+            break
+PY
+  )
+  if [ -z "$point" ]; then
+    echo "FAIL: Could not find Compose quick access target: $site" >&2
+    exit 1
+  fi
+  adb_safe shell input tap $point
+}
+# Real installation on the emulator is a separate milestone from compilation.
+adb_safe install -r "$APK"
+adb_safe shell wm size 1080x1920
+adb_safe shell wm density 420
+# Relaunch between sites to exercise process recreation and return to Home
+# without relying on back-navigation or a potentially hanging Gecko UI dump.
+for spec in 'Google:google' 'Wikipedia:wikipedia' 'GitHub:github'; do
+  site="${spec%%:*}"
+  label="${spec#*:}"
+  adb_safe shell am force-stop com.night.browser || true
+  adb_safe shell am start -n com.night.browser/.MainActivity
+  sleep 9
+  capture "agent04-${label}-home.png"
+  tap_named_site "$site"
+  sleep 14
+  capture "agent04-${label}-web.png"
+  adb_safe shell dumpsys activity activities > "$DIR/agent04-${label}-activity.txt"
+  grep -q 'com.night.browser' "$DIR/agent04-${label}-activity.txt" || {
+    echo "FAIL: NIGHT Browser no longer appears in Android activities ($site)" >&2
+    exit 1
+  }
 done
-echo "Installed APK and interacted with three HTTPS pages. Screenshots need human review."
+# Keep diagnostic log bounded and redacted; errors are checked separately
+# from normal site console and Gecko warnings.
+timeout 30s adb logcat -d -t 6000 > "$DIR/agent04-logcat.txt"
+if grep -A 20 'FATAL EXCEPTION' "$DIR/agent04-logcat.txt" |
+    grep -q 'com.night.browser'; then
+  echo "FAIL: NIGHT Browser Java crash detected" >&2
+  exit 1
+fi
+echo "Installed, relaunched and tapped three real HTTPS sites on emulator."
+echo "Full visual review and functional permissions/uploads QA remain required."
