@@ -109,8 +109,15 @@ class AtlasPlaybackService:Service() {
         return START_NOT_STICKY
     }
     fun update(scene:World) {
+        // Dragging emitters can update the engine dozens of times per second.
+        // Refresh the system media notification only for a scene name change.
+        val previousTitle=world.name
         world=scene.copyForAudio()
         engine.update(world)
+        if(playing && previousTitle!=world.name) {
+            getSystemService(NotificationManager::class.java)
+                .notify(NOTIFICATION_ID,notification())
+        }
         onChanged?.invoke()
     }
     fun isPlaying():Boolean = playing && engine.isPlaying
