@@ -140,6 +140,8 @@ class ChatHistoryTest {
         compose.mainClock.advanceTimeBy(320)
         compose.waitForIdle()
         compose.onNodeWithTag("drawer_new_chat").assertIsDisplayed()
+        // Downloads has one navigation route via Library; don't duplicate the destination.
+        compose.onNodeWithTag("drawer_downloads").assertDoesNotExist()
         compose.onNodeWithTag("annie_navigation_drawer").assertExists()
         compose.onNodeWithTag("drawer_scrim").assertExists()
         compose.onNodeWithTag("conversation").assertExists()
