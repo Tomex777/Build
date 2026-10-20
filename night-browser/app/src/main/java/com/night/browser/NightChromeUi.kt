@@ -28,6 +28,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.contentDescription
@@ -56,15 +57,15 @@ private val Lilac = Color(0xFFC1B8FF)
 
 /** Own implementation inspired by familiar browser conventions, not copied Omni source. */
 private data class Destination(
-    val name: String, val url: String, val tint: Color, val symbol: String
+    val name: String, val url: String, val tint: Color, val symbol: ImageVector
 )
 private val shortcuts = listOf(
-    Destination("Google", "https://www.google.com/", Color(0xFF8AB4F8), "G"),
-    Destination("YouTube", "https://www.youtube.com/", Color(0xFFFF6F73), "▶"),
-    Destination("GitHub", "https://github.com/", Color(0xFFC4C7D0), "⌘"),
-    Destination("Wikipedia", "https://www.wikipedia.org/", Color(0xFFE2DBB7), "W"),
-    Destination("Reddit", "https://www.reddit.com/", Color(0xFFFF9869), "r"),
-    Destination("WhatsApp", "https://web.whatsapp.com/", Color(0xFF69D6A7), "✳"),
+    Destination("Google", "https://www.google.com/", Color(0xFF8AB4F8), Icons.Rounded.Search),
+    Destination("YouTube", "https://www.youtube.com/", Color(0xFFFF6F73), Icons.Rounded.PlayArrow),
+    Destination("GitHub", "https://github.com/", Color(0xFFC4C7D0), Icons.Rounded.Code),
+    Destination("Wikipedia", "https://www.wikipedia.org/", Color(0xFFE2DBB7), Icons.Rounded.MenuBook),
+    Destination("Reddit", "https://www.reddit.com/", Color(0xFFFF9869), Icons.Rounded.Forum),
+    Destination("WhatsApp", "https://web.whatsapp.com/", Color(0xFF69D6A7), Icons.Rounded.Chat),
 )
 
 private val backgrounds = listOf(
@@ -93,7 +94,7 @@ internal fun NightHomePanel(
     val savedDestinations = browser.store.bookmarks
         .take(2)
         .filterNot { mark -> shortcuts.any { it.url == mark.url } }
-        .map { mark -> Destination(mark.title.take(12), mark.url, Color(0xFFBDB4FF), "★") }
+        .map { mark -> Destination(mark.title.take(12), mark.url, Color(0xFFBDB4FF), Icons.Rounded.Bookmark) }
     val items = (shortcuts.take(6) + savedDestinations).take(8)
 
     Box(Modifier.fillMaxSize().background(Brush.verticalGradient(backgrounds[backgroundChoice]))) {
@@ -111,9 +112,6 @@ internal fun NightHomePanel(
                 ) {
                     Text("N", color = CanvasBlack, fontWeight = FontWeight.Black, fontSize = 19.sp)
                 }
-                Spacer(Modifier.width(10.dp))
-                Text("NIGHT", color = White, fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
                 Spacer(Modifier.weight(1f))
                 Box {
                     IconButton(onClick = { chooseBackground = true }) {
@@ -224,8 +222,8 @@ internal fun NightHomePanel(
                                     .border(1.dp, Color(0xFF383C50), RoundedCornerShape(19.dp)),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text(item.symbol, fontSize = 23.sp, color = item.tint,
-                                    fontWeight = FontWeight.SemiBold)
+                                Icon(item.symbol, contentDescription = null,
+                                    tint = item.tint, modifier = Modifier.size(24.dp))
                             }
                             Spacer(Modifier.height(9.dp))
                             Text(item.name, color = Color(0xFFDEE0EC), fontSize = 11.sp,
