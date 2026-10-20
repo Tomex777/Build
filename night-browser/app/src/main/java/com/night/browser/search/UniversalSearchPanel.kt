@@ -85,6 +85,16 @@ fun UniversalSearchPanel(
     // A record's title/domain could change after a tick; require selection
     // again when the actual catalog changes, rather than consent by stale ID.
     LaunchedEffect(approved) {
+        // Abort an in-flight answer if the approved records changed underneath
+        // the user; a later result must never masquerade as the current catalog.
+        if (selected.isNotEmpty() || busy) {
+            generation++
+            job?.cancel()
+            job = null
+            busy = false
+            outcome = null
+            showResult = false
+        }
         selected.clear()
         confirmRequest = false
     }
