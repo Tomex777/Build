@@ -43,6 +43,24 @@ async function audit(browser,serverPort,entry,worker){
    },board);
    if(measures.boardWidth<120||measures.boardHeight<80)errors.push('Missing/tiny board: '+measures.boardWidth+'x'+measures.boardHeight);
    if(measures.overflowX)errors.push('Horizontal overflow '+measures.pageWidth+' > '+measures.visibleWidth);
+   // Battleship is a seven-column touch game. Assert real target dimensions
+   // and verify that enemy waters appear before the reference fleet on phones.
+   if (id === 'battleship') {
+     const battlefield = await page.evaluate(() => {
+       const parts = [...document.querySelectorAll('.battle > div')];
+       if (parts.length !== 2) return {valid:false};
+       const target=parts[1].querySelector('button.cell:not([disabled])');
+       const rect=target&&target.getBoundingClientRect();
+       const cs=getComputedStyle(parts[1]);
+       const first=parts[0].getBoundingClientRect(),second=parts[1].getBoundingClientRect();
+       return {valid:Boolean(target&&rect),width:rect?.width||0,height:rect?.height||0,
+         enemyFirst:second.top<first.top, enemyColumns:parts[1].querySelectorAll('.cell').length,
+         layout:cs.order};
+     });
+     measures.battleship=battlefield;
+     if(!battlefield.valid||battlefield.width<39||battlefield.height<39||
+        !battlefield.enemyFirst||battlefield.enemyColumns!==49)errors.push('Battleship phone targets/priority not usable: '+JSON.stringify(battlefield));
+   }
    const snapshot=page.locator(dir==='classics'?'#status':dir==='puzzles'?'#message':'#score');
    statusBefore=(await snapshot.count())?(await snapshot.first().innerText().catch(()=>'')):'';
    const folder=path.join(out,'screenshots');fs.mkdirSync(folder,{recursive:true});
