@@ -58,7 +58,7 @@ function overlay(tag,title,copy,action){
 function hideOverlay(){$('overlay').hidden=true}
 function end(text){
  if(over)return;over=true;paused=false;started=false;saveBest(Math.floor(state.score));
- updateHud();overlay('ROUND COMPLETE',text,'Score '+Math.floor(state.score)+' · Best '+Math.floor(readBest()),'Play again');audio('bad');
+ updateHud();overlay('GAME OVER',text,'Score '+Math.floor(state.score)+' · Best '+Math.floor(readBest()),'Play again');audio('bad');
  $('message').textContent=text;
 }
 function rounded(x,y,w,h,r=9){ctx.beginPath();ctx.roundRect(x,y,w,h,r)}
