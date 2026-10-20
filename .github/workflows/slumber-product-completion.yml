@@ -39,6 +39,7 @@ on:
       - ".ci/slumber_119_melody_library/**"
       - ".ci/slumber_120_audio_previews/**"
       - ".ci/slumber_121_library_polish/**"
+      - ".ci/slumber_122_catalog_copy/**"
   pull_request:
     branches: ["slumber-087-build"]
     paths:
@@ -77,6 +78,7 @@ on:
       - ".ci/slumber_119_melody_library/**"
       - ".ci/slumber_120_audio_previews/**"
       - ".ci/slumber_121_library_polish/**"
+      - ".ci/slumber_122_catalog_copy/**"
 
 permissions:
   actions: read
@@ -460,6 +462,15 @@ jobs:
           echo '45a756928f2f50f2eff5cf933a5ac9f0f52c82df1d8b0065799b1012b030121f  /tmp/slumber-088/responsive-polish.patch' | sha256sum -c -
           patch --fuzz=0 -d "$OUT" -p1 < "$OUT/responsive-polish.patch"
           grep -q 'screenWidthDp >= 360' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/TilesLibraryScreen.kt"
+
+      - name: Polish singular/plural catalogue labels
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT=/tmp/slumber-088
+          base64 -d .ci/slumber_122_catalog_copy/singular-count.patch.gz.b64 | gzip -dc > "$OUT/singular-count.patch"
+          echo '7f70917415ce1978bf7bfa9e64a55ebdbb3cfa22249e1748406352330e42bb60  /tmp/slumber-088/singular-count.patch' | sha256sum -c -
+          patch --fuzz=0 -d "$OUT" -p1 < "$OUT/singular-count.patch"
 
       - uses: actions/setup-java@v4
         with:
