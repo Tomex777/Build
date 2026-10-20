@@ -80,8 +80,15 @@ try {
     assert.equal(library.emojiThumbnails, 0, 'Library should retain original artwork at ' + width)
     await page.screenshot({ path: join(output, 'library-' + width + '.png') })
     console.log('NIGHT_UI_LIBRARY ' + JSON.stringify({ width, ...library }))
-    // A1 granted the scoped CSS edit window in issue #459; check the actual
-    // integrated stylesheet served by this test, not a dynamically injected mock.
+    // The source app loads a separate site stylesheet; wait for the actual
+    // final layout (not an arbitrary delay or a mocked CSS override) before
+    // asserting ergonomic targets. This keeps a genuine undersized hitbox red.
+    await page.waitForFunction(() => {
+      const filter = document.querySelector('#view-games [data-filter="puzzle"]');
+      const search = document.querySelector('#view-games #gameSearch');
+      return filter && search && filter.getBoundingClientRect().height >= 44
+        && search.getBoundingClientRect().height >= 44;
+    },null,{timeout:4500,polling:50});
     const discovery = await page.evaluate(() => {
       const box = selector => {
         const el = document.querySelector(selector)
