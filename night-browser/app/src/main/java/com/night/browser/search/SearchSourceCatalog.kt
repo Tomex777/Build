@@ -8,14 +8,15 @@ import java.security.MessageDigest
 /**
  * Construct the *local* eligible source catalog. IDs must stay bound to URLs,
  * otherwise a bookmark/history reorder could silently change which page a
- * previously checked row refers to.
+ * previously checked row refers to. Scan past unsafe entries before applying
+ * the 60 eligible-page display limit; sensitive pages must not crowd out safe ones.
  */
 object SearchSourceCatalog {
     fun collect(
         bookmarks: List<Bookmark>,
         journeys: List<Journey>,
     ): List<SearchSource> {
-        val marks = bookmarks.asSequence().take(60).map { bookmark ->
+        val marks = bookmarks.asSequence().take(500).map { bookmark ->
             SearchSource(
                 id = stableId(bookmark.url),
                 title = bookmark.title,
@@ -25,7 +26,7 @@ object SearchSourceCatalog {
         }
         val visited = journeys.asSequence()
             .flatMap { it.nodes.asReversed().asSequence() }
-            .take(250)
+            .take(1500)
             .map { node ->
                 SearchSource(
                     id = stableId(node.url),
