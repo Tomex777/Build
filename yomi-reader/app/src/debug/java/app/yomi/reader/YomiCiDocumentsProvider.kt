@@ -46,7 +46,8 @@ class YomiCiDocumentsProvider : DocumentsProvider() {
         val columns = projection ?: DOCUMENT_COLUMNS
         val children = when (parentDocumentId) {
             ROOT_ID -> listOf(CHAPTER_1, CHAPTER_2)
-            ARCHIVE_FOLDER_ID -> listOf(CHAPTER_ARCHIVE_ID)
+            ARCHIVE_FOLDER_ID -> listOf(VOLUME_FOLDER_ID)
+            VOLUME_FOLDER_ID -> listOf(CHAPTER_ARCHIVE_ID)
             CHAPTER_1 -> listOf(C1_PAGE_1, C1_PAGE_2)
             CHAPTER_2 -> listOf(C2_PAGE_1, C2_PAGE_2)
             else -> emptyList()
@@ -77,7 +78,8 @@ class YomiCiDocumentsProvider : DocumentsProvider() {
     override fun isChildDocument(parentDocumentId: String, documentId: String): Boolean {
         return when (parentDocumentId) {
             ROOT_ID -> documentId == CHAPTER_1 || documentId == CHAPTER_2 || documentId in IMAGE_IDS
-            ARCHIVE_FOLDER_ID -> documentId == CHAPTER_ARCHIVE_ID
+            ARCHIVE_FOLDER_ID -> documentId == VOLUME_FOLDER_ID || documentId == CHAPTER_ARCHIVE_ID
+            VOLUME_FOLDER_ID -> documentId == CHAPTER_ARCHIVE_ID
             CHAPTER_1 -> documentId == C1_PAGE_1 || documentId == C1_PAGE_2
             CHAPTER_2 -> documentId == C2_PAGE_1 || documentId == C2_PAGE_2
             else -> false
@@ -85,10 +87,11 @@ class YomiCiDocumentsProvider : DocumentsProvider() {
     }
 
     private fun addDocumentRow(cursor: MatrixCursor, columns: Array<out String>, id: String) {
-        val directory = id == ROOT_ID || id == ARCHIVE_FOLDER_ID || id == CHAPTER_1 || id == CHAPTER_2
+        val directory = id == ROOT_ID || id == ARCHIVE_FOLDER_ID || id == VOLUME_FOLDER_ID || id == CHAPTER_1 || id == CHAPTER_2
         val name = when (id) {
             ROOT_ID -> "Yomi CI Folder"
             ARCHIVE_FOLDER_ID -> "Yomi CI ZIP Folder"
+            VOLUME_FOLDER_ID -> "Volume 1"
             CHAPTER_ARCHIVE_ID -> "Chapter 1.cbz"
             CHAPTER_1 -> "Chapter 1"
             CHAPTER_2 -> "Chapter 2"
@@ -167,7 +170,8 @@ class YomiCiDocumentsProvider : DocumentsProvider() {
         const val ROOT_ID = "root"
         const val ARCHIVE_ID = "ci-archive.cbz"
         const val ARCHIVE_FOLDER_ID = "ci-zip-folder"
-        const val CHAPTER_ARCHIVE_ID = "ci-zip-folder/chapter-1.cbz"
+        const val VOLUME_FOLDER_ID = "ci-zip-folder/volume-1"
+        const val CHAPTER_ARCHIVE_ID = "ci-zip-folder/volume-1/chapter-1.cbz"
         private const val CHAPTER_1 = "chapter-1"
         private const val CHAPTER_2 = "chapter-2"
         private const val C1_PAGE_1 = "chapter-1/1.png"
