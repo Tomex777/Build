@@ -10,6 +10,7 @@ import argparse
 import csv
 from datetime import datetime, timezone
 import json
+from math import ceil
 from pathlib import Path
 import re
 import subprocess
@@ -65,7 +66,7 @@ def percentile(values: list[float], pct: float) -> float | None:
     if not values:
         return None
     ranked = sorted(values)
-    index = max(0, min(len(ranked) - 1, -(-int(pct * len(ranked) * 1000) // 1000) - 1))
+    index = max(0, min(len(ranked) - 1, ceil(pct * len(ranked)) - 1))
     return round(ranked[index], 3)
 
 
