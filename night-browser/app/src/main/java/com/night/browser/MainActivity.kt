@@ -64,21 +64,24 @@ private enum class Page { HOME, WEB, TABS, JOURNEYS, LIBRARY, TIME_MACHINE }
 
 class MainActivity : ComponentActivity() {
     private lateinit var browser: BrowserController
+    private lateinit var downloadPrompt: WebDownloadConsent
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         browser = BrowserController(applicationContext, BrowserPlatformHost(this))
-        // Gecko's original response stream is kept for authenticated downloads.
-        browser.downloadHandler = { response ->
-            DownloadLibrary.shared(applicationContext).acceptGeckoResponse(response) { event ->
-                browser.notice = event
-            }
-        }
+        // All Gecko response downloads require affirmative user consent.
+        // The prompt owns the original response stream and closes it on cancellation.
+        downloadPrompt = WebDownloadConsent(DownloadLibrary.shared(applicationContext))
+        browser.downloadHandler = downloadPrompt::offer
         setContent {
             MaterialTheme(colorScheme = darkColorScheme(
                 background = Ink, surface = Raised, primary = Accent,
                 onSurface = Bright, onBackground = Bright
             )) {
+                LaunchedEffect(downloadPrompt.eventMessage) {
+                    downloadPrompt.consumeMessage()?.let { browser.notice = it }
+                }
+                NightDownloadPrompt(downloadPrompt)
                 NightBrowser(browser) { saved ->
                     val file = File(File(filesDir, "saved-pages"), saved.fileName)
                     if (!file.exists()) {
@@ -98,6 +101,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        downloadPrompt.dismiss()
         if (isFinishing) browser.tabs.forEach { if (it.session.isOpen) it.session.close() }
         super.onDestroy()
     }
