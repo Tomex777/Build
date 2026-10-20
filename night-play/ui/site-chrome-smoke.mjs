@@ -59,6 +59,7 @@ try {
       }
     })
     console.log('NIGHT_UI_SITE ' + JSON.stringify({ width, ...onSite }))
+    assert.ok(onSite.overflow <= 1, 'NIGHT Play has no horizontal overflow at ' + width)
     assert.ok(onSite.logoHeight >= 44, 'Header logo has minimum touch target at ' + width)
     if (mobile) {
       assert.equal(onSite.mobileNav, 'grid', 'Mobile site navigation exists at ' + width)
@@ -104,6 +105,31 @@ try {
     assert.equal(game.redundantExitVisible, false, 'Keep one back/exit control rather than a duplicate at ' + width)
     if (width <= 360) assert.ok(game.backHeight <= 42, 'Narrow-phone back label must not wrap at ' + width)
     await page.screenshot({ path: join(output, 'game-2048-' + width + '.png') })
+    // Perform real gameplay input rather than treating page load as proof.
+    // Seed a deterministic left-edge tile and require a swipe or key to move it.
+    await page.evaluate(() => {
+      grid = [[2, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]
+      tileScore = 0
+      draw2048()
+    })
+    if (mobile) {
+      const bounds = await page.locator('#board2048').boundingBox()
+      const cdp = await page.context().newCDPSession(page)
+      const startX = bounds.x + bounds.width * .25
+      const y = bounds.y + bounds.height * .5
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: startX, y, id: 9 }] })
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: startX + 75, y, id: 9 }] })
+      await page.waitForFunction(() => grid[0][3] === 2, null, { timeout: 1500 })
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+    } else {
+      await page.keyboard.press('ArrowRight')
+      await page.waitForFunction(() => grid[0][3] === 2, null, { timeout: 1500 })
+    }
+    await page.screenshot({ path: join(output, 'game-after-move-' + width + '.png') })
+    await page.locator('#gameSettings').click()
+    assert.equal(await page.locator('#settingsDialog').isVisible(), true, 'Game settings must open at ' + width)
+    await page.locator('#closeSettings').click()
+    assert.equal(await page.locator('#settingsDialog').isVisible(), false, 'Game settings must close at ' + width)
     await page.locator('#gameDialog .game-topline [data-close-game]').click()
     assert.equal(await page.locator('body').evaluate(el => el.classList.contains('in-game')), false)
     assert.equal(await page.locator('.site-header').evaluate(el => getComputedStyle(el).visibility), 'visible')
