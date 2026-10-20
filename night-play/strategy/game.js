@@ -10,6 +10,7 @@ const ICONS={p:'p',r:'r',n:'n',b:'b',q:'q',k:'k'};
 const files='abcdefgh';
 let match=new Chess(),mode='computer',selected=null,available=[],lastMove=null;
 let busy=false,epoch=0,cpuTimer=null,cpuWorker=null,promotionPending=null,difficulty='normal';
+let cpuWorkerReplies=0,lastCpuNodes=0,lastCpuDepth=0;
 function pieceSVG(p){
  return '<svg class="piece '+p.color+'" viewBox="0 0 64 64" role="img" aria-label="'+(p.color==='w'?'White ':'Black ')+({p:'pawn',r:'rook',n:'knight',b:'bishop',q:'queen',k:'king'}[p.type])+'"><use href="#chess-'+ICONS[p.type]+'"></use></svg>';
 }
@@ -171,6 +172,8 @@ function queueCPU(){
     if(event.data?.error){fallback();return}
     const move=event.data?.move;
     if(!move||!match.moves({verbose:true}).some(m=>m.from===move.from&&m.to===move.to&&(!m.promotion||m.promotion===(move.promotion||'q')))){fallback();return}
+    cpuWorkerReplies++;
+    lastCpuNodes=Number(move.nodes)||0;lastCpuDepth=Number(move.depth)||0;
     commitMove(move);
    };
    worker.onerror=()=>{if(cpuWorker===worker){worker.terminate();cpuWorker=null;fallback()}};
@@ -204,6 +207,6 @@ $('promotionChoices').addEventListener('click',e=>{
  commitMove({...promotionPending,promotion:button.dataset.promote});
 });
 $('promotionCancel').addEventListener('click',()=>{promotionPending=null;promotionLayer.hidden=true;render()});
-window.__nightChessQA=()=>({fen:match.fen(),turn:match.turn(),moves:match.history(),gameOver:match.game_over(),inCheck:match.in_check(),mode,busy,legalSquares:available.map(m=>m.to),pendingPromotion:!!promotionPending,difficulty,thinking:!!cpuWorker||cpuTimer!==null});
+window.__nightChessQA=()=>({fen:match.fen(),turn:match.turn(),moves:match.history(),gameOver:match.game_over(),inCheck:match.in_check(),mode,busy,legalSquares:available.map(m=>m.to),pendingPromotion:!!promotionPending,difficulty,thinking:!!cpuWorker||cpuTimer!==null,cpuWorkerReplies,lastCpuNodes,lastCpuDepth});
 read();render();if(mode==='computer'&&match.turn()==='b'&&!match.game_over())queueCPU();
 })();
