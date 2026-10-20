@@ -17,6 +17,7 @@ import studio.artistscene.core.TerrainShape
 import studio.artistscene.core.TerrainStroke
 import studio.artistscene.core.TerrainSculpt
 import studio.artistscene.core.GeneratedTerrainReader
+import studio.artistscene.core.GroundSurface
 
 /**
  * Real, fully offline 3D geometry, not a flat decal. Stored in app-scoped
@@ -76,6 +77,34 @@ internal class TerrainAssets(private val context: Context) {
      * This method deliberately does not delete prior files: they may still be
      * referenced by undo steps, a previously saved project, or duplicates.
      */
+    /**
+     * Switch the REAL texture embedded in a generated terrain's PBR GLB.
+     * Flat-ground theme changes previously left generated mountains grassy.
+     * This is whole-terrain retexturing, NOT misleading per-pixel brush paint.
+     * As with sculpting, callers must commit the returned Actor for undo.
+     */
+    fun retexture(existing: Actor, surface: GroundSurface): Actor {
+        val photoName = requireNotNull(surface.photoAsset) {
+            "Choose a photographic ground surface"
+        }
+        val original = terrainFrom(existing)
+        val photo = context.assets.open("world/$photoName").use { it.readBytes() }
+        if (original.embeddedPng?.contentEquals(photo) == true) return existing
+        val bytes = TerrainMesh.encodeGlb(original.heights, photo)
+        val path = saveUniqueTerrain(bytes)
+        val asset = requireNotNull(existing.asset)
+        return existing.copy(
+            asset = asset.copy(
+                relativePath = path,
+                byteSize = bytes.size.toLong(),
+                checksumSha256 = sha256(bytes),
+            ),
+            metadata = existing.metadata +
+                ("terrainSurface" to surface.name) +
+                ("terrainSurfaceSource" to (surface.source ?: "")),
+        )
+    }
+
     /** Read the authored geometry for a brush panel; caller runs this off the UI thread. */
     fun heights(existing: Actor): FloatArray = terrainFrom(existing).heights
 
@@ -164,7 +193,10 @@ internal class TerrainAssets(private val context: Context) {
                 byteSize = bytes.size.toLong(),
                 checksumSha256 = sha256(bytes),
             ),
-            metadata = mapOf("terrainOrigin" to provenance),
+            metadata = mapOf(
+                "terrainOrigin" to provenance,
+                "terrainSurface" to GroundSurface.GRASS.name,
+            ),
         )
     }
 }
