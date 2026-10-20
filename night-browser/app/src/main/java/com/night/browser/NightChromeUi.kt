@@ -483,3 +483,17 @@ internal fun NightMenuSheet(
         }
     }
 }
+
+/** Familiar Chrome-style outlined tab counter, exactly one switcher control. */
+@Composable
+internal fun NightTabCountIcon(count: Int, onClick: () -> Unit) {
+    IconButton(onClick = onClick, modifier = Modifier.size(48.dp)) {
+        Box(
+            Modifier.size(25.dp).border(2.dp, White, RoundedCornerShape(6.dp)),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(count.toString().take(2), color = White, fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold, lineHeight = 14.sp)
+        }
+    }
+}
