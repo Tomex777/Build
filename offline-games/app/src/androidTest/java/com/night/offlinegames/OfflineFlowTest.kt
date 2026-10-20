@@ -86,9 +86,11 @@ class OfflineFlowTest {
             newGame!!.click()
             val ticTacToeReady = awaitJavaScript(scenario, """
                 (function(){
-                    return document.getElementById('title')?.textContent === 'Tic-Tac-Toe' &&
+                    var title = document.getElementById('title');
+                    var status = document.getElementById('status');
+                    return !!title && !!status && title.textContent === 'Tic-Tac-Toe' &&
                         document.querySelectorAll('#board button.cell').length === 9 &&
-                        document.getElementById('status')?.textContent === 'Your turn · X';
+                        status.textContent === 'Your turn · X';
                 })()
             """.trimIndent(), 15000)
             saveScreenshot(device, context, "04-tictactoe.png")
@@ -148,7 +150,7 @@ class OfflineFlowTest {
         (function(){
             return JSON.stringify({
                 url:location.href,ready:document.readyState,
-                title:document.title,body:document.body?.innerText?.slice(0,180),
+                title:document.title,body:document.body ? document.body.innerText.slice(0,180) : '',
                 resources:performance.getEntriesByType('resource').length
             });
         })()
