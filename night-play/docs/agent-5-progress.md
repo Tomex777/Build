@@ -32,6 +32,12 @@ Updated 2026-10-20, after successful remote Chromium touchscreen gameplay. Owned
 
 Implementation and syntax checks are not completion. Required: isolated branch CI green; actual game inputs at phone viewport; score + win/loss/undo + persistence verified; 24–144 Jigsaw behavior and mobile drag examined; screenshots viewed; changes reviewed and merged by Agent 1; full combined website retested. If missing, describe as unverified/pending.
 
+## Current run references
+
+- Most recently verified complete Agent 5 gameplay Action: https://github.com/Tomex777/Build/actions/runs/39350687174 (passed), containing 4×4, 5×5, 6×6, live photo Jigsaw and Memory tests. Source commit `2772f3f`.
+- Latest feature commit before documentation-only changes: `2772f3f`; previous photo-caption correction included in this commit.
+- Latest PR: https://github.com/Tomex777/Build/pull/416 (draft). Integration and actual deployed-site retest remain coordinator-owned.
+
 ## Recovery instructions
 
 1. Read this ledger and the coordinator's current `AGENTS.md` + `docs/agent-backlog.md` before work.
@@ -48,5 +54,5 @@ Implementation and syntax checks are not completion. Required: isolated branch C
 - Completed real-image and high-piece visual QA: GitHub Action **39350387321** succeeded `jigsaw/real-photo-smoke.mjs`: 14 actual Unsplash galleries with 480px loads, real 24-piece alpine photograph and canvas variance 255 (not blank), 144-piece overview/magnification. Screenshots opened manually; no photo-loading defect on that run. The deterministic white-fixture screenshots belong to interaction tests only and are not a substitute for real images.
 - Screenshot verification: second CI artifact **12232801628** was opened manually. The final 2048 tile is visibly **2048** after animation and all 30 Memory cards are face-up in a clean 15/15-pair victory. No horizontal overflow at 390px/320px screenshots. Full real-photo artifact **12232791901** contains Jigsaw photo gallery, 24-piece mobile/desktop and 144-piece examples.
 - One actual visual defect discovered: `photo-pink-blooms` gallery label said “Pink Blossoms”, but real photo shows gold/yellow wildflowers. Changed **display name only** to “Golden Wildflowers” in `photo-gallery.js`; stable ID and saved-puzzle compatibility untouched.
-- Expanded active 2048 playtests to real **5×5 and 6×6** keyboard merges, undo, saved score, responsive width and screenshots (latest Action pending).
+- Expanded 2048 gameplay tests **PASSED** in Action **39350687174** (commit `2772f3f`): actual 5×5 and 6×6 keyboard merges, undo, score persistence, no overflow and screenshots. Inspected 6×6 screenshot; grid and controls fit without clipping. Screenshot shows existing global center-alignment leaves noticeable whitespace above board on taller phones; design-system owner Agent 9 should consider adjusting coordinated shared shell layout, not an Agent 5 unilateral global redesign.
 - PR for coordinator review: https://github.com/Tomex777/Build/pull/416 (draft). Do not merge until verified combined-site preview and coordinator review.
