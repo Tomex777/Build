@@ -603,6 +603,7 @@ try{
   },null,{timeout:10000});
   assert.equal(await page.locator('.piece').count(),32,'CPU must make a legal response');
   assert.ok(chessWorkerStarts>0,'computer search executes in a real Web Worker, not on the UI thread');
+  assert.ok(await page.evaluate(()=>window.__nightChessQA().cpuWorkerReplies>=1),'a real worker search result drives the CPU response (not a fallback)');
   await page.locator('#cpuDifficulty').selectOption('hard');
   assert.equal(await page.evaluate(()=>window.__nightChessQA().difficulty),'hard','difficulty selection changes CPU policy');
   await page.reload();
