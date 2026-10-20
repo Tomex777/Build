@@ -16,7 +16,7 @@ data class Journey(val id: String, val name: String, val nodes: List<JourneyNode
 data class Bookmark(val url: String, val title: String)
 data class SavedPage(val fileName: String, val url: String, val title: String, val timestamp: Long)
 
-/** Minimal local-first store. Never uploads browsing history or page content. */
+/** On-device only. Keeps the v1 JSON structure to migrate existing browsing trees in place. */
 class JourneyStore(context: Context) {
     private val prefs = context.getSharedPreferences("night_data_v1", Context.MODE_PRIVATE)
     var journeys by mutableStateOf(readJourneys())
@@ -26,22 +26,26 @@ class JourneyStore(context: Context) {
     var savedPages by mutableStateOf(readSavedPages())
         private set
 
+    private fun fallbackJourney() =
+        Journey(UUID.randomUUID().toString(), "My browsing", emptyList())
+
     private fun readJourneys(): List<Journey> = runCatching {
-        val json = JSONArray(prefs.getString("journeys", "[]"))
-        (0 until json.length()).map { index ->
-            val obj = json.getJSONObject(index)
-            val arr = obj.optJSONArray("nodes") ?: JSONArray()
-            Journey(obj.getString("id"), obj.getString("name"),
-                (0 until arr.length()).map { n ->
-                    val x = arr.getJSONObject(n)
-                    JourneyNode(x.getString("id"), x.getString("url"),
-                        x.optString("title"), x.optString("parent").ifBlank { null },
-                        x.optLong("time"))
-                })
+        val array = JSONArray(prefs.getString("journeys", "[]"))
+        (0 until array.length()).map { index ->
+            val obj = array.getJSONObject(index)
+            val raw = obj.optJSONArray("nodes") ?: JSONArray()
+            val nodes = (0 until raw.length()).mapNotNull { n ->
+                val x = raw.getJSONObject(n)
+                val safe = JourneyGraph.safeUrl(x.optString("url")) ?: return@mapNotNull null
+                JourneyNode(
+                    x.getString("id"), safe, x.optString("title"),
+                    x.optString("parent").ifBlank { null }, x.optLong("time")
+                )
+            }
+            Journey(obj.getString("id"), obj.optString("name").ifBlank { "Untitled journey" },
+                JourneyGraph.repair(nodes))
         }
-    }.getOrDefault(emptyList()).ifEmpty {
-        listOf(Journey(UUID.randomUUID().toString(), "My browsing", emptyList()))
-    }
+    }.getOrDefault(emptyList()).ifEmpty { listOf(fallbackJourney()) }
 
     private fun readBookmarks(): List<Bookmark> = runCatching {
         val array = JSONArray(prefs.getString("bookmarks", "[]"))
@@ -61,41 +65,118 @@ class JourneyStore(context: Context) {
     }.getOrDefault(emptyList())
 
     fun newJourney(title: String): Journey {
-        val journey = Journey(UUID.randomUUID().toString(),
+        val item = Journey(UUID.randomUUID().toString(),
             title.trim().take(60).ifBlank { "Untitled journey" }, emptyList())
-        journeys = listOf(journey) + journeys
+        journeys = listOf(item) + journeys
         persist()
-        return journey
+        return item
     }
 
+    fun renameJourney(id: String, title: String) {
+        val name = title.trim().take(60)
+        if (name.isBlank()) return
+        journeys = journeys.map { if (it.id == id) it.copy(name = name) else it }
+        persist()
+    }
+
+    fun deleteJourney(id: String) {
+        if (journeys.none { it.id == id }) return
+        journeys = journeys.filterNot { it.id == id }.ifEmpty { listOf(fallbackJourney()) }
+        persist()
+    }
+
+    fun getNode(journeyId: String, nodeId: String?): JourneyNode? =
+        journeys.firstOrNull { it.id == journeyId }?.nodes?.firstOrNull { it.id == nodeId }
+
+    /**
+     * Return the new node ID, or the existing ID if a duplicate callback arrives.
+     * Validate parent against this Journey: no cross-Journey or pruned edges.
+     */
     fun record(id: String, url: String, title: String, parent: String?): String? {
-        if (!url.startsWith("https://") && !url.startsWith("http://")) return null
+        val safe = JourneyGraph.safeUrl(url) ?: return null
         val journey = journeys.find { it.id == id } ?: return null
-        val node = JourneyNode(UUID.randomUUID().toString(), url, title, parent, System.currentTimeMillis())
-        journeys = journeys.map { if (it.id == id) journey.copy(nodes = (journey.nodes + node).takeLast(600)) else it }
+        val checkedParent = parent?.takeIf { key -> journey.nodes.any { it.id == key } }
+        val last = journey.nodes.lastOrNull()
+        val now = System.currentTimeMillis()
+        if (last != null && last.parent == checkedParent && last.url == safe &&
+            now - last.timestamp in 0..2000
+        ) return last.id
+
+        val node = JourneyNode(UUID.randomUUID().toString(), safe,
+            title.trim().take(180), checkedParent, now)
+        journeys = journeys.map {
+            if (it.id == id) it.copy(nodes = JourneyGraph.repair(it.nodes + node))
+            else it
+        }
         persist()
         return node.id
     }
 
     fun renameNode(journeyId: String, nodeId: String?, title: String) {
-        if (nodeId == null || title.isBlank()) return
+        val label = title.trim().take(180)
+        if (nodeId == null || label.isBlank()) return
         journeys = journeys.map { journey ->
             if (journey.id != journeyId) journey
             else journey.copy(nodes = journey.nodes.map { node ->
-                if (node.id == nodeId) node.copy(title = title.take(180)) else node
+                if (node.id == nodeId) node.copy(title = label) else node
             })
         }
         persist()
     }
 
+    /** Delete node plus children, not just one row of the tree. */
+    fun deleteSubtree(journeyId: String, nodeId: String) {
+        journeys = journeys.map { journey ->
+            if (journey.id != journeyId) journey else {
+                val excluded = JourneyGraph.subtreeIds(journey.nodes, nodeId)
+                journey.copy(nodes = journey.nodes.filterNot { it.id in excluded })
+            }
+        }
+        persist()
+    }
+
+    /** Preserve node IDs and ancestry, including branches, during an explicit merge. */
+    fun mergeJourneys(sourceId: String, destinationId: String) {
+        if (sourceId == destinationId) return
+        val source = journeys.firstOrNull { it.id == sourceId } ?: return
+        val destination = journeys.firstOrNull { it.id == destinationId } ?: return
+        val takenIds = destination.nodes.mapTo(HashSet()) { it.id }
+        val aliases = source.nodes.associate { node ->
+            node.id to if (node.id in takenIds) UUID.randomUUID().toString() else node.id
+        }
+        val imported = source.nodes.map { node ->
+            node.copy(id = aliases.getValue(node.id), parent = node.parent?.let(aliases::get))
+        }
+        val merged = JourneyGraph.repair(destination.nodes + imported)
+        journeys = journeys.filterNot { it.id == sourceId }.map {
+            if (it.id == destinationId) it.copy(nodes = merged) else it
+        }
+        persist()
+    }
+
+    /** User-initiated export only; this data is never uploaded automatically. */
+    fun exportJourneyJson(journeyId: String): String? {
+        val journey = journeys.firstOrNull { it.id == journeyId } ?: return null
+        val entries = JSONArray()
+        journey.nodes.forEach { node ->
+            entries.put(JSONObject().put("id", node.id).put("url", node.url)
+                .put("title", node.title).put("parent", node.parent ?: JSONObject.NULL)
+                .put("time", node.timestamp))
+        }
+        return JSONObject().put("format", "night-journey-v1")
+            .put("name", journey.name).put("nodes", entries).toString(2)
+    }
+
     fun bookmark(url: String, title: String) {
         if (!url.startsWith("http")) return
-        bookmarks = (listOf(Bookmark(url, title.ifBlank { url })) + bookmarks.filterNot { it.url == url }).take(300)
+        bookmarks = (listOf(Bookmark(url, title.ifBlank { url })) +
+            bookmarks.filterNot { it.url == url }).take(300)
         persist()
     }
 
     fun savePage(fileName: String, url: String, title: String) {
-        savedPages = (listOf(SavedPage(fileName, url, title, System.currentTimeMillis())) + savedPages).take(200)
+        savedPages = (listOf(SavedPage(fileName, url, title, System.currentTimeMillis())) +
+            savedPages).take(200)
         persist()
     }
 
