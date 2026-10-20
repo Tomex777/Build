@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "series": "bungo-stray-dogs",
+  "provider": "official BSD anime character pages",
+  "status": "source-url-identification",
+  "rules": [
+    "Map an original image only after matching exact named anime character and costume.",
+    "Do not auto-assign art by unverified HTML ordering or file number.",
+    "Official rights-reserved art is reference-only; permission is not assumed.",
+    "Never reuse one artwork for different character forms."
+  ],
+  "sources": []
+}
