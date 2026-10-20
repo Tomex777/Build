@@ -92,13 +92,20 @@ adb("shell", "am", "start", "-n", "com.night.browser/.MainActivity")
 time.sleep(14)
 screenshot("01-start.png")
 
-# Two actual regular websites in independent tabs.
-site("example.com")
+# Ten independent normal tabs with real, diverse page navigation. This intentionally
+# stresses Gecko tab lifecycle and the two-column overview rather than faking thumbnails.
+sites = [
+    "example.com", "example.org", "wikipedia.org", "github.com",
+    "stackoverflow.com", "bbc.com", "cloudflare.com", "google.com",
+    "archive.org", "developer.android.com",
+]
+for index, domain in enumerate(sites):
+    if index:
+        tap("Tabs")
+        tap("New tab")
+    site(domain)
 tap("Tabs")
-tap("New tab")
-site("example.org")
-tap("Tabs")
-assert count_profile("Regular") >= 2, "Normal tabs are not independently created"
+assert count_profile("Regular") >= len(sites), "Normal tabs are not independently created"
 screenshot("02-regular-tabs.png")
 
 # Open private tab and navigate; it must not be stored by regular-tab persistence.
@@ -115,7 +122,7 @@ adb("shell", "am", "force-stop", "com.night.browser")
 adb("shell", "am", "start", "-n", "com.night.browser/.MainActivity")
 time.sleep(12)
 tap("Tabs")
-assert count_profile("Regular") >= 2, "Regular tab metadata was not restored"
+assert count_profile("Regular") >= len(sites), "Regular tab metadata was not restored"
 tap("Private", contains=True)
 assert count_profile("Private") == 0, "Private tabs leaked into persistent state"
 screenshot("04-private-after-restart.png")
