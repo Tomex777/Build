@@ -5,7 +5,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -42,7 +41,7 @@ internal fun AnnieScriptLearningContent(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text("Learn scripting", color = LearnText, fontSize = 23.sp, fontWeight = FontWeight.Bold)
-        Text("Start with one small command. Annie runs scripts in a controlled JavaScript environment and renders their results as native chat messages.",
+        Text("Start with a JavaScript command or run a Python, Lua or TypeScript script. Commands can return native chat messages.",
             color = LearnMuted, fontSize = 13.sp)
         Surface(color = LearnCard, shape = RoundedCornerShape(14.dp), border = BorderStroke(1.dp, Color(0xFF294562))) {
             Column(Modifier.fillMaxWidth().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -62,10 +61,9 @@ internal fun AnnieScriptLearningContent(
         LearnSection("Use Android features safely", "The allowlisted bridge includes device info, text to speech, speech recognition, OCR, document picking, media inspection and package-owned notifications. Each feature requires its declared permission; scripts do not get unrestricted Android objects or filesystem access.")
         LearnSection("Packages and extensions", "A package can add slash commands, media sources, services, actions, assets and capabilities. Imported packages start disabled, and you can review permissions before enabling them.")
         LearnSection("Scheduling and tasks", "Packages can declare background work for host-managed scheduling. Annie owns the worker lifecycle and applies the package's declared capabilities.")
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            LearnAction("Browse extensions", onExtensions, "script_learning_extensions")
-            LearnAction("Create script", onCreateScript, "script_learning_create_footer")
-        }
+        LearnSection("Language runtimes", "TypeScript runs after offline transpilation, without full type checking. Python and Lua run restricted computations; they cannot access files or network directly. Use declared Annie operations for supported device features.")
+        LearnSection("Host AI and message streams", "Enable your provider key in Studio and grant each package AI access before generating or streaming replies. Scripts can update an existing chat message while streaming.")
+        LearnAction("Browse extensions", onExtensions, "script_learning_extensions")
         Text("The API tab remains the detailed reference. Use AI spec in Script Studio to export Annie's current scripting specification for an AI coding tool.",
             color = LearnMuted, fontSize = 11.sp)
     }
