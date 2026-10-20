@@ -430,19 +430,24 @@ try{
   assert.equal(await page.locator('.whot-call-choice').count(),0,'cancel returns to hand without spending 20');
   assert.equal(await page.locator('.hand .whot-wild').count()>0,true,'cancel preserves the WHOT card');
   await page.locator('.hand [data-card="0"]').click({position:{x:13,y:20}});
-  const pickerBounds=await page.evaluate(()=>{
-   const table=document.querySelector('.table-surface').getBoundingClientRect();
-   const panel=document.querySelector('.whot-call-panel').getBoundingClientRect();
-   const choices=[...document.querySelectorAll('.whot-call-choice')].map(el=>{
-    const r=el.getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height};
+  for(const width of [320,390,412]){
+   await page.setViewportSize({width,height:844});
+   const pickerBounds=await page.evaluate(()=>{
+    const table=document.querySelector('.table-surface').getBoundingClientRect();
+    const panel=document.querySelector('.whot-call-panel').getBoundingClientRect();
+    const choices=[...document.querySelectorAll('.whot-call-choice')].map(el=>{
+     const r=el.getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height};
+    });
+    return {panel:{left:panel.left,right:panel.right,top:panel.top,bottom:panel.bottom},
+     table:{left:table.left,right:table.right,top:table.top,bottom:table.bottom},choices};
    });
-   return {panel:{left:panel.left,right:panel.right,top:panel.top,bottom:panel.bottom},
-    table:{left:table.left,right:table.right,top:table.top,bottom:table.bottom},choices};
-  });
-  assert.ok(pickerBounds.panel.left>=pickerBounds.table.left-2&&pickerBounds.panel.right<=pickerBounds.table.right+2,
-    'all shape choices remain inside the wooden table without right clipping: '+JSON.stringify(pickerBounds));
-  assert.ok(pickerBounds.choices.every(r=>r.left>=pickerBounds.panel.left&&r.right<=pickerBounds.panel.right&&r.width>=62&&r.height>=70),
-    'all five WHOT shape touch targets remain comfortably sized and fully visible');
+   assert.ok(pickerBounds.panel.left>=pickerBounds.table.left-2&&pickerBounds.panel.right<=pickerBounds.table.right+2,
+    'WHOT picker stays within table at '+width+': '+JSON.stringify(pickerBounds));
+   assert.ok(pickerBounds.choices.every(r=>r.left>=pickerBounds.panel.left&&r.right<=pickerBounds.panel.right&&r.width>=62&&r.height>=70),
+    'all five WHOT 20 choices fully visible and sized for touch at '+width);
+   if(width===320)await page.screenshot({path:'night-play/visual-output/WHOT-20-SHAPE-PICKER-320.jpg',type:'jpeg',quality:83,fullPage:true});
+  }
+  await page.setViewportSize({width:390,height:844});
   await page.screenshot({path:'night-play/visual-output/WHOT-20-SHAPE-PICKER.jpg',type:'jpeg',quality:86,fullPage:true});
   await page.locator('[data-whot-call="4"]').click();
   await page.waitForFunction(()=>window.__nightWhotMotion().activeFlights===1,{timeout:2500});
@@ -559,6 +564,7 @@ try{
    });
    assert.equal(measurements.square,true,'Chess board remains square on '+width);
    assert.equal(measurements.overflow,false,'Chess has no horizontal overflow on '+width);
+   if(width===320||width===900)await page.screenshot({path:'night-play/visual-output/CHESS-'+width+'-RESPONSIVE.jpg',type:'jpeg',quality:80,fullPage:true});
   }
   await page.setViewportSize({width:390,height:844});
   await page.screenshot({path:'night-play/visual-output/CHESS-CPU-MOBILE.jpg',type:'jpeg',quality:82,fullPage:true});
