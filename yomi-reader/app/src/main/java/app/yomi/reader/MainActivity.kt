@@ -467,6 +467,16 @@ class MainActivity : ComponentActivity() {
             }
     }
 
+    private fun missingCover(book: LibraryBook): Boolean {
+        val location = book.coverUri?.takeIf { it.isNotBlank() } ?: return true
+        val uri = runCatching { Uri.parse(location) }.getOrNull() ?: return true
+        return when (uri.scheme) {
+            "file" -> uri.path?.let { File(it).isFile } != true
+            "content" -> false
+            else -> true
+        }
+    }
+
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     private fun YomiHome() {
@@ -479,33 +489,53 @@ class MainActivity : ComponentActivity() {
         // original file. Do this off the main thread to avoid a blank home screen.
         LaunchedEffect(revision) {
             val missingCovers = libraryStore.list().filter {
-                it.locationType == LibraryLocationType.DOCUMENT &&
-                    it.coverUri.isNullOrBlank() &&
-                    it.availability == LibraryAvailability.AVAILABLE
+                it.availability == LibraryAvailability.AVAILABLE && missingCover(it)
             }.take(8)
             if (missingCovers.isNotEmpty()) {
                 withContext(Dispatchers.IO) {
                     missingCovers.forEach { item ->
-                        runCatching {
+                        try {
                             val uri = Uri.parse(item.locationUri)
-                            val scan = inspectArchive(uri)
-                            if (scan is ArchiveScanResult.Success) {
-                                val cover = scan.catalog.pages.take(8).firstNotNullOfOrNull { page ->
-                                    createCoverThumbnail(uri, page.name, item.id.value)
+                            when (item.locationType) {
+                                LibraryLocationType.DOCUMENT -> {
+                                    val scan = inspectArchive(uri)
+                                    if (scan is ArchiveScanResult.Success) {
+                                        val cover = scan.catalog.pages.take(8).firstNotNullOfOrNull { page ->
+                                            createCoverThumbnail(uri, page.name, item.id.value)
+                                        }
+                                        if (cover != null) {
+                                            libraryStore.upsert(
+                                                uri = uri,
+                                                title = item.title,
+                                                locationType = LibraryLocationType.DOCUMENT,
+                                                pageCount = scan.catalog.pages.size,
+                                                coverUri = cover,
+                                            )
+                                            Log.i(STARTUP_TAG, "archive-cover-restored title=${item.title}")
+                                        }
+                                    }
                                 }
-                                if (cover != null) {
-                                    libraryStore.upsert(
-                                        uri = uri,
-                                        title = item.title,
-                                        locationType = LibraryLocationType.DOCUMENT,
-                                        pageCount = scan.catalog.pages.size,
-                                        coverUri = cover,
-                                    )
-                                    Log.i(STARTUP_TAG, "archive-cover-restored title=${item.title}")
+                                LibraryLocationType.TREE -> {
+                                    val inspection = inspectFolder(uri, item.id, item.title)
+                                    if (inspection.coverUri != null) {
+                                        libraryStore.upsert(
+                                            uri = uri,
+                                            title = item.title,
+                                            locationType = LibraryLocationType.TREE,
+                                            pageCount = inspection.pageCount,
+                                            coverUri = inspection.coverUri,
+                                        )
+                                        Log.i(STARTUP_TAG, "folder-cover-restored title=${item.title}")
+                                    }
                                 }
                             }
-                        }.onFailure { error ->
-                            Log.w(STARTUP_TAG, "archive-cover-repair-failed title=${item.title}", error)
+                        } catch (error: CancellationException) {
+                            throw error
+                        } catch (error: Exception) {
+                            Log.w(STARTUP_TAG, "book-cover-repair-failed title=${item.title}", error)
+                            if (error is SecurityException) {
+                                libraryStore.setAvailability(item.id, LibraryAvailability.PERMISSION_LOST)
+                            }
                         }
                     }
                 }
