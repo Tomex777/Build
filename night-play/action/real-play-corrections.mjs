@@ -213,6 +213,40 @@ try{
   report.push({game:'slice',case:'real touch double-fruit combo',score:hit.score,halves:hit.halves.length});
   await page.close();
  }
+ // A bomb and fruit intersected by the SAME continuous blade segment
+ // cannot grant fruit points just because fruit was inserted first in state.
+ // Here the two distinct launch lanes are visible and the low-level CDP
+ // swipe intentionally spans BOTH in one native touchMove.
+ {
+  const page=await browser.newPage({viewport:{width:390,height:844},hasTouch:true,isMobile:true});
+  page.on('pageerror',error=>{throw error});
+  await page.addInitScript(()=>{
+   const values=[.1,.5,.5,.5,.5,.5,.5,.5,.5,.5,.01];
+   let index=0;Math.random=()=>values[index++]??.5;
+  });
+  await page.goto(url+'/action/?game=slice');
+  await page.locator('#overlayStart').click();
+  await waitFor(page,()=>{
+   const s=window.__nightActionTest.snapshot();
+   return s.fruits.length===2&&s.fruits.some(f=>f.kind==='bomb')&&
+    s.fruits.some(f=>f.kind!=='bomb')&&s.fruits.every(f=>Math.abs(f.vy)<70&&f.y>110&&f.y<300);
+  },5000);
+  const targets=(await snap(page)).fruits,box=await page.locator('canvas').boundingBox();
+  assert.equal(targets[0].kind!=='bomb',true,'nonbomb fruit is first in processing order');
+  assert.equal(targets[1].kind,'bomb','lethal target is last in processing order');
+  const coord=(x,y)=>({x:box.x+x/390*box.width,y:box.y+y/550*box.height,id:415});
+  const y=targets[0].y,left=Math.max(4,Math.min(...targets.map(f=>f.x))-45),
+   right=Math.min(386,Math.max(...targets.map(f=>f.x))+45);
+  const cdp=await page.context().newCDPSession(page);
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[coord(left,y)]});
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[coord(right,y)]});
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+  const result=await snap(page);
+  assert.equal(result.over,true,'the actual cross-board slash hits the bomb');
+  assert.equal(result.score,0,'lethal same-segment bomb contact awards no earlier fruit points');
+  report.push({game:'slice',case:'one real touch segment intersects bomb and fruit; bomb wins',score:result.score});
+  await shot(page,'fruit-bomb-priority');await page.close();
+ }
  // Some browsers deliver the last gesture sample as pointerup; previously
  // that final motion was thrown away, causing apparently ignored swipes.
  // This supplemental event-sequencing check uses exact pointerup geometry;
