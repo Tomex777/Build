@@ -764,8 +764,24 @@ echo "Launch Mise as a normal app process" | tee -a "$TEST_LOG"
 start_activity
 require_process_alive "initial app launch"
 
-dump_window_once || fail "Could not capture the project browser hierarchy"
-grep -Fq "Recent projects" "$XML" || fail "Project browser was not shown on launch"
+# am start -W reports Activity.onResume, not completion of the first Compose
+# frame. On software-rendered API26/API36 emulators the browser can still be
+# empty when UiAutomator returns its first snapshot. Wait for the *real*
+# browser heading AND actionable starter-project row; never accept a splash
+# screen, empty hierarchy, missing actor controls or dead app as success.
+BROWSER_READY=false
+BROWSER_DEADLINE=$((SECONDS + 75))
+while [ "$SECONDS" -lt "$BROWSER_DEADLINE" ]; do
+  if dump_window_once \
+      && grep -Fq "Recent projects" "$XML" \
+      && tag_coords "project-open-feasibility-stage" >/dev/null 2>&1; then
+    BROWSER_READY=true
+    break
+  fi
+  require_process_alive "project browser Compose first frame"
+  sleep 1
+done
+[ "$BROWSER_READY" = true ] || fail "Project browser or actionable starter scene never appeared within 75 seconds"
 PROJECT_OPEN_COORDS="$(tag_coords "project-open-feasibility-stage")" \
   || fail "Starter scene could not be opened from the project browser"
 capture_screen "$PROJECT_BROWSER_PNG" || fail "Could not capture the project browser screenshot"
