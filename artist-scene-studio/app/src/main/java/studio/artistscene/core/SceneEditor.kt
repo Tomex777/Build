@@ -1076,6 +1076,24 @@ data class SceneEditorState(
         return replaceSelected(actor.copy(transform = next))
     }
 
+    /**
+     * Commit a new immutable asset revision (for example, a sculpted terrain GLB) as ONE undo
+     * step. Files for old revisions remain owned by the asset library for undo/project restores.
+     *
+     * Deliberately narrower than exposing commit() to callers: scene identity, transform,
+     * hierarchy, rig, appearance and animation cannot be smuggled into an asset-file edit.
+     */
+    fun commitSelectedAssetRevision(revised: Actor): SceneEditorState {
+        val old = selectedActor ?: return this
+        val oldAsset = old.asset ?: return this
+        val newAsset = revised.asset ?: return this
+        if (old.locked || newAsset.assetId != oldAsset.assetId ||
+            newAsset.storage != oldAsset.storage || newAsset.relativePath.isBlank()
+        ) return this
+        if (revised != old.copy(asset = newAsset, metadata = revised.metadata)) return this
+        return replaceSelected(revised)
+    }
+
     private fun replaceSelected(actor: Actor): SceneEditorState {
         val old = selectedActor ?: return this
         if (old == actor) return this
