@@ -98,4 +98,5 @@ jobs:
             tac-hymns-audio-reader.png
             tac-hymns-learn-home.png
             tac-hymns-offline-audio.png
+            tac-hymns-redemption-190-english.png
           if-no-files-found: warn
