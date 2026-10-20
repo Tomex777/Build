@@ -93,12 +93,14 @@ class MainActivity : ComponentActivity() {
                 NightBrowser(browser) { file ->
                     val uri = FileProvider.getUriForFile(
                         this, "com.night.browser.files", file)
-                    val intent = Intent(Intent.ACTION_VIEW)
+                    // Built-in offline PDF reader: don't require a third-party
+                    // app (or expose a local archive copy to an external viewer).
+                    val intent = Intent(this, SavedPdfActivity::class.java)
                         .setDataAndType(uri, "application/pdf")
                         .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                     try { startActivity(intent) }
                     catch (e: Exception) {
-                        browser.notice = "Install a PDF viewer to open this copy."
+                        browser.notice = "Couldn't open this saved PDF."
                     }
                 }
             }
