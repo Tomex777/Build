@@ -48,7 +48,10 @@ fun LibraryScreen(
     var searchOpen by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
 
-    val visible = remember(entries, filter, activeOnly, sortTitle, searchQuery, progressEntries) {
+    // CoreRepository exposes SnapshotStateLists and mutates them in place.
+    // Memoizing solely on the list *identity* leaves recently saved/removed
+    // media absent until a filter changes. Observe the list on every compose.
+    val visible = run {
         entries.filter { entry ->
             val typeMatch = when (filter) {
                 LibraryType.ALL -> entry.contentType != null
