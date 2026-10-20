@@ -413,56 +413,154 @@ function paintRunner(){
  fill(p.x-15,p.y-4,34,5,'#bd835e',3);
 }
 
-function initShooter(){return {score:0,wave:1,lives:3,ship:{x:195,y:488,shield:0,invincible:0},shots:[],enemies:[],enemyShots:[],pickups:[],spawn:.4,kills:0,clock:0,shoot:0};}
+
+/* SPACE SHOOTER — bounded particles, real hull damage, timed bosses and
+ * collision between ships (not just projectiles). The player controls X. */
+function initShooter(){
+ return {score:0,wave:1,lives:3,ship:{x:195,y:488,shield:0,invincible:0},
+  shots:[],enemies:[],enemyShots:[],pickups:[],particles:[],
+  spawn:.45,kills:0,clock:0,shoot:0,breaches:0,lastBossWave:0,notice:0};
+}
+function shooterBurst(q,x,y,color,count=10){
+ for(let i=0;i<count;i++){
+  const angle=rand(0,TAU),speed=rand(35,190),life=rand(.22,.58);
+  q.particles.push({x,y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,life,maxLife:life,color,r:rand(1.5,3.4)});
+ }
+ if(q.particles.length>100)q.particles.splice(0,q.particles.length-100);
+}
+function shooterDamage(q,x,y){
+ const ship=q.ship;
+ if(ship.invincible>0)return false;
+ shooterBurst(q,x,y,'#f6a28c',16);
+ if(ship.shield>0){ship.shield=0;ship.invincible=.45;audio('hit');}
+ else{q.lives--;ship.invincible=1.1;q.notice=1.2;audio('bad');}
+ return true;
+}
 function tickShooter(dt){
- const q=state,ship=q.ship;q.clock+=dt;ship.invincible=Math.max(0,ship.invincible-dt);ship.shield=Math.max(0,ship.shield-dt);
- const dx=inputs.left?-270:inputs.right?270:inputs.drag?(inputs.lastX-ship.x)*10:0;
- ship.x=clamp(ship.x+clamp(dx,-360,360)*dt,23,W-23);
- q.shoot-=dt;if(q.shoot<=0){q.shots.push({x:ship.x,y:ship.y-15,vy:-590});q.shoot=.18;audio(q.clock%1<.18?'tap':'silence');}
- q.spawn-=dt;if(q.spawn<=0){
-  const heavy=q.wave>2&&Math.random()<.21;
-  const boss=q.kills>0&&q.kills%24===0;
-  q.enemies.push({x:rand(28,W-28),y:-45,w:boss?70:heavy?42:30,h:boss?50:heavy?37:28,hp:boss?9:heavy?3:1,boss,
-   vx:rand(-55,55),speed:rand(48,85)+q.wave*5,shot:rand(.8,2)});
-  q.spawn=Math.max(.3,.87-q.wave*.04);
+ const q=state,ship=q.ship;q.clock+=dt;
+ ship.invincible=Math.max(0,ship.invincible-dt);
+ ship.shield=Math.max(0,ship.shield-dt);q.notice=Math.max(0,q.notice-dt);
+ const control=inputs.drag?clamp((inputs.lastX-ship.x)*14,-560,560):(inputs.left?-365:inputs.right?365:0);
+ ship.x=clamp(ship.x+control*dt,24,W-24);
+ q.shoot-=dt;
+ if(q.shoot<=0){q.shots.push({x:ship.x,y:ship.y-21,vy:-625});q.shoot=Math.max(.115,.19-q.wave*.006);}
+ q.spawn-=dt;
+ if(q.spawn<=0){
+  const boss=q.wave>=3&&q.wave%3===0&&q.lastBossWave!==q.wave;
+  if(boss)q.lastBossWave=q.wave;
+  const heavy=!boss&&q.wave>1&&Math.random()<Math.min(.4,.15+q.wave*.035);
+  const size=boss?70:heavy?43:31;
+  q.enemies.push({x:rand(size/2+9,W-size/2-9),y:-50,w:size,h:boss?52:heavy?38:29,
+   hp:boss?8+q.wave:heavy?3:1,maxHp:boss?8+q.wave:heavy?3:1,boss,
+   vx:rand(-65,65),speed:(boss?29:rand(54,90))+q.wave*5,
+   shot:rand(.7,1.65),escaped:false});
+  q.spawn=Math.max(.32,.92-q.wave*.055);
  }
  for(const bullet of q.shots)bullet.y+=bullet.vy*dt;
  for(const bullet of q.enemyShots)bullet.y+=bullet.vy*dt;
  for(const enemy of q.enemies){
+  if(enemy.hp<=0)continue;
   enemy.y+=enemy.speed*dt;enemy.x+=enemy.vx*dt;
-  if(enemy.x<enemy.w/2||enemy.x>W-enemy.w/2)enemy.vx*=-1;
+  if(enemy.x<enemy.w/2+6){enemy.x=enemy.w/2+6;enemy.vx=Math.abs(enemy.vx);}
+  if(enemy.x>W-enemy.w/2-6){enemy.x=W-enemy.w/2-6;enemy.vx=-Math.abs(enemy.vx);}
   enemy.shot-=dt;
-  if(enemy.shot<=0&&enemy.y>20&&enemy.y<370){q.enemyShots.push({x:enemy.x,y:enemy.y+enemy.h/2,vy:185+q.wave*5});enemy.shot=rand(1.35,2.6);}
-  if(enemy.y>H+25){enemy.hp=0;}
+  if(enemy.shot<=0&&enemy.y>20&&enemy.y<ship.y-52){
+   q.enemyShots.push({x:enemy.x,y:enemy.y+enemy.h/2,vy:205+q.wave*12});
+   enemy.shot=rand(Math.max(.7,1.55-q.wave*.045),2.25);
+  }
+  // Touching an enemy is dangerous even if no projectile lands.
+  if(enemy.y+enemy.h/2>ship.y-17&&enemy.y-enemy.h/2<ship.y+16&&
+     Math.abs(enemy.x-ship.x)<(enemy.w+32)/2){
+   if(shooterDamage(q,ship.x,ship.y)){enemy.hp=0;shooterBurst(q,enemy.x,enemy.y,'#d9afbd',14);}
+  }
+  if(enemy.y>H+enemy.h/2&&!enemy.escaped){
+   enemy.escaped=true;enemy.hp=0;q.breaches++;
+   // A missed enemy is a breach; every third breach costs hull.
+   if(q.breaches%3===0)shooterDamage(q,ship.x,ship.y);
+   q.notice=1.1;
+  }
  }
- for(const bullet of q.shots)for(const enemy of q.enemies)if(enemy.hp>0&&Math.abs(bullet.x-enemy.x)<enemy.w/2+3&&Math.abs(bullet.y-enemy.y)<enemy.h/2+4){
-  bullet.y=-999;enemy.hp--;if(enemy.hp<=0){q.kills++;q.score+=enemy.boss?175:enemy.w>35?40:20;audio('point');if(q.kills%12===0){q.wave++;}if(Math.random()<.085)q.pickups.push({x:enemy.x,y:enemy.y});}break;
+ for(const bullet of q.shots){
+  if(bullet.y<-20)continue;
+  for(const enemy of q.enemies){
+   if(enemy.hp<=0||Math.abs(bullet.x-enemy.x)>enemy.w/2+3||
+      Math.abs(bullet.y-enemy.y)>enemy.h/2+8)continue;
+   bullet.y=-999;enemy.hp--;shooterBurst(q,bullet.x,enemy.y,'#d9b7c8',3);
+   if(enemy.hp<=0){
+    q.kills++;q.score+=enemy.boss?200:enemy.w>35?45:20;
+    shooterBurst(q,enemy.x,enemy.y,enemy.boss?'#f1b083':'#d9b7c8',enemy.boss?27:12);
+    audio('point');
+    if(q.kills%10===0)q.wave++;
+    if(Math.random()<.12)q.pickups.push({x:enemy.x,y:enemy.y});
+   }
+   break;
+  }
  }
- for(const pickup of q.pickups){pickup.y+=90*dt;if(Math.abs(pickup.x-ship.x)<24&&Math.abs(pickup.y-ship.y)<23){pickup.y=999;ship.shield=7;audio('point')}}
- if(ship.invincible===0)for(const bullet of q.enemyShots)if(Math.abs(bullet.x-ship.x)<18&&Math.abs(bullet.y-ship.y)<17){
-  bullet.y=999;if(ship.shield<=0){q.lives--;ship.invincible=1.25;audio('bad')}else ship.shield=0;break;
+ for(const pickup of q.pickups){
+  pickup.y+=100*dt;
+  if(Math.abs(pickup.x-ship.x)<23&&Math.abs(pickup.y-ship.y)<24){
+   pickup.y=999;ship.shield=7;shooterBurst(q,ship.x,ship.y,'#7be9b7',10);audio('point');
+  }
  }
- q.shots=q.shots.filter(b=>b.y>-10);q.enemyShots=q.enemyShots.filter(b=>b.y<H+10);
- q.enemies=q.enemies.filter(e=>e.hp>0&&e.y<H+25);q.pickups=q.pickups.filter(p=>p.y<H+8);
- if(q.lives<=0)end('Your ship was lost');
+ if(ship.invincible===0){
+  for(const bullet of q.enemyShots){
+   if(Math.abs(bullet.x-ship.x)<19&&Math.abs(bullet.y-ship.y)<19){
+    bullet.y=999;shooterDamage(q,ship.x,ship.y);break;
+   }
+  }
+ }
+ for(const p of q.particles){p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=100*dt;p.life-=dt;}
+ q.particles=q.particles.filter(p=>p.life>0);
+ q.shots=q.shots.filter(b=>b.y>-18);
+ q.enemyShots=q.enemyShots.filter(b=>b.y<H+15);
+ q.enemies=q.enemies.filter(e=>e.hp>0&&e.y<H+65);
+ q.pickups=q.pickups.filter(p=>p.y<H+10);
+ if(q.lives<=0){end('Your ship was lost');return;}
  updateHud();
 }
 function paintShooter(){
- bg('#0d2030','#25465a');
- for(let i=0;i<58;i++){const x=(i*71)%W,y=(i*127+Math.floor(state.clock*25))%H;disk(x,y,i%7===0?2:1,i%3===0?'#dfecfb':'#698ea7')}
- for(const enemy of state.enemies){ctx.save();ctx.translate(enemy.x,enemy.y);
-  fill(-enemy.w/2,-enemy.h/2,enemy.w,enemy.h,enemy.boss?'#ce8376':'#a689a5',8);
-  fill(-enemy.w/2-7,-4,enemy.w+14,8,'#c9a7ac',3);
-  disk(-enemy.w*.18,0,3,'#e4d7a1');disk(enemy.w*.18,0,3,'#e4d7a1');ctx.restore();
+ bg('#0b1c2b','#244558');
+ for(let i=0;i<53;i++){
+  const x=(i*71)%W,y=(i*127+state.clock*(18+(i%4)*9))%H;
+  disk(x,y,i%7===0?1.8:.8,i%3===0?'#d6e8ee':'#739bb0');
  }
- for(const b of state.shots)fill(b.x-2,b.y-11,4,13,'#abf4c3',2);
- for(const b of state.enemyShots)disk(b.x,b.y,4,'#ec9e8b');
- for(const p of state.pickups){disk(p.x,p.y,11,'#73cf9e');text('+',p.x,p.y+5,15,'#fff',900)}
- const p=state.ship;ctx.save();ctx.globalAlpha=p.invincible>0?(.35+Math.sin(state.clock*25)*.25):1;
- ctx.translate(p.x,p.y);ctx.beginPath();ctx.moveTo(0,-22);ctx.lineTo(23,21);ctx.lineTo(0,11);ctx.lineTo(-23,21);ctx.closePath();ctx.fillStyle='#d2d9d5';ctx.fill();
- fill(-7,-4,14,10,'#659d9b',5);fill(-4,17,8,10,'#eda873',3);ctx.restore();
- if(p.shield>0){ctx.strokeStyle='#72eac7';ctx.lineWidth=3;ctx.beginPath();ctx.arc(p.x,p.y,29,0,TAU);ctx.stroke()}
- text('WAVE '+state.wave,15,26,13,'#bde2d4',800,'left');
+ for(const enemy of state.enemies){
+  ctx.save();ctx.translate(enemy.x,enemy.y);
+  const w=enemy.w,h=enemy.h;
+  ctx.fillStyle=enemy.boss?'#b76469':'#8c769e';
+  ctx.strokeStyle='#e3bed0';ctx.lineWidth=1.5;
+  ctx.beginPath();ctx.moveTo(-w*.5,-h*.18);ctx.lineTo(-w*.3,-h*.5);
+  ctx.lineTo(-w*.11,-h*.3);ctx.lineTo(w*.11,-h*.3);
+  ctx.lineTo(w*.3,-h*.5);ctx.lineTo(w*.5,-h*.18);
+  ctx.lineTo(w*.37,h*.41);ctx.lineTo(0,h*.19);ctx.lineTo(-w*.37,h*.41);
+  ctx.closePath();ctx.fill();ctx.stroke();
+  fill(-w*.24,-h*.12,w*.48,h*.22,enemy.boss?'#efc18c':'#d8b2c5',4);
+  disk(-w*.17,-h*.01,2.5,'#203040');disk(w*.17,-h*.01,2.5,'#203040');
+  if(enemy.maxHp>1){
+   fill(-w*.43,h*.49,w*.86,3,'#213c48',1);
+   fill(-w*.43,h*.49,w*.86*enemy.hp/enemy.maxHp,3,'#f1bd95',1);
+  }
+  ctx.restore();
+ }
+ for(const b of state.shots){fill(b.x-2,b.y-11,4,14,'#a6f9cc',2);disk(b.x,b.y-8,3,'#f5fff7');}
+ for(const b of state.enemyShots){disk(b.x,b.y,5,'#ee9c89');disk(b.x,b.y,2,'#ffe2cd');}
+ for(const p of state.pickups){disk(p.x,p.y,12,'#73cf9e');disk(p.x,p.y,8,'#2e936d');text('+',p.x,p.y+5,17,'#fff',850);}
+ for(const p of state.particles){ctx.globalAlpha=Math.min(1,p.life/p.maxLife);disk(p.x,p.y,p.r,p.color);}
+ ctx.globalAlpha=1;
+ const p=state.ship;ctx.save();
+ ctx.globalAlpha=p.invincible>0?(.45+.3*Math.sin(state.clock*30)):1;
+ ctx.translate(p.x,p.y);
+ ctx.fillStyle='#dcece8';ctx.strokeStyle='#6eacb0';ctx.lineWidth=2;
+ ctx.beginPath();ctx.moveTo(0,-27);ctx.lineTo(16,7);ctx.lineTo(22,18);
+ ctx.lineTo(9,14);ctx.lineTo(0,7);ctx.lineTo(-9,14);ctx.lineTo(-22,18);
+ ctx.lineTo(-16,7);ctx.closePath();ctx.fill();ctx.stroke();
+ fill(-7,-1,14,11,'#428e98',5);
+ fill(-9,17,6,10,'#f3b873',3);fill(3,17,6,10,'#f3b873',3);
+ ctx.restore();
+ if(p.shield>0){ctx.strokeStyle='#75f6cb';ctx.lineWidth=2.5;ctx.beginPath();ctx.arc(p.x,p.y,29,0,TAU);ctx.stroke();}
+ text('WAVE '+state.wave,15,27,13,'#d9f2e6',850,'left');
+ text('HULL '+Math.max(0,state.lives),W-15,27,13,state.notice>0?'#ffb39e':'#d9f2e6',850,'right');
+ if(state.breaches>0)text('BREACHES '+state.breaches,15,H-16,11,'#abcad5',750,'left');
 }
 
 function makeBrickRow(level){
