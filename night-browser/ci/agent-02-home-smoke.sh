@@ -62,6 +62,18 @@ tap_editor() {
   adb shell input tap $xy
   sleep 1
 }
+# The shortcut grid extends below the first viewport on a 320dp phone.
+# Reach offscreen entries with actual user swipes instead of assuming
+# UIAutomator includes invisible Compose children.
+scroll_to_label() {
+  local label="$1"
+  for _ in 1 2 3 4; do
+    if ui has "$label" >/dev/null 2>&1; then return 0; fi
+    adb shell input swipe 540 1450 540 600 380
+    sleep 1
+  done
+  ui has "$label"
+}
 shutdown_diagnostics() {
   local status="$?"
   adb logcat -d -t 4000 | grep -E 'FATAL EXCEPTION|AndroidRuntime|com.night.browser' | tail -250 > "$OUT/logcat.txt" || true
@@ -88,7 +100,7 @@ ui not "Add"
 capture "01-home-320dp"
 touch "Edit"
 ui has "Done"
-ui has "Add"
+scroll_to_label "Add"
 
 # Exercise the actual user-editable shortcuts: tap Add, fill both custom
 # Compose fields, save, then verify they persist after process restart.
@@ -111,14 +123,14 @@ ui has "Add shortcut"
 capture "02b-fields-filled-keyboard-closed"
 touch "Save"
 sleep 2
-ui has "AgentQA"
+scroll_to_label "AgentQA"
 capture "03-added-site"
 
 # Relaunch validates that speed dials are actually stored locally.
 adb shell am force-stop com.night.browser
 adb shell am start -n com.night.browser/.MainActivity
 sleep 7
-ui has "AgentQA"
+scroll_to_label "AgentQA"
 capture "04-relaunched-persisted"
 
 # Exercise shortcut editing, then deletion (no second independent delete
