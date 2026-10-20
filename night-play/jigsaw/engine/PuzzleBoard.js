@@ -90,22 +90,59 @@ export class PuzzleBoard{
   // At high counts, a max-distance blue-noise algorithm degenerates into
   // tiny, regimented rows. Use uneven overlapping clusters instead: like
   // loose cardboard pieces stacked on a real table, not an ordered grid.
-  const densitySamples=count<=24?24:count<=48?15:count<=72?8:count<=96?5:3;
-  for(let i=0;i<count;i++){
-   const zoneIndex=i%zones.length,z=zones[zoneIndex],previous=occupied[zoneIndex];
-   const rangeX=Math.max(0,z.w-pw),rangeY=Math.max(0,z.h-ph);
-   let best=null,bestScore=-Infinity;
-   for(let trial=0;trial<densitySamples;trial++){
-    const x=z.x+Math.random()*rangeX,y=z.y+Math.random()*rangeY;
-    let score=previous.length?Infinity:10;
-    for(const old of previous){
-     const dist=Math.hypot((x-old.x)/(pw*.84||1),(y-old.y)/(ph*.84||1));
-     if(dist<score)score=dist;
+  // On narrow phones, dense difficulties must remain individually touchable.
+  // The former three-candidate scatter compressed 144 pieces into many
+  // overlapping stacks: a centered fingertip frequently picked the wrong ID.
+  // A slightly irregular, shuffled packing keeps pieces outside the board and
+  // reachable without a permanent tray or a second overlapping-piece picker.
+  if(this.viewportWidth<680&&count>=96){
+   const piles=zones.map((z,zid)=>{
+    const target=Math.ceil((count-zid)/zones.length);
+    const maxCols=Math.max(1,Math.floor((z.w-4)/(pw*1.04)));
+    let cols=Math.min(maxCols,Math.max(1,Math.round(
+     Math.sqrt(target*(z.w/Math.max(1,z.h))*(ph/pw)))));
+    let rows=Math.ceil(target/cols);
+    while(rows*ph>z.h-4&&cols<maxCols){cols++;rows=Math.ceil(target/cols);}
+    // Very short viewports cannot fit a dense tabletop without changing scale;
+    // keep the existing scatter algorithm as a documented fallback there.
+    if(cols*pw>z.w||rows*ph>z.h)return null;
+    const stepX=cols>1?(z.w-pw)/(cols-1):0;
+    const stepY=rows>1?(z.h-ph)/(rows-1):0;
+    const jiggleX=Math.max(0,Math.min(7,(stepX-pw)*.36));
+    const jiggleY=Math.max(0,Math.min(7,(stepY-ph)*.36));
+    const positions=[];
+    for(let row=0;row<rows;row++)for(let col=0;col<cols;col++){
+     positions.push({x:z.x+col*stepX+(Math.random()*2-1)*jiggleX,
+      y:z.y+row*stepY+(Math.random()*2-1)*jiggleY});
     }
-    score+=Math.random()*.085;
-    if(score>bestScore){best={x,y};bestScore=score;}
+    // Randomize the missing cells if a zone contains fewer than a full grid.
+    for(let i=positions.length-1;i>0;i--){
+     const j=Math.floor(Math.random()*(i+1));[positions[i],positions[j]]=[positions[j],positions[i]];
+    }
+    return positions.slice(0,target);
+   });
+   if(piles.every(Boolean)){
+    for(let i=0;i<count;i++)slots.push(piles[i%piles.length].pop());
    }
-   occupied[zoneIndex].push(best);slots.push(best);
+  }
+  if(!slots.length){
+   const densitySamples=count<=24?24:count<=48?15:count<=72?8:count<=96?5:3;
+   for(let i=0;i<count;i++){
+    const zoneIndex=i%zones.length,z=zones[zoneIndex],previous=occupied[zoneIndex];
+    const rangeX=Math.max(0,z.w-pw),rangeY=Math.max(0,z.h-ph);
+    let best=null,bestScore=-Infinity;
+    for(let trial=0;trial<densitySamples;trial++){
+     const x=z.x+Math.random()*rangeX,y=z.y+Math.random()*rangeY;
+     let score=previous.length?Infinity:10;
+     for(const old of previous){
+      const dist=Math.hypot((x-old.x)/(pw*.84||1),(y-old.y)/(ph*.84||1));
+      if(dist<score)score=dist;
+     }
+     score+=Math.random()*.085;
+     if(score>bestScore){best={x,y};bestScore=score;}
+    }
+    occupied[zoneIndex].push(best);slots.push(best);
+   }
   }
   // Shuffle which source image goes into each distributed location.
   for(let i=slots.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[slots[i],slots[j]]=[slots[j],slots[i]];}
