@@ -1,0 +1,535 @@
+{
+  "version": 1,
+  "series": "eminence",
+  "universe": "eminence",
+  "scope": "in-universe",
+  "scale": "night-universe-power-v1",
+  "status": "editorial-proposal",
+  "notes": "Official MOG artwork; main-story identity/form grades remain editorial proposals, never game-exclusive Apocrypha scaling. 768x840 transparent reference art yields preview-only 3000x4800 exports, not print-grade native-res artwork.",
+  "assessments": {
+    "shadow-base": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "EX",
+      "formId": "base",
+      "artworkSHA256": "081505659c285c2601f9f2531a74d44bb56588239029af8bfac77e8c24d0949f",
+      "scope": "Slime-Suit Shadow",
+      "basis": "Defeated elite opponents with exceptional swordsmanship and magical command.",
+      "limits": "Identities and disguises are not distinct power-ups.",
+      "references": [
+        "https://shadow-garden.jp/1st/character/",
+        "https://www.shadow-garden-mog.jp/wp-content/themes/officialsite/partials/page/dmg/assets/webp/sp/chara/img_shadow-adult.webp"
+      ],
+      "universe": "eminence",
+      "continuity": "eminence-anime-ln-main",
+      "featReview": {
+        "status": "verified",
+        "universe": "eminence",
+        "continuity": "eminence-anime-ln-main",
+        "formId": "base",
+        "artworkSHA256": "081505659c285c2601f9f2531a74d44bb56588239029af8bfac77e8c24d0949f",
+        "locator": "Season 2 episode 12 — HIGHEST; Shadow vs Ragnarok; official story synopsis",
+        "claim": "Shadow directly faces the Fourth Demon Lord Ragnarok. EX denotes NIGHT editorial upper benchmark, not an official canonical numerical rating.",
+        "reference": "https://shadow-garden.jp/2nd/story/"
+      }
+    },
+    "cid-student": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "EX",
+      "formId": "academy-disguise",
+      "artworkSHA256": "d969e7eb7d2652c44a83cd7ef39052bb8677d55019c47fb18d4d6c3e5dd8c9aa",
+      "scope": "Academy Student",
+      "basis": "Same underlying power as Shadow; his student persona does not weaken his actual capabilities.",
+      "limits": "Identities and disguises are not distinct power-ups.",
+      "references": [
+        "https://shadow-garden.jp/1st/character/",
+        "https://www.shadow-garden-mog.jp/wp-content/themes/officialsite/partials/page/dmg/assets/webp/sp/chara/img_sid-adult.webp"
+      ],
+      "universe": "eminence",
+      "continuity": "eminence-anime-ln-main",
+      "featReview": {
+        "status": "verified",
+        "universe": "eminence",
+        "continuity": "eminence-anime-ln-main",
+        "formId": "academy-disguise",
+        "artworkSHA256": "d969e7eb7d2652c44a83cd7ef39052bb8677d55019c47fb18d4d6c3e5dd8c9aa",
+        "locator": "Season 2 episode 12 — HIGHEST; Shadow vs Ragnarok; official story synopsis",
+        "claim": "Shadow directly faces the Fourth Demon Lord Ragnarok. EX denotes NIGHT editorial upper benchmark, not an official canonical numerical rating.",
+        "reference": "https://shadow-garden.jp/2nd/story/"
+      }
+    },
+    "alpha-seven": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "SS",
+      "formId": "seven-shadows",
+      "artworkSHA256": "e1e40c1b532ec114906a3e4d7ec79375e7ba17175d4a4a6e57c005593b9f5083",
+      "scope": "First Seat",
+      "basis": "Strongest balanced Seven Shadow; exceptional magic control and sword technique.",
+      "limits": "Relative strength is not mathematically established; matchups and continuity matter.",
+      "references": [
+        "https://shadow-garden.jp/1st/character/",
+        "https://www.shadow-garden-mog.jp/wp-content/themes/officialsite/partials/page/dmg/assets/webp/sp/chara/img_alpha-adult.webp"
+      ],
+      "universe": "eminence",
+      "continuity": "eminence-anime-ln-main"
+    },
+    "beta-combat": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "S",
+      "formId": "seven-shadows",
+      "artworkSHA256": "2ebea382e6e3bca4359d8a0de3791e7039c23597e0b0568b1a8fca2b01673528",
+      "scope": "Seven Shadows",
+      "basis": "High combat proficiency, magical versatility and coordination.",
+      "limits": "Relative strength is not mathematically established; matchups and continuity matter.",
+      "references": [
+        "https://shadow-garden.jp/1st/character/",
+        "https://www.shadow-garden-mog.jp/wp-content/themes/officialsite/partials/page/dmg/assets/webp/sp/chara/img_beta-adult.webp"
+      ],
+      "universe": "eminence",
+      "continuity": "eminence-anime-ln-main"
+    },
+    "delta-hunt": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "S",
+      "formId": "seven-shadows",
+      "artworkSHA256": "24c3de2ef89561a438a9c7f8d4216702df084daa55d95bb736649e0653dc5641",
+      "scope": "Beastkin Berserker",
+      "basis": "Seven Shadow with extraordinary physical strength and instincts.",
+      "limits": "Relative strength is not mathematically established; matchups and continuity matter.",
+      "references": [
+        "https://shadow-garden.jp/1st/character/",
+        "https://www.shadow-garden-mog.jp/wp-content/themes/officialsite/partials/page/dmg/assets/webp/sp/chara/img_delta-adult.webp"
+      ],
+      "universe": "eminence",
+      "continuity": "eminence-anime-ln-main"
+    },
+    "epsilon-slime": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "S",
+      "formId": "seven-shadows",
+      "artworkSHA256": "e7a68a225de492a5f04739adbacf452bd6d00fb9aed212361be23e48e5c51877",
+      "scope": "Magic Control",
+      "basis": "Extraordinary magical precision and control over slime equipment.",
+      "limits": "Relative strength is not mathematically established; matchups and continuity matter.",
+      "references": [
+        "https://shadow-garden.jp/1st/character/",
+        "https://www.shadow-garden-mog.jp/wp-content/themes/officialsite/partials/page/dmg/assets/webp/sp/chara/img_epsilon-adult.webp"
+      ],
+      "universe": "eminence",
+      "continuity": "eminence-anime-ln-main"
+    },
+    "zeta-secret": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "S",
+      "formId": "seven-shadows",
+      "artworkSHA256": "99072687a1bd373ba01de1016ea630db8236b8ca7d95cf038db87de238657edc",
+      "scope": "Secret Operations",
+      "basis": "Elite beastkin assassin with speed, tracking and covert capabilities.",
+      "limits": "Relative strength is not mathematically established; matchups and continuity matter.",
+      "references": [
+        "https://shadow-garden.jp/1st/character/",
+        "https://www.shadow-garden-mog.jp/wp-content/themes/officialsite/partials/page/dmg/assets/webp/sp/chara/img_zeta-adult.webp"
+      ],
+      "universe": "eminence",
+      "continuity": "eminence-anime-ln-main"
+    },
+    "eta-equipment": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "S",
+      "formId": "prepared-gear",
+      "artworkSHA256": "f62d7dadf2ef3be399d5cfee7cef373616950899c9c256fa6686acfaee7a381d",
+      "scope": "Arcane Researcher",
+      "basis": "Dangerous devices and preparation; cannot assume equal hand-to-hand ability.",
+      "limits": "Relative strength is not mathematically established; matchups and continuity matter.",
+      "references": [
+        "https://shadow-garden.jp/1st/character/",
+        "https://www.shadow-garden-mog.jp/wp-content/themes/officialsite/partials/page/dmg/assets/webp/sp/chara/img_eta-adult.webp"
+      ],
+      "universe": "eminence",
+      "continuity": "eminence-anime-ln-main"
+    },
+    "beatrix-war-goddess": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "S",
+      "formId": "wanderer",
+      "artworkSHA256": "a3e2d68c61102af86c4e4f008cd3c2b2dd5fdef23dfd514322f512e8f03b0886",
+      "scope": "War Goddess",
+      "basis": "Master swordswoman and credible opponent even among elite dark knights.",
+      "limits": "Relative strength is not mathematically established; matchups and continuity matter.",
+      "references": [
+        "https://shadow-garden.jp/1st/character/",
+        "https://www.shadow-garden-mog.jp/wp-content/themes/officialsite/partials/page/dmg/assets/webp/sp/chara/img_beatrix.webp"
+      ],
+      "universe": "eminence",
+      "continuity": "eminence-anime-ln-main"
+    },
+    "alexia-midgar": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "B",
+      "formId": "academy",
+      "artworkSHA256": "3b851c2f9fa1b8162e5f571a95e1bb08a6565ca98e97f67412d950d11704bfd8",
+      "scope": "Royal Swordsmanship",
+      "basis": "Training and unusual sword approach; not yet at strongest combatant level.",
+      "limits": "Relative strength is not mathematically established; matchups and continuity matter.",
+      "references": [
+        "https://shadow-garden.jp/1st/character/",
+        "https://www.shadow-garden-mog.jp/wp-content/themes/officialsite/partials/page/dmg/assets/webp/sp/chara/img_alexia.webp"
+      ],
+      "universe": "eminence",
+      "continuity": "eminence-anime-ln-main"
+    },
+    "rose-empowered": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "A",
+      "formId": "awakened",
+      "artworkSHA256": "b8175de5ac8d482d9da6d58a38032a77614464ca1be92b33a73b37ef1407b030",
+      "scope": "Shadow-Granted Power",
+      "basis": "Empowered dark knight; major boost from Shadow's intervention.",
+      "limits": "Relative strength is not mathematically established; matchups and continuity matter.",
+      "references": [
+        "https://shadow-garden.jp/2nd/story/",
+        "https://www.shadow-garden-mog.jp/wp-content/themes/officialsite/partials/page/dmg/assets/webp/sp/chara/img_rose.webp"
+      ],
+      "universe": "eminence",
+      "continuity": "eminence-anime-ln-main"
+    },
+    "iris-midgar": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "A",
+      "formId": "war-goddess",
+      "artworkSHA256": "9b983eba6d6c943229e2b8a0ee2d7ca473348e6d9803675731d4ac11f7f9dc7d",
+      "scope": "Crimson Knight",
+      "basis": "Highly skilled Midgar swordswoman, but below Shadow's elite feats.",
+      "limits": "Relative strength is not mathematically established; matchups and continuity matter.",
+      "references": [
+        "https://shadow-garden.jp/1st/character/",
+        "https://www.shadow-garden-mog.jp/wp-content/themes/officialsite/partials/page/dmg/assets/webp/sp/chara/img_iris.webp"
+      ],
+      "universe": "eminence",
+      "continuity": "eminence-anime-ln-main"
+    },
+    "claire-base": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "A",
+      "formId": "base",
+      "artworkSHA256": "151dbb9a9912de9982c49745866d4d543fcc89481bfb7ec76efafe9c8a11f727",
+      "scope": "Dark Knight",
+      "basis": "Elite swordsmanship and strong magical potential without Aurora control.",
+      "limits": "Relative strength is not mathematically established; matchups and continuity matter.",
+      "references": [
+        "https://shadow-garden.jp/1st/character/",
+        "https://www.shadow-garden-mog.jp/wp-content/themes/officialsite/partials/page/dmg/assets/webp/sp/chara/img_clare.webp"
+      ],
+      "universe": "eminence",
+      "continuity": "eminence-anime-ln-main"
+    },
+    "shadow-atomic": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "eminence",
+      "continuity": "eminence-anime-ln-main",
+      "formId": "atomic"
+    },
+    "john-smith": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "eminence",
+      "continuity": "eminence-anime-ln-main",
+      "formId": "john-smith"
+    },
+    "mundane-mann": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "eminence",
+      "continuity": "eminence-anime-ln-main",
+      "formId": "mundane-mann"
+    },
+    "jack-the-ripper": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "eminence",
+      "continuity": "eminence-anime-ln-main",
+      "formId": "jack-the-ripper"
+    },
+    "aurora-legend": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "eminence",
+      "continuity": "eminence-anime-ln-main",
+      "formId": "historical"
+    },
+    "diablos-demon": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "eminence",
+      "continuity": "eminence-anime-ln-main",
+      "formId": "historical-demon"
+    },
+    "mist-dragon": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "eminence",
+      "continuity": "eminence-anime-ln-main",
+      "formId": "ancient-dragon"
+    },
+    "ragnarok-fourth": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "eminence",
+      "continuity": "eminence-anime-ln-main",
+      "formId": "fourth-realm"
+    },
+    "olivier-original": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "eminence",
+      "continuity": "eminence-anime-ln-main",
+      "formId": "original-hero"
+    },
+    "lily-original": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "eminence",
+      "continuity": "eminence-anime-ln-main",
+      "formId": "original-hero"
+    },
+    "freya-original": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "eminence",
+      "continuity": "eminence-anime-ln-main",
+      "formId": "original-hero"
+    },
+    "elisabeth-blood-moon": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "eminence",
+      "continuity": "eminence-anime-ln-main",
+      "formId": "blood-moon"
+    },
+    "aurora-claire": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "eminence",
+      "continuity": "eminence-anime-ln-main",
+      "formId": "claire-possession"
+    },
+    "fenrir-rounds": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "eminence",
+      "continuity": "eminence-anime-ln-main",
+      "formId": "rounds"
+    },
+    "mordred-ragnarok": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "eminence",
+      "continuity": "eminence-anime-ln-main",
+      "formId": "demon-flesh"
+    },
+    "victoria-559": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "eminence",
+      "continuity": "eminence-anime-ln-main",
+      "formId": "shadow-garden"
+    },
+    "yukime-fox": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "eminence",
+      "continuity": "eminence-anime-ln-main",
+      "formId": "lawless-city"
+    },
+    "gettan-enhanced": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "eminence",
+      "continuity": "eminence-anime-ln-main",
+      "formId": "enhanced"
+    },
+    "juggernaut-tyrant": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "eminence",
+      "continuity": "eminence-anime-ln-main",
+      "formId": "lawless-city"
+    },
+    "gamma-base": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "eminence",
+      "continuity": "eminence-anime-ln-main",
+      "formId": "seven-shadows"
+    },
+    "nu-shadow": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "eminence",
+      "continuity": "eminence-anime-ln-main",
+      "formId": "operative"
+    },
+    "lambda-instructor": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "eminence",
+      "continuity": "eminence-anime-ln-main",
+      "formId": "instructor"
+    },
+    "crimson-vampire": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "eminence",
+      "continuity": "eminence-anime-ln-main",
+      "formId": "lawless-city"
+    },
+    "annerose": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "eminence",
+      "continuity": "eminence-anime-ln-main",
+      "formId": "tournament"
+    },
+    "zenon-red": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "eminence",
+      "continuity": "eminence-anime-ln-main",
+      "formId": "cult-knight"
+    },
+    "mary-hunter": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "eminence",
+      "continuity": "eminence-anime-ln-main",
+      "formId": "vampire-hunter"
+    },
+    "shelly": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "eminence",
+      "continuity": "eminence-anime-ln-main",
+      "formId": "scholar"
+    },
+    "apocrypha-diabolos": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "eminence",
+      "continuity": "master-of-garden-apocrypha",
+      "formId": "demon-game"
+    },
+    "apocrypha-demon-alpha": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "eminence",
+      "continuity": "master-of-garden-apocrypha",
+      "formId": "demonized"
+    },
+    "apocrypha-demon-delta": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "eminence",
+      "continuity": "master-of-garden-apocrypha",
+      "formId": "demonized"
+    },
+    "apocrypha-demon-gamma": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "eminence",
+      "continuity": "master-of-garden-apocrypha",
+      "formId": "demonized"
+    },
+    "apocrypha-demon-beta": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "eminence",
+      "continuity": "master-of-garden-apocrypha",
+      "formId": "demonized"
+    },
+    "apocrypha-demon-epsilon": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "eminence",
+      "continuity": "master-of-garden-apocrypha",
+      "formId": "demonized"
+    },
+    "apocrypha-demon-zeta": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "eminence",
+      "continuity": "master-of-garden-apocrypha",
+      "formId": "demonized"
+    },
+    "apocrypha-demon-olivier": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "eminence",
+      "continuity": "master-of-garden-apocrypha",
+      "formId": "demonized"
+    },
+    "apocrypha-demon-alexia": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "eminence",
+      "continuity": "master-of-garden-apocrypha",
+      "formId": "demonized"
+    },
+    "apocrypha-demon-victoria": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "eminence",
+      "continuity": "master-of-garden-apocrypha",
+      "formId": "demonized"
+    }
+  }
+}

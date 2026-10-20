@@ -1,0 +1,956 @@
+{
+  "version": 1,
+  "series": "eminence",
+  "name": "The Eminence in Shadow / NIGHT Collection",
+  "dimensions": [
+    3000,
+    4800
+  ],
+  "artworkPolicy": {
+    "distinctPerEdition": true
+  },
+  "tierPolicy": {
+    "mode": "power-selects-design"
+  },
+  "rightsNote": "All official reference artwork is rights-reserved, not licensed for commercial redistribution.",
+  "status": "candidate-only",
+  "cards": [
+    {
+      "id": "shadow-base",
+      "number": 2,
+      "character": "shadow",
+      "name": "Shadow",
+      "title": "Shadow",
+      "form": "Slime-Suit Shadow",
+      "formId": "base",
+      "aliases": [
+        "Shadow",
+        "shadow-base"
+      ],
+      "designs": [
+        "ascendant"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "master-of-garden-official-sp",
+        "page": "https://www.shadow-garden-mog.jp/dmg/",
+        "image": "https://www.shadow-garden-mog.jp/wp-content/themes/officialsite/partials/page/dmg/assets/webp/sp/chara/img_shadow-adult.webp",
+        "localPath": "artwork/eminence/shadow-base.webp",
+        "sha256": "081505659c285c2601f9f2531a74d44bb56588239029af8bfac77e8c24d0949f",
+        "width": 768,
+        "height": 840,
+        "artist": "Master of Garden production",
+        "credit": "Official Master of Garden game site",
+        "rights": "© Daisuke Aizawa / KADOKAWA / Shadow Garden / Master of Garden. All rights reserved.",
+        "usage": "reference-only; not licensed for redistribution"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          768,
+          840
+        ],
+        "bottomPadding": 0.24,
+        "edgeFade": 0.004,
+        "bottomFade": 0.03,
+        "focal": [
+          0.5,
+          0.25
+        ],
+        "artworkPlacement": {
+          "ascendant": {
+            "x": 0,
+            "y": 15,
+            "width": 1000
+          }
+        }
+      }
+    },
+    {
+      "id": "cid-student",
+      "number": 3,
+      "character": "shadow",
+      "name": "Cid Kagenou",
+      "title": "Cid Kagenou",
+      "form": "Academy Student",
+      "formId": "academy-disguise",
+      "aliases": [
+        "Cid Kagenou",
+        "cid-student"
+      ],
+      "designs": [
+        "ascendant"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "master-of-garden-official-sp",
+        "page": "https://www.shadow-garden-mog.jp/dmg/",
+        "image": "https://www.shadow-garden-mog.jp/wp-content/themes/officialsite/partials/page/dmg/assets/webp/sp/chara/img_sid-adult.webp",
+        "localPath": "artwork/eminence/cid-student.webp",
+        "sha256": "d969e7eb7d2652c44a83cd7ef39052bb8677d55019c47fb18d4d6c3e5dd8c9aa",
+        "width": 768,
+        "height": 840,
+        "artist": "Master of Garden production",
+        "credit": "Official Master of Garden game site",
+        "rights": "© Daisuke Aizawa / KADOKAWA / Shadow Garden / Master of Garden. All rights reserved.",
+        "usage": "reference-only; not licensed for redistribution"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          768,
+          840
+        ],
+        "bottomPadding": 0.24,
+        "edgeFade": 0.004,
+        "bottomFade": 0.03,
+        "focal": [
+          0.5,
+          0.25
+        ],
+        "artworkPlacement": {
+          "ascendant": {
+            "x": 0,
+            "y": 15,
+            "width": 1000
+          }
+        }
+      }
+    },
+    {
+      "id": "alpha-seven",
+      "number": 16,
+      "character": "alpha",
+      "name": "Alpha",
+      "title": "Alpha",
+      "form": "First Seat",
+      "formId": "seven-shadows",
+      "aliases": [
+        "Alpha",
+        "alpha-seven"
+      ],
+      "designs": [
+        "obsidian"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "master-of-garden-official-sp",
+        "page": "https://www.shadow-garden-mog.jp/dmg/",
+        "image": "https://www.shadow-garden-mog.jp/wp-content/themes/officialsite/partials/page/dmg/assets/webp/sp/chara/img_alpha-adult.webp",
+        "localPath": "artwork/eminence/alpha-seven.webp",
+        "sha256": "e1e40c1b532ec114906a3e4d7ec79375e7ba17175d4a4a6e57c005593b9f5083",
+        "width": 768,
+        "height": 840,
+        "artist": "Master of Garden production",
+        "credit": "Official Master of Garden game site",
+        "rights": "© Daisuke Aizawa / KADOKAWA / Shadow Garden / Master of Garden. All rights reserved.",
+        "usage": "reference-only; not licensed for redistribution"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          768,
+          840
+        ],
+        "bottomPadding": 0.24,
+        "edgeFade": 0.004,
+        "bottomFade": 0.03,
+        "focal": [
+          0.5,
+          0.25
+        ],
+        "artworkPlacement": {
+          "obsidian": {
+            "x": 0,
+            "y": 15,
+            "width": 1000
+          }
+        }
+      }
+    },
+    {
+      "id": "beta-combat",
+      "number": 22,
+      "character": "beta",
+      "name": "Beta",
+      "title": "Beta",
+      "form": "Seven Shadows",
+      "formId": "seven-shadows",
+      "aliases": [
+        "Beta",
+        "beta-combat"
+      ],
+      "designs": [
+        "emberglass"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "master-of-garden-official-sp",
+        "page": "https://www.shadow-garden-mog.jp/dmg/",
+        "image": "https://www.shadow-garden-mog.jp/wp-content/themes/officialsite/partials/page/dmg/assets/webp/sp/chara/img_beta-adult.webp",
+        "localPath": "artwork/eminence/beta-combat.webp",
+        "sha256": "2ebea382e6e3bca4359d8a0de3791e7039c23597e0b0568b1a8fca2b01673528",
+        "width": 768,
+        "height": 840,
+        "artist": "Master of Garden production",
+        "credit": "Official Master of Garden game site",
+        "rights": "© Daisuke Aizawa / KADOKAWA / Shadow Garden / Master of Garden. All rights reserved.",
+        "usage": "reference-only; not licensed for redistribution"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          768,
+          840
+        ],
+        "bottomPadding": 0.24,
+        "edgeFade": 0.004,
+        "bottomFade": 0.03,
+        "focal": [
+          0.5,
+          0.25
+        ],
+        "artworkPlacement": {
+          "emberglass": {
+            "x": -250,
+            "y": -65,
+            "width": 1500
+          }
+        }
+      }
+    },
+    {
+      "id": "delta-hunt",
+      "number": 19,
+      "character": "delta",
+      "name": "Delta",
+      "title": "Delta",
+      "form": "Beastkin Berserker",
+      "formId": "seven-shadows",
+      "aliases": [
+        "Delta",
+        "delta-hunt"
+      ],
+      "designs": [
+        "emberglass"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "master-of-garden-official-sp",
+        "page": "https://www.shadow-garden-mog.jp/dmg/",
+        "image": "https://www.shadow-garden-mog.jp/wp-content/themes/officialsite/partials/page/dmg/assets/webp/sp/chara/img_delta-adult.webp",
+        "localPath": "artwork/eminence/delta-hunt.webp",
+        "sha256": "24c3de2ef89561a438a9c7f8d4216702df084daa55d95bb736649e0653dc5641",
+        "width": 768,
+        "height": 840,
+        "artist": "Master of Garden production",
+        "credit": "Official Master of Garden game site",
+        "rights": "© Daisuke Aizawa / KADOKAWA / Shadow Garden / Master of Garden. All rights reserved.",
+        "usage": "reference-only; not licensed for redistribution"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          768,
+          840
+        ],
+        "bottomPadding": 0.24,
+        "edgeFade": 0.004,
+        "bottomFade": 0.03,
+        "focal": [
+          0.5,
+          0.25
+        ],
+        "artworkPlacement": {
+          "emberglass": {
+            "x": 0,
+            "y": 15,
+            "width": 1000
+          }
+        }
+      }
+    },
+    {
+      "id": "epsilon-slime",
+      "number": 21,
+      "character": "epsilon",
+      "name": "Epsilon",
+      "title": "Epsilon",
+      "form": "Magic Control",
+      "formId": "seven-shadows",
+      "aliases": [
+        "Epsilon",
+        "epsilon-slime"
+      ],
+      "designs": [
+        "emberglass"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "master-of-garden-official-sp",
+        "page": "https://www.shadow-garden-mog.jp/dmg/",
+        "image": "https://www.shadow-garden-mog.jp/wp-content/themes/officialsite/partials/page/dmg/assets/webp/sp/chara/img_epsilon-adult.webp",
+        "localPath": "artwork/eminence/epsilon-slime.webp",
+        "sha256": "e7a68a225de492a5f04739adbacf452bd6d00fb9aed212361be23e48e5c51877",
+        "width": 768,
+        "height": 840,
+        "artist": "Master of Garden production",
+        "credit": "Official Master of Garden game site",
+        "rights": "© Daisuke Aizawa / KADOKAWA / Shadow Garden / Master of Garden. All rights reserved.",
+        "usage": "reference-only; not licensed for redistribution"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          768,
+          840
+        ],
+        "bottomPadding": 0.24,
+        "edgeFade": 0.004,
+        "bottomFade": 0.03,
+        "focal": [
+          0.5,
+          0.25
+        ],
+        "artworkPlacement": {
+          "emberglass": {
+            "x": 0,
+            "y": 15,
+            "width": 1000
+          }
+        }
+      }
+    },
+    {
+      "id": "zeta-secret",
+      "number": 20,
+      "character": "zeta",
+      "name": "Zeta",
+      "title": "Zeta",
+      "form": "Secret Operations",
+      "formId": "seven-shadows",
+      "aliases": [
+        "Zeta",
+        "zeta-secret"
+      ],
+      "designs": [
+        "emberglass"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "master-of-garden-official-sp",
+        "page": "https://www.shadow-garden-mog.jp/dmg/",
+        "image": "https://www.shadow-garden-mog.jp/wp-content/themes/officialsite/partials/page/dmg/assets/webp/sp/chara/img_zeta-adult.webp",
+        "localPath": "artwork/eminence/zeta-secret.webp",
+        "sha256": "99072687a1bd373ba01de1016ea630db8236b8ca7d95cf038db87de238657edc",
+        "width": 768,
+        "height": 840,
+        "artist": "Master of Garden production",
+        "credit": "Official Master of Garden game site",
+        "rights": "© Daisuke Aizawa / KADOKAWA / Shadow Garden / Master of Garden. All rights reserved.",
+        "usage": "reference-only; not licensed for redistribution"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          768,
+          840
+        ],
+        "bottomPadding": 0.24,
+        "edgeFade": 0.004,
+        "bottomFade": 0.03,
+        "focal": [
+          0.5,
+          0.25
+        ],
+        "artworkPlacement": {
+          "emberglass": {
+            "x": -250,
+            "y": -65,
+            "width": 1500
+          }
+        }
+      }
+    },
+    {
+      "id": "eta-equipment",
+      "number": 24,
+      "character": "eta",
+      "name": "Eta",
+      "title": "Eta",
+      "form": "Arcane Researcher",
+      "formId": "prepared-gear",
+      "aliases": [
+        "Eta",
+        "eta-equipment"
+      ],
+      "designs": [
+        "emberglass"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "master-of-garden-official-sp",
+        "page": "https://www.shadow-garden-mog.jp/dmg/",
+        "image": "https://www.shadow-garden-mog.jp/wp-content/themes/officialsite/partials/page/dmg/assets/webp/sp/chara/img_eta-adult.webp",
+        "localPath": "artwork/eminence/eta-equipment.webp",
+        "sha256": "f62d7dadf2ef3be399d5cfee7cef373616950899c9c256fa6686acfaee7a381d",
+        "width": 768,
+        "height": 840,
+        "artist": "Master of Garden production",
+        "credit": "Official Master of Garden game site",
+        "rights": "© Daisuke Aizawa / KADOKAWA / Shadow Garden / Master of Garden. All rights reserved.",
+        "usage": "reference-only; not licensed for redistribution"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          768,
+          840
+        ],
+        "bottomPadding": 0.24,
+        "edgeFade": 0.004,
+        "bottomFade": 0.03,
+        "focal": [
+          0.5,
+          0.25
+        ],
+        "artworkPlacement": {
+          "emberglass": {
+            "x": 0,
+            "y": 15,
+            "width": 1000
+          }
+        }
+      }
+    },
+    {
+      "id": "beatrix-war-goddess",
+      "number": 23,
+      "character": "beatrix",
+      "name": "Beatrix",
+      "title": "Beatrix",
+      "form": "War Goddess",
+      "formId": "wanderer",
+      "aliases": [
+        "Beatrix",
+        "beatrix-war-goddess"
+      ],
+      "designs": [
+        "emberglass"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "master-of-garden-official-sp",
+        "page": "https://www.shadow-garden-mog.jp/dmg/",
+        "image": "https://www.shadow-garden-mog.jp/wp-content/themes/officialsite/partials/page/dmg/assets/webp/sp/chara/img_beatrix.webp",
+        "localPath": "artwork/eminence/beatrix-war-goddess.webp",
+        "sha256": "a3e2d68c61102af86c4e4f008cd3c2b2dd5fdef23dfd514322f512e8f03b0886",
+        "width": 768,
+        "height": 840,
+        "artist": "Master of Garden production",
+        "credit": "Official Master of Garden game site",
+        "rights": "© Daisuke Aizawa / KADOKAWA / Shadow Garden / Master of Garden. All rights reserved.",
+        "usage": "reference-only; not licensed for redistribution"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          768,
+          840
+        ],
+        "bottomPadding": 0.24,
+        "edgeFade": 0.004,
+        "bottomFade": 0.03,
+        "focal": [
+          0.5,
+          0.25
+        ],
+        "artworkPlacement": {
+          "emberglass": {
+            "x": 0,
+            "y": 15,
+            "width": 1000
+          }
+        }
+      }
+    },
+    {
+      "id": "alexia-midgar",
+      "number": 36,
+      "character": "alexia",
+      "name": "Alexia Midgar",
+      "title": "Alexia Midgar",
+      "form": "Royal Swordsmanship",
+      "formId": "academy",
+      "aliases": [
+        "Alexia Midgar",
+        "alexia-midgar"
+      ],
+      "designs": [
+        "tidelight"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "master-of-garden-official-sp",
+        "page": "https://www.shadow-garden-mog.jp/dmg/",
+        "image": "https://www.shadow-garden-mog.jp/wp-content/themes/officialsite/partials/page/dmg/assets/webp/sp/chara/img_alexia.webp",
+        "localPath": "artwork/eminence/alexia-midgar.webp",
+        "sha256": "3b851c2f9fa1b8162e5f571a95e1bb08a6565ca98e97f67412d950d11704bfd8",
+        "width": 768,
+        "height": 840,
+        "artist": "Master of Garden production",
+        "credit": "Official Master of Garden game site",
+        "rights": "© Daisuke Aizawa / KADOKAWA / Shadow Garden / Master of Garden. All rights reserved.",
+        "usage": "reference-only; not licensed for redistribution"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          768,
+          840
+        ],
+        "bottomPadding": 0.24,
+        "edgeFade": 0.004,
+        "bottomFade": 0.03,
+        "focal": [
+          0.5,
+          0.25
+        ],
+        "artworkPlacement": {
+          "tidelight": {
+            "x": 0,
+            "y": 15,
+            "width": 1000
+          }
+        }
+      }
+    },
+    {
+      "id": "rose-empowered",
+      "number": 29,
+      "character": "rose",
+      "name": "Rose Oriana",
+      "title": "Rose Oriana",
+      "form": "Shadow-Granted Power",
+      "formId": "awakened",
+      "aliases": [
+        "Rose Oriana",
+        "rose-empowered"
+      ],
+      "designs": [
+        "nocturne"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "master-of-garden-official-sp",
+        "page": "https://www.shadow-garden-mog.jp/dmg/",
+        "image": "https://www.shadow-garden-mog.jp/wp-content/themes/officialsite/partials/page/dmg/assets/webp/sp/chara/img_rose.webp",
+        "localPath": "artwork/eminence/rose-empowered.webp",
+        "sha256": "b8175de5ac8d482d9da6d58a38032a77614464ca1be92b33a73b37ef1407b030",
+        "width": 768,
+        "height": 840,
+        "artist": "Master of Garden production",
+        "credit": "Official Master of Garden game site",
+        "rights": "© Daisuke Aizawa / KADOKAWA / Shadow Garden / Master of Garden. All rights reserved.",
+        "usage": "reference-only; not licensed for redistribution"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          768,
+          840
+        ],
+        "bottomPadding": 0.24,
+        "edgeFade": 0.004,
+        "bottomFade": 0.03,
+        "focal": [
+          0.5,
+          0.25
+        ],
+        "artworkPlacement": {
+          "nocturne": {
+            "x": -400,
+            "y": -255,
+            "width": 1800
+          }
+        }
+      }
+    },
+    {
+      "id": "iris-midgar",
+      "number": 30,
+      "character": "iris",
+      "name": "Iris Midgar",
+      "title": "Iris Midgar",
+      "form": "Crimson Knight",
+      "formId": "war-goddess",
+      "aliases": [
+        "Iris Midgar",
+        "iris-midgar"
+      ],
+      "designs": [
+        "nocturne"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "master-of-garden-official-sp",
+        "page": "https://www.shadow-garden-mog.jp/dmg/",
+        "image": "https://www.shadow-garden-mog.jp/wp-content/themes/officialsite/partials/page/dmg/assets/webp/sp/chara/img_iris.webp",
+        "localPath": "artwork/eminence/iris-midgar.webp",
+        "sha256": "9b983eba6d6c943229e2b8a0ee2d7ca473348e6d9803675731d4ac11f7f9dc7d",
+        "width": 768,
+        "height": 840,
+        "artist": "Master of Garden production",
+        "credit": "Official Master of Garden game site",
+        "rights": "© Daisuke Aizawa / KADOKAWA / Shadow Garden / Master of Garden. All rights reserved.",
+        "usage": "reference-only; not licensed for redistribution"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          768,
+          840
+        ],
+        "bottomPadding": 0.24,
+        "edgeFade": 0.004,
+        "bottomFade": 0.03,
+        "focal": [
+          0.5,
+          0.25
+        ],
+        "artworkPlacement": {
+          "nocturne": {
+            "x": 0,
+            "y": 15,
+            "width": 1000
+          }
+        }
+      }
+    },
+    {
+      "id": "claire-base",
+      "number": 31,
+      "character": "claire",
+      "name": "Claire Kagenou",
+      "title": "Claire Kagenou",
+      "form": "Dark Knight",
+      "formId": "base",
+      "aliases": [
+        "Claire Kagenou",
+        "claire-base"
+      ],
+      "designs": [
+        "nocturne"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "master-of-garden-official-sp",
+        "page": "https://www.shadow-garden-mog.jp/dmg/",
+        "image": "https://www.shadow-garden-mog.jp/wp-content/themes/officialsite/partials/page/dmg/assets/webp/sp/chara/img_clare.webp",
+        "localPath": "artwork/eminence/claire-base.webp",
+        "sha256": "151dbb9a9912de9982c49745866d4d543fcc89481bfb7ec76efafe9c8a11f727",
+        "width": 768,
+        "height": 840,
+        "artist": "Master of Garden production",
+        "credit": "Official Master of Garden game site",
+        "rights": "© Daisuke Aizawa / KADOKAWA / Shadow Garden / Master of Garden. All rights reserved.",
+        "usage": "reference-only; not licensed for redistribution"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          768,
+          840
+        ],
+        "bottomPadding": 0.24,
+        "edgeFade": 0.004,
+        "bottomFade": 0.03,
+        "focal": [
+          0.5,
+          0.25
+        ],
+        "artworkPlacement": {
+          "nocturne": {
+            "x": 0,
+            "y": 15,
+            "width": 1000
+          }
+        }
+      }
+    }
+  ],
+  "pendingForms": [
+    {
+      "id": "shadow-atomic",
+      "character": "shadow",
+      "name": "Shadow",
+      "form": "atomic",
+      "reason": "distinct form-bound official image still missing"
+    },
+    {
+      "id": "john-smith",
+      "character": "shadow",
+      "name": "John Smith",
+      "form": "john-smith",
+      "reason": "distinct form-bound official image still missing"
+    },
+    {
+      "id": "mundane-mann",
+      "character": "shadow",
+      "name": "Mundane Mann",
+      "form": "mundane-mann",
+      "reason": "distinct form-bound official image still missing"
+    },
+    {
+      "id": "jack-the-ripper",
+      "character": "shadow",
+      "name": "Jack the Ripper",
+      "form": "jack-the-ripper",
+      "reason": "distinct form-bound official image still missing"
+    },
+    {
+      "id": "aurora-legend",
+      "character": "aurora",
+      "name": "Aurora",
+      "form": "historical",
+      "reason": "distinct form-bound official image still missing"
+    },
+    {
+      "id": "diablos-demon",
+      "character": "diablos",
+      "name": "Demon Diablos",
+      "form": "historical-demon",
+      "reason": "distinct form-bound official image still missing"
+    },
+    {
+      "id": "mist-dragon",
+      "character": "mist-dragon",
+      "name": "Mist Dragon",
+      "form": "ancient-dragon",
+      "reason": "distinct form-bound official image still missing"
+    },
+    {
+      "id": "ragnarok-fourth",
+      "character": "ragnarok",
+      "name": "Ragnarok",
+      "form": "fourth-realm",
+      "reason": "distinct form-bound official image still missing"
+    },
+    {
+      "id": "olivier-original",
+      "character": "olivier",
+      "name": "Olivier",
+      "form": "original-hero",
+      "reason": "distinct form-bound official image still missing"
+    },
+    {
+      "id": "lily-original",
+      "character": "lily",
+      "name": "Lily",
+      "form": "original-hero",
+      "reason": "distinct form-bound official image still missing"
+    },
+    {
+      "id": "freya-original",
+      "character": "freya",
+      "name": "Freya",
+      "form": "original-hero",
+      "reason": "distinct form-bound official image still missing"
+    },
+    {
+      "id": "elisabeth-blood-moon",
+      "character": "elisabeth",
+      "name": "Elisabeth",
+      "form": "blood-moon",
+      "reason": "distinct form-bound official image still missing"
+    },
+    {
+      "id": "aurora-claire",
+      "character": "aurora",
+      "name": "Aurora",
+      "form": "claire-possession",
+      "reason": "distinct form-bound official image still missing"
+    },
+    {
+      "id": "fenrir-rounds",
+      "character": "fenrir",
+      "name": "Fenrir",
+      "form": "rounds",
+      "reason": "distinct form-bound official image still missing"
+    },
+    {
+      "id": "mordred-ragnarok",
+      "character": "mordred",
+      "name": "Mordred",
+      "form": "demon-flesh",
+      "reason": "distinct form-bound official image still missing"
+    },
+    {
+      "id": "victoria-559",
+      "character": "victoria",
+      "name": "Victoria",
+      "form": "shadow-garden",
+      "reason": "distinct form-bound official image still missing"
+    },
+    {
+      "id": "yukime-fox",
+      "character": "yukime",
+      "name": "Yukime",
+      "form": "lawless-city",
+      "reason": "distinct form-bound official image still missing"
+    },
+    {
+      "id": "gettan-enhanced",
+      "character": "gettan",
+      "name": "Gettan",
+      "form": "enhanced",
+      "reason": "distinct form-bound official image still missing"
+    },
+    {
+      "id": "juggernaut-tyrant",
+      "character": "juggernaut",
+      "name": "Juggernaut",
+      "form": "lawless-city",
+      "reason": "distinct form-bound official image still missing"
+    },
+    {
+      "id": "gamma-base",
+      "character": "gamma",
+      "name": "Gamma",
+      "form": "seven-shadows",
+      "reason": "distinct form-bound official image still missing"
+    },
+    {
+      "id": "nu-shadow",
+      "character": "nu",
+      "name": "Nu",
+      "form": "operative",
+      "reason": "distinct form-bound official image still missing"
+    },
+    {
+      "id": "lambda-instructor",
+      "character": "lambda",
+      "name": "Lambda",
+      "form": "instructor",
+      "reason": "distinct form-bound official image still missing"
+    },
+    {
+      "id": "crimson-vampire",
+      "character": "crimson",
+      "name": "Crimson",
+      "form": "lawless-city",
+      "reason": "distinct form-bound official image still missing"
+    },
+    {
+      "id": "annerose",
+      "character": "annerose",
+      "name": "Annerose Nichtsehen",
+      "form": "tournament",
+      "reason": "distinct form-bound official image still missing"
+    },
+    {
+      "id": "zenon-red",
+      "character": "zenon",
+      "name": "Zenon Griffey",
+      "form": "cult-knight",
+      "reason": "distinct form-bound official image still missing"
+    },
+    {
+      "id": "mary-hunter",
+      "character": "mary",
+      "name": "Mary",
+      "form": "vampire-hunter",
+      "reason": "distinct form-bound official image still missing"
+    },
+    {
+      "id": "shelly",
+      "character": "shelly",
+      "name": "Sherry Barnett",
+      "form": "scholar",
+      "reason": "distinct form-bound official image still missing"
+    },
+    {
+      "id": "apocrypha-diabolos",
+      "character": "diablos",
+      "name": "Demon Diablos",
+      "form": "demon-game",
+      "reason": "separate game continuity and verified art required"
+    },
+    {
+      "id": "apocrypha-demon-alpha",
+      "character": "alpha",
+      "name": "Alpha",
+      "form": "demonized",
+      "reason": "separate game continuity and verified art required"
+    },
+    {
+      "id": "apocrypha-demon-delta",
+      "character": "delta",
+      "name": "Delta",
+      "form": "demonized",
+      "reason": "separate game continuity and verified art required"
+    },
+    {
+      "id": "apocrypha-demon-gamma",
+      "character": "gamma",
+      "name": "Gamma",
+      "form": "demonized",
+      "reason": "separate game continuity and verified art required"
+    },
+    {
+      "id": "apocrypha-demon-beta",
+      "character": "beta",
+      "name": "Beta",
+      "form": "demonized",
+      "reason": "separate game continuity and verified art required"
+    },
+    {
+      "id": "apocrypha-demon-epsilon",
+      "character": "epsilon",
+      "name": "Epsilon",
+      "form": "demonized",
+      "reason": "separate game continuity and verified art required"
+    },
+    {
+      "id": "apocrypha-demon-zeta",
+      "character": "zeta",
+      "name": "Zeta",
+      "form": "demonized",
+      "reason": "separate game continuity and verified art required"
+    },
+    {
+      "id": "apocrypha-demon-olivier",
+      "character": "olivier",
+      "name": "Olivier",
+      "form": "demonized",
+      "reason": "separate game continuity and verified art required"
+    },
+    {
+      "id": "apocrypha-demon-alexia",
+      "character": "alexia",
+      "name": "Alexia Midgar",
+      "form": "demonized",
+      "reason": "separate game continuity and verified art required"
+    },
+    {
+      "id": "apocrypha-demon-victoria",
+      "character": "victoria",
+      "name": "Victoria",
+      "form": "demonized",
+      "reason": "separate game continuity and verified art required"
+    }
+  ]
+}

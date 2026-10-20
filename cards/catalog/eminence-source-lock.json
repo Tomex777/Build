@@ -1,0 +1,83 @@
+{
+  "version": 1,
+  "sources": {
+    "shadow-base": {
+      "sha256": "081505659c285c2601f9f2531a74d44bb56588239029af8bfac77e8c24d0949f",
+      "width": 768,
+      "height": 840,
+      "image": "https://www.shadow-garden-mog.jp/wp-content/themes/officialsite/partials/page/dmg/assets/webp/sp/chara/img_shadow-adult.webp"
+    },
+    "cid-student": {
+      "sha256": "d969e7eb7d2652c44a83cd7ef39052bb8677d55019c47fb18d4d6c3e5dd8c9aa",
+      "width": 768,
+      "height": 840,
+      "image": "https://www.shadow-garden-mog.jp/wp-content/themes/officialsite/partials/page/dmg/assets/webp/sp/chara/img_sid-adult.webp"
+    },
+    "alpha-seven": {
+      "sha256": "e1e40c1b532ec114906a3e4d7ec79375e7ba17175d4a4a6e57c005593b9f5083",
+      "width": 768,
+      "height": 840,
+      "image": "https://www.shadow-garden-mog.jp/wp-content/themes/officialsite/partials/page/dmg/assets/webp/sp/chara/img_alpha-adult.webp"
+    },
+    "beta-combat": {
+      "sha256": "2ebea382e6e3bca4359d8a0de3791e7039c23597e0b0568b1a8fca2b01673528",
+      "width": 768,
+      "height": 840,
+      "image": "https://www.shadow-garden-mog.jp/wp-content/themes/officialsite/partials/page/dmg/assets/webp/sp/chara/img_beta-adult.webp"
+    },
+    "delta-hunt": {
+      "sha256": "24c3de2ef89561a438a9c7f8d4216702df084daa55d95bb736649e0653dc5641",
+      "width": 768,
+      "height": 840,
+      "image": "https://www.shadow-garden-mog.jp/wp-content/themes/officialsite/partials/page/dmg/assets/webp/sp/chara/img_delta-adult.webp"
+    },
+    "epsilon-slime": {
+      "sha256": "e7a68a225de492a5f04739adbacf452bd6d00fb9aed212361be23e48e5c51877",
+      "width": 768,
+      "height": 840,
+      "image": "https://www.shadow-garden-mog.jp/wp-content/themes/officialsite/partials/page/dmg/assets/webp/sp/chara/img_epsilon-adult.webp"
+    },
+    "zeta-secret": {
+      "sha256": "99072687a1bd373ba01de1016ea630db8236b8ca7d95cf038db87de238657edc",
+      "width": 768,
+      "height": 840,
+      "image": "https://www.shadow-garden-mog.jp/wp-content/themes/officialsite/partials/page/dmg/assets/webp/sp/chara/img_zeta-adult.webp"
+    },
+    "eta-equipment": {
+      "sha256": "f62d7dadf2ef3be399d5cfee7cef373616950899c9c256fa6686acfaee7a381d",
+      "width": 768,
+      "height": 840,
+      "image": "https://www.shadow-garden-mog.jp/wp-content/themes/officialsite/partials/page/dmg/assets/webp/sp/chara/img_eta-adult.webp"
+    },
+    "beatrix-war-goddess": {
+      "sha256": "a3e2d68c61102af86c4e4f008cd3c2b2dd5fdef23dfd514322f512e8f03b0886",
+      "width": 768,
+      "height": 840,
+      "image": "https://www.shadow-garden-mog.jp/wp-content/themes/officialsite/partials/page/dmg/assets/webp/sp/chara/img_beatrix.webp"
+    },
+    "alexia-midgar": {
+      "sha256": "3b851c2f9fa1b8162e5f571a95e1bb08a6565ca98e97f67412d950d11704bfd8",
+      "width": 768,
+      "height": 840,
+      "image": "https://www.shadow-garden-mog.jp/wp-content/themes/officialsite/partials/page/dmg/assets/webp/sp/chara/img_alexia.webp"
+    },
+    "rose-empowered": {
+      "sha256": "b8175de5ac8d482d9da6d58a38032a77614464ca1be92b33a73b37ef1407b030",
+      "width": 768,
+      "height": 840,
+      "image": "https://www.shadow-garden-mog.jp/wp-content/themes/officialsite/partials/page/dmg/assets/webp/sp/chara/img_rose.webp"
+    },
+    "iris-midgar": {
+      "sha256": "9b983eba6d6c943229e2b8a0ee2d7ca473348e6d9803675731d4ac11f7f9dc7d",
+      "width": 768,
+      "height": 840,
+      "image": "https://www.shadow-garden-mog.jp/wp-content/themes/officialsite/partials/page/dmg/assets/webp/sp/chara/img_iris.webp"
+    },
+    "claire-base": {
+      "sha256": "151dbb9a9912de9982c49745866d4d543fcc89481bfb7ec76efafe9c8a11f727",
+      "width": 768,
+      "height": 840,
+      "image": "https://www.shadow-garden-mog.jp/wp-content/themes/officialsite/partials/page/dmg/assets/webp/sp/chara/img_clare.webp"
+    }
+  }
+}
