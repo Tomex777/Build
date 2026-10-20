@@ -38,6 +38,7 @@ on:
       - ".ci/slumber_118_compact_hud/**"
       - ".ci/slumber_119_melody_library/**"
       - ".ci/slumber_120_audio_previews/**"
+      - ".ci/slumber_121_library_polish/**"
   pull_request:
     branches: ["slumber-087-build"]
     paths:
@@ -75,6 +76,7 @@ on:
       - ".ci/slumber_118_compact_hud/**"
       - ".ci/slumber_119_melody_library/**"
       - ".ci/slumber_120_audio_previews/**"
+      - ".ci/slumber_121_library_polish/**"
 
 permissions:
   actions: read
@@ -448,6 +450,16 @@ jobs:
           patch --fuzz=0 -d "$OUT" -p1 < "$OUT/native-preview.patch"
           grep -q 'Hear ${song.title}' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/TilesLibraryScreen.kt"
           grep -q 'audioEngine = audioEngine' "$OUT/app/src/main/java/com/night/pianohub/ui/PianoHubApp.kt"
+
+      - name: Make songs library responsive and saved rows stable
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT=/tmp/slumber-088
+          base64 -d .ci/slumber_121_library_polish/responsive-polish.patch.gz.b64 | gzip -dc > "$OUT/responsive-polish.patch"
+          echo '45a756928f2f50f2eff5cf933a5ac9f0f52c82df1d8b0065799b1012b030121f  /tmp/slumber-088/responsive-polish.patch' | sha256sum -c -
+          patch --fuzz=0 -d "$OUT" -p1 < "$OUT/responsive-polish.patch"
+          grep -q 'screenWidthDp >= 360' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/TilesLibraryScreen.kt"
 
       - uses: actions/setup-java@v4
         with:
