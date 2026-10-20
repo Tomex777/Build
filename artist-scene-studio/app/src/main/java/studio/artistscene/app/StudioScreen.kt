@@ -3297,7 +3297,7 @@ private fun TransformInspector(
             TransformAxis.Y -> values.y
             TransformAxis.Z -> values.z
         }
-        NumericAxisEditor(
+        StudioAxisField(
             inputKey = actor.id + ":" + editor.activeTool.name,
             axis = axis,
             value = value,
@@ -3769,77 +3769,6 @@ private fun PoseControlsOverlay(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun NumericAxisEditor(
-    inputKey: String,
-    axis: TransformAxis,
-    value: Float,
-    step: Float,
-    enabled: Boolean,
-    onDelta: (Float) -> Unit,
-    onSet: (Float) -> Unit,
-) {
-    var text by remember(inputKey) { mutableStateOf("%.2f".format(Locale.US, value)) }
-    var focused by remember(inputKey) { mutableStateOf(false) }
-    var dirty by remember(inputKey) { mutableStateOf(false) }
-    LaunchedEffect(value) {
-        if (!dirty) text = "%.2f".format(Locale.US, value)
-    }
-    fun commitText() {
-        if (!dirty) return
-        dirty = false
-        text.toFloatOrNull()?.let(onSet)
-    }
-
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        Text(axis.name, color = PrimaryText, fontSize = 12.sp, modifier = Modifier.width(14.dp))
-        IconButton(
-            onClick = { onDelta(-step) },
-            enabled = enabled,
-            modifier = Modifier.size(34.dp),
-        ) {
-            Icon(Icons.Default.Remove, contentDescription = "Decrease ${axis.name}", tint = PrimaryText)
-        }
-        OutlinedTextField(
-            value = text,
-            onValueChange = { dirty = true; text = it.filter { ch -> ch.isDigit() || ch == '-' || ch == '.' }.take(12) },
-            enabled = enabled,
-            singleLine = true,
-            textStyle = MaterialTheme.typography.bodySmall,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            keyboardActions = KeyboardActions(onDone = { commitText() }),
-            modifier = Modifier
-                .width(88.dp)
-                .heightIn(min = 48.dp)
-                .onFocusChanged { focus ->
-                    if (focused && !focus.isFocused) commitText()
-                    focused = focus.isFocused
-                }
-                .testTag("numeric-${axis.name.lowercase()}"),
-        )
-        IconButton(
-            onClick = { onDelta(step) },
-            enabled = enabled,
-            modifier = Modifier.size(34.dp),
-        ) {
-            Icon(Icons.Default.Add, contentDescription = "Increase ${axis.name}", tint = PrimaryText)
-        }
-        Text(
-            when (step) {
-                15f -> "±15°"
-                else -> "±${"%.2f".format(Locale.US, step)}"
-            },
-            color = MutedText,
-            fontSize = 10.sp,
-            modifier = Modifier.alpha(if (enabled) 1f else 0.5f),
-        )
     }
 }
 
