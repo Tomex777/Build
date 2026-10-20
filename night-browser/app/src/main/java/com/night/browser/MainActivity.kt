@@ -105,6 +105,7 @@ private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> U
     var menuExpanded by remember { mutableStateOf(false) }
     var peekUrl by remember { mutableStateOf<String?>(null) }
     var newJourneyDialog by remember { mutableStateOf(false) }
+    var showSiteInfo by remember { mutableStateOf(false) }
     val current = browser.active
     val keyboard = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
@@ -262,6 +263,12 @@ private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> U
                             enabled = current.url.startsWith("http"),
                             onClick = { dismiss { browser.bookmark() } })
                         DropdownMenuItem(
+                            text = { Text("Site information") },
+                            leadingIcon = { Icon(Icons.Rounded.Info, null) },
+                            enabled = current.url.startsWith("http://") ||
+                                current.url.startsWith("https://"),
+                            onClick = { dismiss { showSiteInfo = true } })
+                        DropdownMenuItem(
                             text = { Text("Save PDF copy") },
                             leadingIcon = { Icon(Icons.Rounded.SaveAlt, null) },
                             enabled = current.url.startsWith("http"),
@@ -306,6 +313,48 @@ private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> U
                 peekUrl = null
                 page = Page.WEB
             })
+    }
+
+    if (showSiteInfo) {
+        // Show the origin only: credentials, paths and query tokens never belong
+        // in a security dialog. Never equate HTTPS with a verified connection.
+        val site = browser.active
+        val host = runCatching { java.net.URI(site.url).host }.getOrNull()
+            .orEmpty().ifBlank { "Website" }
+        val status = when {
+            site.failedUrl != null -> "Connection failed"
+            site.mixedContent -> "Some page content is not secure"
+            site.secureConnection -> "Encrypted connection"
+            site.url.startsWith("http://") -> "Unencrypted HTTP"
+            else -> "Connection not verified"
+        }
+        AlertDialog(
+            onDismissRequest = { showSiteInfo = false },
+            title = { Text(host) },
+            text = {
+                Column {
+                    Text(status, color = if (site.secureConnection &&
+                        !site.mixedContent && site.failedUrl == null) Bright else Muted)
+                    if (site.knownSitePermissions.isNotEmpty()) {
+                        Spacer(Modifier.height(14.dp))
+                        Text("Saved permissions: ${site.knownSitePermissions.size}",
+                            color = Muted, fontSize = 13.sp)
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showSiteInfo = false }) { Text("Close") }
+            },
+            dismissButton = {
+                if (site.knownSitePermissions.isNotEmpty()) {
+                    TextButton(onClick = {
+                        browser.resetSitePermissions()
+                        showSiteInfo = false
+                    }) { Text("Reset permissions") }
+                }
+            },
+            containerColor = Raised
+        )
     }
 
     if (newJourneyDialog) {
