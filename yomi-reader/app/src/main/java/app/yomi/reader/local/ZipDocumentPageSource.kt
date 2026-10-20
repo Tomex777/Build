@@ -2,6 +2,7 @@ package app.yomi.reader.local
 
 import android.content.ContentResolver
 import android.net.Uri
+import android.provider.OpenableColumns
 import android.util.Log
 import app.yomi.reader.core.ReaderChapter
 import app.yomi.reader.core.ReaderPage
@@ -32,6 +33,9 @@ class ZipDocumentPageSource(
     private val pageTargets = mutableMapOf<ReaderPageId, String>()
     private val copyMutex = Mutex()
     @Volatile private var cachedChapterFile: File? = null
+    // Streaming fallback is a session decision. Otherwise an oversized SAF
+    // ZIP would be recopied (up to 512 MB) on EVERY subsequent page turn.
+    @Volatile private var streamingOnly = false
     @Volatile private var closed = false
 
     private suspend fun indexedFile(): File? {
@@ -39,15 +43,42 @@ class ZipDocumentPageSource(
             return uri.path?.let(::File)?.takeIf { it.isFile }
         }
         val directory = scratchDir ?: return null
+        check(!closed) { "Reader archive source has closed" }
         cachedChapterFile?.takeIf { it.isFile }?.let { return it }
+        if (streamingOnly) return null
         return copyMutex.withLock {
-            cachedChapterFile?.takeIf { it.isFile }?.let { return@withLock it }
             check(!closed) { "Reader archive source has closed" }
-            if (!directory.isDirectory && !directory.mkdirs()) return@withLock null
+            cachedChapterFile?.takeIf { it.isFile }?.let { return@withLock it }
+            if (streamingOnly) return@withLock null
             // Preserve storage headroom. Very large archives fall back to
             // bounded streaming instead of duplicating gigabytes on disk.
+            if (!directory.isDirectory && !directory.mkdirs()) {
+                streamingOnly = true
+                return@withLock null
+            }
             val budget = minOf(MAX_INDEX_CACHE_BYTES, directory.usableSpace / 3)
-            if (budget < MIN_FREE_CACHE_BUDGET) return@withLock null
+            if (budget < MIN_FREE_CACHE_BUDGET) {
+                streamingOnly = true
+                return@withLock null
+            }
+            // Most document providers expose compressed size. Avoid reading
+            // hundreds of megabytes before discovering the copy cannot fit.
+            // Some return null/-1, so the copy loop remains strictly bounded.
+            val reportedSize = runCatching {
+                resolver.query(uri, arrayOf(OpenableColumns.SIZE), null, null, null)?.use { cursor ->
+                    val index = cursor.getColumnIndex(OpenableColumns.SIZE)
+                    if (index >= 0 && cursor.moveToFirst() && !cursor.isNull(index)) {
+                        cursor.getLong(index)
+                    } else {
+                        null
+                    }
+                }
+            }.getOrNull()
+            if (reportedSize != null && reportedSize > budget) {
+                streamingOnly = true
+                Log.i("YomiReader", "saf-chapter-streaming-fallback reportedBytes=$reportedSize budget=$budget")
+                return@withLock null
+            }
             val temporary = File.createTempFile("yomi-chapter-", ".cbz", directory)
             try {
                 val source = resolver.openInputStream(uri) ?: error("Unable to open chapter archive")
@@ -73,6 +104,7 @@ class ZipDocumentPageSource(
                     }
                 }
                 if (tooLarge) {
+                    streamingOnly = true
                     Log.i("YomiReader", "saf-chapter-streaming-fallback compressedBytes>$budget")
                     return@withLock null
                 }
