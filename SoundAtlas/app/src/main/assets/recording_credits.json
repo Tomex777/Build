@@ -124,5 +124,37 @@
     "url": "https://freesound.org/people/marion3825/sounds/510822/",
     "filename": "train.pcm",
     "seconds": 48
+  },
+  {
+    "kind": "waterfall",
+    "creator": "Masou",
+    "sound_id": 250943,
+    "license": "CC0-1.0",
+    "url": "https://freesound.org/people/Masou/sounds/250943/",
+    "filename": "waterfall.pcm"
+  },
+  {
+    "kind": "frogs",
+    "creator": "MLaudio",
+    "sound_id": 521666,
+    "license": "CC0-1.0",
+    "url": "https://freesound.org/people/MLaudio/sounds/521666/",
+    "filename": "frogs.pcm"
+  },
+  {
+    "kind": "drizzle",
+    "creator": "Andron827",
+    "sound_id": 464334,
+    "license": "CC0-1.0",
+    "url": "https://freesound.org/people/Andron827/sounds/464334/",
+    "filename": "drizzle.pcm"
+  },
+  {
+    "kind": "sleet",
+    "creator": "Ambient-X",
+    "sound_id": 677545,
+    "license": "CC0-1.0",
+    "url": "https://freesound.org/people/Ambient-X/sounds/677545/",
+    "filename": "sleet.pcm"
   }
 ]
