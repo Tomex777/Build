@@ -2048,3 +2048,18 @@ body.whot-mode .table-surface>.whot-call-panel{
  body.whot-mode .table-surface>.whot-call-panel .whot-call-choice:nth-child(4){grid-column:2/span 2}
  body.whot-mode .table-surface>.whot-call-panel .whot-call-choice:nth-child(5){grid-column:4/span 2}
 }
+
+
+/* Agent 0: every completed board match ends IN its playing frame. */
+.snakes-board{position:relative}
+.club-result-layer{position:absolute;inset:clamp(3px,1.8%,12px);z-index:6;display:flex;align-items:center;justify-content:center;padding:10px;border-radius:8px;background:rgba(12,27,24,.78);backdrop-filter:blur(3px)}
+.club-result-card{display:flex;align-items:center;flex-direction:column;justify-content:center;gap:10px;width:min(100%,312px);padding:clamp(15px,4vw,27px);border-radius:17px;border:1px solid #ffffff44;background:#f8fbf7;color:#1d332c;box-shadow:0 18px 55px #071e1b66;text-align:center}
+.club-result-eyebrow{font-size:10px;font-weight:850;letter-spacing:.15em;text-transform:uppercase;color:#668071}
+.club-result-card strong{font-weight:900;font-size:clamp(23px,6vw,34px);letter-spacing:-.045em;line-height:1.13}
+.club-result-card>span:not(.club-result-eyebrow){font-size:13px;line-height:1.35;color:#52665b}
+.club-result-retry{border:0;border-radius:11px;padding:12px 18px;min-height:44px;background:#1e5f45;color:white;font:inherit;font-weight:800;cursor:pointer}
+.club-result-retry:focus-visible{outline:3px solid #e0ba5e;outline-offset:3px}
+@media(max-width:359px){.club-result-card{gap:7px;padding:13px}.club-result-card strong{font-size:24px}}
+
+/* When the in-board victory card owns the retry action, suppress duplicate controls. */
+body.club-match-finished #newRound,body.club-match-finished .controls-col,body.club-match-finished .checker-mode-toggle{display:none!important}
