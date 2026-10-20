@@ -326,9 +326,13 @@ private fun NightBrowser(browser: BrowserController, openSaved: (File) -> Unit) 
                     browser.goForward(); page = Page.WEB
                 }
                 ChromeIcon(Icons.Rounded.Home, "Home", selected = page == Page.HOME) {
+                    keyboard?.hide()
+                    focusManager.clearFocus(force = true)
                     page = Page.HOME
                 }
                 ChromeIcon(Icons.Rounded.Tab, "Tabs", selected = page == Page.TABS) {
+                    keyboard?.hide()
+                    focusManager.clearFocus(force = true)
                     page = Page.TABS
                 }
                 Box {
