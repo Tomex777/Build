@@ -11,7 +11,7 @@ await new Promise(resolve=>server.listen(0,"127.0.0.1",resolve));const url="http
 let browser;try{
 browser=await chromium.launch({headless:true,channel:"chrome",args:["--no-sandbox"]});
 const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});const errors=[];
-page.on("pageerror",e=>errors.push(String(e)));
+page.on("pageerror",e=>errors.push(String(e.stack||e)));
 await page.goto(url+"/arcade/?game=bird");await page.locator("canvas").waitFor();
 assert.equal(await page.locator("#title").innerText(),"Wing Hop");
 assert.equal(await page.locator('.night-brand-mark use').getAttribute('href'),'#night-mark','Arcade uses real approved NIGHT logo');
