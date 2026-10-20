@@ -495,6 +495,22 @@ try{
   assert.ok(await page.locator(".checker-square.target").count(),"legal move highlighted");
   await page.locator(".checker-square.target").first().click();
   assert.equal(await page.locator(".checker-piece").count(),24);
+  // A second *actual* match versus CPU: check its move, not just its label.
+  await page.locator('[data-checker-mode="computer"]').click();
+  assert.equal(await page.evaluate(()=>window.__nightCheckersQA().mode),'computer');
+  assert.equal(await page.locator('.checker-piece').count(),24,'switching to CPU starts a valid new match');
+  const beforeCPU=await page.evaluate(()=>JSON.stringify(window.__nightCheckersQA().pieces));
+  await page.locator('[data-checker="40"]').click();
+  await page.locator('.checker-square.target').first().click();
+  await page.waitForFunction(before=>{
+   const s=window.__nightCheckersQA();
+   return s.turn==='w'&&!s.busy&&JSON.stringify(s.pieces)!==before&&s.moving===0;
+  },beforeCPU,{timeout:6000});
+  assert.equal(await page.locator('.checker-piece').count(),24,'CPU advances without inventing or deleting a piece');
+  assert.equal(await page.locator('[data-checker-mode="local"]').count(),1,'CPU mode may be changed back to local');
+  await page.screenshot({path:'night-play/visual-output/CHECKERS-CPU-AFTER-MOVES.jpg',type:'jpeg',quality:78});
+  await page.locator('[data-checker-mode="local"]').click();
+  assert.equal(await page.evaluate(()=>window.__nightCheckersQA().mode),'local');
   for(const name of ["ludo","estate","whot","colors","draw","snakes","checkers"]){
     await page.goto(base+"/club/?game="+name);
     assert.equal(await page.locator("#gameTitle").innerText(),({ludo:"Nigerian Ludo",estate:"NIGHT Estates",whot:"WHOT",colors:"Colour Clash",draw:"Draw & Guess",snakes:"Snakes & Ladders",checkers:"Draughts"})[name]);
