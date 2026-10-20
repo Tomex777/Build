@@ -13,6 +13,10 @@ on:
       - ".github/workflows/offline-games-android-ci.yml"
   workflow_dispatch:
 
+concurrency:
+  group: offline-games-android-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
