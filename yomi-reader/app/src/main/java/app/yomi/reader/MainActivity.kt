@@ -529,6 +529,7 @@ class MainActivity : ComponentActivity() {
         val scope = rememberCoroutineScope()
 
         var importingArchive by remember { mutableStateOf(false) }
+        var importingFolder by remember { mutableStateOf(false) }
 
         suspend fun importAndOpenArchive(uri: Uri, fromExternalApp: Boolean = false) {
             if (importingArchive) return
@@ -589,11 +590,15 @@ class MainActivity : ComponentActivity() {
         val addFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
             if (uri != null) {
                 scope.launch {
-                    val title = folderTitle(uri)
-                    val bookId = identityStore.getOrCreate(uri)
-                    runCatching {
-                        withContext(Dispatchers.IO) { inspectFolder(uri, bookId, title) }
-                    }.onSuccess { inspection ->
+                    if (importingFolder) return@launch
+                    importingFolder = true
+                    importError = null
+                    try {
+                        val title = folderTitle(uri)
+                        val bookId = identityStore.getOrCreate(uri)
+                        val inspection = withContext(Dispatchers.IO) {
+                            inspectFolder(uri, bookId, title)
+                        }
                         val book = persistSelection(uri, "folder", inspection.pageCount)
                         if (inspection.coverUri != null) {
                             libraryStore.upsert(
@@ -605,9 +610,17 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                         library = libraryStore.list()
-                        importError = null
-                    }.onFailure {
-                        importError = "Choose a folder that contains supported images or chapter archives."
+                    } catch (error: CancellationException) {
+                        throw error
+                    } catch (error: Exception) {
+                        Log.e(STARTUP_TAG, "folder-import-failed uri=$uri", error)
+                        importError = if (error is SecurityException) {
+                            "Yomi lost access to that folder. Choose it again and allow file access."
+                        } else {
+                            "No readable images or chapter archives found in this folder."
+                        }
+                    } finally {
+                        importingFolder = false
                     }
                 }
             }
@@ -741,14 +754,17 @@ class MainActivity : ComponentActivity() {
                     },
                     onAdd = { showAddSheet = true },
                 )
-                if (importingArchive) {
+                if (importingArchive || importingFolder) {
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                        Text("Opening CBZ/ZIP…", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(
+                            if (importingFolder) "Adding folder…" else "Opening CBZ/ZIP…",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                 }
 
