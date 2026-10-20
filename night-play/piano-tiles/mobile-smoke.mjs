@@ -98,6 +98,64 @@ try{
  assert.equal(await page.locator('#coverKicker').textContent(),'SONG COMPLETE');
  assert.ok(state.score>=events.length*100,'Both taps and sustained notes score properly');
  writeFileSync(path.join(output,'piano-song-won.png'),await page.screenshot({fullPage:true}));
+
+ // Wave 2: a complete second melody, an actual phone touch, early/late misses,
+ // and a full second song victory. Song switching must not reset a live match.
+ await page.locator('[data-song="twinkle"]').click();
+ assert.equal(await page.evaluate(()=>window.__nightPianoTest.snapshot().song),'twinkle');
+ assert.equal(await page.locator('[data-song="twinkle"]').getAttribute('aria-pressed'),'true');
+ await page.locator('#coverAction').click();
+ assert.equal(await page.locator('[data-song="frere"]').isDisabled(),true);
+ const firstTwinkle=await page.evaluate(()=>window.__nightPianoTest.snapshot().notes[0]);
+ await page.waitForFunction(at=>window.__nightPianoTest.snapshot().elapsed>=at-.34,firstTwinkle.at);
+ let touchBox=await page.locator('#board').boundingBox();
+ await page.touchscreen.tap(touchBox.x+(firstTwinkle.lane+.5)*touchBox.width/4,
+   touchBox.y+(660-93-40)*touchBox.height/660);
+ assert.equal(await page.evaluate(()=>window.__nightPianoTest.snapshot().ended),true,
+  'Pressing before the first note is actually tappable must lose');
+ assert.equal(await page.locator('#coverTitle').textContent(),'Wrong tile');
+ await page.locator('#coverAction').click();
+ await page.waitForFunction(at=>window.__nightPianoTest.snapshot().elapsed>at+.27,firstTwinkle.at);
+ assert.equal(await page.evaluate(()=>window.__nightPianoTest.snapshot().ended),true,
+  'Missing a note after the late timing window must lose');
+ assert.equal(await page.locator('#coverTitle').textContent(),'Missed tile');
+ await page.locator('#coverAction').click();
+ let second=await page.evaluate(()=>window.__nightPianoTest.snapshot());
+ assert.equal(second.song,'twinkle');
+ assert.ok(second.notes.length>=42,'The second full song has a real playable chart');
+ assert.ok(second.notes.some(n=>n.hold),'The second song has long notes');
+ assert.ok(second.notes.some((n,i)=>second.notes.some((other,j)=>i!==j&&other.at===n.at)),
+  'The second song has playable harmonized chords');
+ const otherHolds=[];
+ for(let i=0;i<second.notes.length;i++){
+  const note=second.notes[i],key=String(note.lane+1);
+  await page.waitForFunction(at=>window.__nightPianoTest.snapshot().elapsed>=at-.027,
+    note.at,{timeout:12000});
+  for(let j=otherHolds.length-1;j>=0;j--)if(otherHolds[j].until<=note.at-.05){
+   await page.keyboard.up(otherHolds[j].key);otherHolds.splice(j,1);
+  }
+  if(note.hold){
+   await page.keyboard.down(key);
+   otherHolds.push({key,until:note.at+note.duration+.09});
+  }else await page.keyboard.press(key);
+  const progress=await page.evaluate(()=>window.__nightPianoTest.snapshot());
+  assert.equal(progress.ended,false,'Second complete song must survive note '+i);
+  if(i===12||i===30)writeFileSync(path.join(output,'twinkle-progress-'+i+'.png'),
+   await page.screenshot({fullPage:true}));
+ }
+ const final=second.notes.at(-1);
+ await page.waitForFunction(at=>window.__nightPianoTest.snapshot().ended||
+   window.__nightPianoTest.snapshot().elapsed>=at+.20,final.at+final.duration,{timeout:12000});
+ for(const key of otherHolds)await page.keyboard.up(key.key);
+ second=await page.evaluate(()=>window.__nightPianoTest.snapshot());
+ assert.equal(second.complete,second.notes.length,'All second-song notes and chords count');
+ assert.equal(await page.locator('#coverKicker').textContent(),'SONG COMPLETE');
+ writeFileSync(path.join(output,'twinkle-song-won.png'),await page.screenshot({fullPage:true}));
+ await page.locator('[data-song="frere"]').click();
+ assert.equal(await page.evaluate(()=>window.__nightPianoTest.snapshot().song),'frere');
+ assert.equal(await page.locator('#best').textContent(),String(state.score),
+  'The second song does not overwrite the first song’s high score');
+
  assert.deepEqual(errors,[],'No script exceptions while tapping, holding, winning and restarting');
- console.log('PASS NIGHT Piano Tiles: touch tap, white-lane loss, true hold/chords, full song victory, restart, pause, 5 viewport checks; screenshots '+output);
+ console.log('PASS NIGHT Piano Tiles: two complete melodies, actual touch, early/late losses, holds/chords, wins/restart, pause, 5 viewports; screenshots '+output);
 }finally{if(browser)await browser.close();await new Promise(resolve=>server.close(resolve));}
