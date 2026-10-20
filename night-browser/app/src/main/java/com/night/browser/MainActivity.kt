@@ -160,9 +160,10 @@ private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> U
         Column(Modifier.fillMaxSize().padding(padding)) {
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 when (page) {
-                    Page.HOME -> HomePanel(browser,
-                        onJourney = { page = Page.JOURNEYS },
-                        onOpen = { url -> browser.navigate(url); page = Page.WEB })
+                    Page.HOME -> if (current.isPrivate) PrivateStartPage()
+                        else HomePanel(browser,
+                            onJourney = { page = Page.JOURNEYS },
+                            onOpen = { url -> browser.navigate(url); page = Page.WEB })
                     Page.WEB -> WebSurface(current)
                     Page.TABS -> TabPanel(browser,
                         onOpen = { openTab(it) },
@@ -218,10 +219,19 @@ private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> U
                         .padding(horizontal = 15.dp),
                     contentAlignment = Alignment.CenterStart
                 ) {
+                    if (current.isPrivate) {
+                        Icon(
+                            Icons.Rounded.Lock,
+                            contentDescription = "Private browsing",
+                            tint = Accent,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
                     BasicTextField(
                         value = address,
                         onValueChange = { address = it },
                         modifier = Modifier.fillMaxWidth()
+                            .padding(start = if (current.isPrivate) 26.dp else 0.dp)
                             .onFocusChanged { addressFocused = it.isFocused },
                         singleLine = true,
                         textStyle = TextStyle(color = Bright, fontSize = 15.sp),
