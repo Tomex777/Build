@@ -48,19 +48,26 @@ class JourneyStore(context: Context) {
 
     private fun readJourneys(): List<Journey> = runCatching {
         val array = JSONArray(prefs.getString("journeys", "[]"))
-        (0 until array.length()).map { index ->
-            val obj = array.getJSONObject(index)
+        // An incomplete/malformed entry must not erase every saved Journey.
+        // Read valid sibling Journeys and skip only the damaged node/record.
+        (0 until array.length()).mapNotNull { index ->
+            val obj = array.optJSONObject(index) ?: return@mapNotNull null
+            val journeyId = obj.optString("id").takeIf { it.isNotBlank() }
+                ?: return@mapNotNull null
             val raw = obj.optJSONArray("nodes") ?: JSONArray()
             val nodes = (0 until raw.length()).mapNotNull { n ->
-                val x = raw.getJSONObject(n)
-                val safe = JourneyGraph.safeUrl(x.optString("url")) ?: return@mapNotNull null
+                val x = raw.optJSONObject(n) ?: return@mapNotNull null
+                val nodeId = x.optString("id").takeIf { it.isNotBlank() }
+                    ?: return@mapNotNull null
+                val safe = JourneyGraph.safeUrl(x.optString("url"))
+                    ?: return@mapNotNull null
                 JourneyNode(
-                    x.getString("id"), safe, x.optString("title"),
+                    nodeId, safe, x.optString("title"),
                     x.optString("parent").ifBlank { null }, x.optLong("time"),
                     x.optBoolean("custom", false)
                 )
             }
-            Journey(obj.getString("id"), obj.optString("name").ifBlank { "Untitled journey" },
+            Journey(journeyId, obj.optString("name").ifBlank { "Untitled journey" },
                 JourneyGraph.repair(nodes))
         }
     }.getOrDefault(emptyList()).ifEmpty { listOf(fallbackJourney()) }
