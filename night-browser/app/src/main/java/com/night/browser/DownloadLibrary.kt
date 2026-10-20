@@ -64,6 +64,8 @@ internal object DownloadFileNames {
         val raw = name.orEmpty().substringBefore('?').substringBefore('#')
             .substringAfterLast('/').substringAfterLast('\\')
         val cleaned = raw.replace(Regex("[\\x00-\\x1f\\x7f<>:\"|?*/\\\\]"), "_")
+            // Reject invisible directional controls that can spoof extensions in UI.
+            .replace(Regex("[\\u200B-\\u200F\\u202A-\\u202E\\u2066-\\u2069]"), "")
             .trim().trim('.').take(100)
         if (cleaned.isNotBlank()) return cleaned
         val extension = when (mime?.lowercase(Locale.ROOT)) {
