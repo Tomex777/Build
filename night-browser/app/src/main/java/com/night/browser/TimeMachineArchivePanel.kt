@@ -2,7 +2,6 @@ package com.night.browser
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -170,7 +169,7 @@ fun TimeMachineArchivePanel(
                 items(groups, key = { it.key }) { entry ->
                     val pages = entry.value.sortedByDescending { it.capturedAt }
                     val latest = pages.first()
-                    val isExpanded = expanded == entry.key || groups.size == 1
+                    val isExpanded = expanded == entry.key || (expanded.isBlank() && groups.size == 1)
                     Column(
                         Modifier.fillMaxWidth()
                             .background(PageRaised, RoundedCornerShape(16.dp))
