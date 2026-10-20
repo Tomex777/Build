@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "description": "Offline TAC hymn catalogue: 1–17 from photographed lyric pages and hymn 50 from index p.437 with user-confirmed online match. Working drafts still require final review.",
+  "description": "TAC photographed Yorùbá drafts and carefully separated public-domain English alternative texts. English-only texts remain pending TAC edition comparison.",
   "hymns": [
     {
       "number": 1,
@@ -1378,6 +1378,142 @@
       ],
       "text_status": "online_match_user_confirmed_first_verse",
       "source_url": "https://worshipandpraisesongs.blogspot.com/2017/11/"
+    },
+    {
+      "number": 178,
+      "collection": "main",
+      "title_yo": "Alas! And did my Saviour bleed?",
+      "title_en": "Alas! And did my Saviour bleed?",
+      "source_pages": [],
+      "verses_yo": [],
+      "verses_en": [
+        [
+          "Alas! and did my Savior bleed,",
+          "and did my Sovereign die!",
+          "Would he devote that sacred head",
+          "for sinners such as I?"
+        ],
+        [
+          "Was it for crimes that I have done,",
+          "he groaned upon the tree?",
+          "Amazing pity! Grace unknown!",
+          "And love beyond degree!"
+        ],
+        [
+          "Well might the sun in darkness hide,",
+          "and shut its glories in,",
+          "when God, the mighty maker, died",
+          "for his own creature's sin."
+        ],
+        [
+          "Thus might I hide my blushing face",
+          "while his dear cross appears;",
+          "dissolve my heart in thankfulness,",
+          "and melt mine eyes to tears."
+        ],
+        [
+          "But drops of tears can ne'er repay",
+          "the debt of love I owe.",
+          "Here, Lord, I give myself away;",
+          "'tis all that I can do."
+        ]
+      ],
+      "text_status": "public_domain_english_alternate_needs_edition_review",
+      "source_url": "https://hymnary.org/text/alas_and_did_my_savior_bleed"
+    },
+    {
+      "number": 190,
+      "collection": "main",
+      "title_yo": "Jesus shall reign where'er the sun",
+      "title_en": "Jesus shall reign where'er the sun",
+      "source_pages": [],
+      "verses_yo": [],
+      "verses_en": [
+        [
+          "Jesus shall reign where'er the sun",
+          "does its successive journeys run,",
+          "his kingdom stretch from shore to shore,",
+          "till moons shall wax and wane no more."
+        ],
+        [
+          "To him shall endless prayer be made,",
+          "and praises throng to crown his head.",
+          "His name like sweet perfume shall rise",
+          "with every morning sacrifice."
+        ],
+        [
+          "People and realms of every tongue",
+          "dwell on his love with sweetest song,",
+          "and infant voices shall proclaim",
+          "their early blessings on his name."
+        ],
+        [
+          "Blessings abound where'er he reigns:",
+          "the prisoners leap to lose their chains,",
+          "the weary find eternal rest,",
+          "and all who suffer want are blest."
+        ],
+        [
+          "Let every creature rise and bring",
+          "the highest honors to our King,",
+          "angels descend with songs again,",
+          "and earth repeat the loud amen."
+        ]
+      ],
+      "text_status": "public_domain_english_alternate_needs_edition_review",
+      "source_url": "https://hymnary.org/text/Jesus_shall_reign_whereer_the_sun"
+    },
+    {
+      "number": 200,
+      "collection": "main",
+      "title_yo": "Arise, my soul, arise",
+      "title_en": "Arise, my soul, arise",
+      "source_pages": [],
+      "verses_yo": [],
+      "verses_en": [
+        [
+          "Arise, my soul, arise,",
+          "Shake off thy guilty fears;",
+          "The bleeding sacrifice",
+          "In my behalf appears;",
+          "Before the throne my surety stands;",
+          "My name is written on his hands."
+        ],
+        [
+          "He ever lives above",
+          "For me to intercede;",
+          "His all-redeeming love",
+          "His precious blood to plead;",
+          "His blood atoned for all our race",
+          "And sprinkles now the throne of grace."
+        ],
+        [
+          "Five bleeding wounds he bears,",
+          "Received on Calvary;",
+          "They pour effectual prayers,",
+          "They strongly speak for me;",
+          "Forgive him, oh forgive, they cry,",
+          "Nor let that ransomed sinner die."
+        ],
+        [
+          "The Father hears him pray,",
+          "His dear Anointed One;",
+          "He cannot turn away",
+          "The presence of his Son;",
+          "His Spirit answers to the blood",
+          "And tells me I am born of God."
+        ],
+        [
+          "My God is reconciled,",
+          "His pard’ning voice I hear;",
+          "He owns me for his child;",
+          "I can no longer fear;",
+          "With confidence I now draw nigh,",
+          "And Father, Abba Father, cry!"
+        ]
+      ],
+      "text_status": "public_domain_english_alternate_needs_edition_review",
+      "source_url": "https://hymnary.org/text/arise_my_soul_arise_shake_off_thy_guilty"
     }
   ]
 }
