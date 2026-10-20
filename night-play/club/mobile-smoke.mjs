@@ -614,7 +614,10 @@ try{
   await page.locator('[data-square="e4"]').click();
   await page.waitForFunction(()=>window.__nightChessQA().moves.length===2&&!window.__nightChessQA().busy,null,{timeout:10000});
   const hardQA=await page.evaluate(()=>window.__nightChessQA());
-  assert.ok(hardQA.cpuWorkerReplies>=2&&hardQA.lastCpuNodes>0,'challenging computer move is computed off-thread');
+  // Reload above constructs a fresh JS realm, resetting the in-memory worker
+  // reply counter. Require a new hard-search reply, not two across reloads.
+  assert.ok(hardQA.cpuWorkerReplies>=1&&hardQA.lastCpuNodes>0&&hardQA.lastCpuDepth>=1,
+   'challenging computer move is computed in the new page Web Worker');
   assert.ok(Date.now()-startHard<9500,'challenging mode returns a response within the gameplay budget');
   await page.locator('#newMatch').click();
   await page.locator('[data-square="e2"]').click();
