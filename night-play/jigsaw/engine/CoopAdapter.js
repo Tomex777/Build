@@ -95,8 +95,8 @@ function projectedPositions(board,snapshot) {
   // On narrow phones those regions are offscreen. Re-map only server-side
   // left/right *unplaced* loose groups to the visible top/bottom tabletop.
   if(mobile && !items.some(p=>p.placed) &&
-      (anchor.x < -.25 || anchor.x > snapshot.cols-.75)){
-   const bottom=anchor.x>snapshot.cols-.75;
+      (anchor.x < -.5 || anchor.x > snapshot.cols+.25)){
+   const bottom=anchor.x>snapshot.cols+.25;
    const zones=board.scatterZones || [];
    const z=zones[bottom?1:0];
    if(z && finite(z.x) && finite(z.y) && finite(z.w) && finite(z.h)){
@@ -152,7 +152,7 @@ export function applyServerSnapshot(board,snapshot,{render=true,preserveDragging
   if(prior) {
    const moved=Math.abs(prior.x-p.x)>.02 || Math.abs(prior.y-p.y)>.02 ||
     prior.isPlaced!==p.isPlaced || prior.group!==p.group;
-   if(moved && !dragging.has(p.id))damaged.push(prior);
+   if(moved && !dragging.has(p.id))damaged.push(...board.damageForPieces([prior]));
    if(faceChanged || moved)changed.push(p.id);
   } else changed.push(p.id);
   if(prior && dragging.has(p.id)) {
