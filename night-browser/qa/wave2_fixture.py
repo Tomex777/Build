@@ -16,10 +16,32 @@ PORT = 8765
 PNG = base64.b64decode(
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg=="
 )
-PDF = (b"%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n"
-       b"2 0 obj<</Type/Pages/Count 1/Kids[3 0 R]>>endobj\n"
-       b"3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 150 150]>>endobj\n"
-       b"trailer<</Root 1 0 R>>\n%%EOF\n")
+def make_pdf():
+    """Generate a valid tiny PDF with xref offsets, not just a PDF-shaped header."""
+    objects = [
+        b"<< /Type /Catalog /Pages 2 0 R >>",
+        b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+        b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+        b"<< /Length 48 >>\nstream\nBT /F1 12 Tf 30 110 Td (NIGHT QA PDF) Tj ET\nendstream",
+    ]
+    out = bytearray(b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n")
+    offsets = [0]
+    for idx, obj in enumerate(objects, 1):
+        offsets.append(len(out))
+        out.extend(str(idx).encode() + b" 0 obj\n" + obj + b"\nendobj\n")
+    startxref = len(out)
+    out.extend(("xref\n0 " + str(len(offsets)) + "\n").encode())
+    out.extend(b"0000000000 65535 f \n")
+    for offset in offsets[1:]:
+        out.extend(("%010d 00000 n \n" % offset).encode())
+    out.extend(("trailer\n<< /Size " + str(len(offsets)) +
+                " /Root 1 0 R >>\nstartxref\n" + str(startxref) +
+                "\n%%EOF\n").encode())
+    return bytes(out)
+
+
+PDF = make_pdf()
 BIN = b"NIGHT-BROWSER-QA-DOWNLOAD-V1\n" * 256
 
 
