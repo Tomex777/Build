@@ -85,6 +85,16 @@ file tac-hymns-reader.png
 cp tac-hymns-reader.png tac-hymns-dark-reader.png
 cp tac-hymns-reader.png tac-hymns-audio-reader.png
 
+echo "Opening the newly transcribed English Redemption hymn 190"
+timeout 20s adb shell am force-stop com.night.tachymns
+timeout 25s adb shell am start -W -n com.night.tachymns/.MainActivity --ei preview_hymn 190
+sleep 4
+timeout 15s adb shell pidof com.night.tachymns
+timeout 35s adb exec-out screencap -p > tac-hymns-redemption-190-english.png
+file tac-hymns-redemption-190-english.png
+timeout 25s adb shell uiautomator dump /sdcard/window.xml > /dev/null
+adb exec-out cat /sdcard/window.xml | grep -q 'Jesus shall reign'
+
 echo "Opening the actual Àkọkún index"
 timeout 20s adb shell am force-stop com.night.tachymns
 timeout 25s adb shell am start -W -n com.night.tachymns/.MainActivity --es preview_collection akokun
