@@ -63,7 +63,13 @@ object UnderTreeScene {
                 "figure/thigh-l" to Vec3(x = -3f),
                 "figure/thigh-r" to Vec3(x = 5f),
             )),
-            metadata = mapOf("misePose" to POSE_TAG, "sceneRole" to "student"),
+            metadata = mapOf(
+                "misePose" to POSE_TAG,
+                "sceneRole" to "student",
+                // Applied once to a real discovered VRM Face morph, then removed.
+                // Never replay against an artist-edited or saved character.
+                CharacterDemoStyling.INITIAL_EXPRESSION_KEY to "SMILE",
+            ),
         )
         val classmateB = bundled(PrototypeScene.ANIME_ASSET_ID).copy(
             id = SECOND_STUDENT_ID,
