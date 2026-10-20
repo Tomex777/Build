@@ -1,0 +1,76 @@
+name: NIGHT Bungo Stray Dogs Candidates
+on:
+  push:
+    branches: [feature/cards-bungo-stray-dogs-20261020]
+    paths:
+      - 'cards/catalog/bungo-stray-dogs*'
+      - 'cards/bin/seed-bungo.mjs'
+      - 'cards/bin/bungo-gallery.mjs'
+      - 'cards/tests/bungo-roster.test.mjs'
+      - '.github/workflows/cards-bungo.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: night-bungo-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify-and-render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    defaults:
+      run:
+        working-directory: cards
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: cards/package-lock.json
+      - name: Locked dependency install
+        run: npm ci
+      - name: Verify roster, source safeguards and shared renderer regression tests
+        run: npm test
+      - name: Build verified-source catalogue and immutable hashes
+        run: node bin/seed-bungo.mjs
+      - name: Count actual, source-backed editions
+        id: candidates
+        shell: bash
+        run: |
+          count=$(node -e "console.log(require('./catalog/bungo-stray-dogs.json').cards.length)")
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+          if [ "$count" = "0" ]; then
+            echo "No source-verified cutouts yet. No cards are claimed, approved or rendered."
+          fi
+      - name: Install browser prerequisites
+        if: steps.candidates.outputs.count != '0'
+        run: npx playwright install-deps chromium
+      - name: Fetch pinned Chrome for Testing 131
+        if: steps.candidates.outputs.count != '0'
+        run: |
+          curl --fail --location --retry 3 https://storage.googleapis.com/chrome-for-testing-public/131.0.6778.204/linux64/chrome-headless-shell-linux64.zip -o "$RUNNER_TEMP/night-chrome.zip"
+          unzip -q "$RUNNER_TEMP/night-chrome.zip" -d "$RUNNER_TEMP/night-browser"
+          chmod +x "$RUNNER_TEMP/night-browser/chrome-headless-shell-linux64/chrome-headless-shell"
+          echo "NIGHT_BROWSER_PATH=$RUNNER_TEMP/night-browser/chrome-headless-shell-linux64/chrome-headless-shell" >> "$GITHUB_ENV"
+      - name: Render real 3000x4800 NIGHT masters and breakout QA
+        if: steps.candidates.outputs.count != '0'
+        run: npm run build -- --series bungo-stray-dogs --width 3000 --out dist/bungo-stray-dogs
+      - name: Produce real candidate proof gallery
+        if: steps.candidates.outputs.count != '0'
+        run: |
+          npm run gallery -- --series bungo-stray-dogs --out dist/bungo-stray-dogs --file dist/Bungo-Stray-Dogs-Collection.html
+          node bin/bungo-gallery.mjs dist/Bungo-Stray-Dogs-Collection.html
+      - name: Preserve source report and rendered candidate proofs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NIGHT-Bungo-Stray-Dogs-Candidates
+          path: |
+            cards/dist/bungo-stray-dogs/
+            cards/dist/Bungo-Stray-Dogs-Collection.html
+            cards/catalog/bungo-stray-dogs.json
+            cards/catalog/power/bungo-stray-dogs.json
+            cards/catalog/bungo-stray-dogs-roster.json
+          if-no-files-found: warn
+          retention-days: 14
