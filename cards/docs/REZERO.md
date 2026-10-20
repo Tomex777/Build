@@ -2,6 +2,8 @@
 
 **Status: artwork-acquisition and render candidates.** Not visually approved, not licensed for commercial distribution, not deployed into the live NIGHT bot.
 
+**Shared design system:** The BLEACH cards were the universal NIGHT anime card prototype. Re:Zero is **not** entitled to a separate series-specific card frame. Its 38 characters must use the same production `cards/src/render.mjs`, `cards/src/tiers.mjs`, rank lettering, inner-frame breakout, approved material families, title scale and 3000×4800 export standards already established by BLEACH. Individual Re:Zero artwork and lore can influence color/atmosphere without creating different card geometry. The independently styled `night-rezero-card-preview` page is a concept gallery only and must not be mistaken for approved masters; replace its mock-card visuals with actual shared-renderer exports when those assets pass QA.
+
 This expansion keeps the established NIGHT card architecture: genuine original character cutouts break beyond the card's **inner** frame, while effects stay behind the frame. Every completed master should be 3000×4800 PNG with 320×512 phone proof, provenance, glass tier lettering and a searchable offline gallery. BLEACH renderer and existing cards remain unchanged.
 
 ## Cast and forms
