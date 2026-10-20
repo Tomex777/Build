@@ -92,6 +92,12 @@ fun NightStartPage(
     val keyboard = LocalSoftwareKeyboardController.current
     val focus = LocalFocusManager.current
     val clipboard = LocalClipboardManager.current
+    // Home should not summon Gboard or a keyboard onboarding overlay at cold launch.
+    // Typing still opens the IME normally when the user taps the search field.
+    LaunchedEffect(Unit) {
+        focus.clearFocus(force = true)
+        keyboard?.hide()
+    }
     var search by rememberSaveable { mutableStateOf("") }
     var invalidAddress by rememberSaveable { mutableStateOf(false) }
     val compactHome = LocalConfiguration.current.screenHeightDp < 620
