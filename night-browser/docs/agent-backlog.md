@@ -109,3 +109,13 @@ For each new implementation add: `Task ID | owner | worktree/branch | commit/PR 
 | A10 | Independent app-wide Android quality and security gate | Actual integrated app compile/install/site tests, not just PR exists |
 
 Communication posts: `[BROWSER A#][CLAIM|DESIGN|BLOCKED|HANDOFF|READY|VERIFIED|INTEGRATED]` on Issue #460. Agent1 owns cross-file integration lock; preserve original package/SDK. At session end record exact last commit/PR/CI error, APK/test evidence, blocker, next command. Truthful "not integrated / not live model-tested / not installed" labels required.
+
+
+## Wave 2 A1 live integration — 20 Oct 2026 (branch candidate, NOT released)
+
+| Task | Owner | Branch / PR | Source commit | Compiled tests | Installed | Live-site QA | Next action |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| B-001/B-011 combined assembly | A1 | `agent/browser-v2-01-coordinator` / [#468](https://github.com/Tomex777/Build/pull/468) | `dd24d01f` from #439 + final A6 #432, `f2e5a1e` A5 #433 + A7 #428 integration | **Queued** workflows 39384620540/20603/20491/20601/20582/20623/20633. Prior assembly #439 compiled, but this combined head has **no verified build result yet** | **Not yet verified** | **Not yet verified** | Inspect compile/unit-test logs, fix interface regressions, run A10 API26/API36 touch/web scenarios; do not merge on source inspection alone |
+| B-002 Home QA follow-up | A2 | [#441](https://github.com/Tomex777/Build/pull/441) | `72d369f` | APK compilation passed 39378252910 | Emulator app launch occurred | **FAILED**: screenshot assertion landed in Android keyboard Theme settings, not NIGHT Home; no valid full Home pass | A2/A10 fix deterministic focus/IME handling, rerun; only then evaluate merge |
+
+**Shared-file reconciliation:** A1 has the active assembly edit lease for `MainActivity.kt` and cross-module `BrowserController.kt` hooks on #468. A3/A4 own isolated Gecko/tab features, A5 owns `JourneyStore.kt` and graph, A6 owns download and Library services, A7 archive, A8 AI, A9 Peek/Site Studio, A10 independent QA. Exact current source/PR evidence and cross-agent requests are posted on [Issue #460](https://github.com/Tomex777/Build/issues/460). Main branch/release untouched. The original #439 remains a draft partial assembly and is not silently considered merged.
