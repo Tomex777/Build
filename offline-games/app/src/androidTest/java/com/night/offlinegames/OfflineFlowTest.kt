@@ -83,9 +83,11 @@ class OfflineFlowTest {
             val search = device.wait(Until.findObject(By.clazz("android.widget.EditText")), 5000)
             assertNotNull("Search is not discoverable", search)
             search!!.text = "Tic-Tac-Toe"
-            val tic = device.wait(Until.findObject(By.text("Tic-Tac-Toe")), 9000)
+            val tic = device.wait(Until.findObject(By.desc("Open Tic-Tac-Toe")), 9000)
             assertNotNull("Native Tic-Tac-Toe absent", tic)
             tic!!.click()
+            assertNotNull("Native Tic-Tac-Toe cells not mounted", device.wait(Until.findObject(By.descContains("Cell 1:")), 8000))
+            device.findObject(By.text("New game")).click()
             assertNotNull("Native Tic-Tac-Toe didn't display its turn",
                 device.wait(Until.findObject(By.text("Your move")), 8000))
             assertNotNull("The first native tap cell is missing",
@@ -155,6 +157,7 @@ class OfflineFlowTest {
     private fun saveScreenshot(device: UiDevice, context: android.content.Context, filename: String) {
         val directory = context.getExternalFilesDir(null)
         assertNotNull("Android screenshot directory unavailable", directory)
+        device.waitForIdle()
         val file = File(directory!!, filename)
         org.junit.Assert.assertTrue("Capture failed: $filename", device.takeScreenshot(file))
         org.junit.Assert.assertTrue("Screenshot empty: $filename", file.exists() && file.length() > 1000L)

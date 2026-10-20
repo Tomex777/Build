@@ -62,6 +62,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -213,7 +217,11 @@ private fun OfflineHub() {
     var favourites by remember { mutableStateOf(preferences.getStringSet("favourites", emptySet()).orEmpty().toSet()) }
     var recent by remember { mutableStateOf(preferences.getString("recent", "").orEmpty().split("|").filter { id -> games.any { it.id == id } }) }
 
+    val focusManager = LocalFocusManager.current
+    val keyboard = LocalSoftwareKeyboardController.current
     fun open(id: String) {
+        focusManager.clearFocus()
+        keyboard?.hide()
         val updated = (listOf(id) + recent.filterNot { it == id }).take(5)
         recent = updated
         preferences.edit().putString("recent", updated.joinToString("|")).apply()
@@ -341,7 +349,9 @@ private fun GameRow(entry: GameEntry, favourite: Boolean, onOpen: () -> Unit, on
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f).clickable(onClick = onOpen).padding(start = 14.dp, top = 13.dp, bottom = 13.dp)
+                modifier = Modifier.weight(1f).clickable(onClick = onOpen)
+                    .semantics { contentDescription = "Open ${entry.title}" }
+                    .padding(start = 14.dp, top = 13.dp, bottom = 13.dp)
             ) {
                 Surface(color = Color(0xFFECF3ED), shape = RoundedCornerShape(10.dp), modifier = Modifier.size(53.dp)) {
                     Box(contentAlignment = Alignment.Center) {
