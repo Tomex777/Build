@@ -82,6 +82,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.yomi.reader.local.ArchiveCatalog
 import app.yomi.reader.local.ArchiveScanResult
 import app.yomi.reader.local.LibraryAvailability
 import app.yomi.reader.local.LibraryBook
@@ -186,9 +187,20 @@ class MainActivity : ComponentActivity() {
      * Store that temporary-grant archive in the app's private library so it
      * remains readable after Android revokes the sender's permission.
      */
-    private suspend fun retainExternalArchive(uri: Uri): Uri = withContext(Dispatchers.IO) {
+    private data class RetainedArchive(val uri: Uri, val catalog: ArchiveCatalog)
+
+    private fun validateArchive(file: File): ArchiveCatalog {
+        return when (val result = file.inputStream().buffered().use(ZipArchiveScanner::scan)) {
+            is ArchiveScanResult.Success -> result.catalog
+            is ArchiveScanResult.Rejected -> throw IllegalArgumentException("cbz:" + result.reason)
+        }
+    }
+
+    private suspend fun retainExternalArchive(uri: Uri): RetainedArchive = withContext(Dispatchers.IO) {
         if (uri.scheme == "file" && uri.path?.startsWith(filesDir.canonicalPath + java.io.File.separator) == true) {
-            return@withContext uri
+            // Even an app-private URI may have been replaced since the last open.
+            val file = File(checkNotNull(uri.path))
+            return@withContext RetainedArchive(uri, validateArchive(file))
         }
 
         // Persist the original grant when available, but still mirror the
@@ -235,11 +247,15 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
+            // Never overwrite the last known-good imported archive with a
+            // corrupt or oversized reimport. Validate the complete temporary
+            // ZIP first; failed scans leave both library metadata and the
+            // previously retained file untouched.
+            val catalog = validateArchive(staging)
             if (!staging.renameTo(stored)) {
                 // Same-directory rename normally replaces the old copy
                 // atomically. On providers/filesystems where rename fails,
-                // move the fully copied staging file with replacement instead
-                // of writing a partial archive over the previous good copy.
+                // move the fully checked staging file with replacement.
                 java.nio.file.Files.move(
                     staging.toPath(),
                     stored.toPath(),
@@ -247,17 +263,15 @@ class MainActivity : ComponentActivity() {
                 )
             }
             Log.i(STARTUP_TAG, "external-archive-copied-to-private-library bytes=${stored.length()}")
-            Uri.fromFile(stored)
+            RetainedArchive(Uri.fromFile(stored), catalog)
         } finally {
             staging.delete()
         }
     }
 
-    private suspend fun importArchive(uri: Uri, titleOverride: String? = null): LibraryBook {
-        val catalog = when (val scan = withContext(Dispatchers.IO) { inspectArchive(uri) }) {
-            is ArchiveScanResult.Success -> scan.catalog
-            is ArchiveScanResult.Rejected -> throw IllegalArgumentException("cbz:" + scan.reason)
-        }
+    private suspend fun importArchive(retained: RetainedArchive, titleOverride: String? = null): LibraryBook {
+        val uri = retained.uri
+        val catalog = retained.catalog
         val book = persistSelection(uri, "archive", catalog.pages.size, titleOverride)
         // Real-world CBZs sometimes begin with an unsupported/corrupt front-matter
         // image. Find the first *decodable* page rather than silently dropping the
@@ -523,7 +537,8 @@ class MainActivity : ComponentActivity() {
             try {
                 val originalTitle = runCatching { queryDisplayName(uri) }.getOrNull()
                     ?: uri.lastPathSegment?.substringAfterLast('/')
-                val storedUri = retainExternalArchive(uri)
+                val retained = retainExternalArchive(uri)
+                val storedUri = retained.uri
                 if (storedUri != uri) {
                     // Upgrade older picked CBZ entries in place. Keep their
                     // bookmark/progress ID while switching to the faster
@@ -534,7 +549,7 @@ class MainActivity : ComponentActivity() {
                         libraryStore.relink(oldEntry.id, storedUri, title = originalTitle)
                     }
                 }
-                val book = importArchive(storedUri, originalTitle)
+                val book = importArchive(retained, originalTitle)
                 library = libraryStore.list()
                 Log.i(STARTUP_TAG, "archive-imported-and-opening title=${book.title}")
                 openReader(book)
@@ -608,28 +623,22 @@ class MainActivity : ComponentActivity() {
                         // Repair must use the same durable, indexed archive
                         // path as first import. Keeping the original content://
                         // here previously lost the speed and lifetime guarantees.
-                        val storedUri = retainExternalArchive(uri)
-                        when (val scan = withContext(Dispatchers.IO) { inspectArchive(storedUri) }) {
-                            is ArchiveScanResult.Success -> {
-                                val coverUri = withContext(Dispatchers.IO) {
-                                    scan.catalog.pages.take(8).firstNotNullOfOrNull { page ->
-                                        createCoverThumbnail(storedUri, page.name, item.id.value)
-                                    }
-                                }
-                                libraryStore.relink(
-                                    id = item.id,
-                                    uri = storedUri,
-                                    title = title,
-                                    pageCount = scan.catalog.pages.size,
-                                    coverUri = coverUri,
-                                )
-                                library = libraryStore.list()
-                                importError = null
-                            }
-                            is ArchiveScanResult.Rejected -> {
-                                importError = "Choose the CBZ or ZIP file for this book."
+                        val retained = retainExternalArchive(uri)
+                        val storedUri = retained.uri
+                        val coverUri = withContext(Dispatchers.IO) {
+                            retained.catalog.pages.take(8).firstNotNullOfOrNull { page ->
+                                createCoverThumbnail(storedUri, page.name, item.id.value)
                             }
                         }
+                        libraryStore.relink(
+                            id = item.id,
+                            uri = storedUri,
+                            title = title,
+                            pageCount = retained.catalog.pages.size,
+                            coverUri = coverUri,
+                        )
+                        library = libraryStore.list()
+                        importError = null
                     } catch (error: CancellationException) {
                         throw error
                     } catch (error: Exception) {
