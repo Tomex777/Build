@@ -36,7 +36,12 @@ def hierarchy():
                     adb("shell","am","start","-n",
                         "com.night.echospace/.MainActivity",timeout=30)
                 continue
-            return list(root.iter("node"))
+            nodes=list(root.iter("node"))
+            if not any(n.attrib.get("package")=="com.night.echospace" for n in nodes):
+                (OUT/f"unexpected-ui-attempt-{attempt+1}.xml").write_text(raw)
+                time.sleep(5)
+                continue
+            return nodes
         except (subprocess.TimeoutExpired,ET.ParseError,subprocess.CalledProcessError):
             time.sleep(3)
     raise RuntimeError("Could not read a real Android UI tree; System UI kept obscuring app")
@@ -71,6 +76,10 @@ if __name__=="__main__":
     apk=os.environ["ECHOSPACE_DEBUG_APK"]
     adb("wait-for-device",timeout=120)
     adb("install","-r",apk,timeout=180)
+    # Grant runtime notification permission before exercising the playback
+    # foreground service. This removes unrelated first-run system dialogs.
+    adb("shell","pm","grant","com.night.echospace",
+        "android.permission.POST_NOTIFICATIONS",timeout=30)
     adb("shell","settings","put","secure","immersive_mode_confirmations","confirmed")
     adb("shell","am","start","-W","-n","com.night.echospace/.MainActivity",timeout=60)
     time.sleep(9)
