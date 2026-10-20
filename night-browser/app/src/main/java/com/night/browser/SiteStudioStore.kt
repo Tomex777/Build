@@ -73,15 +73,50 @@ class SiteStudioStore(context: Context) {
         // Guard against oversized payloads and accidental broad-origin injection.
         if (origin != rule.origin || rule.css.length > MAX_CSS ||
             rule.javascript.length > MAX_JS) return false
-        val previous = load().filterNot { it.origin == origin }
-        if (previous.size >= MAX_SITES) return false
-        return persist(previous + rule)
+        val all = load()
+        val previousRule = all.firstOrNull { it.origin == origin }
+        if (previousRule == rule) return true
+        val others = all.filterNot { it.origin == origin }
+        if (others.size >= MAX_SITES) return false
+        return persist(others + rule, origin, previousRule)
     }
 
     @Synchronized
     fun remove(pageUrl: String): Boolean {
         val origin = SiteOrigins.fromUrl(pageUrl) ?: return false
-        return persist(load().filterNot { it.origin == origin })
+        val all = load()
+        val old = all.firstOrNull { it.origin == origin } ?: return true
+        return persist(all.filterNot { it.origin == origin }, origin, old)
+    }
+
+    @Synchronized
+    fun canUndo(pageUrl: String): Boolean {
+        val origin = SiteOrigins.fromUrl(pageUrl) ?: return false
+        return preferences.contains("undo:$origin")
+    }
+
+    /** One-step durable undo of the most recent save or reset for this origin. */
+    @Synchronized
+    fun undo(pageUrl: String): Boolean {
+        val origin = SiteOrigins.fromUrl(pageUrl) ?: return false
+        val undoKey = "undo:$origin"
+        if (!preferences.contains(undoKey)) return false
+        val previous = preferences.getString(undoKey, "") ?: ""
+        val restored = if (previous.isBlank()) null else runCatching {
+            val obj = JSONObject(previous)
+            SiteRule(
+                origin = obj.getString("origin"),
+                css = obj.optString("css"),
+                javascript = obj.optString("js"),
+                cssEnabled = obj.optBoolean("cssEnabled"),
+                javascriptEnabled = obj.optBoolean("jsEnabled")
+            ).takeIf { it.origin == origin &&
+                it.css.length <= MAX_CSS && it.javascript.length <= MAX_JS }
+        }.getOrNull() ?: if (previous.isBlank()) null else return false
+        val without = load().filterNot { it.origin == origin }
+        if (restored != null && without.size >= MAX_SITES) return false
+        if (!persist(without + listOfNotNull(restored))) return false
+        return preferences.edit().remove(undoKey).commit()
     }
 
     private fun load(): List<SiteRule> = runCatching {
@@ -99,7 +134,11 @@ class SiteStudioStore(context: Context) {
         }.distinctBy { it.origin }
     }.getOrDefault(emptyList())
 
-    private fun persist(rules: List<SiteRule>): Boolean = runCatching {
+    private fun persist(
+        rules: List<SiteRule>,
+        undoOrigin: String? = null,
+        undoPrevious: SiteRule? = null
+    ): Boolean = runCatching {
         val array = JSONArray()
         rules.forEach { rule ->
             array.put(JSONObject()
@@ -109,7 +148,16 @@ class SiteStudioStore(context: Context) {
                 .put("cssEnabled", rule.cssEnabled)
                 .put("jsEnabled", rule.javascriptEnabled))
         }
-        preferences.edit().putString(key, array.toString()).commit()
+        val changes = preferences.edit().putString(key, array.toString())
+        if (undoOrigin != null) {
+            val previous = undoPrevious?.let { prior ->
+                JSONObject().put("origin", prior.origin).put("css", prior.css)
+                    .put("js", prior.javascript).put("cssEnabled", prior.cssEnabled)
+                    .put("jsEnabled", prior.javascriptEnabled).toString()
+            } ?: ""
+            changes.putString("undo:$undoOrigin", previous)
+        }
+        changes.commit()
     }.getOrDefault(false)
 
     companion object {
