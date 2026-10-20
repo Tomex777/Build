@@ -43,9 +43,29 @@ commit any screenshot containing a real user's browsing data.
 | QA-06 | Tab thumbnails are captured as in-memory pixel bitmaps, but image freshness, 2-column readability and process death are not verified on devices. | WebSurface()/TabPanel() | Agent 3 | P0 | Screenshots captured by acceptance suite; human review outstanding |
 | QA-07 | No verified explicit opt-in AI Universal Search or user-scoped Site Studio feature present. | AGENTS.md backlog and source audit | Agents 8/9 | P1 | Blocked until implementations |
 
-None of the above were runtime-reproduced by Agent 10 at the time this
-document was written. They are **source findings** that require regression
-retesting on the integrated APK.
+| QA-08 | **Confirmed on real API 26 emulator:** rotation/activity recreation can crash browser when BrowserController constructs another GeckoRuntime in the same process. | Run 39357874291, API 26 crash artifact; `IllegalStateException: Only one GeckoRuntime instance is allowed` in BrowserController.kt:35 → MainActivity.onCreate:70 | Agent 4 (shared lifecycle with Agent 3) | **P0** | Emulator reproduced; fix and retest required |
+
+QA-01–07 are source findings requiring fresh runtime validation on the integrated
+APK. QA-08 has an emulator reproduction and was escalated to PR #427.
+
+## Verified emulator run (2026-10-20; baseline branch)
+
+Workflow run [39357874291](https://github.com/Tomex777/Build/actions/runs/39357874291)
+built and installed on both API 26 and API 36. The initial harness exercised
+Home, Time Machine entry, and ten tab creations successfully, **but did not pass
+its smoke gate**. Navigation failed because the QA harness assumed the omnibar
+placeholder remained visible instead of detecting an already-filled
+`about:blank` input. The harness has since been corrected. API 36 confirmed
+tab restore failure (10 tabs before force-stop, 1 afterward), and API 26
+revealed the GeckoRuntime crash. Both reported private mode as absent on the
+*baseline*, before Agent 3's branch is integrated.
+
+Screenshot review of the baseline showed four square **letter-only** quick-site
+tiles and a two-column tabs screen with mostly blank `about:blank` thumbnails.
+This is a real capture, but **not proof that populated website thumbnails
+render correctly**. A user-facing tab-heavy real-site test is still required.
+The API 26 artifact additionally showed two **system-process** fatal log lines;
+the harness now only attributes exceptions to the NIGHT Browser process.
 
 ## Next acceptance matrix (not executed; do not report as passing)
 
