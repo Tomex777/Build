@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {loadManhwaRoster,validateManhwaRoster,validateArtLock,collectionSummary,
   toRendererCard,sha256} from '../src/manhwa.mjs';
+import {researchReviewHtml} from '../src/manhwa-review.mjs';
 
 const roster=await loadManhwaRoster();
 const lock={version:1,collection:roster.id,editions:{}};
@@ -106,4 +107,19 @@ test('SSS Tower roles and Infinite Mage magic titles never grant invented upper 
   assert.equal(study.length,24);
   assert.ok(study.every(e=>e.family==='character'));
   assert.ok(study.every(e=>!('power' in e)));
+});
+
+test('offline review browser is a spoiler-aware research index, never counterfeit art cards',()=>{
+  const html=researchReviewHtml(roster,lock);
+  assert.match(html,/<title>NIGHT — Manhwa Candidate Roster<\/title>/);
+  assert.ok(html.includes('82</b>EDITION CANDIDATES'));
+  assert.ok(html.includes('34')===false || html.includes('The Infinite Mage'));
+  assert.ok(html.includes('data-spoiler="true"'));
+  assert.ok(html.includes('id="spoilers"'));
+  assert.ok(html.includes('id="series"'));
+  assert.ok(html.includes('id="family"'));
+  assert.ok(html.includes('CHAPTER CHECK'));
+  assert.ok(!html.includes('<img'));
+  assert.ok(!html.includes('SOURCE APPROVED'));
+  assert.ok(!html.includes('EX RANK'));
 });
