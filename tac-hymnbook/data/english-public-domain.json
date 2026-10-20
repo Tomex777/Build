@@ -47,6 +47,94 @@
       "text_status": "public_domain_english_alternate_needs_edition_review"
     },
     {
+      "number": 187,
+      "title_en": "Look, ye saints! The sight is glorious",
+      "author": "Thomas Kelly",
+      "published": 1809,
+      "source_url": "https://hymnary.org/text/look_ye_saints_the_sight_is_glorious",
+      "source_first_line": "Look, ye saints; the sight is glorious",
+      "verses_en": [
+        [
+          "Look, ye saints, the sight is glorious:",
+          "See the Man of Sorrows now;",
+          "From the fight returned victorious,",
+          "Every knee to Him shall bow.",
+          "Crown Him! Crown Him!",
+          "Crowns become the Victor's brow."
+        ],
+        [
+          "Crown the Savior, angels, crown Him;",
+          "Rich the trophies Jesus brings;",
+          "In the seat of power enthrone Him,",
+          "While the vault of heaven rings.",
+          "Crown Him! Crown Him!",
+          "Crown the Savior King of kings."
+        ],
+        [
+          "Sinners in derision crowned Him,",
+          "Mocking thus the Savior's claim;",
+          "Saints and angels crowd around Him,",
+          "Own His title, praise His name.",
+          "Crown Him! Crown Him!",
+          "Spread abroad the Victor's fame!"
+        ],
+        [
+          "Hark, those bursts of acclamation!",
+          "Hark! those loud triumphant chords!",
+          "Jesus takes the highest station;",
+          "O what joy the sight affords!",
+          "Crown Him! Crown Him!",
+          "King of kings, and Lord of lords!"
+        ]
+      ],
+      "rights": "public_domain_historical_english_text",
+      "edition_match": "first_line_matches_RH2006; stanza_order_and_wording_need_TAC_book_check",
+      "text_status": "public_domain_english_alternate_needs_edition_review"
+    },
+    {
+      "number": 188,
+      "title_en": "Hail the day that sees Him rise",
+      "author": "Charles Wesley",
+      "published": 1739,
+      "source_url": "https://www.hymnary.org/hymn/LUYH2013/209?media=text",
+      "source_first_line": "Hail the day that sees him rise",
+      "verses_en": [
+        [
+          "Hail the day that sees him rise, Alleluia!",
+          "To his throne beyond the skies. Alleluia!",
+          "Christ, the Lamb for sinners given, Alleluia!",
+          "Enters now the highest heaven. Alleluia!"
+        ],
+        [
+          "There for him high triumph waits; Alleluia!",
+          "Lift your heads, eternal gates. Alleluia!",
+          "He has conquered death and sin; Alleluia!",
+          "Take the King of glory in. Alleluia!"
+        ],
+        [
+          "Highest heaven its Lord receives; Alleluia!",
+          "Yet he loves the earth he leaves. Alleluia!",
+          "Through returning to his throne, Alleluia!",
+          "Still he calls us all his own. Alleluia!"
+        ],
+        [
+          "Still for us he intercedes; Alleluia!",
+          "His atoning death he pleads, Alleluia!",
+          "Near himself prepares our place, Alleluia!",
+          "He the first fruits of our race. Alleluia!"
+        ],
+        [
+          "There we shall with you remain, Alleluia!",
+          "Partners of your endless reign, Alleluia!",
+          "See you with unclouded view, Alleluia!",
+          "Find our heaven of heavens in you. Alleluia!"
+        ]
+      ],
+      "rights": "public_domain_historical_english_text",
+      "edition_match": "first_line_matches_RH2006; stanza_order_and_wording_need_TAC_book_check",
+      "text_status": "public_domain_english_alternate_needs_edition_review"
+    },
+    {
       "number": 190,
       "title_en": "Jesus shall reign where'er the sun",
       "author": "Isaac Watts",
