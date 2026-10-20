@@ -11,7 +11,7 @@ import org.junit.Assert.assertNotNull
 import org.junit.runner.RunWith
 import org.junit.Test
 
-/** Exercises the two genuinely native games through Android accessibility/touch. */
+/** Exercises genuinely native game mechanics on a real Android emulator/device. */
 @RunWith(AndroidJUnit4::class)
 class NativeGamesFlowTest {
     @Test fun waterSortPourAndSharkPauseWorkOfflineOnDevice() {
@@ -58,6 +58,27 @@ class NativeGamesFlowTest {
             snap(device, context, "08-native-shark-paused.png")
             device.findObjects(By.text("Resume")).first().click()
             assertNotNull(device.wait(Until.findObject(By.text("Pause")), 5000))
+
+            // Screenshot and use real Android touch input on native Snake.
+            device.pressBack()
+            assertNotNull(device.wait(Until.findObject(By.text("Offline collection")), 9000))
+            val snakeSearch = device.wait(Until.findObject(By.clazz("android.widget.EditText")), 5000)
+            assertNotNull("Search not exposed after shark", snakeSearch)
+            snakeSearch!!.text = "Snake"
+            val snake = device.wait(Until.findObject(By.text("Snake")), 9000)
+            assertNotNull("Native Snake missing from hub", snake)
+            snake!!.click()
+            assertNotNull(device.wait(Until.findObject(By.text("SCORE  0")), 9000))
+            snap(device, context, "09-native-snake-playing.png")
+            device.swipe(
+                device.displayWidth / 2, device.displayHeight * 2 / 3,
+                device.displayWidth / 2, device.displayHeight / 3, 12
+            )
+            device.findObject(By.text("Pause")).click()
+            assertNotNull(device.wait(Until.findObject(By.text("Paused")), 5000))
+            snap(device, context, "10-native-snake-paused.png")
+            device.pressBack()
+            assertNotNull(device.wait(Until.findObject(By.text("Offline collection")), 9000))
         }
     }
 
