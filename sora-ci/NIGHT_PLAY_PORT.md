@@ -1,7 +1,7 @@
 # Sora's NIGHT Play game and story integration
 
-Android Sora includes its existing 12 Compose games plus **21 distinct NIGHT Play
-games** and the complete **The Last Call** interactive fiction (34 entries total).
+Android Sora includes its existing 12 Compose games plus **24 distinct NIGHT Play
+games** and the complete **The Last Call** interactive fiction (37 entries total).
 No launcher entry is a link to an uninstalled web app.
 
 Original game sources come from:
@@ -26,9 +26,11 @@ Ludo dice need connectivity; Jigsaw can use its local procedural themes.
 Game sound remains optional. Sora's fullscreen shell hides the Android
 status bar and routes in-game back navigation to its native Games tab.
 
+Three more independently playable games are bundled under `brain-lab/`: **Lights Out** (provably solvable), **Sliding Puzzle** (legal shuffle), and **Simon Says** (growing sequences and soft optional tones). Pure logic has deterministic Node tests.
+
 ### Checks
 - `sora-night-play-android-acceptance.yml`: compile and run all bundled
-  engines and The Last Call progression tests, start 22 WebView experiences
+  engines and The Last Call progression tests, start 25 WebView experiences
   and Water Sort on Android 16, perform touch/Back navigation, take real screenshots
   and disable Wi-Fi/data to prove local content loads.
 - `sora-arcade-android-acceptance.yml`: native interactive gameplay and

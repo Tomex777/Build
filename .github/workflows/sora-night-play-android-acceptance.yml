@@ -43,6 +43,7 @@ jobs:
             'arcade/games.js','action/games.js','puzzles/games.js',
             'strategy/chess-v0.10.3.js','jigsaw/game.js',
             'piano-tiles/game.js','sling-siege/index.html','club/games.js','club/naija-ludo.js',
+            'brain-lab/index.html','brain-lab/game.js','brain-lab/rules.mjs',
           ):
             assert (root/path).stat().st_size>1000, 'Missing real game engine: '+path
           print('Validated 38+ story chapters and actual offline game engines')
@@ -68,6 +69,7 @@ jobs:
           PY
           node "$ROOT/puzzles/sora-logic-test.mjs"
           node "$ROOT/club/logic-test.mjs"
+          node "$ROOT/brain-lab/rules.test.mjs"
           node "$ROOT/jigsaw/board-logic-test.mjs"
       - uses: actions/setup-java@v5
         with:

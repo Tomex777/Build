@@ -76,6 +76,9 @@ val soraNightGames = listOf(
     NightPlayGame("jigsaw", "Jigsaw Puzzle", "Puzzle", "Piece together a picture.", "/jigsaw/index.html", Icons.Rounded.Panorama),
     NightPlayGame("piano-tiles", "Piano Tiles", "Rhythm", "Play the falling notes.", "/piano-tiles/index.html", Icons.Rounded.Piano),
     NightPlayGame("sling-siege", "Sling Siege", "Action", "Bring down six fortresses.", "/sling-siege/index.html", Icons.Rounded.Adjust),
+    NightPlayGame("lights-out", "Lights Out", "Puzzle", "Switch off every light.", "/brain-lab/index.html?game=lights", Icons.Rounded.Lightbulb),
+    NightPlayGame("sliding-puzzle", "Sliding Puzzle", "Puzzle", "Reorder the sliding tiles.", "/brain-lab/index.html?game=slide", Icons.Rounded.GridView),
+    NightPlayGame("simon-says", "Simon Says", "Arcade", "Repeat each colour pattern.", "/brain-lab/index.html?game=simon", Icons.Rounded.TouchApp),
 )
 private const val ASSET_ORIGIN = "appassets.androidplatform.net"
 

@@ -140,9 +140,12 @@ night-estates|NIGHT Estates
 jigsaw|Jigsaw Puzzle
 piano-tiles|Piano Tiles
 sling-siege|Sling Siege
+lights-out|Lights Out
+sliding-puzzle|Sliding Puzzle
+simon-says|Simon Says
 GAMES
-if (( tested_games != 22 )); then
-  echo "Only tested $tested_games of 22 NIGHT Play experiences!" >&2
+if (( tested_games != 25 )); then
+  echo "Only tested $tested_games of 25 NIGHT Play experiences!" >&2
   exit 1
 fi
 
@@ -162,4 +165,4 @@ if ! find_point "LEVEL 1" >/dev/null 2>&1 || ! find_point "MOVES" >/dev/null 2>&
 fi
 shot native-water-sort
 adb shell input keyevent KEYCODE_BACK
-echo "22 bundled NIGHT Play experiences plus Water Sort launched with Android touch and Back."
+echo "25 bundled NIGHT Play experiences plus Water Sort launched with Android touch and Back."
