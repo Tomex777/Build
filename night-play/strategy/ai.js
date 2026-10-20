@@ -10,8 +10,8 @@
   const VALUE={p:100,n:320,b:335,r:510,q:920,k:0};
   const PROFILES={
     easy:{depth:2,time:140,nodes:3500},
-    normal:{depth:3,time:500,nodes:14000},
-    hard:{depth:4,time:1100,nodes:40000}
+    normal:{depth:3,time:355,nodes:11000},
+    hard:{depth:4,time:800,nodes:32000}
   };
   const MATE=1000000,STOP=Symbol('search timeout');
   function value(game){
