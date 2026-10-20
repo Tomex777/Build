@@ -4,7 +4,12 @@ on:
   push:
     branches: [feature/cards-one-piece-20261020]
     paths:
-      - 'cards/**'
+      - 'cards/catalog/one-piece-sources.json'
+      - 'cards/bin/seed-one-piece.mjs'
+      - 'cards/bin/vercel-one-piece-preview.sh'
+      - 'cards/src/**'
+      - 'cards/renderer/**'
+      - 'cards/tests/one-piece-sources.test.mjs'
       - '.github/workflows/cards-one-piece.yml'
   workflow_dispatch:
 
@@ -46,15 +51,22 @@ jobs:
         run: npm run build -- --series one-piece --width 3000 --out dist/one-piece
       - name: Export standalone offline gallery using genuine NIGHT rendered art
         run: npm run gallery -- --series one-piece --out dist/one-piece --file dist/NIGHT-One-Piece-Collection.html
-      - name: Commit stable original provenance, source SHA and form-specific ranks
+      - name: Commit locked provenance and real-rendered website preview
         if: success() && github.event_name == 'push'
         working-directory: .
         run: |
           git config user.name 'NIGHT Cards Provenance'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          mkdir -p cards/previews/one-piece
+          cp cards/dist/one-piece/index.html cards/previews/one-piece/index.html
+          find cards/dist/one-piece -maxdepth 1 -type f \
+            \( -name '*--view.jpg' -o -name '*--phone.png' \) \
+            -exec cp {} cards/previews/one-piece/ \;
           git add cards/catalog/one-piece-source-lock.json cards/catalog/one-piece.json cards/catalog/power/one-piece.json
+          git add cards/previews/one-piece
           if ! git diff --cached --quiet; then
-            git commit -m "cards(one-piece): lock original film sources and distinct candidate cards"
+            git commit -m "cards(one-piece): pin verified sources and real NIGHT-rendered gallery previews"
+            git pull --rebase origin "$GITHUB_REF_NAME"
             git push origin "HEAD:$GITHUB_REF_NAME"
           fi
       - name: Upload masters, mobile proofs, contact sheets and offline preview
