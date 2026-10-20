@@ -17,14 +17,25 @@ root = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(
 for planet in ("jupiter", "saturn"):
     path = root / f"orbital-{planet}-oblate.png"
     assert path.is_file(), f"Missing actual Android {planet} screenshot"
+    coordinate_file = root / f"orbital-{planet}-centre.txt"
+    assert coordinate_file.is_file(), f"Missing Android GL projection: {planet}"
+    cx, cy, vw, vh = (float(item) for item in
+                       coordinate_file.read_text().split())
     with Image.open(path) as screenshot:
         assert screenshot.width >= 640 and screenshot.height >= 360
         x, y = screenshot.size
-        # Avoid top navigation / bottom action UI; centered planet takes
-        # up a meaningful fraction of the 48-degree orbital camera.
+        center_x, center_y = cx / vw * x, cy / vh * y
+        assert x * .4 <= center_x <= x * .6, (
+            f"{planet}: globe is not centered after the camera fly"
+        )
+        assert y * .4 <= center_y <= y * .6
+        # Ignore the floating planet name at the center. Sample the two
+        # adjacent cloud bands/ring spans, not HUD or unrelated Sun pixels.
+        radius_x = int(x * .075)
+        radius_y = int(y * .13)
         disk = screenshot.convert("RGB").crop((
-            int(x * .43), int(y * .32),
-            int(x * .57), int(y * .68)
+            int(center_x)-radius_x, int(center_y)-radius_y,
+            int(center_x)+radius_x, int(center_y)+radius_y
         ))
     stats = ImageStat.Stat(disk)
     mean = sum(stats.mean) / (3 * 255)

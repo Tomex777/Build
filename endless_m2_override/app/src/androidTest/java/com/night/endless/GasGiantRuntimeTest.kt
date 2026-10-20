@@ -44,7 +44,7 @@ class GasGiantRuntimeTest {
                 val before = renderer.completedFrameCount()
                 renderer.focus(planet)
                 renderer.zoomBy(zoom)
-                await("completed focused $planet frames", 40_000) {
+                await("fully centred $planet after the interplanetary fly", 75_000) {
                     val state = renderer.snapshotState()
                     state.selectedId == planet &&
                         !state.overview &&
@@ -53,13 +53,21 @@ class GasGiantRuntimeTest {
                         renderer.labelSnapshots().any { label ->
                             label.id == planet && label.visible &&
                                 kotlin.math.abs(label.xPx - checkNotNull(glView.get()).width/2f) <
-                                    checkNotNull(glView.get()).width*.24f &&
+                                    checkNotNull(glView.get()).width*.10f &&
                                 kotlin.math.abs(label.yPx - checkNotNull(glView.get()).height/2f) <
-                                    checkNotNull(glView.get()).height*.24f
+                                    checkNotNull(glView.get()).height*.10f
                         }
                 }
                 assertEquals(null, renderer.surfaceBodyId())
+                val projected = checkNotNull(renderer.labelSnapshots()
+                    .firstOrNull { it.id == planet && it.visible })
                 capture(instrumentation, "orbital-$planet-oblate")
+                val storage = checkNotNull(instrumentation.targetContext.getExternalFilesDir(null))
+                File(storage, "endless-runtime/orbital-$planet-centre.txt").writeText(
+                    "${projected.xPx} ${projected.yPx} " +
+                        "${checkNotNull(glView.get()).width} " +
+                        "${checkNotNull(glView.get()).height}"
+                )
             }
         } finally {
             scenario.close()
