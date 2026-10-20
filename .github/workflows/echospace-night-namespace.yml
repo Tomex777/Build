@@ -1,0 +1,31 @@
+name: EchoSpace NIGHT namespace migration
+run-name: Migrate EchoSpace app and source to NIGHT Android ID
+
+on:
+  push:
+    branches: [feature/echospace-production-hardening]
+    paths:
+      - '.github/workflows/echospace-night-namespace.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Move Kotlin source and tests to com.night.echospace
+        run: bash .github/scripts/echospace_night_namespace.sh
+      - name: Commit the actual migrated native sources
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if ! git diff --cached --quiet; then
+            git commit -m "EchoSpace: migrate native application ID and package to com.night"
+            git push origin HEAD:feature/echospace-production-hardening
+          fi

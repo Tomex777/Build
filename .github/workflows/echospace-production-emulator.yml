@@ -1,0 +1,81 @@
+name: EchoSpace production emulator screenshots
+
+on:
+  push:
+    branches: [feature/echospace-production-hardening]
+    paths:
+      - '.github/workflows/echospace-production-emulator.yml'
+      - '.github/scripts/echospace_production_emulator.py'
+      - 'EchoSpace/app/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  emulator-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch independently built native APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p EchoSpace/app/build/outputs/apk/debug
+          # The QA screenshot must prove the source revision being reviewed,
+          # NOT yesterday's last successful APK on the same branch. The native
+          # build and emulator jobs both start on push, so wait for this SHA.
+          RUN_ID=""
+          for attempt in $(seq 1 40); do
+            RUN_ID=$(gh run list --repo "$GITHUB_REPOSITORY" \
+              --workflow echospace-production-ci.yml \
+              --branch feature/echospace-production-hardening \
+              --commit "$GITHUB_SHA" --status success \
+              --limit 1 --json databaseId --jq '.[0].databaseId // empty')
+            if [ -n "$RUN_ID" ]; then break; fi
+            echo "Waiting for matching source APK: $GITHUB_SHA ($attempt/40)"
+            sleep 15
+          done
+          test -n "$RUN_ID"
+          echo "QA_SOURCE_SHA=$GITHUB_SHA QA_SOURCE_BUILD_RUN=$RUN_ID"
+          gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" \
+            --name EchoSpace-production-native-debug \
+            --dir EchoSpace/app/build/outputs/apk/debug
+          test -s EchoSpace/app/build/outputs/apk/debug/app-debug.apk
+      - name: Enable KVM acceleration for reliable interactive UI QA
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Without this, the hosted AVD falls back to very slow software
+          # emulation and repeatedly reports "System UI isn't responding".
+          test -c /dev/kvm
+          sudo chmod 666 /dev/kvm
+          test -r /dev/kvm && test -w /dev/kvm
+          ls -l /dev/kvm
+      - name: Install and verify real native Android UI
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          ECHOSPACE_DEBUG_APK: EchoSpace/app/build/outputs/apk/debug/app-debug.apk
+        with:
+          # API 35 hosted Pixel System UI repeatedly ANR'd before app QA.
+          # Run real UI gestures on an earlier supported Android version too.
+          api-level: 33
+          arch: x86_64
+          target: default
+          profile: pixel_3a
+          cores: 2
+          ram-size: 4096M
+          disk-size: 3072M
+          disable-animations: true
+          emulator-options: -no-window -no-snapshot -noaudio -no-boot-anim -gpu swiftshader_indirect
+          script: ECHOSPACE_DEBUG_APK=EchoSpace/app/build/outputs/apk/debug/app-debug.apk python3 .github/scripts/echospace_production_emulator.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: EchoSpace-production-real-emulator-evidence
+          path: echospace-production-qa/
+          if-no-files-found: warn
+          retention-days: 60
