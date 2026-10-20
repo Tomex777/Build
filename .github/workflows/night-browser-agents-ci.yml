@@ -1,0 +1,72 @@
+name: NIGHT Browser Agents — Kotlin & APK
+
+on:
+  pull_request:
+    branches: [feature/night-browser-multi-agent-20261020]
+    paths: ['night-browser/**', '.github/workflows/night-browser-agents-ci.yml']
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-37.1 build-tools;37.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.7.1'
+      - name: Test and compile
+        run: gradle --no-daemon --stacktrace -p night-browser :app:testDebugUnitTest :app:assembleDebug
+      - uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: night-browser-agent-debug-apks
+          path: night-browser/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+
+  emulator:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-37.1 build-tools;37.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.7.1'
+      - name: Build emulator binary
+        run: gradle --no-daemon -p night-browser :app:assembleDebug
+      - name: Enable emulator KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Boot emulator and interact with actual HTTPS sites
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 36
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -partition-size 4096
+          script: bash night-browser/ci/agent04-compatibility-smoke.sh
+      - name: Upload screenshot and crash evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: night-browser-agent-gecko-emulator-evidence
+          path: night-browser/screenshots/
+          if-no-files-found: warn
