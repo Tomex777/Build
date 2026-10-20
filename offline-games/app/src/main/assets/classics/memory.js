@@ -19,7 +19,7 @@ G.add('memory','Memory Match','Flip beautifully illustrated cards to find matchi
  const assets=collections[opts.theme];
  const images=valid?restored.deck.slice():G.shuffle(assets.slice(0,count/2).flatMap(name=>[name,name]));
  let matched=valid?restored.matched.slice():Array(count).fill(false),flipped=[],moves=valid?restored.moves:0,elapsed=valid?Math.max(0,restored.elapsed||0):0,pending=null,won=false,layout=G.el('div','memory-grid');
- let cells=[],imageLoaded=0,board=G.board(),interval=null,playing=true;
+ let cells=[],board=G.board(),interval=null,playing=true,tickAt=Date.now(),shownSecond=Math.floor(elapsed);
  layout.style.gridTemplateColumns='repeat('+columns+', minmax(0, 1fr))';
  layout.dataset.columns=columns;layout.setAttribute('aria-label',opts.size+' memory board, '+count/2+' pairs');
  function iconSrc(name){return '/memory/icons/'+opts.theme+'/'+name+'.svg'}
@@ -27,7 +27,18 @@ G.add('memory','Memory Match','Flip beautifully illustrated cards to find matchi
  for(let i=0;i<count;i++){const btn=G.el('button','memory-card');btn.type='button';btn.innerHTML=cardHTML(images[i]);btn.dataset.show=String(!!matched[i]);btn.dataset.matched=String(!!matched[i]);btn.setAttribute('aria-label',matched[i]?'Matched '+images[i]:'Face-down card '+(i+1));btn.addEventListener('click',()=>pick(i));layout.append(btn);cells.push(btn)}
  board.append(layout);const statusLine=G.el('div','memory-stats');board.append(statusLine);
  function save(){put(saveKey,{theme:opts.theme,size:opts.size,deck:images,matched,moves,elapsed,won})}
- function now(){if(!playing||won)return;elapsed+=.25;if(Math.round(elapsed)%5===0)progress(false)}
+ // Use measured foreground time, not a fixed 250ms tick (timers are throttled on Android).
+ // Commit progress every second so an interrupted game resumes with an accurate clock.
+ function now(){
+   if(!playing||won)return;
+   const instant=Date.now(),seconds=Math.min(2,Math.max(0,(instant-tickAt)/1000));
+   tickAt=instant;
+   if(document.hidden)return;
+   elapsed+=seconds;
+   const currentSecond=Math.floor(elapsed);
+   if(currentSecond!==shownSecond){shownSecond=currentSecond;progress()}
+ }
+ function onVisibility(){tickAt=Date.now();if(!won)progress()}
  function progress(shouldSave=true){const pairs=matched.filter(Boolean).length/2;statusLine.textContent='PAIRS '+pairs+'/'+(count/2)+'     MOVES '+moves+'     TIME '+Math.floor(elapsed/60)+':'+String(Math.floor(elapsed)%60).padStart(2,'0');if(shouldSave)save()}
  function show(i,on,complete=false){const btn=cells[i];btn.dataset.show=String(on);btn.dataset.matched=String(complete);btn.setAttribute('aria-label',complete?'Matched '+images[i]:on?images[i]:'Face-down card '+(i+1))}
  function pick(i){if(won||pending!==null||matched[i]||flipped.includes(i))return;show(i,true,false);flipped.push(i);if(flipped.length===2){moves++;const [a,b]=flipped;if(images[a]===images[b]){matched[a]=true;matched[b]=true;show(a,true,true);show(b,true,true);flipped=[];const complete=matched.every(Boolean);if(complete){won=true;clearInterval(interval);try{localStorage.removeItem(saveKey)}catch{}const points=Math.max(1,1500-Math.round(elapsed*2)-moves*15);G.score('memory',points);G.status('All '+count/2+' pairs found in '+moves+' moves!');progress(false);if(settings.open)settings.close()}else G.status('Pair found! '+matched.filter(Boolean).length/2+'/'+(count/2))}else{pending=setTimeout(()=>{show(a,false);show(b,false);flipped=[];pending=null;progress()},750)}}progress()}
@@ -45,8 +56,8 @@ G.add('memory','Memory Match','Flip beautifully illustrated cards to find matchi
  function applySettings(){put(configKey,opts);try{localStorage.removeItem(saveKey)}catch{}G.run('memory')}
  function openSettings(){if(!settings.open)settings.showModal()}
  if(settingsButton)settingsButton.addEventListener('click',openSettings);
- progress();interval=setInterval(now,250);G.status('Find '+count/2+' matching pairs');
+ progress();document.addEventListener('visibilitychange',onVisibility);interval=setInterval(now,250);G.status('Find '+count/2+' matching pairs');
  G.note('Tap two cards. If they match, they stay revealed. Set size and theme with the top-right Settings button.');
- return()=>{playing=false;clearInterval(interval);if(pending!==null)clearTimeout(pending);if(settingsButton){settingsButton.hidden=true;settingsButton.removeEventListener('click',openSettings)}settings.remove()};
+ return()=>{playing=false;clearInterval(interval);document.removeEventListener('visibilitychange',onVisibility);if(!won)save();if(pending!==null)clearTimeout(pending);if(settingsButton){settingsButton.hidden=true;settingsButton.removeEventListener('click',openSettings)}settings.remove()};
 });
 })();
