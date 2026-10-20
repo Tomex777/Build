@@ -1409,8 +1409,16 @@ class EndlessRenderer(
             0f, 1f, 0f
         )
 
+        // Keep the simulation's volume-equivalent body radius while
+        // rendering measured polar flattening of the four giant planets.
+        // Their cloud tops are not spheres (Jupiter b/a is roughly 0.935).
         val r = (body.radius * radiusMultiplier).toFloat()
-        Matrix.scaleM(model, 0, r, r, r)
+        Matrix.scaleM(
+            model, 0,
+            r * PlanetShape.equatorialScale(body.id),
+            r * PlanetShape.polarScale(body.id),
+            r * PlanetShape.equatorialScale(body.id)
+        )
 
         Matrix.multiplyMM(mvp, 0, viewProjection, 0, model, 0)
     }
@@ -1434,13 +1442,24 @@ class EndlessRenderer(
             cameraPosition.y.toFloat(),
             cameraPosition.z.toFloat()
         )
+        // Vertex normal must be the inverse-transpose equivalent for an
+        // oblate ellipsoid; treating Jupiter as a scaled sphere mislights
+        // its polar clouds and creates a false circular highlight.
+        GLES30.glUniform1f(
+            GLES30.glGetUniformLocation(planetProgram, "uPolarRatio"),
+            PlanetShape.polarRatio(body.id)
+        )
         GLES30.glUniform1f(
             GLES30.glGetUniformLocation(planetProgram, "uEmissive"),
             if (body.id == "sun") 1f else 0f
         )
         GLES30.glUniform1i(
             GLES30.glGetUniformLocation(planetProgram, "uPlanetKind"),
-            if (body.id == "earth") 1 else 0
+            when (body.id) {
+                "earth" -> 1
+                "jupiter", "saturn", "uranus", "neptune" -> 2
+                else -> 0
+            }
         )
     }
 
@@ -1578,12 +1597,10 @@ class EndlessRenderer(
             saturn.axialTiltDeg.toFloat(),
             0f, 0f, 1f
         )
-        Matrix.scaleM(
-            model, 0,
-            saturn.radius.toFloat(),
-            saturn.radius.toFloat(),
-            saturn.radius.toFloat()
-        )
+        // Saturn's rings lie in its equatorial plane, so their radii must
+        // use the same equatorial radius as its newly oblate cloud body.
+        val ringRadius = saturn.radius.toFloat() * PlanetShape.equatorialScale("saturn")
+        Matrix.scaleM(model, 0, ringRadius, ringRadius, ringRadius)
         Matrix.multiplyMM(mvp, 0, viewProjection, 0, model, 0)
 
         GLES30.glDisable(GLES30.GL_CULL_FACE)
@@ -2022,6 +2039,7 @@ layout(location=2) in vec2 aUv;
 
 uniform mat4 uMvp;
 uniform mat4 uModel;
+uniform float uPolarRatio;
 
 out vec3 vNormal;
 out vec3 vWorld;
@@ -2030,7 +2048,12 @@ out vec2 vUv;
 void main() {
     vec4 world = uModel * vec4(aPosition, 1.0);
     vWorld = world.xyz;
-    vNormal = normalize(mat3(uModel) * aNormal);
+    // Ellipsoid normal = inverse-transpose of nonuniform model scale.
+    // Scale by 1/(b/a)^2 before uModel so its embedded y flattening
+    // leaves 1/(b/a) relative to the equatorial components.
+    float ratio2 = max(uPolarRatio * uPolarRatio, 0.25);
+    vNormal = normalize(mat3(uModel) *
+                        vec3(aNormal.x, aNormal.y / ratio2, aNormal.z));
     vUv = aUv;
     gl_Position = uMvp * vec4(aPosition, 1.0);
 }
@@ -2206,7 +2229,13 @@ void main() {
         color += night * darkness * 0.58;
     }
 
-    color += texel.rgb * rim * 0.08 * (1.0 - uEmissive);
+    if (uPlanetKind == 2) {
+        // Thick gas-giant clouds soften toward the limb rather than forming
+        // a bright hard artificial outline on the night side.
+        color *= mix(0.76, 1.0, pow(facing, 0.45));
+    } else {
+        color += texel.rgb * rim * 0.08 * (1.0 - uEmissive);
+    }
     fragColor = vec4(color, texel.a * uColor.a);
 }
 """
