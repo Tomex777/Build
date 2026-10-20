@@ -1,0 +1,15 @@
+diff --git a/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt b/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt
+--- a/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt
++++ b/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt
+@@ -262,9 +262,9 @@
+                 Icon(Icons.Outlined.ArrowBack, contentDescription = "Back to practice", tint = Color.White)
+             }
+             Column(Modifier.weight(1f)) {
+-                Text(song.title, style = MaterialTheme.typography.titleMedium,
++                Text("ENDLESS TILES", style = MaterialTheme.typography.titleMedium,
+                     fontWeight = FontWeight.Black, color = Color.White)
+-                Text(if (!started) "Tap the first black tile" else "LEVEL ${run.level}  ·  ${run.combo}×",
++                Text(if (!started) "${song.title} · tap the first black tile" else "${song.title} · LEVEL ${run.level} · ${run.combo}×",
+                     style = MaterialTheme.typography.labelSmall, color = TilesMuted)
+             }
+             Text(if (started) "${run.score}" else "BEST ${state.bestTilesScore(song.id)}",

@@ -140,9 +140,9 @@ function background_to_settings() {
 
 wait_for "Practice" 20
 tap_ui "Falling notes"
-wait_for "FALLING NOTES" 35
-wait_for "Ready to play?" 15
-tap_ui "Start"
+wait_for "SLUMBER  /  TILES" 35
+wait_for "READY TO PLAY?" 15
+tap_ui "START"
 sleep 0.35
 background_to_settings play
 sleep 6
@@ -165,14 +165,14 @@ if grep -E "mResumedActivity.*$PKG|topResumedActivity.*$PKG|ResumedActivity.*$PK
 fi
 
 adb shell am start -W -n "$ACTIVITY" >/dev/null
-wait_for "FALLING NOTES" 30
-wait_for "Restart" 10
+wait_for "SLUMBER  /  TILES" 30
+wait_for "Restart song" 10
 capture play-returned-after-background
-assert_orientation play-returned-after-background landscape
+assert_orientation play-returned-after-background portrait
 
-wait_for "Play again" 10
+wait_for "PLAY AGAIN" 10
 capture play-complete-after-resume
-assert_orientation play-complete-after-resume landscape
+assert_orientation play-complete-after-resume portrait
 adb shell run-as "$PKG" cat shared_prefs/pianohub_local_v1.xml > "$OUT/prefs-after-resume-complete.xml"
 python3 - "$OUT/prefs-after-resume-complete.xml" <<'PY'
 import html,json,sys,xml.etree.ElementTree as ET
@@ -183,7 +183,7 @@ assert data["completedRuns"] == 2, data
 print("foreground resume completed play normally", data)
 PY
 
-tap_ui "Back"
+tap_ui "Back to songs"
 wait_for "Practice" 30
 capture practice-after-background
 assert_orientation practice-after-background portrait

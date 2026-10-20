@@ -1,0 +1,94 @@
+--- a/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt
++++ b/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt
+@@ -76,20 +76,20 @@
+     val haptics = LocalHapticFeedback.current
+     val scope = rememberCoroutineScope()
+     var run by remember(song.id) { mutableStateOf(EndlessTilesRun(song = song)) }
+-    var visibleTiles by remember { mutableStateOf(run.tiles) }
+-    var started by remember { mutableStateOf(false) }
+-    var running by remember { mutableStateOf(false) }
+-    var paused by remember { mutableStateOf(false) }
++    var visibleTiles by remember(song.id) { mutableStateOf(run.tiles) }
++    var started by remember(song.id) { mutableStateOf(false) }
++    var running by remember(song.id) { mutableStateOf(false) }
++    var paused by remember(song.id) { mutableStateOf(false) }
+     var lifecyclePaused by remember(activity) {
+         mutableStateOf(activity?.lifecycle?.currentState?.isAtLeast(Lifecycle.State.RESUMED) != true)
+     }
+-    var playheadMs by remember { mutableLongStateOf(0L) }
+-    var judgement by remember { mutableStateOf<String?>(null) }
+-    var judgementAt by remember { mutableLongStateOf(0L) }
+-    var pulseLane by remember { mutableStateOf<Int?>(null) }
+-    var pulseAt by remember { mutableLongStateOf(0L) }
+-    var saved by remember { mutableStateOf(false) }
+-    var newBest by remember { mutableStateOf(false) }
++    var playheadMs by remember(song.id) { mutableLongStateOf(0L) }
++    var judgement by remember(song.id) { mutableStateOf<String?>(null) }
++    var judgementAt by remember(song.id) { mutableLongStateOf(0L) }
++    var pulseLane by remember(song.id) { mutableStateOf<Int?>(null) }
++    var pulseAt by remember(song.id) { mutableLongStateOf(0L) }
++    var saved by remember(song.id) { mutableStateOf(false) }
++    var newBest by remember(song.id) { mutableStateOf(false) }
+     val soundingHolds = remember(song.id) { mutableStateMapOf<String, Int>() }
+ 
+     DisposableEffect(audioEngine, state.instrumentId) {
+--- a/app/src/main/java/com/night/pianohub/music/SlumberTilesChart.kt
++++ b/app/src/main/java/com/night/pianohub/music/SlumberTilesChart.kt
+@@ -80,6 +80,17 @@
+         return TileVerticalBounds(bottom - height, bottom)
+     }
+ 
++    /** Hold tails are anchored to the touch area and shrink smoothly, instead of
++     * continuing to fall after the finger has grabbed them. The tail reaches
++     * zero height at the exact duration boundary, independently of frame rate. */
++    fun heldBounds(tile: SlumberTile, playheadMs: Long, fieldWidth: Float, fieldHeight: Float): TileVerticalBounds {
++        val hitY = fieldHeight * .955f
++        val fullHeight = verticalBounds(tile, tile.onsetMs, fieldWidth, fieldHeight).let { it.bottom - it.top }
++        val remainingFraction = ((tile.onsetMs + tile.durationMs - playheadMs).toFloat() /
++            tile.durationMs.coerceAtLeast(1L)).coerceIn(0f, 1f)
++        return TileVerticalBounds(hitY - fullHeight * remainingFraction, hitY)
++    }
++
+     /** No auto-perfect hit: input must arrive near the actual song beat. */
+     fun candidate(tiles: List<SlumberTile>, lane: Int, playheadMs: Long, consumed: Set<String>, bpm: Int): SlumberTile? {
+         if (lane !in 0 until LANES) return null
+--- a/app/src/main/java/com/night/pianohub/ui/components/SlumberTilesField.kt
++++ b/app/src/main/java/com/night/pianohub/ui/components/SlumberTilesField.kt
+@@ -116,7 +116,11 @@
+         // open with a single isolated tile. The first tile itself starts the run.
+         tiles.forEachIndexed { index, tile ->
+             if (!ready && tile.id in consumed && tile.id !in held) return@forEachIndexed
+-            val bounds = SlumberTilesChart.verticalBounds(tile, if (ready) 0L else playheadMs, w, h)
++            val bounds = if (!ready && tile.id in held) {
++                SlumberTilesChart.heldBounds(tile, playheadMs, w, h)
++            } else {
++                SlumberTilesChart.verticalBounds(tile, if (ready) 0L else playheadMs, w, h)
++            }
+             val bottom = bounds.bottom
+             val top = bounds.top
+             if (bottom < -8f || top > h + 8f) return@forEachIndexed
+--- a/app/src/test/java/com/night/pianohub/music/SlumberTilesChartTest.kt
++++ b/app/src/test/java/com/night/pianohub/music/SlumberTilesChartTest.kt
+@@ -49,6 +49,22 @@
+         assertTrue(late.top > bounds.top)
+     }
+ 
++    @Test fun grabbedLongTileStaysAtTouchEdgeAndTailShrinksSmoothly() {
++        val hold = SlumberTile("held-1", 3, 64, 1, 1_200L, 1_100L, true)
++        val width = 420f
++        val height = 850f
++        val start = SlumberTilesChart.heldBounds(hold, 1_200L, width, height)
++        val halfway = SlumberTilesChart.heldBounds(hold, 1_750L, width, height)
++        val end = SlumberTilesChart.heldBounds(hold, 2_300L, width, height)
++        assertEquals(height * .955f, start.bottom, .001f)
++        assertEquals(start.bottom, halfway.bottom, .001f)
++        assertEquals(start.bottom, end.bottom, .001f)
++        assertTrue(start.top < halfway.top)
++        assertTrue(halfway.top < end.top)
++        assertEquals(end.top, end.bottom, .001f)
++        assertEquals(start.top, SlumberTilesChart.heldBounds(hold, 0L, width, height).top, .001f)
++    }
++
+     @Test fun longNotesAreHoldTilesAndPianoChordsArePlayable() {
+         val moments = SlumberTilesChart.playableMoments(listOf(LessonMoment(setOf(48, 52, 55, 60, 64, 67), 1.0, 2.0)))
+         assertEquals(4, moments.single().notes.size)

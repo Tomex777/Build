@@ -23,6 +23,25 @@ on:
       - ".ci/slumber_098_release/**"
       - ".ci/slumber_104_play_results/**"
       - ".ci/slumber_105_release_abi/**"
+      - ".ci/slumber_106_portrait_tiles/**"
+      - ".ci/slumber_107_tall_tiles/**"
+      - ".ci/slumber_108_abr/**"
+      - ".ci/slumber_109_endless/**"
+      - ".ci/slumber_110_visual_fixes/**"
+      - ".ci/slumber_111_catalog/**"
+      - ".ci/slumber_112_system_bars/**"
+      - ".ci/slumber_113_song_scores/**"
+      - ".ci/slumber_114_long_holds/**"
+      - ".ci/slumber_115_hold_regression/**"
+      - ".ci/slumber_116_long_hold_stability/**"
+      - ".ci/slumber_117_web_criticism/**"
+      - ".ci/slumber_118_compact_hud/**"
+      - ".ci/slumber_119_melody_library/**"
+      - ".ci/slumber_120_audio_previews/**"
+      - ".ci/slumber_121_library_polish/**"
+      - ".ci/slumber_122_catalog_copy/**"
+      - ".ci/slumber_123_api26_safe_json/**"
+      - ".ci/slumber_125_keyboard_transition/**"
   pull_request:
     branches: ["slumber-087-build"]
     paths:
@@ -45,6 +64,25 @@ on:
       - ".ci/slumber_098_release/**"
       - ".ci/slumber_104_play_results/**"
       - ".ci/slumber_105_release_abi/**"
+      - ".ci/slumber_106_portrait_tiles/**"
+      - ".ci/slumber_107_tall_tiles/**"
+      - ".ci/slumber_108_abr/**"
+      - ".ci/slumber_109_endless/**"
+      - ".ci/slumber_110_visual_fixes/**"
+      - ".ci/slumber_111_catalog/**"
+      - ".ci/slumber_112_system_bars/**"
+      - ".ci/slumber_113_song_scores/**"
+      - ".ci/slumber_114_long_holds/**"
+      - ".ci/slumber_115_hold_regression/**"
+      - ".ci/slumber_116_long_hold_stability/**"
+      - ".ci/slumber_117_web_criticism/**"
+      - ".ci/slumber_118_compact_hud/**"
+      - ".ci/slumber_119_melody_library/**"
+      - ".ci/slumber_120_audio_previews/**"
+      - ".ci/slumber_121_library_polish/**"
+      - ".ci/slumber_122_catalog_copy/**"
+      - ".ci/slumber_123_api26_safe_json/**"
+      - ".ci/slumber_125_keyboard_transition/**"
 
 permissions:
   actions: read
@@ -231,6 +269,232 @@ jobs:
           PY
           grep -q 'var newBest by remember' /tmp/slumber-088/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt
 
+      - name: Replace keyboard-based Play with portrait Piano Tiles
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT=/tmp/slumber-088
+          cat .ci/slumber_106_portrait_tiles/portrait-tiles.patch.gz.b64.part* | base64 --decode | gzip -dc > "$OUT/portrait-tiles.patch"
+          echo 'eef968b460d2ccd80af9862e2e90ac7bd82c7f46b91137f0c54675571e9036ff  /tmp/slumber-088/portrait-tiles.patch' | sha256sum -c -
+          patch -d "$OUT" -p1 < "$OUT/portrait-tiles.patch"
+          PLAY="$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
+          FIELD="$OUT/app/src/main/java/com/night/pianohub/ui/components/SlumberTilesField.kt"
+          CHART="$OUT/app/src/main/java/com/night/pianohub/music/SlumberTilesChart.kt"
+          grep -q 'SCREEN_ORIENTATION_SENSOR_PORTRAIT' "$PLAY"
+          grep -q 'SlumberTilesField(' "$PLAY"
+          grep -q 'LEAD_IN_MS' "$CHART"
+          grep -q 'awaitEachGesture' "$FIELD"
+          ! grep -q 'PianoKeyboard(' "$PLAY"
+          ! grep -q 'SENSOR_LANDSCAPE' "$PLAY"
+          grep -q 'minSdk = 26' "$OUT/app/build.gradle.kts"
+
+      - name: Enlarge classic Piano Tiles and remove game overlays
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT=/tmp/slumber-088
+          base64 -d .ci/slumber_107_tall_tiles/tall-tiles.patch.gz.b64 | gzip -dc > "$OUT/tall-tiles.patch"
+          echo 'e2d38af9e8e7af2d4dc127d7a88a9d1ecd2be5cbaf444b0b14e2a9236ab737fd  /tmp/slumber-088/tall-tiles.patch' | sha256sum -c -
+          patch -d "$OUT" -p1 < "$OUT/tall-tiles.patch"
+          FIELD="$OUT/app/src/main/java/com/night/pianohub/ui/components/SlumberTilesField.kt"
+          PLAY="$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
+          grep -q 'laneWidth \* 1.90f' "$FIELD"
+          grep -q 'ready = !started' "$PLAY"
+          ! grep -q 'if (!started || userPaused' "$PLAY"
+          ! grep -q 'drawLine(Violet.copy(alpha = .65f)' "$FIELD"
+
+      - name: Apply ABR app-wide quality pass
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT=/tmp/slumber-088
+          base64 -d .ci/slumber_108_abr/product-abr.patch.gz.b64 | gzip -dc > "$OUT/slumber-abr.patch"
+          echo 'e9bd3d2305835f37ed778cbf5ddc41563b434591906f0ddecba27d171e6538f7  /tmp/slumber-088/slumber-abr.patch' | sha256sum -c -
+          patch -d "$OUT" -p1 < "$OUT/slumber-abr.patch"
+          FIELD="$OUT/app/src/main/java/com/night/pianohub/ui/components/SlumberTextField.kt"
+          PLAY="$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
+          PRACTICE="$OUT/app/src/main/java/com/night/pianohub/ui/screens/PracticeScreen.kt"
+          test -s "$FIELD"
+          grep -q 'BasicTextField(' "$FIELD"
+          grep -q 'SlumberTilesChart.verticalBounds' "$OUT/app/src/main/java/com/night/pianohub/ui/components/SlumberTilesField.kt"
+          grep -q 'if (tile.hold) held = held + tile.id' "$PLAY"
+          grep -q 'delay(tile.durationMs.coerceIn' "$PLAY"
+          grep -q 'Text("Play tiles")' "$PRACTICE"
+          grep -q 'if (selected.id != PianoLessonCatalog.DEFAULT_ID)' "$PRACTICE"
+          grep -q 'minSdk = 26' "$OUT/app/build.gradle.kts"
+          ! grep -q 'OutlinedTextField' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/SettingsScreen.kt"
+          ! grep -q 'OutlinedTextField' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/SongsScreen.kt"
+          ! grep -q 'OutlinedTextField' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PianoScreen.kt"
+
+      - name: Apply endless Piano Tiles and remove all AI features
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT=/tmp/slumber-088
+          base64 -d .ci/slumber_109_endless/endless.patch.gz.b64 | gzip -dc > "$OUT/endless.patch"
+          echo 'f610479dcbb7d98899c0d13cb24daecf911426c41f0734e0e3ab3dfdccdc2cf5  /tmp/slumber-088/endless.patch' | sha256sum -c -
+          patch -d "$OUT" -p1 < "$OUT/endless.patch"
+          test -s "$OUT/app/src/main/java/com/night/pianohub/music/EndlessTilesRun.kt"
+          grep -q 'ENDLESS TILES' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
+          ! test -f "$OUT/app/src/main/java/com/night/pianohub/ai/AiProvider.kt"
+          ! grep -RiEq 'AiTeacherGateway|aiConfig|AI Teacher|Teacher model' "$OUT/app/src/main/java"
+          grep -q 'minSdk = 26' "$OUT/app/build.gradle.kts"
+
+      - name: Apply endless tile visual QA fixes
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT=/tmp/slumber-088
+          base64 -d .ci/slumber_110_visual_fixes/finishing.patch.gz.b64 | gzip -dc > "$OUT/endless-finish.patch"
+          echo '8482fd64bf9a31929353596f185862a0f4be5a1b83661899041c26ac9fe286f2  /tmp/slumber-088/endless-finish.patch' | sha256sum -c -
+          patch -d "$OUT" -p1 < "$OUT/endless-finish.patch"
+          grep -q 'modifier.clipToBounds().semantics' "$OUT/app/src/main/java/com/night/pianohub/ui/components/SlumberTilesField.kt"
+          grep -q 'else "GAME OVER"' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
+
+      - name: Add playable tile-song catalog and respect status bar
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT=/tmp/slumber-088
+          cat .ci/slumber_111_catalog/songcatalog.patch.gz.b64.part* | base64 -d | gzip -dc > "$OUT/songcatalog.patch"
+          echo 'eb53831b7fd0497672b4b9bb952d44bb903c8238c4297b1cbade7a6a11e65dc1  /tmp/slumber-088/songcatalog.patch' | sha256sum -c -
+          patch -d "$OUT" -p1 < "$OUT/songcatalog.patch"
+          grep -q 'WindowInsets.safeDrawing' "$OUT/app/src/main/java/com/night/pianohub/ui/PianoHubApp.kt"
+          grep -q 'TilesLibraryScreen' "$OUT/app/src/main/java/com/night/pianohub/ui/PianoHubApp.kt"
+          grep -q 'class TilesSong' "$OUT/app/src/main/java/com/night/pianohub/music/TilesSongCatalog.kt"
+          grep -q 'song.melody' "$OUT/app/src/main/java/com/night/pianohub/music/EndlessTilesRun.kt"
+          ! grep -q 'hide(WindowInsetsCompat.Type.systemBars())' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
+
+      - name: Correct Android 8 system navigation bar contrast
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '0cbbe46296e547363bb84d41d0bf9256aa5463c0a24e0818d0658ca8232bb717  .ci/slumber_112_system_bars/navigation-bar.patch' | sha256sum -c -
+          patch -d /tmp/slumber-088 -p1 < .ci/slumber_112_system_bars/navigation-bar.patch
+          grep -q 'navigationBarColor = TilesNight.toArgb()' /tmp/slumber-088/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt
+
+      - name: Apply per-song best records and tighten gameplay input
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT=/tmp/slumber-088
+          base64 -d .ci/slumber_113_song_scores/score-integrity.patch.gz.b64 | gzip -dc > "$OUT/score-integrity.patch"
+          echo '030c4510ab87c3f0523e996f2439c057c8f9961c83d6d0daf1425e3b535669d3  /tmp/slumber-088/score-integrity.patch' | sha256sum -c -
+          patch --fuzz=0 -d "$OUT" -p1 < "$OUT/score-integrity.patch"
+          grep -q 'tiles_best_by_song_v1' "$OUT/app/src/main/java/com/night/pianohub/storage/PianoHubLocalStore.kt"
+          grep -q 'HIT_WINDOW_MS' "$OUT/app/src/main/java/com/night/pianohub/music/SlumberTilesChart.kt"
+          grep -q 'state.bestTilesScore(song.id)' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
+
+      - name: Apply sustained long notes and lilac tiles palette
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT=/tmp/slumber-088
+          base64 -d .ci/slumber_114_long_holds/long-holds.patch.gz.b64 | gzip -dc > "$OUT/long-holds.patch"
+          echo 'd84344d8cce5a804024ad8969dcbf8a8e7a0ffa207c745d13efd535fd179506e  /tmp/slumber-088/long-holds.patch' | sha256sum -c -
+          patch --fuzz=0 -d "$OUT" -p1 < "$OUT/long-holds.patch"
+          grep -q 'val hold = created > 0' "$OUT/app/src/main/java/com/night/pianohub/music/EndlessTilesRun.kt"
+          grep -q 'fun release(tile: SlumberTile' "$OUT/app/src/main/java/com/night/pianohub/music/EndlessTilesRun.kt"
+          grep -q 'onUp = ::release' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
+          grep -q 'Color(0xFFDCE5FC)' "$OUT/app/src/main/java/com/night/pianohub/ui/components/SlumberTilesField.kt"
+
+      - name: Update full melody loop regression for hold notes
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo '62f4b9393a6a9b0210acb650d63f8f86c1f36b65e5103660fb750aba7fedb319  .ci/slumber_115_hold_regression/hold-catalog-test.patch' | sha256sum -c -
+          patch --fuzz=0 -d /tmp/slumber-088 -p1 < .ci/slumber_115_hold_regression/hold-catalog-test.patch
+
+      - name: Stabilize extended hold-tail visuals and song changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          patch --fuzz=0 -d /tmp/slumber-088 -p1 < .ci/slumber_116_long_hold_stability/hold-visual-and-song-state.patch
+          grep -q 'SlumberTilesChart.heldBounds' /tmp/slumber-088/app/src/main/java/com/night/pianohub/ui/components/SlumberTilesField.kt
+          grep -q 'var started by remember(song.id)' /tmp/slumber-088/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt
+
+      - name: Carry NIGHT Play Piano Tiles feedback into native Slumber
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT=/tmp/slumber-088
+          base64 -d .ci/slumber_117_web_criticism/web-parity.patch.gz.b64 | gzip -dc > "$OUT/web-parity.patch"
+          echo 'd8e0237eeb052c79452025ac6c8db31bbb237a40a5a9c63da8155a1531a96ea6  /tmp/slumber-088/web-parity.patch' | sha256sum -c -
+          patch --fuzz=0 -d "$OUT" -p1 < "$OUT/web-parity.patch"
+          grep -q 'visibleCandidate(' "$OUT/app/src/main/java/com/night/pianohub/ui/components/SlumberTilesField.kt"
+          grep -q 'BUNDLED_C5_ID' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
+          ! grep -q 'pulseLane' "$OUT/app/src/main/java/com/night/pianohub/ui/components/SlumberTilesField.kt"
+          grep -q 'pauseDoesNotAwardUnfinishedHeldTail' "$OUT/app/src/test/java/com/night/pianohub/music/EndlessTilesRunTest.kt"
+
+      - name: Preserve accessible gameplay header and compact song HUD
+        shell: bash
+        run: |
+          set -euo pipefail
+          patch --fuzz=0 -d /tmp/slumber-088 -p1 < .ci/slumber_118_compact_hud/restore-header.patch
+          grep -q 'Text("ENDLESS TILES"' /tmp/slumber-088/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt
+
+      - name: Install native music-library browsing and rhythmic arrangements
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT=/tmp/slumber-088
+          base64 -d .ci/slumber_119_melody_library/library.patch.gz.b64 | gzip -dc > "$OUT/library.patch"
+          echo '88ef9443cd3c022ba6f8257d9a41f1343207eb9567f3a1afe05d0312677b9ef0  /tmp/slumber-088/library.patch' | sha256sum -c -
+          patch --fuzz=0 -d "$OUT" -p1 < "$OUT/library.patch"
+          grep -q 'fun loadTileFavorites' "$OUT/app/src/main/java/com/night/pianohub/storage/PianoHubLocalStore.kt"
+          grep -q 'fun recordTileSelection' "$OUT/app/src/main/java/com/night/pianohub/ui/AppState.kt"
+          grep -q 'LazyColumn(' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/TilesLibraryScreen.kt"
+          grep -q 'class TilesLibraryBrowseTest' "$OUT/app/src/test/java/com/night/pianohub/music/TilesLibraryBrowseTest.kt"
+
+      - name: Add real sampled-piano library audio previews
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT=/tmp/slumber-088
+          base64 -d .ci/slumber_120_audio_previews/native-preview.patch.gz.b64 | gzip -dc > "$OUT/native-preview.patch"
+          echo 'f8e7aa982cf0eca3d591265e7acc1173b555460b7a75069aa3171baa92dc7a2f  /tmp/slumber-088/native-preview.patch' | sha256sum -c -
+          patch --fuzz=0 -d "$OUT" -p1 < "$OUT/native-preview.patch"
+          grep -q 'Hear ${song.title}' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/TilesLibraryScreen.kt"
+          grep -q 'audioEngine = audioEngine' "$OUT/app/src/main/java/com/night/pianohub/ui/PianoHubApp.kt"
+
+      - name: Make songs library responsive and saved rows stable
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT=/tmp/slumber-088
+          base64 -d .ci/slumber_121_library_polish/responsive-polish.patch.gz.b64 | gzip -dc > "$OUT/responsive-polish.patch"
+          echo '45a756928f2f50f2eff5cf933a5ac9f0f52c82df1d8b0065799b1012b030121f  /tmp/slumber-088/responsive-polish.patch' | sha256sum -c -
+          patch --fuzz=0 -d "$OUT" -p1 < "$OUT/responsive-polish.patch"
+          grep -q 'screenWidthDp >= 360' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/TilesLibraryScreen.kt"
+
+      - name: Polish singular/plural catalogue labels
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT=/tmp/slumber-088
+          base64 -d .ci/slumber_122_catalog_copy/singular-count.patch.gz.b64 | gzip -dc > "$OUT/singular-count.patch"
+          echo '7f70917415ce1978bf7bfa9e64a55ebdbb3cfa22249e1748406352330e42bb60  /tmp/slumber-088/singular-count.patch' | sha256sum -c -
+          patch --fuzz=0 -d "$OUT" -p1 < "$OUT/singular-count.patch"
+
+      - name: Harden saved melodies persistence for Android 8
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT=/tmp/slumber-088
+          base64 -d .ci/slumber_123_api26_safe_json/legacy-json.patch.gz.b64 | gzip -dc > "$OUT/legacy-json.patch"
+          echo '4ba77ac382fab5dcac3989fd60dca6ba1a84ca2e2f54cbc38fbfb22e289ed14b  /tmp/slumber-088/legacy-json.patch' | sha256sum -c -
+          patch --fuzz=0 -d "$OUT" -p1 < "$OUT/legacy-json.patch"
+
+      - name: Prevent stale Android 8 search keyboard during game navigation
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT=/tmp/slumber-088
+          base64 -d .ci/slumber_125_keyboard_transition/search-to-game.patch.gz.b64 | gzip -dc > "$OUT/search-to-game.patch"
+          echo '5f0604dda6fe8653868423206e1cae8f8d6469c75f99b296657231b84b36536d  /tmp/slumber-088/search-to-game.patch' | sha256sum -c -
+          patch --fuzz=0 -d "$OUT" -p1 < "$OUT/search-to-game.patch"
+          grep -q 'keyboard?.hide()' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/TilesLibraryScreen.kt"
+
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -300,9 +564,7 @@ jobs:
           emulator-boot-timeout: 360
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save -no-metrics
-          script: |
-            bash .ci/slumber_089_final_polish/validate-final.sh /tmp/slumber-088/app/build/outputs/apk/debug/app-debug.apk
-            bash .ci/slumber_094_pause_completion/validate-pause.sh /tmp/slumber-088/app/build/outputs/apk/debug/app-debug.apk
+          script: bash .ci/slumber_109_endless/validate-endless.sh /tmp/slumber-088/app/build/outputs/apk/debug/app-debug.apk /tmp/slumber-product-proof full
 
       - uses: actions/upload-artifact@v4
         if: always()
@@ -323,7 +585,7 @@ jobs:
           emulator-boot-timeout: 360
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save -no-metrics
-          script: bash .ci/slumber_093_product_hardening/validate-api26.sh /tmp/slumber-088/app/build/outputs/apk/debug/app-debug.apk
+          script: bash .ci/slumber_109_endless/validate-endless.sh /tmp/slumber-088/app/build/outputs/apk/debug/app-debug.apk /tmp/slumber-api26-proof quick
 
       - uses: actions/upload-artifact@v4
         if: always()
@@ -395,7 +657,7 @@ jobs:
           emulator-boot-timeout: 360
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save -no-metrics
-          script: bash .ci/slumber_098_release/validate-release-smoke.sh /tmp/slumber-release-out/Slumber-0.8.8-universal-release-QA.apk 26 /tmp/slumber-release-api26-proof
+          script: bash .ci/slumber_109_endless/validate-endless.sh /tmp/slumber-release-out/Slumber-0.8.8-universal-release-QA.apk /tmp/slumber-release-api26-proof quick
 
       - uses: actions/upload-artifact@v4
         if: always()
@@ -418,7 +680,7 @@ jobs:
           emulator-boot-timeout: 360
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none -no-snapshot-save -no-metrics
-          script: bash .ci/slumber_098_release/validate-release.sh /tmp/slumber-release-out/Slumber-0.8.8-universal-release-QA.apk
+          script: bash .ci/slumber_109_endless/validate-endless.sh /tmp/slumber-release-out/Slumber-0.8.8-universal-release-QA.apk /tmp/slumber-release-proof full
 
       - uses: actions/upload-artifact@v4
         if: always()
