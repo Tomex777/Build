@@ -283,7 +283,7 @@ fun SceneViewport(
                 append(viewportSize.width).append('x').append(viewportSize.height)
             }
             if (projectionFingerprint.getAndSet(fingerprint) != fingerprint) {
-                applyProjectCameraProjection(camera, cameraConfig)
+                applyProjectCameraProjection(camera, cameraConfig, viewportSize.width, viewportSize.height)
             }
             val modelReady = modelReadyForFrame.get()
             if (hasReportedSurfaceFrame.compareAndSet(false, true)) {
@@ -840,8 +840,25 @@ private class ProjectCameraManipulator(
     }
 }
 
-private fun applyProjectCameraProjection(camera: io.github.sceneview.node.CameraNode, config: SceneCamera) {
-    val aspect = camera.getViewPortAspect().takeIf { it.isFinite() && it > 0.0 } ?: 1.0
+/**
+ * Project aspect must be derived from the CURRENT viewport, not a camera's previous projection.
+ * CameraNode's last perspective/ortho aspect can lag one orientation behind after a surface
+ * recreation, stretching models and producing a mismatched PNG until another camera edit.
+ */
+internal fun viewportAspectOrFallback(width: Int, height: Int, previousAspect: Double): Double =
+    if (width > 0 && height > 0) {
+        width.toDouble() / height.toDouble()
+    } else {
+        previousAspect.takeIf { it.isFinite() && it > 0.0 } ?: 1.0
+    }
+
+private fun applyProjectCameraProjection(
+    camera: io.github.sceneview.node.CameraNode,
+    config: SceneCamera,
+    viewportWidth: Int,
+    viewportHeight: Int,
+) {
+    val aspect = viewportAspectOrFallback(viewportWidth, viewportHeight, camera.getViewPortAspect())
     val near = config.nearMeters.coerceAtLeast(0.001f)
     val far = config.farMeters.coerceAtLeast(near + 0.01f)
     when (config.projection) {
