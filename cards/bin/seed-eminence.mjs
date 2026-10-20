@@ -76,7 +76,9 @@ for(const [id,name] of specs){
 const larger=new Set(['beta-combat','gamma-base','zeta-secret','rose-empowered']);
 for(const card of cards)if(larger.has(card.id)){
  const design=card.designs[0];
- card.recipe.artworkPlacement[design]={x:-250,y:-65,width:1500};
+ card.recipe.artworkPlacement[design]=['gamma-base','rose-empowered'].includes(card.id)
+   ?{x:-400,y:-255,width:1800}
+   :{x:-250,y:-65,width:1500};
 }
 const have=new Set(cards.map(c=>c.id));
 const pending=roster.cards.filter(c=>!have.has(c.id)).map(c=>({
