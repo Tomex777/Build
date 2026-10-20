@@ -11,7 +11,9 @@ data class JourneyRow(
     val matchesSearch: Boolean,
     /** Ancestor nodes whose vertical stem must continue through this row. */
     val ancestorContinues: List<Boolean> = emptyList(),
-    val hasNextSibling: Boolean = false
+    val hasNextSibling: Boolean = false,
+    /** True even when descendants are hidden in a collapsed branch. */
+    val hasChildren: Boolean = false
 )
 
 /**
@@ -107,7 +109,11 @@ object JourneyGraph {
      * Parent-first preorder, never the flat chronological log. Search preserves the
      * ancestors of matches so the context of a matching branch is visible.
      */
-    fun rows(journey: Journey, query: String = ""): List<JourneyRow> {
+    fun rows(
+        journey: Journey,
+        query: String = "",
+        collapsedIds: Set<String> = emptySet()
+    ): List<JourneyRow> {
         val nodes = journey.nodes
         val byId = nodes.associateBy { it.id }
         val children = nodes.groupBy { it.parent }
@@ -119,16 +125,34 @@ object JourneyGraph {
             while (stack.isNotEmpty()) {
                 val (node, depth) = stack.removeLast()
                 if (!visited.add(node.id)) continue
-                traversal.add(JourneyRow(node, depth, true))
-                children[node.id].orEmpty().asReversed().forEach {
-                    stack.add(it to (depth + 1))
+                val descendants = children[node.id].orEmpty()
+                traversal.add(JourneyRow(node, depth, true, hasChildren = descendants.isNotEmpty()))
+                // Collapsing is a rendering concern. During search we traverse
+                // all branches so hidden hits and their ancestry can be found.
+                if (query.isNotBlank() || node.id !in collapsedIds) {
+                    descendants.asReversed().forEach { stack.add(it to (depth + 1)) }
                 }
             }
         }
         nodes.filter { it.parent == null || it.parent == it.id || it.parent !in byId }
             .forEach(::walk)
         // Recover cyclic/legacy malformed components rather than hiding nodes forever.
-        nodes.filterNot { it.id in visited }.forEach(::walk)
+        // A node hidden by a collapsed ancestor must NOT be rediscovered as a
+        // disconnected root by this corruption-recovery pass.
+        if (query.isNotBlank() || collapsedIds.isEmpty()) {
+            nodes.filterNot { it.id in visited }.forEach(::walk)
+        } else {
+            val reachable = nodes.filter { it.id in visited }
+            val hidden = mutableSetOf<String>()
+            val remaining = ArrayDeque<String>()
+            reachable.filter { it.id in collapsedIds }.forEach { remaining.add(it.id) }
+            while (remaining.isNotEmpty()) {
+                children[remaining.removeFirst()].orEmpty().forEach { child ->
+                    if (hidden.add(child.id)) remaining.add(child.id)
+                }
+            }
+            nodes.filterNot { it.id in visited || it.id in hidden }.forEach(::walk)
+        }
 
         val needle = query.trim()
         if (needle.isEmpty()) return withConnectors(traversal)
