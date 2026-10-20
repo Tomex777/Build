@@ -15,7 +15,7 @@ function random(seed){
  return ()=>{a=(a+0x6d2b79f5)>>>0;let t=a;t=Math.imul(t^(t>>>15),t|1);t^=t+Math.imul(t^(t>>>7),t|61);return ((t^(t>>>14))>>>0)/4294967296;};
 }
 function createPuzzle({photoId,count=24,hostId,hostName,seed=1},now=Date.now()){
- if(!has(SHAPES,count)||!validId(hostId)||!display(hostName)||
+ if(!Number.isInteger(count)||!has(SHAPES,count)||!validId(hostId)||!display(hostName)||
     typeof photoId!=='string'||!/^photo-[a-z0-9-]{1,40}$/.test(photoId)||
     !Number.isSafeInteger(seed)||seed<0||seed>0xffffffff)throw Error('Invalid puzzle configuration.');
  const [rows,cols]=SHAPES[count],rnd=random(seed),pieces=[];
