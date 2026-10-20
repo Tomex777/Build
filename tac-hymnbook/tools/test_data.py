@@ -122,6 +122,28 @@ class HymnDataTest(unittest.TestCase):
             self.assertGreaterEqual(len(hymn["verses_en"]), 3)
             self.assertFalse("verses_yo" in hymn)
 
+    def test_every_redemption_hymn_has_an_english_audio_discovery_query(self):
+        source = json.loads(
+            (ROOT / "android/app/src/main/assets/redemption_index.json").read_text(encoding="utf-8")
+        )
+        queue = json.loads(
+            (ROOT / "data/audio-research-queue.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(queue["stats"]["total"], 1105)
+        self.assertEqual(queue["stats"]["redemption"], 800)
+        self.assertEqual(queue["stats"]["akokun"], 305)
+        self.assertEqual(queue["stats"]["no_known_titles"], 6)
+        entries = [h for h in queue["hymns"] if h["collection"] == "main"]
+        self.assertEqual(len(entries), 800)
+        self.assertEqual([h["number"] for h in entries], list(range(1, 801)))
+        for hymn in entries:
+            title = source["entries"][hymn["number"] - 1]["title_en"]
+            self.assertEqual(hymn["title_en"], title)
+            self.assertEqual(hymn["recording_search_status"], "not_yet_checked")
+            self.assertEqual(hymn["permission_status"], "not_yet_checked")
+            self.assertIn("youtube.com/results?search_query=", hymn["youtube_search"]["english"])
+            self.assertIn(title, hymn["discovery_queries"]["english"])
+
     def test_akokun_is_a_distinct_addendum(self):
         source = ROOT / "data/akokun-collection.json"
         asset = ROOT / "android/app/src/main/assets/akokun_index.json"
