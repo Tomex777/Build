@@ -198,7 +198,7 @@ tap "Resume"
 adb shell input swipe 530 850 530 640 180
 shot games-snake-steered
 adb shell input keyevent KEYCODE_BACK
-wait_for "Memory match"
+wait_for "Snake"
 
 tap "2048"
 wait_for "SCORE"
@@ -279,7 +279,7 @@ tap "Play again"
 wait_for "Your turn"
 tap "All games"
 
-tap "Memory match"
+tap_scrolling "Memory match"
 wait_for "MOVES"
 shot games-memory-board
 # Tap two face-down memory cards by accessibility bounds (not hardcoded
@@ -380,12 +380,24 @@ tap "All games"
 tap_scrolling "Meme caption"
 wait_for "Save a meme in your Library"
 shot games-meme-caption-empty
+tap "All games"
+
+# Water Sort is a real playable twelfth native game; check the rendered board
+# rather than simply counting a card in the launcher.
+tap_scrolling "Water Sort"
+wait_for "LEVEL 1"
+wait_for "MOVES"
+wait_for "Restart"
+shot games-water-sort-board
+tap "Restart"
+wait_for "0 MOVES"
+tap "All games"
 
 # The standalone arcade workflow verifies all eleven modes independently of
 # live AniList, Reddit, TMDB, and Bible service availability. This is also where
 # we capture the actual Android-rendered UI for visual review.
 if [[ "${SORA_ONLY_GAMES:-0}" == "1" ]]; then
-  echo 'Verified all 11 Sora arcade modes, touch controls, board transitions,'
+  echo 'Verified all 12 Sora arcade modes, touch controls, board transitions,'
   echo 'score persistence, and navigation on Android.'
   exit 0
 fi
@@ -662,7 +674,7 @@ tap "Tic-tac-toe"
 wait_for "Your turn"
 shot responsive-360dp-tictactoe
 tap "All games"
-tap "Memory match"
+tap_scrolling "Memory match"
 wait_for "MOVES"
 shot responsive-360dp-memory
 tap "All games"
