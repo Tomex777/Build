@@ -423,6 +423,77 @@ curl -fsS --max-time 12 \
       }
       console.log("Cortex MEGA and AI environment controls verified; secrets remain hidden.");
     });'
+# Prove the write paths that the phone actually uses. Reapply existing
+# non-secret values only: no MEGA credentials, account state or toggles change.
+# All HTTP responses remain in a private scratch directory, never CI logs.
+curl -fsS --max-time 12 -o "$tmp/settings-before.json" \
+  -H "Authorization: Bearer $TOKEN" \
+  http://127.0.0.1:47831/api/cortex/host/settings
+settings_same="$(node - "$tmp/settings-before.json" <<'READ_SETTING'
+const fs=require('node:fs');
+const entries=JSON.parse(fs.readFileSync(process.argv[2],'utf8')).entries;
+const row=Array.isArray(entries)?entries.find(x=>typeof x?.enabled==='boolean' &&
+  /^[A-Za-z_][A-Za-z0-9._-]{0,79}$/.test(x.key)):null;
+if (!row) process.exit(2);
+process.stdout.write(JSON.stringify({key:row.key,enabled:row.enabled}));
+READ_SETTING
+)" || {
+  echo 'No safe boolean setting available for Cortex write verification.' >&2
+  exit 1
+}
+settings_code="$(curl --silent --show-error --max-time 14 \
+  --output "$tmp/settings-after.json" --write-out '%{http_code}' \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  --data "$settings_same" \
+  http://127.0.0.1:47831/api/cortex/host/settings)"
+[[ "$settings_code" == 200 ]] || {
+  echo "Cortex protected settings write failed (HTTP $settings_code)." >&2; exit 1;
+}
+node - "$tmp/settings-before.json" "$tmp/settings-after.json" "$settings_same" <<'VERIFY_SETTING'
+const fs=require('node:fs');
+const original=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+const after=JSON.parse(fs.readFileSync(process.argv[3],'utf8'));
+const expected=JSON.parse(process.argv[4]);
+const matched=after.entries?.find(x=>x.key===expected.key);
+if (matched?.enabled!==expected.enabled ||
+  !Array.isArray(original.entries) || after.entries.length!==original.entries.length)
+  process.exit(2);
+console.log('Cortex protected command-setting write readback passed (no value changed).');
+VERIFY_SETTING
+
+curl -fsS --max-time 12 -o "$tmp/environment-before.json" \
+  -H "Authorization: Bearer $TOKEN" \
+  http://127.0.0.1:47831/api/cortex/host/environment
+log_level="$(node - "$tmp/environment-before.json" <<'READ_LOG_LEVEL'
+const fs=require('node:fs');
+const rows=JSON.parse(fs.readFileSync(process.argv[2],'utf8')).entries;
+const value=rows?.find(x=>x.key==='LOG_LEVEL')?.value;
+if (!['silent','fatal','error','warn','info','debug','trace'].includes(value)) process.exit(2);
+process.stdout.write(value);
+READ_LOG_LEVEL
+)" || {
+  echo 'Cortex ENV write probe requires an existing safe LOG_LEVEL value.' >&2
+  exit 1
+}
+env_payload="$(node -e 'process.stdout.write(JSON.stringify({key:"LOG_LEVEL",value:process.argv[1]}))' "$log_level")"
+env_code="$(curl --silent --show-error --max-time 15 \
+  --output "$tmp/environment-after.json" --write-out '%{http_code}' \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  --data "$env_payload" \
+  http://127.0.0.1:47831/api/cortex/host/environment)"
+[[ "$env_code" == 200 ]] || {
+  echo "Cortex protected ENV write failed (HTTP $env_code)." >&2; exit 1;
+}
+node - "$tmp/environment-after.json" "$log_level" <<'VERIFY_ENV_WRITE'
+const fs=require('node:fs');
+const response=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+if (response.entries?.find(x=>x.key==='LOG_LEVEL')?.value!==process.argv[3]) process.exit(2);
+if (response.entries?.find(x=>x.key==='MSCC_MEGA_PASSWORD')?.value) process.exit(3);
+console.log('Cortex protected ENV write readback passed with unchanged LOG_LEVEL (secrets hidden).');
+VERIFY_ENV_WRITE
+
 # Verify route exists; downstream /cloud may remain unavailable until the
 # separately authorized MSCC Cloud release is installed.
 status="$(curl -sS --max-time 12 \
