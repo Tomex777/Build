@@ -4,7 +4,7 @@ const {createPuzzle,applyCommand,publicSnapshot,LEASE_MS}=require('./co-op-state
 const HOST='verifiedHost001',A='guestAlice0001',B='guestBob000002';
 let state=createPuzzle({photoId:'photo-alpine-lake',hostId:HOST,hostName:'Host',seed:17},1000);
 function command(cmd,at=2000,accepted=true){
- const prior=state,result=applyCommand(state,cmd,at);
+ const prior=state,result=applyCommand(state,{roundId:state.roundId,...cmd},at);
  assert.equal(result.accepted,accepted,result.error||cmd.type);
  if(accepted)state=result.state;else assert.equal(result.state,prior,'rejected op must be atomic');
  return result;
@@ -77,20 +77,22 @@ for(const count of [24,48,144]){
  assert.equal(new Set(round.pieces.map(p=>p.id)).size,count);
  assert.deepEqual(round.pieces,createPuzzle({photoId:'photo-alpine-lake',hostId:HOST,hostName:'Host',count,seed:4}).pieces);
 }
+assert.equal(applyCommand(state,{roundId:'00000000-0000-0000-0000-000000000000',type:'heartbeat',actor:HOST}).accepted,false,'old round cannot mutate current board');
+assert.equal(publicSnapshot(state,HOST).roundId,state.roundId);
 assert.throws(()=>createPuzzle({photoId:'https://evil.example/x',hostId:HOST,hostName:'Host'}));
 assert.throws(()=>createPuzzle({photoId:'photo-alpine-lake',count:12,hostId:HOST,hostName:'Host'}));
 assert.throws(()=>createPuzzle({photoId:'photo-alpine-lake',count:'24',hostId:HOST,hostName:'Host'}));
-const outsider=applyCommand(state,{type:'rename',actor:'unjoinedStranger001',name:'Impersonated'},22007);
+const outsider=applyCommand(state,{roundId:state.roundId,type:'rename',actor:'unjoinedStranger001',name:'Impersonated'},22007);
 assert.equal(outsider.accepted,false,'unjoined actor must be denied');
 assert.equal(outsider.state,state,'unauthorized change must be atomic');
 const roomWithCap=createPuzzle({photoId:'photo-alpine-lake',hostId:HOST,hostName:'Host'});
 let full=roomWithCap;
 for(let i=0;i<15;i++){
- const joined=applyCommand(full,{type:'join',actor:'guestForCapacity'+String(i).padStart(3,'0'),name:'Guest '+i});
+ const joined=applyCommand(full,{roundId:full.roundId,type:'join',actor:'guestForCapacity'+String(i).padStart(3,'0'),name:'Guest '+i});
  assert.equal(joined.accepted,true);full=joined.state;
 }
 assert.equal(full.players.length,16);
-assert.equal(applyCommand(full,{type:'join',actor:'extraGuestBeyondCap001',name:'Extra'}).accepted,false);
+assert.equal(applyCommand(full,{roundId:full.roundId,type:'join',actor:'extraGuestBeyondCap001',name:'Extra'}).accepted,false);
 for(const count of [24,48,144]){
  const puzzle=createPuzzle({photoId:'photo-alpine-lake',count,hostId:HOST,hostName:'Host',seed:188});
  const map=new Map(puzzle.pieces.map(p=>[p.id,p]));
