@@ -132,7 +132,8 @@ internal fun ProjectBrowser(
                     }
                 }
 
-                if (projects.size >= 4) {
+                // Keep the search field available until its query is cleared, even after deletions.
+                if (projects.size >= 4 || searchQuery.isNotBlank()) {
                     BrowserTextInput(
                         value = searchQuery,
                         onValueChange = { searchQuery = it },
