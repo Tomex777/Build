@@ -82,6 +82,8 @@ try{
   await waitFor(page,()=>window.__nightActionTest.snapshot().fruits.some(f=>f.kind!=='bomb'&&Math.abs(f.vy)<140&&f.y>110&&f.y<450));
   const fruit=(await snap(page)).fruits.find(f=>f.kind!=='bomb'&&Math.abs(f.vy)<140&&f.y>110&&f.y<450);
   assert.ok(fruit);
+  // A genuine launch must reach the upper half of the board (older arcs peaked below y=340).
+  assert.ok(fruit.y<270,'fruit reaches the upper half of the playfield, not just the bottom edge');
   const box=await page.locator('canvas').boundingBox();
   const x=box.x+fruit.x/390*box.width,y=box.y+fruit.y/550*box.height;
   await page.mouse.move(x-42,y);await page.mouse.down();
