@@ -15,6 +15,7 @@ const server=createServer((req,res)=>{
 await new Promise(ok=>server.listen(0,'127.0.0.1',ok));
 const address='http://127.0.0.1:'+server.address().port;
 const game={code:'ABCDEFGH',mode:'wyr',hostName:'Verified Host',phase:'lobby',round:0,questions:windowQuestions(),players:[],votes:new Map()};
+const outageActors=new Set();
 function windowQuestions(){return Array.from({length:5},(_,i)=>({prompt:'Round '+(i+1)+': Which adventure?',choices:['Ocean','Space'],correct:null}))}
 function snapshot(actor){
   const host=actor==='host',me=game.players.find(p=>p.id===actor)?.id||null;
@@ -28,6 +29,7 @@ function snapshot(actor){
     scores:revealed?game.players.map(p=>({...p,points:0})):null,expiresAt:Date.now()+8000000}
 }
 async function mocked(route,actor) {
+  if(outageActors.has(actor))return route.fulfill({status:503,json:{error:'Backend temporarily unavailable.'}});
   const req=route.request();
   if(req.method()==='GET'){return route.fulfill({json:{linked:actor==='host',profile:actor==='host'?{id:'host',displayName:'Verified Host'}:null}})}
   const {action,...data}=req.postDataJSON();
@@ -86,6 +88,18 @@ try {
   await one.locator('[data-answer="0"]').waitFor({timeout:7000});
   await two.locator('[data-answer="1"]').waitFor({timeout:7000});
   await one.screenshot({path:path.join(output,'party-online-real-vote.jpg'),type:'jpeg',quality:78});
+  // Force a browser guest offline while the other guest and host stay online.
+  // The room must recover its server-owned state without a second join.
+  outageActors.add('guest-1');
+  await one.locator('#toast').getByText('Connection lost.',{exact:false}).waitFor({timeout:9000});
+  await one.screenshot({path:path.join(output,'party-online-guest-disconnected.jpg'),type:'jpeg',quality:78});
+  assert.equal(await one.locator('[data-answer="0"]').count(),1,'network interruption does not erase voting controls');
+  outageActors.delete('guest-1');
+  await one.locator('#toast').getByText('Connection restored.',{exact:false}).waitFor({timeout:16000});
+  await one.reload();
+  await one.locator('[data-answer="0"]').waitFor({timeout:10000});
+  assert.equal(await one.locator('#guestName').count(),0,'reloaded guest retains remote room membership');
+  await one.screenshot({path:path.join(output,'party-online-guest-reconnected.jpg'),type:'jpeg',quality:78});
   for(let round=0;round<5;round++){
     for(const [p,choice] of [[one,0],[two,1]]){
       await p.locator('[data-answer="'+choice+'"]').click();
@@ -97,12 +111,12 @@ try {
   }
   assert.equal(game.phase,'finished');
   await host.locator('.party-summary').waitFor();
-  for(const [w,h] of [[320,568],[390,844],[430,932],[768,1024],[1280,860]]){
+  for(const [w,h] of [[320,568],[360,800],[390,844],[412,915],[768,1024],[1280,860]]){
     await host.setViewportSize({width:w,height:h});
     const x=await host.evaluate(()=>({scroll:document.documentElement.scrollWidth,viewport:innerWidth}));
     assert.ok(x.scroll<=x.viewport+2,'online horizontal overflow '+w+'×'+h+' '+JSON.stringify(x));
   }
   assert.deepEqual(errors,[],'no browser script failures');
-  console.log('PASS: live NIGHT room host and two remote joiners completed five real browser-played rounds, reveals and five viewports');
+  console.log('PASS: NIGHT mock-server host + two independent browser guests finished five rounds; guest outage, reconnection and reload preserved the room; six viewports inspected');
   for(const context of contexts)await context.close();
 }finally{if(browser)await browser.close();await new Promise(ok=>server.close(ok))}
