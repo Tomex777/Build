@@ -71,6 +71,14 @@ function create({board,tools,status,message,newButton}){
   change.dataset.memoryAction="change";change.textContent="Change deck";status.append(change);
  }
  function showMessage(text){message.textContent=text||"";}
+ // Button labels reveal the actual card identity only after a face is turned.
+ // The art itself is deliberately aria-hidden; without these labels the game
+ // cannot be played with a screen reader, because every card sounds identical.
+ function faceName(id,theme=state.theme){
+  if(theme==="storybook")return art.figureNames[id]||"Character "+(id+1);
+  if(theme==="shapes")return "Shape "+(id+1);
+  return art.photos[theme]?.[id]?.[0]||"Picture "+(id+1);
+ }
  function cardArtwork(id,theme=state.theme){
   return art.face(theme,id,true);
  }
@@ -144,7 +152,8 @@ function create({board,tools,status,message,newButton}){
    const matched=state.matched[i],open=flipped.includes(i);
    button.classList.toggle("flipped",open);button.classList.toggle("matched",matched);
    button.disabled=matched||lock||state.done;
-   button.setAttribute("aria-label","Card "+(i+1)+(matched?", matched":open?", revealed":", face down"));
+   const label="Card "+(i+1)+(matched?", matched: "+faceName(state.deck[i]):open?", revealed: "+faceName(state.deck[i]):", face down");
+   if(button.getAttribute("aria-label")!==label)button.setAttribute("aria-label",label);
   }
  }
  function tick(){

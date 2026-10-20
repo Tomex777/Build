@@ -99,6 +99,89 @@ try{
   report.push({game:'slice',case:'gesture makes two separate pieces',score:later.score,halves:later.halves.length});
   await shot(page,'fruit-halves');await page.close();
  }
+ // A real MOBILE touch gesture must cut; tapping or swiping empty space
+ // must never award points. The split is preserved in the screenshot.
+ {
+  const page=await pageFor('slice',.5);
+  const canvas=page.locator('canvas'),box=await canvas.boundingBox();
+  const coord=(x,y)=>({x:box.x+x/390*box.width,y:box.y+y/550*box.height});
+  const client=await page.context().newCDPSession(page);
+  const swipe=async(x1,y1,x2,y2)=>{
+   await client.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[coord(x1,y1)]});
+   for(let i=1;i<=8;i++){
+    await client.send('Input.dispatchTouchEvent',{type:'touchMove',
+     touchPoints:[coord(x1+(x2-x1)*i/8,y1+(y2-y1)*i/8)]});
+    await page.waitForTimeout(12);
+   }
+   await client.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+  };
+  await waitFor(page,()=>window.__nightActionTest.snapshot().fruits.some(f=>
+   f.kind!=='bomb'&&Math.abs(f.vy)<180&&f.y>115&&f.y<285));
+  let fruit=(await snap(page)).fruits.find(f=>f.kind!=='bomb'&&Math.abs(f.vy)<180&&f.y>115&&f.y<285);
+  assert.ok(fruit.apex>=137&&fruit.apex<=233,'launch targets reachable upper/middle screen');
+  await page.touchscreen.tap(coord(fruit.x,fruit.y).x,coord(fruit.x,fruit.y).y);
+  assert.equal((await snap(page)).score,0,'a stationary touch on fruit is NOT a blade cut');
+  await swipe(55,45,310,45);
+  assert.equal((await snap(page)).score,0,'no points for an empty-air slash');
+  // The idle/tap tests take real time. Reacquire a fruit at its apex;
+  // aiming from an older frame makes a swipe miss a fast-moving target.
+  await waitFor(page,()=>window.__nightActionTest.snapshot().fruits.some(f=>
+   f.kind!=='bomb'&&!f.hit&&Math.abs(f.vy)<65&&f.y>100&&f.y<315),5000);
+  fruit=(await snap(page)).fruits.find(f=>
+   f.kind!=='bomb'&&!f.hit&&Math.abs(f.vy)<65&&f.y>100&&f.y<315);
+  assert.ok(fruit,'a fresh reachable fruit reaches its apex');
+  const target={x:fruit.x,y:fruit.y,vy:fruit.vy};
+  await swipe(fruit.x-49,fruit.y,fruit.x+49,fruit.y);
+  const result=await snap(page);
+  console.log('NIGHT_FRUIT_TOUCH_DEBUG='+JSON.stringify({
+   target,score:result.score,trail:result.trail,
+   nearby:result.fruits.map(f=>({x:f.x,y:f.y,vy:f.vy,hit:f.hit,kind:f.kind})),
+   halves:result.halves.length}));
+  assert.ok(result.score>=10,'an actual finger swipe across a fruit earns points');
+  assert.ok(result.halves.length>=2,'a finger slice creates independently falling pieces');
+  await page.waitForTimeout(70);
+  const halves=(await snap(page)).halves;
+  assert.ok(Math.hypot(halves[0].x-halves[1].x,halves[0].y-halves[1].y)>18,
+   'two halves visibly separate during the follow-through');
+  await shot(page,'fruit-real-touch');
+  report.push({game:'slice',case:'real touch tap, miss, valid slice',score:result.score,pieces:result.halves.length});
+  await page.close();
+ }
+ // With zero input, fruit falls back off-screen, subtracts lives and ends
+ // the round; missed fruit MUST NOT get a free score.
+ {
+  const page=await pageFor('slice',.5);
+  const firstMiss=await waitFor(page,()=>window.__nightActionTest.snapshot().misses>=1,5000);
+  assert.equal(firstMiss.score,0,'missing fruit never increases the score');
+  assert.equal(firstMiss.misses>=1,true,'untouched fruit costs a life after falling');
+  await shot(page,'fruit-miss');
+  const endState=await waitFor(page,()=>window.__nightActionTest.snapshot().over,12500);
+  assert.equal(endState.misses,5,'five uncaught fruits end the round');
+  assert.equal(endState.score,0);
+  assert.equal(await page.locator('#overlay').isVisible(),true,'a missed round shows the restart overlay');
+  await page.locator('#overlayStart').click();
+  assert.equal((await snap(page)).misses,0,'restart restores all chances');
+  report.push({game:'slice',case:'natural missed fruit and restart',misses:endState.misses,score:endState.score});
+  await page.close();
+ }
+ // A blade hitting a bomb terminates the round without fake fruit points.
+ {
+  const page=await pageFor('slice',.01);
+  await waitFor(page,()=>window.__nightActionTest.snapshot().fruits.some(f=>
+   f.kind==='bomb'&&!f.hit&&Math.abs(f.vy)<110&&f.y>70&&f.y<390),4500);
+  const bomb=(await snap(page)).fruits.find(f=>
+   f.kind==='bomb'&&!f.hit&&Math.abs(f.vy)<110&&f.y>70&&f.y<390);
+  assert.ok(bomb,'visible bomb becomes reachable in the slicing lane');
+  const box=await page.locator('canvas').boundingBox();
+  const px=x=>box.x+x/390*box.width,py=y=>box.y+y/550*box.height;
+  await page.mouse.move(px(bomb.x-41),py(bomb.y));await page.mouse.down();
+  await page.mouse.move(px(bomb.x+41),py(bomb.y),{steps:4});await page.mouse.up();
+  const hit=await snap(page);
+  assert.equal(hit.over,true,'an actual cut through a bomb ends the round');
+  assert.equal(hit.score,0,'cutting a bomb must not award points');
+  await shot(page,'fruit-bomb');await page.close();
+  report.push({game:'slice',case:'real bomb collision ends round without points',over:hit.over});
+ }
  // 5. Centre-controlled ball impacts only ONE brick at a time, rebounds in
  // its physical collision axis, and cannot tunnel along a full row.
  {

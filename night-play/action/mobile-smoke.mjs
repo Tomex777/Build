@@ -59,17 +59,26 @@ try{
     'the moving platform visibly changes its true physical collision position');
  }
   if(game==='runner')assert.ok(running.score>0&&running.speed>220,'Runner progresses and accelerates');
-  if(game==='shooter')assert.ok(running.shots.length>0&&running.enemies.length>0,'Shooter generates shots and actual enemies');
+  if(game==='shooter')assert.ok(running.shots.length>0&&(running.enemies.length>0||running.kills>0),'Shooter fires and either presents enemies or has already defeated them');
   if(game==='bricks')assert.equal(running.bricks.length,42,'Brick Breaker creates the full first board');
   await page.screenshot({path:path.join(output,'action-'+game+'-390x844.jpg'),type:'jpeg',quality:73});
   console.log('NIGHT_ACTION_VISUAL_'+game.toUpperCase()+'_BASE64='+(await page.screenshot({type:'jpeg',quality:54})).toString('base64'));
   if(game==='slice'){
-   let picked=(await snap()).fruits.find(f=>f.kind!=='bomb'&&!f.hit&&f.y>20&&f.y<510);
-   if(picked){const box=await page.locator('canvas').boundingBox();
-    const x=box.x+picked.x/390*box.width,y=box.y+picked.y/550*box.height;
-    await page.mouse.move(x-25,y-10);await page.mouse.down();await page.mouse.move(x+25,y+10,{steps:4});await page.mouse.up();
-    await page.waitForTimeout(100);assert.ok((await snap()).score>=10,'a real swipe can slice fruit');
-   }
+   // Never chase a 600px/s fruit using a screenshot-era coordinate:
+   // wait for an actual reachable apex, then move the mouse across it.
+   await page.waitForFunction(()=>window.__nightActionTest.snapshot().fruits.some(f=>
+    f.kind!=='bomb'&&!f.hit&&Math.abs(f.vy)<85&&f.y>80&&f.y<335),
+    null,{timeout:5500,polling:16});
+   const picked=(await snap()).fruits.find(f=>
+    f.kind!=='bomb'&&!f.hit&&Math.abs(f.vy)<85&&f.y>80&&f.y<335);
+   assert.ok(picked,'a fruit actually reaches the upper slicing lane');
+   const box=await page.locator('canvas').boundingBox();
+   const x=box.x+picked.x/390*box.width,y=box.y+picked.y/550*box.height;
+   const before=(await snap()).score;
+   await page.mouse.move(x-42,y);await page.mouse.down();
+   await page.mouse.move(x+42,y,{steps:4});await page.mouse.up();
+   await page.waitForTimeout(60);
+   assert.ok((await snap()).score>=before+10,'a timed real swipe can slice fruit');
   }
   if(game==='runner'){
    await page.keyboard.press('Space');await page.waitForTimeout(70);

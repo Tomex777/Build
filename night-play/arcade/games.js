@@ -6,7 +6,7 @@ const metadata={
 bird:["Wing Hop","Tap to fly, glide through the gaps.","Tap anywhere or press Space to flap. Pass through pipe gaps without touching the pipes or ground."],
 blocks:["Block Drop","Stack, clear lines, keep going.","Tap the board to rotate. Drag sideways to move; drag down to soft drop; flick down quickly to hard drop. Or use the grouped buttons and arrow keys (Space hard-drops)."],
 mines:["Minesweeper","One tap at a time, clear the field.","Reveal every safe square. Numbers count the mines in neighbouring squares. Switch to Flag to mark suspected mines. Your first square and its neighbours are protected."],
-maze:["Maze Chase","Collect every dot. Avoid the chasers.","Swipe on the maze, use the arrows, or press WASD. Eat the dots; dodge the red ghosts. Collect all dots to win."]
+maze:["Maze Chase","Clear the maze. Outrun the ghosts.","Swipe on the maze, use the direction controls, or press WASD. Collect every dot, grab large power pellets to eat frightened ghosts, and protect your three lives."]
 };
 let type="bird",frame=0,raf=null,interval=null,life=null,state=null,finished=false,paused=false,points=0,last=0;
 let gameStart=0,blockDirty=true,blockPaintCount=0,wingBackdrop=null,mazeBackdrop=null,mazeDots=null,mazeDotsCtx=null;
@@ -81,7 +81,7 @@ function wingBird(s){
  ctx.save();ctx.translate(s.x,s.y);
  ctx.rotate(Math.max(-.3,Math.min(.65,s.vy/16)));
  // A soft illustrated wing motion sits behind the actual sprite.
- const lift=Math.sin(performance.now()*.018)*6;
+ const lift=Math.sin(performance.now()*.018)*6+(s.flapGlow||0)*5;
  ctx.fillStyle=s.skin==="chick"?"#e8b12e":"#ac381f";
  ctx.beginPath();ctx.ellipse(-14,9+lift*.28,14,9,-.35+lift*.04,0,Math.PI*2);ctx.fill();
  if(sprite){ctx.imageSmoothingEnabled=true;ctx.drawImage(sprite,-26,-26,52,52);}
@@ -133,9 +133,14 @@ function fitWingBoard(){
   // Avoid spurious death when switching portrait/landscape mid-flight.
   const oldPlay=Math.max(1,old-42),newPlay=newLogicalHeight-42;
   state.y=Math.max(20,Math.min(newPlay-21,state.y/oldPlay*newPlay));
-  state.gap=wingGap(newLogicalHeight);
-  const min=state.gap/2+34,max=newPlay-state.gap/2-34;
-  for(const p of state.pipes)p.y=Math.max(min,Math.min(max,p.y/oldPlay*newPlay));
+  state.gap=Math.max(119,wingGap(newLogicalHeight)-Math.min(48,points*2.5));
+  // Each opening keeps its own gap, so newly increased difficulty never
+  // closes the pipe already surrounding the bird.
+  for(const p of state.pipes){
+   p.gap=Math.max(115,Math.min(wingGap(newLogicalHeight),p.gap/oldPlay*newPlay));
+   const min=p.gap/2+34,max=newPlay-p.gap/2-34;
+   p.y=Math.max(min,Math.min(max,p.y/oldPlay*newPlay));
+  }
   c.height=newLogicalHeight;rebuildWingBackdrop();
  }
 }
@@ -157,14 +162,14 @@ function setupBird(){
  rebuildWingBackdrop();
  let skin="parrot";
  try{skin=localStorage.getItem("night-play-wing-hop-skin")==="chick"?"chick":"parrot"}catch{}
- state={x:95,y:260,vy:0,gap:wingGap(600),pipes:[],distance:0,started:false,dead:false,skin};
+ state={x:95,y:260,vy:0,gap:wingGap(600),speed:2.4,pipes:[],distance:0,started:false,dead:false,skin,flapGlow:0};
  setControls("");
  message("Tap anywhere inside the game to fly.");
  scheduleWingFit();frameLoop(birdFrame);
 }
 function flap(){
  if(type!=="bird"||finished)return;
- state.started=true;state.vy=-6.8;
+ state.started=true;state.vy=-6.8;state.flapGlow=1;
  message("Keep flying!");
 }
 function switchBird(){
@@ -175,27 +180,32 @@ function switchBird(){
 }
 function birdFrame(dt){
  const s=state,step=dt/16.666,ground=c.height-42;
+ s.flapGlow=Math.max(0,(s.flapGlow||0)-dt/150);
  if(s.started){
-  s.vy+=.33*step;s.y+=s.vy*step;s.distance+=2.4*step;
+  s.speed=Math.min(3.35,2.4+points*.045);
+  s.vy+=.33*step;s.y+=s.vy*step;s.distance+=s.speed*step;
   if(!s.pipes.length||s.pipes[s.pipes.length-1].x<165){
    const prev=s.pipes[s.pipes.length-1];
-   if(!prev||prev.x<150)s.pipes.push({
-    x:prev?prev.x+216:365,y:wingPipeCenter(s),scored:false
-   });
+   if(!prev||prev.x<150){
+    // A sensible gradual challenge: slightly faster scroll and narrower
+    // NEW pipe openings. Existing openings never shrink around the bird.
+    s.gap=Math.max(119,wingGap(c.height)-Math.min(48,points*2.5));
+    s.pipes.push({x:prev?prev.x+216:365,y:wingPipeCenter(s),gap:s.gap,scored:false});
+   }
   }
   for(const p of s.pipes){
-   p.x-=2.4*step;
+   p.x-=s.speed*step;
    if(!p.scored&&p.x+62<s.x){p.scored=true;score(points+1);}
    if(s.x+16>p.x&&s.x-16<p.x+62&&
-      (s.y-15<p.y-s.gap/2||s.y+15>p.y+s.gap/2)){end("You hit a pipe!");}
+      (s.y-15<p.y-p.gap/2||s.y+15>p.y+p.gap/2)){end("You hit a pipe!");}
   }
   s.pipes=s.pipes.filter(p=>p.x>-75);
   if(s.y<17||s.y>ground-19)end("Bird down!");
  }
  drawWingBackground(s);
  for(const p of s.pipes){
-  wingPipe(p.x,p.y-s.gap/2,true);
-  wingPipe(p.x,p.y+s.gap/2,false);
+  wingPipe(p.x,p.y-p.gap/2,true);
+  wingPipe(p.x,p.y+p.gap/2,false);
  }
  ctx.fillStyle="#236e5a";ctx.fillRect(0,ground,360,42);
  ctx.fillStyle="#8cc670";ctx.fillRect(0,ground,360,9);
@@ -206,8 +216,6 @@ function birdFrame(dt){
  }
  wingBird(s);
  if(!s.started){
-  // Keep instructions high and away from the bird's starting position.
-  // One compact in-world cue, not a large panel covering the character.
   const top=Math.max(27,Math.min(ground*.14,88));
   ctx.fillStyle="#173c31b9";ctx.beginPath();
   ctx.roundRect(65,top,230,57,13);ctx.fill();
@@ -305,43 +313,193 @@ function drawMines(){
  if(s.started&&!finished&&points)score(s.open.filter(Boolean).length);
 }
 function flagMode(f){state.flagMode=f;drawMines();}
-/* MAZE CHASE — 19x21 authored corridors, collectible dots and pursuing ghosts. */
-function setupMaze(){c.width=456;c.height=504;const walls=[];for(let y=0;y<21;y++){const row=[];for(let x=0;x<19;x++){let w=x===0||x===18||y===0||y===20;
-if(!w&&y>1&&y<19){if((y===4||y===8||y===12||y===16)&&x>=2&&x<=16&&x!==5&&x!==13)w=true;
-if((x===4||x===9||x===14)&&y>1&&y<19&&y!==3&&y!==7&&y!==11&&y!==15&&y!==18)w=true;}row.push(w?1:0);}walls.push(row);}
-for(let y of [3,7,11,15,18])for(let x of [4,9,14])walls[y][x]=0;
-const pills=walls.map((row,y)=>row.map((cell,x)=>cell?0:1));pills[1][1]=0;pills[18][17]=0;
-state={walls,pills,p:{x:1,y:1,dir:[1,0]},ghosts:[{x:17,y:18,t:0},{x:17,y:1,t:0}],lives:3,total:pills.flat().reduce((a,b)=>a+b,0),elapsed:0,invincible:0};
- // Draw the maze walls and pills once; only entities and removed dots change.
+/* MAZE CHASE: one connected authored maze, buffered turns, power pellets,
+ * two distinct pathfinding ghosts and cross-over collision detection.
+ * All movement, dots and entity coordinates use the same 19 x 21 grid. */
+const MAZE_W=19,MAZE_H=21,MAZE_TILE=24,MAZE_DIRS=[[1,0],[0,1],[-1,0],[0,-1]];
+function setupMaze(){
+ c.width=456;c.height=504;
+ const walls=[];
+ for(let y=0;y<MAZE_H;y++){
+  const row=[];
+  for(let x=0;x<MAZE_W;x++){
+   let wall=x===0||x===18||y===0||y===20;
+   if(!wall&&y>1&&y<19){
+    if([4,8,12,16].includes(y)&&x>=2&&x<=16&&x!==5&&x!==13)wall=true;
+    if([4,9,14].includes(x)&&y>1&&y<19&&![3,7,11,15,18].includes(y))wall=true;
+   }
+   row.push(wall?1:0);
+  }
+  walls.push(row);
+ }
+ for(const y of [3,7,11,15,18])for(const x of [4,9,14])walls[y][x]=0;
+ const pills=walls.map(row=>row.map(cell=>cell?0:1)),power=walls.map(row=>row.map(()=>0));
+ pills[1][1]=0;pills[18][17]=0;pills[1][17]=0;
+ for(const [x,y] of [[1,3],[17,3],[1,17],[17,17]]){power[y][x]=1;pills[y][x]=0;}
+ state={walls,pills,power,p:{x:1,y:1,dir:[1,0],wish:[1,0]},
+  ghosts:[{x:17,y:18,home:[17,18],dir:[-1,0],kind:0},
+          {x:17,y:1,home:[17,1],dir:[-1,0],kind:1}],
+  lives:3,total:pills.flat().reduce((n,v)=>n+v,0)+4,elapsed:0,
+  invincible:12,frightened:0,ghostCombo:0,score:0,won:false};
+ // Walls and ordinary dots use offscreen layers and never repaint per frame.
  mazeBackdrop=document.createElement("canvas");mazeBackdrop.width=456;mazeBackdrop.height=504;
  mazeDots=document.createElement("canvas");mazeDots.width=456;mazeDots.height=504;
- mazeDotsCtx=mazeDots.getContext("2d");
- const wallsCtx=mazeBackdrop.getContext("2d");
- wallsCtx.fillStyle="#101f23";wallsCtx.fillRect(0,0,456,504);
- for(let y=0;y<21;y++)for(let x=0;x<19;x++){
+ mazeDotsCtx=mazeDots.getContext("2d");const backdrop=mazeBackdrop.getContext("2d");
+ backdrop.fillStyle="#091a29";backdrop.fillRect(0,0,456,504);
+ for(let y=0;y<MAZE_H;y++)for(let x=0;x<MAZE_W;x++){
   const px=x*24,py=y*24;
   if(walls[y][x]){
-   wallsCtx.fillStyle="#31577a";wallsCtx.fillRect(px,py,24,24);
-   wallsCtx.fillStyle="#668eaa";wallsCtx.fillRect(px+3,py+3,18,3);
+   backdrop.fillStyle="#213b69";backdrop.fillRect(px+1,py+1,22,22);
+   backdrop.fillStyle="#456da0";backdrop.fillRect(px+4,py+4,16,3);
   }else if(pills[y][x]){
-   mazeDotsCtx.fillStyle="#e8d0a0";mazeDotsCtx.beginPath();
-   mazeDotsCtx.arc(px+12,py+12,2.5,0,Math.PI*2);mazeDotsCtx.fill();
+   mazeDotsCtx.fillStyle="#f3d59c";mazeDotsCtx.beginPath();
+   mazeDotsCtx.arc(px+12,py+12,2.7,0,Math.PI*2);mazeDotsCtx.fill();
   }
  }
-setControls(button("◀","left","Left")+button("▲","up","Up")+button("▼","down","Down")+button("▶","right","Right")+button("Ⅱ","pause","Pause"));message("Collect the dots. Avoid the ghosts.");interval=setInterval(mazeTick,160);drawMaze();}
-function mazeMove(dx,dy){const s=state;if(type!=="maze"||finished)return;s.p.dir=[dx,dy];}
-function moveable(s,x,y){return y>=0&&y<21&&x>=0&&x<19&&s.walls[y][x]===0;}
-function ghostStep(g,s){const dirs=[[1,0],[-1,0],[0,1],[0,-1]].filter(([dx,dy])=>moveable(s,g.x+dx,g.y+dy));if(!dirs.length)return;let picks=dirs.map(([dx,dy])=>({x:g.x+dx,y:g.y+dy,cost:Math.abs(g.x+dx-s.p.x)+Math.abs(g.y+dy-s.p.y)+Math.random()*8}));picks.sort((a,b)=>a.cost-b.cost);const chosen=picks[0];g.x=chosen.x;g.y=chosen.y;}
-function mazeTick(){const s=state;if(paused||finished)return;s.elapsed++;if(s.invincible>0)s.invincible--;const [dx,dy]=s.p.dir;if(moveable(s,s.p.x+dx,s.p.y+dy)){s.p.x+=dx;s.p.y+=dy;}if(s.pills[s.p.y][s.p.x]){s.pills[s.p.y][s.p.x]=0;
- if(mazeDotsCtx)mazeDotsCtx.clearRect(s.p.x*24+5,s.p.y*24+5,14,14);
- score(points+10);s.total--;}
-if(s.elapsed%3===0)s.ghosts.forEach(g=>ghostStep(g,s));if(s.invincible===0&&s.ghosts.some(g=>g.x===s.p.x&&g.y===s.p.y)){s.lives--;s.invincible=8;s.p={x:1,y:1,dir:[1,0]};if(s.lives===0){end("The ghosts caught you!");}}
-if(s.total===0)end("You collected every dot!");drawMaze();}
-function drawMaze(){const s=state,ts=24;
+ const icon=path=>'<svg aria-hidden="true" width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="'+path+'"/></svg>';
+ setControls(button(icon("M15 5 8 12l7 7"),"left","Left")+
+  button(icon("m5 15 7-7 7 7"),"up","Up")+
+  button(icon("m5 9 7 7 7-7"),"down","Down")+
+  button(icon("m9 5 7 7-7 7"),"right","Right")+
+  button(icon("M8 5v14M16 5v14"),"pause","Pause"));
+ message("");
+ interval=setInterval(mazeTick,155);drawMaze();
+}
+function mazeMove(dx,dy){
+ if(type!=="maze"||finished||paused)return;
+ // Queue a turn before a junction without cancelling forward motion.
+ state.p.wish=[dx,dy];
+}
+function moveable(s,x,y){
+ return y>=0&&y<MAZE_H&&x>=0&&x<MAZE_W&&s.walls[y][x]===0;
+}
+function mazePathCost(s,fromX,fromY,targetX,targetY){
+ if(fromX===targetX&&fromY===targetY)return 0;
+ const visited=new Uint8Array(MAZE_W*MAZE_H),q=[[fromX,fromY,0]];
+ visited[fromY*MAZE_W+fromX]=1;
+ for(let head=0;head<q.length;head++){
+  const [x,y,n]=q[head];
+  for(const [dx,dy] of MAZE_DIRS){
+   const nx=x+dx,ny=y+dy,id=ny*MAZE_W+nx;
+   if(!moveable(s,nx,ny)||visited[id])continue;
+   if(nx===targetX&&ny===targetY)return n+1;
+   visited[id]=1;q.push([nx,ny,n+1]);
+  }
+ }
+ return 1000;
+}
+function ghostStep(g,s,index){
+ const options=MAZE_DIRS.filter(([dx,dy])=>moveable(s,g.x+dx,g.y+dy));
+ if(!options.length)return;
+ // Keep forward motion at junctions; U-turn only if all forward paths close.
+ const choices=options.filter(([dx,dy])=>dx!==-g.dir[0]||dy!==-g.dir[1]);
+ const dirs=choices.length?choices:options;
+ let tx=s.p.x,ty=s.p.y;
+ if(index===1){
+  // Pink ghost heads for the square three steps in front of the player.
+  const [dx,dy]=s.p.dir;
+  for(let j=0;j<3&&moveable(s,tx+dx,ty+dy);j++){tx+=dx;ty+=dy;}
+ }
+ if(s.elapsed%90>75&&!s.frightened){[tx,ty]=g.home;}
+ const scored=dirs.map(([dx,dy],i)=>{
+  const nx=g.x+dx,ny=g.y+dy;
+  const distance=mazePathCost(s,nx,ny,tx,ty);
+  return {dx,dy,x:nx,y:ny,cost:s.frightened?-distance:distance,
+    tie:(i+index+s.elapsed)%4};
+ });
+ scored.sort((a,b)=>a.cost-b.cost||a.tie-b.tie);
+ const next=scored[0];g.x=next.x;g.y=next.y;g.dir=[next.dx,next.dy];
+}
+function mazeCollision(s,previousPlayer,previousGhosts){
+ if(s.invincible>0)return;
+ for(let i=0;i<s.ghosts.length;i++){
+  const g=s.ghosts[i],old=previousGhosts[i];
+  const overlap=g.x===s.p.x&&g.y===s.p.y;
+  const crossed=old.x===s.p.x&&old.y===s.p.y&&
+                previousPlayer.x===g.x&&previousPlayer.y===g.y;
+  if(!overlap&&!crossed)continue;
+  if(s.frightened>0){
+   s.ghostCombo++;score(points+200*Math.min(4,s.ghostCombo));
+   g.x=g.home[0];g.y=g.home[1];g.dir=[-1,0];
+   // Do not immediately collide with a respawned ghost during power mode.
+   continue;
+  }
+  s.lives--;s.invincible=12;
+  s.p={x:1,y:1,dir:[1,0],wish:[1,0]};
+  if(s.lives===0)end("The ghosts caught you!");
+  return;
+ }
+}
+function mazeTick(){
+ const s=state;if(paused||finished)return;
+ s.elapsed++;if(s.invincible>0)s.invincible--;
+ if(s.frightened>0){s.frightened--;if(!s.frightened)s.ghostCombo=0;}
+ const prev={x:s.p.x,y:s.p.y},ghostPrev=s.ghosts.map(g=>({x:g.x,y:g.y}));
+ const [wx,wy]=s.p.wish;
+ if(moveable(s,s.p.x+wx,s.p.y+wy))s.p.dir=[wx,wy];
+ const [dx,dy]=s.p.dir;
+ if(moveable(s,s.p.x+dx,s.p.y+dy)){s.p.x+=dx;s.p.y+=dy;}
+ const x=s.p.x,y=s.p.y;
+ if(s.pills[y][x]){
+  s.pills[y][x]=0;mazeDotsCtx.clearRect(x*24+5,y*24+5,14,14);
+  score(points+10);s.total--;
+ }
+ if(s.power[y][x]){
+  s.power[y][x]=0;s.frightened=52;s.ghostCombo=0;
+  score(points+50);s.total--;
+ }
+ // Collision is checked before *and* after enemy moves, including crossing.
+ mazeCollision(s,prev,ghostPrev);
+ if(finished){drawMaze();return;}
+ if(s.elapsed%((s.frightened>0)?3:2)===0){
+  const before=s.ghosts.map(g=>({x:g.x,y:g.y}));
+  s.ghosts.forEach((g,i)=>ghostStep(g,s,i));
+  mazeCollision(s,prev,before);
+ }
+ if(s.total===0&&!finished){s.won=true;end("Maze cleared!");}
+ drawMaze();
+}
+function drawMaze(){
+ const s=state,ts=MAZE_TILE;
  ctx.drawImage(mazeBackdrop,0,0);ctx.drawImage(mazeDots,0,0);
-s.ghosts.forEach((g,i)=>{const px=g.x*ts+12,py=g.y*ts+12;ctx.fillStyle=i===0?"#e85253":"#ec95aa";ctx.beginPath();ctx.arc(px,py,10,Math.PI,0);ctx.lineTo(px+10,py+9);ctx.lineTo(px-10,py+9);ctx.closePath();ctx.fill();ctx.fillStyle="#fff";ctx.fillRect(px-6,py-2,5,6);ctx.fillRect(px+2,py-2,5,6);ctx.fillStyle="#252525";ctx.fillRect(px-5,py,2,3);ctx.fillRect(px+3,py,2,3);});
-if(s.invincible%2===0){ctx.fillStyle="#f6d461";ctx.beginPath();ctx.arc(s.p.x*ts+12,s.p.y*ts+12,10,.22*Math.PI,1.78*Math.PI);ctx.lineTo(s.p.x*ts+12,s.p.y*ts+12);ctx.closePath();ctx.fill();}
-extra.textContent="Lives: "+s.lives+" · Dots left: "+s.total+(paused?" · PAUSED":"");if(paused){ctx.fillStyle="#112329bc";ctx.fillRect(0,0,456,504);drawText("PAUSED",250,34);}if(finished){ctx.fillStyle="#112329bc";ctx.fillRect(0,0,456,504);drawText("GAME OVER",250,31);}}
+ // Four power pellets are drawn dynamically so they can pulse and disappear.
+ for(let y=0;y<MAZE_H;y++)for(let x=0;x<MAZE_W;x++)if(s.power[y][x]){
+  ctx.fillStyle="#ffe9b6";ctx.beginPath();ctx.arc(x*ts+12,y*ts+12,
+   6+Math.sin(s.elapsed*.43)*1.3,0,Math.PI*2);ctx.fill();
+ }
+ s.ghosts.forEach((g,i)=>{
+  const px=g.x*ts+12,py=g.y*ts+12;
+  ctx.fillStyle=s.frightened?(s.frightened<12&&s.elapsed%4<2?"#e6f4ff":"#497bc5"):
+    i===0?"#f06067":"#f49cc1";
+  ctx.beginPath();ctx.moveTo(px-10,py+9);ctx.lineTo(px-10,py-1);
+  ctx.arc(px,py-1,10,Math.PI,0);
+  ctx.lineTo(px+10,py+9);
+  ctx.quadraticCurveTo(px+6,py+5,px+3,py+9);
+  ctx.quadraticCurveTo(px,py+12,px-3,py+9);
+  ctx.quadraticCurveTo(px-6,py+5,px-10,py+9);ctx.fill();
+  ctx.fillStyle="#fff";
+  ctx.beginPath();ctx.ellipse(px-4,py-1,3.6,4.5,0,0,Math.PI*2);
+  ctx.ellipse(px+4,py-1,3.6,4.5,0,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle="#142741";
+  const look=g.dir[0]*1.5;
+  ctx.beginPath();ctx.arc(px-4+look,py,1.9,0,Math.PI*2);
+  ctx.arc(px+4+look,py,1.9,0,Math.PI*2);ctx.fill();
+ });
+ if(s.invincible%2===0||s.invincible===0){
+  ctx.save();ctx.translate(s.p.x*ts+12,s.p.y*ts+12);
+  const ang=Math.atan2(s.p.dir[1],s.p.dir[0]);
+  ctx.rotate(ang);
+  const jaw=.18+(.18*Math.abs(Math.sin(s.elapsed*1.15)));
+  ctx.fillStyle="#f8d668";ctx.beginPath();ctx.moveTo(0,0);
+  ctx.arc(0,0,10,jaw,Math.PI*2-jaw);ctx.closePath();ctx.fill();ctx.restore();
+ }
+ extra.textContent="Lives "+s.lives+" · Dots "+s.total+
+  (s.frightened?" · Power "+Math.ceil(s.frightened*.155)+"s":"")+(paused?" · Paused":"");
+ if(paused||finished){
+  ctx.fillStyle="#071927c4";ctx.fillRect(0,0,456,504);
+  drawText(paused?"PAUSED":s.won?"MAZE CLEARED":"GAME OVER",250,31);
+ }
+}
 
 /* Block Drop touch controls. One pointer = one committed gesture.
    Lock horizontal/vertical intent before moving; never rotate after a drag.
@@ -521,7 +679,14 @@ for(const eventName of ["pointerup","pointercancel","lostpointercapture"])
   if(eventName==="pointercancel")blockSuppressedClicks.delete(b);
   else setTimeout(()=>blockSuppressedClicks.delete(b),380);
  });
-function action(control){if(type==="bird"&&control==="flap")flap();if(type==="bird"&&control==="bird-skin")switchBird();if(type==="blocks")blockMove(control);if(type==="maze"){if(control==="pause"){paused=!paused;message(paused?"Paused":"Back in the maze");drawMaze();}else{const dirs={left:[-1,0],right:[1,0],up:[0,-1],down:[0,1]};if(dirs[control])mazeMove(...dirs[control]);}}if(type==="mines"&&(control==="flag"||control==="reveal"))flagMode(control==="flag");}
+function action(control){if(type==="bird"&&control==="flap")flap();if(type==="bird"&&control==="bird-skin")switchBird();if(type==="blocks")blockMove(control);if(type==="maze"){if(control==="pause"){
+ paused=!paused;
+ const icon=touch.querySelector('[data-control="pause"] svg path'),
+  controlButton=touch.querySelector('[data-control="pause"]');
+ if(icon)icon.setAttribute("d",paused?"m8 5 12 7-12 7z":"M8 5v14M16 5v14");
+ if(controlButton)controlButton.setAttribute("aria-label",paused?"Resume":"Pause");
+ message("");drawMaze();
+}else{const dirs={left:[-1,0],right:[1,0],up:[0,-1],down:[0,1]};if(dirs[control])mazeMove(...dirs[control]);}}if(type==="mines"&&(control==="flag"||control==="reveal"))flagMode(control==="flag");}
 $("picks").addEventListener("click",e=>{const target=e.target.closest("[data-game]");if(target)pick(target.dataset.game);});
 $("settingsButton").addEventListener("click",()=>$("settingsDialog").showModal());
 $("settingsClose").addEventListener("click",()=>$("settingsDialog").close());
@@ -560,9 +725,22 @@ board.addEventListener("pointerup",stopHold);
 board.addEventListener("pointercancel",stopHold);
 c.addEventListener("pointerdown",e=>{if(type==="bird"&&e.isPrimary&&e.button===0)flap();});
 $("wingSkin").addEventListener("click",switchBird);
-let startTouch=null;
-c.addEventListener("touchstart",e=>{if(type==="maze"&&e.touches.length===1)startTouch=[e.touches[0].clientX,e.touches[0].clientY];},{passive:true});
-c.addEventListener("touchend",e=>{if(type!=="maze"||!startTouch||!e.changedTouches.length)return;const dx=e.changedTouches[0].clientX-startTouch[0],dy=e.changedTouches[0].clientY-startTouch[1];if(Math.abs(dx)>18||Math.abs(dy)>18)mazeMove(...(Math.abs(dx)>Math.abs(dy)?[Math.sign(dx),0]:[0,Math.sign(dy)]));startTouch=null;},{passive:true});
+/* Pointer events turn while a finger is still down; release isn't required. */
+let mazeGesture=null;
+c.addEventListener("pointerdown",e=>{
+ if(type!=="maze"||e.button!==0)return;
+ mazeGesture={id:e.pointerId,x:e.clientX,y:e.clientY};
+ if(c.setPointerCapture)c.setPointerCapture(e.pointerId);
+});
+c.addEventListener("pointermove",e=>{
+ if(type!=="maze"||!mazeGesture||mazeGesture.id!==e.pointerId)return;
+ const dx=e.clientX-mazeGesture.x,dy=e.clientY-mazeGesture.y;
+ if(Math.max(Math.abs(dx),Math.abs(dy))<13)return;
+ mazeMove(...(Math.abs(dx)>Math.abs(dy)?[Math.sign(dx),0]:[0,Math.sign(dy)]));
+ mazeGesture.x=e.clientX;mazeGesture.y=e.clientY;
+});
+for(const eventName of ["pointerup","pointercancel","lostpointercapture"])
+ c.addEventListener(eventName,e=>{if(mazeGesture?.id===e.pointerId)mazeGesture=null;});
 document.addEventListener("keydown",e=>{if(e.ctrlKey||e.metaKey||e.altKey||e.target.closest("input,textarea,select"))return;const k=e.key.toLowerCase();let cmd={arrowleft:"left",arrowright:"right",arrowup:"rotate",arrowdown:"down",w:"up",a:"left",s:"down",d:"right"," ":"drop",p:"pause"}[k];if(type==="bird"&&(k===" "||k==="arrowup")){e.preventDefault();flap();return;}if(type==="maze"){cmd={arrowleft:"left",arrowright:"right",arrowup:"up",arrowdown:"down",w:"up",a:"left",s:"down",d:"right",p:"pause"}[k];}if(cmd){e.preventDefault();action(cmd);}});
 document.addEventListener("visibilitychange",()=>{if(document.hidden&&type==="blocks"&&!finished){resetBlockInputs();paused=true;syncBlockPauseButton();blockDirty=true;message("Paused");}if(document.hidden&&type==="maze"&&!finished){paused=true;message("Paused");}});
 window.addEventListener("pagehide",stop);

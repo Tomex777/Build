@@ -1,0 +1,30 @@
+name: NIGHT Play Agent 7 Arcade Gameplay QA
+on:
+  pull_request:
+    paths:
+      - 'night-play/arcade/**'
+      - '.github/workflows/night-play-agent7-arcade-qa.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  playtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install browser interaction runner
+        run: npm install --no-save playwright@1.56.1
+      - name: Play Wing Hop, Block Drop, Minesweeper and Maze Chase in Chromium
+        run: node night-play/arcade/mobile-smoke.mjs
+      - name: Preserve Maze Chase screen after real inputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: night-play-agent7-maze-chase-screens
+          path: night-play/visual-output/maze-chase-power.jpg
+          retention-days: 14
+          if-no-files-found: warn

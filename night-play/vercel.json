@@ -2,6 +2,22 @@
   "version": 2,
   "rewrites": [
     {
+      "source": "/piano-tiles",
+      "destination": "/piano-tiles/index.html"
+    },
+    {
+      "source": "/piano-tiles/",
+      "destination": "/piano-tiles/index.html"
+    },
+    {
+      "source": "/strategy",
+      "destination": "/strategy/index.html"
+    },
+    {
+      "source": "/strategy/",
+      "destination": "/strategy/index.html"
+    },
+    {
       "source": "/channels",
       "destination": "/channels/index.html"
     },
