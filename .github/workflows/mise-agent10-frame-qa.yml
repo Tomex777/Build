@@ -1,6 +1,12 @@
-name: Mise Agent 10 - Screenshot Proof Unit QA
+name: Mise Agent 10 - Android Screenshot QA
 
 on:
+  push:
+    branches: [integrate/mise-studio-completion-20261020]
+    paths:
+      - "artist-scene-studio/app/**"
+      - "artist-scene-studio/scripts/**"
+      - ".github/workflows/mise-agent10-frame-qa.yml"
   pull_request:
     branches: [integrate/mise-studio-completion-20261020]
     paths:
@@ -12,6 +18,10 @@ on:
 
 permissions:
   contents: read
+
+concurrency:
+  group: mise-agent10-qa-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   evidence-validator:
@@ -26,3 +36,56 @@ jobs:
         run: bash -n artist-scene-studio/scripts/fresh-editor-instrumentation.sh
       - name: Test genuine, static, out-of-canvas and corrupted screenshot classification
         run: python3 artist-scene-studio/scripts/test-verify-acceptance-frames.py -v
+
+  actual-android-frame-proof:
+    needs: evidence-validator
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        api: [26, 36]
+        suite: [humanoid, anime, bicycle]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore SHA256-pinned real 3D model fixtures
+        run: artist-scene-studio/scripts/fetch-test-assets.sh
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: "platform-tools platforms;android-36 build-tools;36.0.0"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.13"
+      - name: Compile real 3D studio APK and UiAutomator tests
+        working-directory: artist-scene-studio
+        run: gradle :app:assembleDebug :app:assembleDebugAndroidTest --stacktrace
+      - name: Enable Android emulator KVM acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Install Mise, interact with 3D actor, capture and compare real frames
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          arch: x86_64
+          target: google_apis
+          working-directory: artist-scene-studio
+          emulator-options: -no-window -gpu lavapipe -no-snapshot -noaudio -no-boot-anim -camera-back none
+          script: API_LEVEL=${{ matrix.api }} TEST_SUITE=${{ matrix.suite }} bash scripts/fresh-editor-instrumentation.sh
+      - name: Publish unmodified Android frame evidence and QA metrics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mise-agent10-api${{ matrix.api }}-${{ matrix.suite }}-frame-evidence
+          path: |
+            artist-scene-studio/artist-scene-studio-api${{ matrix.api }}-instrumentation-device-files/
+            artist-scene-studio/artist-scene-studio-api${{ matrix.api }}-${{ matrix.suite }}*.png
+            artist-scene-studio/artist-scene-studio-api${{ matrix.api }}-instrumentation*.txt
+            artist-scene-studio/artist-scene-studio-api${{ matrix.api }}-instrumentation*.log
+          if-no-files-found: warn
