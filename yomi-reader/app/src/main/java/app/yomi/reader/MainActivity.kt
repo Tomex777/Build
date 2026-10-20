@@ -68,6 +68,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -110,18 +111,33 @@ class MainActivity : ComponentActivity() {
     private val progressStore by lazy { SharedPreferencesProgressSink(this) }
     private val libraryRevision = mutableIntStateOf(0)
     private val incomingArchiveUri = mutableStateOf<Uri?>(null)
+    private val appearancePrefs by lazy { getSharedPreferences("yomi-appearance", MODE_PRIVATE) }
+    private var appearanceId by mutableStateOf(YomiAppearances.DEFAULT_ID)
+    private var customAppearanceHex by mutableStateOf(YomiAppearances.DEFAULT_CUSTOM_HEX)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Log.i(STARTUP_TAG, "activity-created")
         incomingArchiveUri.value = archiveUriFromIntent(intent)
+        appearanceId = appearancePrefs.getString("palette", YomiAppearances.DEFAULT_ID)
+            ?: YomiAppearances.DEFAULT_ID
+        customAppearanceHex = YomiAppearances.normalizedHex(
+            appearancePrefs.getString("hex", YomiAppearances.DEFAULT_CUSTOM_HEX).orEmpty(),
+        ) ?: YomiAppearances.DEFAULT_CUSTOM_HEX
         enableEdgeToEdge()
         WindowCompat.getInsetsController(window, window.decorView).apply {
             isAppearanceLightStatusBars = false
             isAppearanceLightNavigationBars = false
         }
         setContent {
-            YomiTheme {
+            val appearance = YomiAppearances.resolve(appearanceId, customAppearanceHex)
+            LaunchedEffect(appearance.light) {
+                WindowCompat.getInsetsController(window, window.decorView).apply {
+                    isAppearanceLightStatusBars = appearance.light
+                    isAppearanceLightNavigationBars = appearance.light
+                }
+            }
+            YomiTheme(appearance) {
                 YomiHome()
             }
         }
@@ -549,6 +565,7 @@ class MainActivity : ComponentActivity() {
 
         var showAddSheet by remember { mutableStateOf(false) }
         var showSortSheet by remember { mutableStateOf(false) }
+        var showThemeStudio by remember { mutableStateOf(false) }
         var actionBook by remember { mutableStateOf<LibraryBook?>(null) }
         var pendingRelink by remember { mutableStateOf<LibraryBook?>(null) }
         var sortMode by remember { mutableStateOf(LibrarySort.RECENT) }
@@ -783,6 +800,7 @@ class MainActivity : ComponentActivity() {
                         searchQuery = ""
                     },
                     onAdd = { showAddSheet = true },
+                    onTheme = { showThemeStudio = true },
                 )
                 if (importingArchive || importingFolder) {
                     Row(
@@ -832,6 +850,26 @@ class MainActivity : ComponentActivity() {
                     BottomNavigation(destination = destination, onChange = { destination = it })
                 }
             }
+        }
+
+        if (showThemeStudio) {
+            ThemeStudioSheet(
+                selectedId = appearanceId,
+                customHex = customAppearanceHex,
+                onSelectPreset = { id ->
+                    appearanceId = id
+                    appearancePrefs.edit().putString("palette", id).apply()
+                },
+                onApplyCustomHex = { hex ->
+                    customAppearanceHex = hex
+                    appearanceId = YomiAppearances.CUSTOM_ID
+                    appearancePrefs.edit()
+                        .putString("hex", hex)
+                        .putString("palette", YomiAppearances.CUSTOM_ID)
+                        .apply()
+                },
+                onDismiss = { showThemeStudio = false },
+            )
         }
 
         if (showAddSheet) {
@@ -1104,6 +1142,7 @@ class MainActivity : ComponentActivity() {
         onSearch: () -> Unit,
         onCloseSearch: () -> Unit,
         onAdd: () -> Unit,
+        onTheme: () -> Unit,
     ) {
         val focusRequester = remember { FocusRequester() }
         val keyboardController = LocalSoftwareKeyboardController.current
@@ -1152,6 +1191,7 @@ class MainActivity : ComponentActivity() {
                     fontWeight = FontWeight.Black,
                     letterSpacing = (-0.6).sp,
                 )
+                IconAction(R.drawable.ic_yomi_palette, "Theme studio", onTheme)
                 IconAction(R.drawable.ic_yomi_search, "Search library", onSearch)
                 IconAction(R.drawable.ic_yomi_add, "Add to library", onAdd)
             }
@@ -1407,18 +1447,32 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun YomiTheme(content: @Composable () -> Unit) {
-    MaterialTheme(
-        colorScheme = androidx.compose.material3.darkColorScheme(
-            primary = Color(0xFFD4E4FF),
-            onPrimary = Color(0xFF15223A),
-            background = Color(0xFF0A0D12),
-            onBackground = Color(0xFFE7ECF5),
-            surface = Color(0xFF111722),
-            onSurface = Color(0xFFE7ECF5),
-            surfaceVariant = Color(0xFF1A2230),
-            onSurfaceVariant = Color(0xFFAAB6C9),
-        ),
-        content = content,
-    )
+private fun YomiTheme(appearance: YomiAppearance, content: @Composable () -> Unit) {
+    // The default reproduces Yomi's existing Midnight palette. Alternative
+    // gallery options only change the Home/Library chrome, not manga pages.
+    val onPrimary = if (appearance.primary.luminance() > 0.5f) Color(0xFF15223A) else Color.White
+    val scheme = if (appearance.light) {
+        androidx.compose.material3.lightColorScheme(
+            primary = appearance.primary,
+            onPrimary = onPrimary,
+            background = appearance.background,
+            onBackground = appearance.foreground,
+            surface = appearance.surface,
+            onSurface = appearance.foreground,
+            surfaceVariant = appearance.surfaceVariant,
+            onSurfaceVariant = appearance.secondaryText,
+        )
+    } else {
+        androidx.compose.material3.darkColorScheme(
+            primary = appearance.primary,
+            onPrimary = onPrimary,
+            background = appearance.background,
+            onBackground = appearance.foreground,
+            surface = appearance.surface,
+            onSurface = appearance.foreground,
+            surfaceVariant = appearance.surfaceVariant,
+            onSurfaceVariant = appearance.secondaryText,
+        )
+    }
+    MaterialTheme(colorScheme = scheme, content = content)
 }
