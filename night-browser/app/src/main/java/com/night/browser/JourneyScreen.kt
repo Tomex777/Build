@@ -70,7 +70,8 @@ fun JourneyScreen(
     LaunchedEffect(store.journeys.map { it.id }) {
         val validIds = store.journeys.mapTo(HashSet()) { it.id }
         expanded.retainAll(validIds)
-        collapsedBranches.keys.retainAll(validIds)
+        collapsedBranches.keys.toList().filterNot { it in validIds }
+            .forEach { collapsedBranches.remove(it) }
         if (expanded.isEmpty()) store.journeys.firstOrNull()?.let { expanded.add(it.id) }
     }
     var edit by remember { mutableStateOf<EditTarget?>(null) }
