@@ -1,6 +1,7 @@
 (() => {
  const $=id=>document.getElementById(id)
  let room=null,poll=null,transitionTimer=null,requesting=false,loadingRoom=false,listingVersion=0
+ let suspended=false,connectionFailures=0,offlineNotified=false
  const setMessage=(text='',isError=false)=>{$('message').textContent=text;$('message').dataset.error=String(isError)}
  const show=key=>{for(const name of ['loading','connect','lobby','room'])$(name).hidden=name!==key}
  async function api(action='status',data={}){
@@ -85,8 +86,11 @@
  }
  function schedulePoll(){
   stopPoll()
-  if(room&&room.status!=='finished'&&transitionTimer===null)
-   poll=setTimeout(refreshRoom,room.status==='waiting'?1600:1900)
+  if(room&&room.status!=='finished'&&transitionTimer===null&&!suspended&&!document.hidden){
+   const base=room.status==='waiting'?1600:1900
+   const delay=connectionFailures?Math.min(14000,base*2**Math.min(3,connectionFailures)):base
+   poll=setTimeout(refreshRoom,delay)
+  }
  }
  async function refreshRoom(){
   if(!room)return
@@ -118,8 +122,17 @@
      },700)
     }else if(transitionTimer===null)renderRoom()
    }
-   setMessage('')
-  }catch(error){if(room?.matchId===id)setMessage(error.message,true)}
+   if(room?.matchId===id){
+    if(offlineNotified)setMessage('Connection restored. Your game is up to date.')
+    else setMessage('')
+    connectionFailures=0;offlineNotified=false
+   }
+  }catch(error){
+   if(room?.matchId===id){
+    connectionFailures++
+    if(!offlineNotified){setMessage('Connection interrupted. Retrying automatically…',true);offlineNotified=true}
+   }
+  }
   finally{loadingRoom=false;schedulePoll()}
  }
  async function run(action,data={}){
@@ -173,8 +186,20 @@
  }
  $('leaveBtn').addEventListener('click',leaveMatch)
  $('cancelWaiting').addEventListener('click',leaveMatch)
- document.addEventListener('visibilitychange',()=>{if(!document.hidden&&room)refreshRoom()})
- window.addEventListener('pagehide',stopPoll)
+ document.addEventListener('visibilitychange',()=>{
+  if(document.hidden)stopPoll()
+  else if(!suspended&&room)refreshRoom()
+ })
+ window.addEventListener('pagehide',()=>{
+  suspended=true;stopPoll()
+  if(transitionTimer!==null){clearTimeout(transitionTimer);transitionTimer=null}
+ })
+ window.addEventListener('pageshow',event=>{
+  if(!event.persisted)return
+  suspended=false
+  if(room)refreshRoom()
+  else lobby()
+ })
  async function start(){
   try {
    const state=await api()
