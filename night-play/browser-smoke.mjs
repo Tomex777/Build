@@ -226,6 +226,34 @@ try {
  assert.deepEqual(touchQueue.beforeLift,['up'],'Snake responds before finger lifts');
  assert.deepEqual(touchQueue.corners,['up','left'],'Fast swipe corners must queue without dropped inputs');
 
+ // Regression: the two-turn queue used to swallow a third quick finger swipe.
+ // Pause the grid timer (not touch input) so four real Chromium swipes arrive
+ // between ticks, independent of the CI runner's scheduling.
+ await page.evaluate(()=>{clearInterval(snakeTimer);snakeTimer=null;snake.dir='right';snake.next='right';snake.turnQueue=[];gamePaused=false;snake.started=true;});
+ const rapidStrokes=[{dx:0,dy:-34},{dx:-34,dy:0},{dx:0,dy:-34},{dx:-34,dy:0}];
+ for(const [index,stroke] of rapidStrokes.entries()){
+  const id=90+index;
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:px,y:py,id}]});
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:px+stroke.dx,y:py+stroke.dy,id}]});
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+ }
+ assert.deepEqual(await page.evaluate(()=>snake.turnQueue),['up','left','up','left'],
+  'Every legal quick swipe must register on the FIRST gesture, even before the next grid tick');
+ const rapidResult=await page.evaluate(()=>{
+  const trajectory=[];
+  for(let i=0;i<4;i++){stepSnake();trajectory.push({dir:snake.dir,...snake.body[0]});}
+  return {trajectory,alive:snake.alive,remaining:[...snake.turnQueue]};
+ });
+ assert.deepEqual(rapidResult.trajectory,[
+  {dir:'up',x:8,y:11},{dir:'left',x:7,y:11},
+  {dir:'up',x:7,y:10},{dir:'left',x:6,y:10}
+ ],'Buffered touch strokes must execute in order, one legal direction per grid tick');
+ assert.equal(rapidResult.alive,true,'Quick input handling must not force an artificial game over');
+ assert.deepEqual(rapidResult.remaining,[],'Consumed swipes must not linger after their ticks');
+ console.log('NIGHT_SNAKE_RAPID_TOUCH='+JSON.stringify(rapidResult));
+ await page.evaluate(()=>{snakeTimer=setInterval(stepSnake,snakeTickMs())});
+
+
  await page.locator('#gameSettings').click()
  assert.equal(await page.locator('.snake-mode-preview').count(),5)
  await page.getByRole('button',{name:'Turbo'}).click()
