@@ -297,7 +297,7 @@ private fun NightBrowser(browser: BrowserController, openSaved: (File) -> Unit) 
                         singleLine = true,
                         textStyle = TextStyle(color = Bright, fontSize = 15.sp),
                         cursorBrush = SolidColor(Accent),
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
+                        keyboardOptions = KeyboardOptions(autoCorrect = false, imeAction = ImeAction.Go),
                         keyboardActions = KeyboardActions(onGo = { openAddress() }),
                         decorationBox = { inner ->
                             if (address.isBlank()) {
