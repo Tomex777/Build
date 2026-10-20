@@ -27,7 +27,7 @@ capture_diagnostics() {
     local result=$?
     trap - EXIT
     set +e
-    printf 'instrumentationExit=%s\\n' "$result" > "$ARTIFACT_DIR/diagnostic-status.txt"
+    printf 'instrumentationExit=%s\n' "$result" > "$ARTIFACT_DIR/diagnostic-status.txt"
 
     # APKs stay installed until screenshots are pulled, including API36's
     # scoped-storage evidence. A stalled pull must not cost the whole job.
