@@ -1,7 +1,7 @@
 /* Offline non-wagering card and dice games. Original gameplay + styling. */
 (()=>{'use strict';const G=window.G,suits=['♠','♥','♦','♣'],rank=n=>['','A','2','3','4','5','6','7','8','9','10','J','Q','K'][n];
 const fresh=()=>G.shuffle(Array.from({length:52},(_,i)=>({n:i%13+1,s:suits[Math.floor(i/13)]})));
-function card(c){return G.el('div','playing-card'+((c?.s==='♥'||c?.s==='♦')?' red':''),c?rank(c.n)+c.s:'—')}
+function card(c){return G.el('div','playing-card'+(((c&&c.s)==='♥'||(c&&c.s)==='♦')?' red':''),c?rank(c.n)+c.s:'—')}
 function row(parent,values){const r=G.el('div','card-row');r.style.flexWrap='wrap';for(const x of values)r.append(card(x));parent.append(r);return r}
 G.add('blackjack','Blackjack','Reach 21 without going over. The dealer automatically stands on 17. No betting.','Card',()=>{
  let shoe=fresh(),hand=[],dealer=[],wins=0,rounds=0,ended=false;

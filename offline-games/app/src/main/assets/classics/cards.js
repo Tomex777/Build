@@ -14,7 +14,7 @@ G.add('war','War','Reveal one card each round. The higher rank collects the two 
  render();G.note('Equal ranks cause a war: burn up to three cards each, then compare again.');});
 G.add('snap','Snap','Spot identical ranks and call SNAP. A false call loses a point.','Card',()=>{
  let pack=deck(),pair=[null,null],score=0,round=0,ended=false;
- function draw(){G.board().replaceChildren();two(...pair);G.status(ended?'Deck complete · '+score+' points':'Round '+round+' · '+score+' points');G.actions();if(!ended){G.action('SNAP!',()=>{if(pair[0]?.value===pair[1]?.value)score+=3;else score=Math.max(0,score-1);G.score('snap',score);next()},true);G.action('Next pair',next)}}
+ function draw(){G.board().replaceChildren();two(...pair);G.status(ended?'Deck complete · '+score+' points':'Round '+round+' · '+score+' points');G.actions();if(!ended){G.action('SNAP!',()=>{if((pair[0]&&pair[0].value)===(pair[1]&&pair[1].value))score+=3;else score=Math.max(0,score-1);G.score('snap',score);next()},true);G.action('Next pair',next)}}
  function next(){if(pack.length<2){ended=true;draw();return}pair=[pack.pop(),pack.pop()];round++;draw()}next();G.note('Only identical ranks match; suits do not matter.');});
 G.add('crazyeights','Crazy Eights','Match the rank or suit; playing an eight lets you choose a new suit.','Card',()=>{
  let pack=deck(),hands=[[],[]],face=null,active='',ended=false;

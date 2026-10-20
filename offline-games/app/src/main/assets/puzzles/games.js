@@ -135,7 +135,7 @@ const iconPalette=["#6a9e8e","#d48b6d","#d9b454","#779ab7","#a08fc1","#cb8f9c","
 function shapeSvg(id){return '<svg role="img" aria-hidden="true" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg"><g fill="'+iconPalette[id]+'" stroke="#24332e" stroke-opacity=".12" stroke-width="1.5">'+iconPaths[id]+'</g></svg>';}
 function renderMemory(){
  board.className="puzzle-board memory-grid"+(s.level==="hard"?" cols-6":"");
- if(board.children.length!==s.deck.length||board.firstElementChild?.dataset.memory===undefined){
+ if(board.children.length!==s.deck.length||(board.firstElementChild ? board.firstElementChild.dataset.memory : undefined)===undefined){
   const frag=document.createDocumentFragment();
   s.deck.forEach((shape,i)=>{
    const button=document.createElement("button");button.type="button";button.className="memory-card";button.dataset.memory=String(i);
@@ -222,7 +222,7 @@ tools.addEventListener("click",e=>{
  if(action.dataset.action==="hint")sudokuHint();
 });
 document.addEventListener("keydown",e=>{
- if(kind!=="sudoku"||dialog.open||e.altKey||e.ctrlKey||e.metaKey||["INPUT","TEXTAREA"].includes(document.activeElement?.tagName))return;
+ if(kind!=="sudoku"||dialog.open||e.altKey||e.ctrlKey||e.metaKey||["INPUT","TEXTAREA"].includes((document.activeElement && document.activeElement.tagName)))return;
  if(/^[1-9]$/.test(e.key)){e.preventDefault();sudokuEnter(e.key);return;}
  if(e.key==="Delete"||e.key==="Backspace"||e.key==="0"){e.preventDefault();sudokuEnter("erase");return;}
  if(e.key.toLowerCase()==="n"){e.preventDefault();s.noteMode=!s.noteMode;putSaved();renderSudoku();return;}
@@ -230,7 +230,7 @@ document.addEventListener("keydown",e=>{
  if(dirs[e.key]!==undefined){
   e.preventDefault();const row=Math.floor(s.selected/9),col=s.selected%9;
   s.selected=e.key==="ArrowUp"?((row+8)%9)*9+col:e.key==="ArrowDown"?((row+1)%9)*9+col:e.key==="ArrowLeft"?row*9+(col+8)%9:row*9+(col+1)%9;
-  putSaved();renderSudoku();board.querySelector('[data-cell="'+s.selected+'"]')?.focus({preventScroll:true});
+  putSaved();renderSudoku();const focusCell=board.querySelector('[data-cell="'+s.selected+'"]');if(focusCell)focusCell.focus({preventScroll:true});
  }
 });
 $("settingsButton").addEventListener("click",()=>{renderOptions();dialog.showModal();});

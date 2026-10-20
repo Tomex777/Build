@@ -24,15 +24,15 @@ G.add('chess','Chess','Play White against a rules-complete computer opponent. Ca
  if(!selected||!possible)return false;const m=game.move({from:selected,to,promotion});if(!m)return false;last=[m.from,m.to];selected=null;waiting=true;draw();if(!game.game_over())timer=setTimeout(computer,160);else waiting=false;return true}
  function draw(){const board=game.board(),valid=selected?game.moves({square:selected,verbose:true}):[],status=term();
  G.status(status||(waiting?'Computer thinking…':(game.in_check()?'Check! ':'')+'Your turn · White'));if(status&&status.startsWith('You win'))G.score('chess',1);
- G.grid(8,8,board.flat().map(p=>p?.type||''),index=>{
+ G.grid(8,8,board.flat().map(p=>(p&&p.type)||''),index=>{
  if(waiting||game.game_over())return;const y=Math.floor(index/8),x=index%8,to='abcdefgh'[x]+(8-y);
- if(selected&&play(to))return;const piece=board[y][x];if(piece?.color==='w'){selected=to;draw()}else{selected=null;draw()}
+ if(selected&&play(to))return;const piece=board[y][x];if((piece&&piece.color)==='w'){selected=to;draw()}else{selected=null;draw()}
  },(b,i)=>{
  const x=i%8,y=Math.floor(i/8),p=board[y][x],square='abcdefgh'[x]+(8-y);
  b.innerHTML=look(p);b.setAttribute('aria-label',square+(p?' '+(p.color==='w'?'White ':'Black ')+p.type:' empty'));
  b.style.background=(x+y)%2===1?'#96a58c':'#edeade';b.style.borderRadius='1px';b.style.border='0';
  if(valid.some(m=>m.to===square)){b.style.boxShadow='inset 0 0 0 3px #d0a251';if(!p)b.innerHTML='<svg width="22" height="22" viewBox="0 0 22 22"><circle cx="11" cy="11" r="6" fill="#3d6d4f" opacity=".6"/></svg>'}
- if(square===selected)b.style.outline='3px solid #bd8c4a';else if(last?.includes(square))b.style.outline='2px solid #d3b878';
+ if(square===selected)b.style.outline='3px solid #bd8c4a';else if((last&&last.includes(square)))b.style.outline='2px solid #d3b878';
  });
  G.actions();if(!waiting&&!game.game_over()){G.action('Undo pair',()=>{if(game.history().length<2)return;game.undo();game.undo();last=null;selected=null;draw()});G.action('Promotion: '+promotion.toUpperCase(),()=>{promotion=({q:'r',r:'b',b:'n',n:'q'})[promotion];draw()})}G.note('Choose a white piece, then its destination. Promotions default to Queen; change the piece before moving a pawn to the final rank.')}
  draw();return()=>{if(timer)clearTimeout(timer)};

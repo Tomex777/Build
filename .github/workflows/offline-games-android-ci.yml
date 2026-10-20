@@ -40,6 +40,8 @@ jobs:
           for file in offline-games/app/src/main/assets/classics/*.js; do node --check "$file"; done
       - name: Verify playable-game registry
         run: node offline-games/verify-catalog.cjs
+      - name: Verify old-WebView parse compatibility
+        run: node offline-games/verify-webview.cjs
       - name: Build installable debug APK
         working-directory: offline-games
         run: gradle --no-daemon :app:assembleDebug
@@ -51,6 +53,7 @@ jobs:
           "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging "$APK" | tee /tmp/offline-badging.txt
           grep -q "package: name='com.night.offlinegames'" /tmp/offline-badging.txt
           grep -q "sdkVersion:'26'" /tmp/offline-badging.txt
+          unzip -Z1 "$APK" | grep -q "assets/compat.js"
           unzip -Z1 "$APK" | grep -q "assets/arcade/games.js"
           unzip -Z1 "$APK" | grep -q "assets/arcade/style.css"
           unzip -Z1 "$APK" | grep -q "assets/arcade/index.html"

@@ -151,7 +151,9 @@ class OfflineFlowTest {
             return JSON.stringify({
                 url:location.href,ready:document.readyState,
                 title:document.title,body:document.body ? document.body.innerText.slice(0,180) : '',
-                resources:performance.getEntriesByType('resource').length
+                resources:performance.getEntriesByType('resource').length,
+                userAgent:navigator.userAgent,
+                gameErrors:window.__nightGameErrors || []
             });
         })()
     """.trimIndent())

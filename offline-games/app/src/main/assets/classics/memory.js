@@ -15,7 +15,7 @@ function put(key,x){try{localStorage.setItem(key,JSON.stringify(x))}catch{}}
 G.add('memory','Memory Match','Flip beautifully illustrated cards to find matching pairs. Customise your board and artwork in Settings.','Memory',()=>{
  const pref=storage(configKey)||{},opts={theme:collections[pref.theme]?pref.theme:'animals',size:layouts[pref.size]?pref.size:'6×4'};
  let [columns,rows]=layouts[opts.size],count=columns*rows;
- let restored=storage(saveKey),valid=restored?.theme===opts.theme&&restored?.size===opts.size&&Array.isArray(restored.deck)&&restored.deck.length===count&&Array.isArray(restored.matched)&&restored.matched.length===count&&!restored.won;
+ let restored=storage(saveKey),valid=(restored&&restored.theme)===opts.theme&&(restored&&restored.size)===opts.size&&Array.isArray(restored.deck)&&restored.deck.length===count&&Array.isArray(restored.matched)&&restored.matched.length===count&&!restored.won;
  const assets=collections[opts.theme];
  const images=valid?restored.deck.slice():G.shuffle(assets.slice(0,count/2).flatMap(name=>[name,name]));
  let matched=valid?restored.matched.slice():Array(count).fill(false),flipped=[],moves=valid?restored.moves:0,elapsed=valid?Math.max(0,restored.elapsed||0):0,pending=null,won=false,layout=G.el('div','memory-grid');
