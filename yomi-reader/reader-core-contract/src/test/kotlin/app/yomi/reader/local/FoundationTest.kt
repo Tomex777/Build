@@ -17,6 +17,38 @@ import kotlin.test.assertIs
 
 class FoundationTest {
     @Test
+    fun continueReadingUsesExactArchivePageInsteadOfPercentEstimation() {
+        assertEquals(
+            "Resume at page 4 of 10",
+            continueReadingLocation(LibraryLocationType.DOCUMENT, 10, 3),
+        )
+    }
+
+    @Test
+    fun folderResumeDoesNotTreatTotalBookPagesAsChapterPages() {
+        assertEquals(
+            "Resume at page 3",
+            continueReadingLocation(LibraryLocationType.TREE, 120, 2),
+        )
+    }
+
+    @Test
+    fun continuationHandlesUnopenedAndOutOfRangeBooks() {
+        assertEquals(
+            "Resume where you left off",
+            continueReadingLocation(LibraryLocationType.DOCUMENT, 10, null),
+        )
+        assertEquals(
+            "Resume at page 10 of 10",
+            continueReadingLocation(LibraryLocationType.DOCUMENT, 10, 999),
+        )
+        assertEquals(
+            "Resume at page 5",
+            continueReadingLocation(LibraryLocationType.TREE, null, 4),
+        )
+    }
+
+    @Test
     fun naturalPageOrderIsNumericAware() {
         val pages = listOf("10.jpg", "2.jpg", "1.jpg", "001.jpg", "page20.webp", "page3.webp")
             .sortedWith(NaturalOrder)
