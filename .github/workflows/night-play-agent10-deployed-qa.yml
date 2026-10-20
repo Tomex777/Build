@@ -19,7 +19,7 @@ permissions:
 
 jobs:
   actual-browser-gameplay:
-    name: Chrome: real mobile touch, scoring, collisions, loss and restart
+    name: 'Chrome: real mobile touch, scoring, collisions, loss and restart'
     runs-on: ubuntu-latest
     timeout-minutes: 9
     env:
