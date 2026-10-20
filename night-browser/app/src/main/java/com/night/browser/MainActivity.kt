@@ -214,12 +214,23 @@ private fun NightBrowser(browser: BrowserController, openSaved: (File) -> Unit) 
                         store = browser.store,
                         onNew = { newJourneyDialog = true },
                         onResume = { journey, node ->
-                            browser.newTab(node?.url, journey.id, seedNodeId = node?.id)
+                            // A private tab must not silently turn a Journey resume
+                            // into a recorded normal-profile navigation.
+                            browser.newTab(
+                                node?.url, journey.id,
+                                privateMode = browser.active.isPrivate,
+                                seedNodeId = node?.id
+                            )
                             page = if (node == null) Page.HOME else Page.WEB
                         }
                     )
                     Page.LIBRARY -> NightLibraryScreen(browser,
-                        onOpen = { browser.newTab(it); page = Page.WEB })
+                        onOpen = {
+                            // Library remains accessible in private browsing,
+                            // but opening its links must retain private mode.
+                            browser.newTab(it, privateMode = browser.active.isPrivate)
+                            page = Page.WEB
+                        })
                     Page.TIME_MACHINE -> TimeMachineArchivePanel(
                         archive = archive,
                         openSaved = { item ->
