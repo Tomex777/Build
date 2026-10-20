@@ -5,6 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertExists
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -66,7 +67,7 @@ class StudioAxisFieldTouchTest {
             }
         }
         compose.onNodeWithTag("numeric-y").assertExists()
-        compose.onNodeWithContentDescription("Increase Y").performClick()
+        compose.onNodeWithContentDescription("Increase Y").assertIsNotEnabled()
         compose.runOnIdle { assertEquals(2f, x, 0f) }
     }
 }
