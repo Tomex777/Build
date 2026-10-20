@@ -23,7 +23,7 @@ def make_pdf():
         b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
         b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 200] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
         b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
-        b"<< /Length 48 >>\nstream\nBT /F1 12 Tf 30 110 Td (NIGHT QA PDF) Tj ET\nendstream",
+        b"<< /Length 44 >>\nstream\nBT /F1 12 Tf 30 110 Td (NIGHT QA PDF) Tj ET\nendstream",
     ]
     out = bytearray(b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n")
     offsets = [0]
