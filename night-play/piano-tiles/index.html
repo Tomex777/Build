@@ -24,11 +24,11 @@
 <div class="board-shell">
 <canvas id="board" width="400" height="660" aria-label="Four vertical piano lanes. Tap the long falling tiles at the bottom and keep holding extended tiles. Keyboard: 1 to 4 or A S D F." tabindex="0"></canvas>
 <div class="cover" id="cover"><div class="cover-content">
-<span class="cover-kicker" id="coverKicker">PIANO TILES</span><h2 id="coverTitle">Feel the rhythm.</h2><p id="coverCopy">Four lanes. Short taps and long holds. Use more than one finger for chords.</p>
+<span class="cover-kicker" id="coverKicker" hidden></span><h2 id="coverTitle">Feel the rhythm.</h2><p id="coverCopy">Four lanes. Short taps and long holds. Use more than one finger for chords.</p>
 <button class="cover-action" id="coverAction" type="button">Start playing</button>
 </div></div>
 </div>
-<div class="game-tools"><button id="restart" type="button"><svg class="night-ico"><use href="#icon-restart"/></svg> Restart</button><p role="status" aria-live="polite" id="status">Ready</p></div>
+<div class="game-tools"><button id="restart" type="button" hidden><svg class="night-ico"><use href="#icon-restart"/></svg> Restart</button><p role="status" aria-live="polite" id="status">Ready</p></div>
 </section></main>
 <script src="/piano-tiles/game.js" defer></script>
 </body></html>
