@@ -15,7 +15,7 @@ export const photos = Object.freeze([
  {id:'photo-paris-evening',name:'Paris Evening',category:'places',asset:'photo-1502602898657-3e91760cbb34'},
  {id:'photo-tokyo-night',name:'Tokyo Nights',category:'places',asset:'photo-1540959733332-eab4deabeeaf'},
  {id:'photo-taj-mahal',name:'Morning in Agra',category:'places',asset:'photo-1548013146-72479768bada'},
- {id:'photo-pink-blooms',name:'Pink Blossoms',category:'flowers',asset:'photo-1490750967868-88aa4486c946'},
+ {id:'photo-pink-blooms',name:'Golden Wildflowers',category:'flowers',asset:'photo-1490750967868-88aa4486c946'},
  {id:'photo-bouquet',name:'Spring Bouquet',category:'flowers',asset:'photo-1468327768560-75b778cbb551'},
  {id:'photo-starry-sky',name:'Under the Stars',category:'sky',asset:'photo-1519681393784-d120267933ba'},
  {id:'photo-sunset-sky',name:'Last Light',category:'sky',asset:'photo-1470252649378-9c29740c9fa8'}
