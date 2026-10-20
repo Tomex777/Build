@@ -348,8 +348,13 @@ function setupMaze(){
    mazeDotsCtx.arc(px+12,py+12,2.7,0,Math.PI*2);mazeDotsCtx.fill();
   }
  }
- setControls(button("◀","left","Left")+button("▲","up","Up")+button("▼","down","Down")+button("▶","right","Right")+button("Ⅱ","pause","Pause"));
- message("Collect every dot. Large dots turn the ghosts blue.");
+ const icon=path=>'<svg aria-hidden="true" width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="'+path+'"/></svg>';
+ setControls(button(icon("M15 5 8 12l7 7"),"left","Left")+
+  button(icon("m5 15 7-7 7 7"),"up","Up")+
+  button(icon("m5 9 7 7 7-7"),"down","Down")+
+  button(icon("m9 5 7 7-7 7"),"right","Right")+
+  button(icon("M8 5v14M16 5v14"),"pause","Pause"));
+ message("");
  interval=setInterval(mazeTick,155);drawMaze();
 }
 function mazeMove(dx,dy){
