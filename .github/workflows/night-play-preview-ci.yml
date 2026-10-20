@@ -70,6 +70,8 @@ jobs:
         run: node night-play/action/real-play-corrections.mjs
       - name: Actually play the jumping game with touch movement for extended rounds
         run: node night-play/action/long-play.mjs
+      - name: Independently play Fruit Slice with real touch and inspect Memory Match on five viewports
+        run: node night-play/qa/gameplay-gate.mjs
       - name: Capture mobile board visual diagnostics
         run: node night-play/visual-inspect.mjs
       - name: Upload game screenshots
