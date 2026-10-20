@@ -91,4 +91,16 @@ for(let i=0;i<15;i++){
 }
 assert.equal(full.players.length,16);
 assert.equal(applyCommand(full,{type:'join',actor:'extraGuestBeyondCap001',name:'Extra'}).accepted,false);
+for(const count of [24,48,144]){
+ const puzzle=createPuzzle({photoId:'photo-alpine-lake',count,hostId:HOST,hostName:'Host',seed:188});
+ const map=new Map(puzzle.pieces.map(p=>[p.id,p]));
+ for(const p of puzzle.pieces){
+  assert.ok([-1,0,1].includes(p.edges.left)&&[-1,0,1].includes(p.edges.right));
+  assert.equal(p.col===0,p.edges.left===0);
+  assert.equal(p.row===0,p.edges.top===0);
+  if(p.col<puzzle.cols-1)assert.equal(p.edges.right,-map.get(p.row+'-'+(p.col+1)).edges.left);
+  if(p.row<puzzle.rows-1)assert.equal(p.edges.bottom,-map.get((p.row+1)+'-'+p.col).edges.top);
+ }
+ assert.deepEqual(publicSnapshot(puzzle,HOST).pieces[0].edges,puzzle.pieces[0].edges);
+}
 console.log('PASS: authoritative co-op Jigsaw 24/48/144, independent clients, grouping, stale claims, leases, replay, privacy, rename, and validation');
