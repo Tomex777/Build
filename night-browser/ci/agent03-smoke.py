@@ -120,6 +120,20 @@ tap("Private", contains=True)
 assert count_profile("Private") == 0, "Private tabs leaked into persistent state"
 screenshot("04-private-after-restart.png")
 
+# Check both app-owned storage surfaces for accidental private URL persistence.
+prefs = adb("shell", "run-as", "com.night.browser", "cat",
+            "shared_prefs/night_data_v1.xml")
+assert "mozilla.org" not in prefs, "Incognito navigation leaked into JourneyStore"
+vault = subprocess.run(
+    ["adb", "exec-out", "run-as", "com.night.browser",
+     "cat", "files/normal-tabs-v1.bin"],
+    check=True, stdout=subprocess.PIPE
+).stdout
+assert len(vault) > 30, "Encrypted tab state manifest was not written"
+assert b"example.com" not in vault and b"mozilla.org" not in vault, (
+    "Encrypted tab manifest accidentally contains plaintext browsing URLs"
+)
+
 log = adb("logcat", "-d", "-t", "10000")
 (OUT / "logcat.txt").write_text("\n".join(
     line for line in log.splitlines()
