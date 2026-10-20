@@ -132,9 +132,17 @@ object ZipArchiveScanner {
                         while (true) {
                             val read = zip.read(buffer)
                             if (read < 0) break
+                            if (read == 0) continue
                             pageBytes += read
                             if (pageBytes > limits.maxSingleEntryBytes) {
                                 result = ArchivePageRead.Rejected("entry-too-large")
+                                break@scan
+                            }
+                            // A page can be individually small yet push the
+                            // expanded archive past its aggregate safety limit.
+                            // Count the target as well as all skipped entries.
+                            if (pageBytes > limits.maxExpandedBytes - expandedBeforeTarget) {
+                                result = ArchivePageRead.Rejected("archive-too-large")
                                 break@scan
                             }
                             output.write(buffer, 0, read)
