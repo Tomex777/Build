@@ -319,9 +319,53 @@ class Device:
         self.click("Choose File", partial=True, timeout=8)
         raise Blocked("File picker launched: requires OS picker navigation + byte assertion; not a verified upload")
 
+    @staticmethod
+    def app_download_names():
+        """Only the app's sandboxed, UUID-prefixed finished Gecko files."""
+        listing = adb("shell", "run-as", PKG, "ls", "files/browser-downloads",
+                      check=False)
+        return {name.strip() for name in listing.splitlines()
+                if re.fullmatch(r"[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}_.+",
+                                name.strip())}
+
     def download(self, path):
+        # This is deliberately a FULL byte-verified download acceptance, not a
+        # pass for merely issuing GET or opening a consent dialog.
+        from wave2_fixture import PNG, PDF
+        expected = {"/file.png": ("night-qa.png", PNG),
+                    "/file.pdf": ("night-qa.pdf", PDF)}
+        if path not in expected:
+            raise AssertionError("No reference fixture for download")
+        filename, original = expected[path]
+        prior = self.app_download_names()
         self.go(path)
-        raise Blocked("GET logged, but saved bytes/MIME/open/delete must be verified in app's Library")
+        self.click("Save file", timeout=25)
+        end = time.monotonic() + 35
+        observed = None
+        while time.monotonic() < end:
+            candidates = (self.app_download_names() - prior)
+            for name in sorted(candidates):
+                if not name.endswith("_" + filename):
+                    continue
+                # Execute in the debug APK's app UID. No root, broad-storage
+                # permissions, or user files are involved.
+                data = adb("exec-out", "run-as", PKG, "cat",
+                           "files/browser-downloads/" + name,
+                           binary=True, check=False)
+                if data and hashlib.sha256(data).digest() == hashlib.sha256(original).digest():
+                    observed = (name, len(data))
+                    break
+            if observed is not None:
+                break
+            time.sleep(1)
+        if observed is None:
+            raise AssertionError("Downloaded fixture bytes not present or SHA256 mismatch: " + filename)
+        self.click("More")
+        self.click("Library")
+        self.click("Downloads")
+        if self.find(filename, partial=True) is None:
+            raise AssertionError("Byte-verified download missing from Library: " + filename)
+        return "Original Gecko response bytes verified SHA256; Library shows " + filename +             " (" + str(observed[1]) + " bytes)"
 
     def time_machine(self):
         self.go("/landing")
