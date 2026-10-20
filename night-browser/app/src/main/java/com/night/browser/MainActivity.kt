@@ -319,8 +319,12 @@ private fun NightBrowser(browser: BrowserController, openSaved: (File) -> Unit) 
                 ChromeIcon(Icons.AutoMirrored.Filled.ArrowForward, "Forward", current.canGoForward) {
                     browser.goForward(); page = Page.WEB
                 }
-                ChromeIcon(Icons.Rounded.Home, "Home") { page = Page.HOME }
-                ChromeIcon(Icons.Rounded.Tab, "Tabs") { page = Page.TABS }
+                ChromeIcon(Icons.Rounded.Home, "Home", selected = page == Page.HOME) {
+                    page = Page.HOME
+                }
+                ChromeIcon(Icons.Rounded.Tab, "Tabs", selected = page == Page.TABS) {
+                    page = Page.TABS
+                }
                 Box {
                     ChromeIcon(Icons.Rounded.MoreHoriz, "More") { menuExpanded = true }
                     DropdownMenu(
@@ -650,11 +654,26 @@ private fun ChromeIcon(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
     enabled: Boolean = true,
+    selected: Boolean = false,
     onClick: () -> Unit
 ) {
-    IconButton(onClick = onClick, enabled = enabled, modifier = Modifier.size(48.dp)) {
-        Icon(icon, contentDescription = label,
-            tint = if (enabled) Bright else Color(0xFF4A5360),
-            modifier = Modifier.size(21.dp))
+    IconButton(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = Modifier.size(48.dp)
+            .background(
+                if (selected) Accent.copy(alpha = 0.16f) else Color.Transparent,
+                RoundedCornerShape(16.dp)
+            )
+    ) {
+        Icon(
+            icon, contentDescription = label,
+            tint = when {
+                !enabled -> Color(0xFF4A5360)
+                selected -> Accent
+                else -> Bright
+            },
+            modifier = Modifier.size(21.dp)
+        )
     }
 }
