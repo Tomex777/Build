@@ -209,6 +209,16 @@ void main() {
         albedo = mix(regolith, exposedRock, highlands * .77);
         albedo *= 0.78 + granules * 0.43;
         albedo *= 0.92 + grain * 0.13;
+        if (uWorld == 2 || uWorld == 3) {
+            // Moonlight-like low contrast in the older screenshots made
+            // Mercury/Ceres look like flat uniform grey. Actual regolith
+            // contains ejecta sheets, basaltic clasts and mottled patches.
+            // Stable sub-kilometre noise, derivative-filtered at a distance.
+            float ejecta = noiseFiltered(ground * 9.4) * 0.61 +
+                           noiseFiltered(ground * 30.0) * 0.39;
+            float deposit = smoothstep(.24, .78, ejecta);
+            albedo *= mix(.79, 1.22, deposit);
+        }
     }
 
     // World-specific macro-albedo stays anchored in ground coordinates,
