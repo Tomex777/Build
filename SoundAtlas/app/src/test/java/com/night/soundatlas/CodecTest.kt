@@ -48,6 +48,21 @@ class CodecTest {
         catch (_:IllegalArgumentException) {}
     }
 
+    @Test fun expandedSoundLibraryKeepsOldSceneOrdinalsStable() {
+        assertEquals(0,SoundKind.RAIN.ordinal)
+        assertEquals(13,SoundKind.TRAFFIC.ordinal)
+        assertEquals(17,SoundKind.TRAIN.ordinal)
+        assertEquals(22,SoundKind.entries.size)
+        val scene=AtlasPresets.create(1)
+        val emitter=Emitter(scene.newId(),SoundKind.WATERFALL,
+            V2(7f,12f),.77f)
+        scene.sounds+=emitter
+        val restored=AtlasCodec.decode(AtlasCodec.encode(scene))
+        val decoded=restored.sounds.last()
+        assertEquals(SoundKind.WATERFALL,decoded.kind)
+        assertEquals(.77f,decoded.gain,.001f)
+    }
+
     @Test fun everyPackagedSceneFitsWithinCompactFileLimit() {
         for(index in AtlasPresets.titles.indices) {
             val w=AtlasPresets.create(index)
