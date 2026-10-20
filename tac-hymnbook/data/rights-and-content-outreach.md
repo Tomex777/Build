@@ -40,3 +40,12 @@ Thank you.
 - Keep source files, correspondence and licence evidence outside the public repository if they include private data; store only a reference identifier and approved sanitized metadata in released catalogue.
 - Do not import verses in bulk from competing apps or sites without independent rights confirmation and printed-edition verification.
 - Automated imports go through `tools/redemption_import.py`, and CI rejects missing rights or unverified printed editions.
+
+
+## Additional bibliographic evidence — 20 October 2026
+
+A scholarly bibliographic reference identifies **The Apostolic Church Nigeria** Yorùbá Redemption hymnbook as `Iwe Orin Ijo Aposteli Naa` (Victory Publishers, Lagos, **2001**), and an earlier English `The Apostolic Church Redemption Hymnal with Appendix` (The Apostolic Church LAWNA Literature Committee, Lagos, **1977**). Source: https://wuw.pl/data/include/cms//Studies_in_African_2022_56.pdf . This helps identify the proper copyright/licensing chain. These are modern edited editions, and the original hymn authors' publication dates do not prove that a Yorùbá translation is public domain.
+
+The public App Store listing for `Redemption Hymnal` by Bolu Bajomo confirms a 2023 update adding Yorùbá translations: https://apps.apple.com/ng/app/redemption-hymnal/id6467019391 . This is a **potential collaboration/contact lead**, not authorisation to extract its database. Similarly, the `TAC Hymns` Android app by deLTree Technologies (https://play.google.com/store/apps/details?id=com.deltreetech.tachymns) offers a numbering and first-line comparison route, but its app files or content must not be copied without permission.
+
+A public hymn collector explicitly labels the source for a small number of Yorùbá texts as `Iwe Orin Irapada Ti Ijo Aposteli Naa` and supplies exact TAC Redemption hymn numbers **776** and **782**. The collector states they **do not own the songs' copyrights**; only two **short first-line identifiers** were added to our index as **unverified spellings**. Do not copy complete blog lyrics into the distributed APK without licensing/edition checks: https://mycollectionofyorubahymns.blogspot.com/2016/07/ .
