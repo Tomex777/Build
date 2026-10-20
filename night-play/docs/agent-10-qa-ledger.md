@@ -44,3 +44,30 @@ Actual physical Android touch responsiveness, diagonal/vertical cuts and bomb lo
 4. Run/monitor `NIGHT Play Agent 10 Deployed Gameplay QA` GitHub Action on this branch for 14-day reviewable screenshot artifacts. A successful job is **not** a substitute for screenshot review or physical-device testing.
 
 **Coordination messages posted:** issue #391 (game owner) and #399 (release integrator) on 20 October. This ledger is deliberately separate from `docs/agent-backlog.md`, which the coordinator owns. Keep QA ownership and honest status recorded there after review.
+
+
+## Second independent gameplay pass — puzzles, jigsaw and WHOT (20 October 2026)
+
+**Same independently launched Playwright Chromium browser against actual external READY deployment.** Executed game clicks, touch gestures, real-time UI updates and saved state; inspected rendered 390px screenshots of the Memory deck and completed match, Jigsaw 24- and 144-piece boards, and WHOT cards before and after CPU play. This round's tests were executed in a separately created Vercel Sandbox; tests were independent of agent-created smoke-test result assertions.
+
+**Memory Match (7 checks):**
+- Opened a fresh 6×5 (30-card) actual board at 320, 360, 390, 412 and 1280px; all five grids had 5 rows, correct card count, and **zero horizontal overflow**. At 320px the cards were ~48px wide, at 390px the board was 376px wide. Captured mobile screenshot.
+- In Storybook theme, performed **real touchscreen taps** on deliberately mismatched cards: two visibly flipped, then turned back after ~1 second; selected a genuine matching pair and observed two matched cards; reloaded the page and saw the pair persist.
+- Actually tapped every remaining card pair until **15/15**; game displayed `All 15 pairs found in 16 moves`, state had `done=true`, and a separate follow-up check confirmed **all 30 card elements had the `matched` class**, including after waiting. Captured completed-board screenshot. Image loading variability and physical finger feel remain outside this browser test.
+
+**Jigsaw (9 checks on HTTPS candidate; READ-ONLY test instrumentation):**
+- Gallery showed 14 photographic themes + one upload choice; selected Pink Blossoms and verified **24 pieces**, 0 initially placed and picture guide disabled.
+- For these tests, deployed `jigsaw/game.js` limits its **read-only** snapshot diagnostics to `localhost`. Playwright intercepted *only that JS request* and enabled the snapshot export by changing the `location.hostname` guard; **no game physics, drag handlers, artwork, state, rendering, scoring or save code changed**, and actual user interactions were real Chrome CDP touch events.
+- Dragged an actually visible loose piece with a touchStart + **18 consecutive touchMove events** and touchEnd to its real target. Piece tracked finger coordinates accurately (~0px X deviation), static board render counter remained unchanged through drag, and genuine piece placement increased from 0 → 1. Used one actual hint (1 → 2 placed), reloaded and resumed, confirmed both placed pieces and spent hint persisted.
+- Changed game difficulty through real Settings interaction to **48 pieces**, then **144 pieces**; at 320×700 the 144-piece canvas filled the width with no horizontal scrolling. Screenshots show naturally scattered pieces and a clear central board but the **144-piece variant requires further actual 144-piece drag/complete performance testing**; screenshots alone cannot certify it.
+
+**Nigerian WHOT (6 checks):**
+- Opened real initial hands at 320, 390, 412 and 1280px, one compact CPU card-back at all widths, five player cards, no horizontal overflow; inspected mobile wood-board/card screenshots.
+- At 390px tapped an actual playable card (e.g. Triangle 12); **player and CPU each played one**, round 0 → 2 and five-card hands → four-card hands. Tapped market deck as a separate real action; supply fell 43 → 42, player's hand increased 4 → 5. Verified no uncaught browser exceptions. More rounds, AI strategy, complete victory/loss and high-card-count animation smoothness remain unverified.
+
+**Automated GitHub verification concluded:** Agent10's own dedicated real-browser QA workflow run **#39350740196 succeeded**, `agent10-real-deployed-gameplay` 221,441-byte screenshot/JSON artifact **#12232314369** uploaded and retained to 3 November 2026. Full existing combined NIGHT Play Preview CI for PR #419 run **#39350746557 succeeded**, as did predecessor run #39350673727. These confirm 12 automated action-game assertions and existing full-site CI respectively; the Memory/Jigsaw/WHOT supplemental tests above were executed as separate interactive browser sessions, **not yet committed as an automated secondary suite**.
+
+**Interruption note:** after the separately executed Memory/Jigsaw/WHOT tests passed, an attempted combined all-in-one replay ended with `Target page, context or browser has been closed` because the Vercel Sandbox timed out and shut down. That combined replay **did not pass** and was neither committed as a test suite nor counted toward a false green result. Resume the separate tests on a fresh sandbox/CI session when integrating. All major findings were already independently observed and documented.
+
+**Next owner actions:** Agent 5 reviews the Memory/Jigsaw evidence alongside pending PR #416; Agent 6 reviews WHOT along with pending PR #409; Agent 1 reviews and merges Agent10 PR #419 into the active website branch, promotes fixed Fruit Slice PR #401 after proper conflict resolution, then requires a **new canonical-site** QA run. Agent 10 next tests 2048, 144-piece Jigsaw drag and long-run frame pacing, WHOT full endgame + animation lag, and authentic server-managed two-device NOMI rooms when authorized access exists.
+
