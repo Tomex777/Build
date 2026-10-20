@@ -721,41 +721,46 @@ class EndlessRenderer(
     }
 
     private fun advanceSurfacePosition(forward: Float, strafe: Float, step: Double) {
-        if (!isSurfaceMode() || step <= 0.0) return
-        val f = forward.toDouble()
-        val s = strafe.toDouble()
-        val sinHeading = sin(yaw)
-        val cosHeading = cos(yaw)
-        if (marsSurfaceMode) {
-            val nextX = (marsSurfaceX + (sinHeading * f + cosHeading * s) * step).coerceIn(-8.0, 8.0)
-            val nextZ = (marsSurfaceZ + (-cosHeading * f + sinHeading * s) * step).coerceIn(-8.0, 8.0)
-            val rise = MarsSurfaceTerrain.renderedHeightAt(nextX, nextZ) -
-                MarsSurfaceTerrain.renderedHeightAt(marsSurfaceX, marsSurfaceZ)
-            if (rise <= 0.00024 && rise >= -0.00040) {
-                marsSurfaceX = nextX
-                marsSurfaceZ = nextZ
-            }
-            return
+        if (!isSurfaceMode() || !step.isFinite() || step <= 0.0) return
+        val headingSin = sin(yaw)
+        val headingCos = cos(yaw)
+        val dx = (headingSin * forward + headingCos * strafe) * step
+        val dz = (-headingCos * forward + headingSin * strafe) * step
+        val x = when {
+            marsSurfaceMode -> marsSurfaceX
+            moonSurfaceMode -> moonSurfaceX
+            else -> extendedSurfaceX
         }
-        val id = extendedSurfaceId
-        if (id != null) {
-            val nextX = (extendedSurfaceX + (sinHeading*f + cosHeading*s)*step).coerceIn(-8.0,8.0)
-            val nextZ = (extendedSurfaceZ + (-cosHeading*f + sinHeading*s)*step).coerceIn(-8.0,8.0)
-            val rise = ExtendedSurfaceMesh.heightAt(id,nextX,nextZ) -
-                ExtendedSurfaceMesh.heightAt(id,extendedSurfaceX,extendedSurfaceZ)
-            if (rise <= .00024 && rise >= -.00040) {
-                extendedSurfaceX = nextX
-                extendedSurfaceZ = nextZ
-            }
-            return
+        val z = when {
+            marsSurfaceMode -> marsSurfaceZ
+            moonSurfaceMode -> moonSurfaceZ
+            else -> extendedSurfaceZ
         }
-        val nextX = (moonSurfaceX + (sinHeading * f + cosHeading * s) * step).coerceIn(-8.0, 8.0)
-        val nextZ = (moonSurfaceZ + (-cosHeading * f + sinHeading * s) * step).coerceIn(-8.0, 8.0)
-        val rise = MoonSurfaceTerrain.renderedHeightAt(nextX, nextZ) -
-            MoonSurfaceTerrain.renderedHeightAt(moonSurfaceX, moonSurfaceZ)
-        if (rise <= 0.00024 && rise >= -0.00040) {
-            moonSurfaceX = nextX
-            moonSurfaceZ = nextZ
+        // Real walkers cannot step vertically up a 72cm wall in 15cm
+        // horizontal travel. Reject excessive grade and slide against
+        // angled ridges instead of freezing both axes at a cliff.
+        val surface: (Double, Double) -> Double = when {
+            marsSurfaceMode -> MarsSurfaceTerrain::renderedHeightAt
+            moonSurfaceMode -> MoonSurfaceTerrain::renderedHeightAt
+            else -> {
+                val bodyId = extendedSurfaceId ?: return
+                { px, pz -> ExtendedSurfaceMesh.heightAt(bodyId, px, pz) }
+            }
+        }
+        val next = SurfaceWalkingPhysics.move(x, z, dx, dz, surface)
+        when {
+            marsSurfaceMode -> {
+                marsSurfaceX = next.first
+                marsSurfaceZ = next.second
+            }
+            moonSurfaceMode -> {
+                moonSurfaceX = next.first
+                moonSurfaceZ = next.second
+            }
+            else -> {
+                extendedSurfaceX = next.first
+                extendedSurfaceZ = next.second
+            }
         }
     }
 
