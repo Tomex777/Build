@@ -76,6 +76,24 @@ class UniversalSearchPolicyTest {
         assertEquals(listOf(publicBookmark), confirmed)
     }
 
+
+    @Test fun urlDerivedIdsNeverLeaveTheDeviceAsSourceIdentifiers() {
+        val encodedUrl = "https://example.com/some-specific-page"
+        val localId = SearchSourceCatalog.stableId(encodedUrl)
+        val page = SearchSource(localId, "Interesting page", encodedUrl, "Visit")
+        val request = UniversalSearchPolicy.prepare(
+            "Find it", listOf(page), setOf(localId), true, false
+        ) as SearchPreparation.Ready
+        assertEquals("S1", request.sources.single().id)
+        assertFalse(request.sources.single().id == localId)
+        assertEquals(page, UniversalSearchPolicy.confirmedCitations(listOf("S1"), request.sources).single())
+    }
+
+    @Test fun encodedSensitivePathMustBeSuppressed() {
+        val page = SearchSource("sensitive", "Welcome", "https://example.com/%6cogin", "Visit")
+        assertTrue(UniversalSearchPolicy.eligibleCandidates(listOf(page)).isEmpty())
+    }
+
     @Test fun missingSelectionAndBlankQuestionAreRejected() {
         assertTrue(
             UniversalSearchPolicy.prepare("", listOf(publicBookmark), setOf("S1"), true, false)
