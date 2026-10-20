@@ -195,6 +195,11 @@ fun NightLibraryScreen(browser: BrowserController, onOpen: (String) -> Unit) {
                                 maxLines = 2, overflow = TextOverflow.Ellipsis)
                             Spacer(Modifier.height(4.dp))
                             Text(downloads.statusText(row), color = LibMuted, fontSize = 12.sp)
+                            if (row.status == DownloadManager.STATUS_FAILED && !row.retryable) {
+                                Spacer(Modifier.height(4.dp))
+                                Text("Open the original site to download again.",
+                                    color = LibMuted, fontSize = 11.sp)
+                            }
                             if (row.status == DownloadManager.STATUS_RUNNING && row.totalBytes > 0) {
                                 Spacer(Modifier.height(8.dp))
                                 LinearProgressIndicator(
@@ -216,7 +221,7 @@ fun NightLibraryScreen(browser: BrowserController, onOpen: (String) -> Unit) {
                                         export = row
                                         chooseExport.launch(row.fileName)
                                     }) { Text("Export") }
-                                } else if (row.status == DownloadManager.STATUS_FAILED && row.localFile.isBlank()) {
+                                } else if (row.status == DownloadManager.STATUS_FAILED && row.retryable) {
                                     TextButton(onClick = {
                                         downloads.retry(row).exceptionOrNull()?.let { notify(it.message) }
                                     }) { Text("Retry") }

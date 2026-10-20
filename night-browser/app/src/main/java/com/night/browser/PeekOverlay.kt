@@ -19,6 +19,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -58,13 +59,33 @@ fun PeekOverlay(
     onDismiss: () -> Unit,
     onOpen: (String) -> Unit
 ) {
+    // The browser's context menu filters initial links, but enforce the
+    // contract again at the overlay boundary. Do not start a Gecko request,
+    // create a session or trigger external intents for an unsupported scheme.
+    if (!PeekNavigationPolicy.allows(url)) {
+        Dialog(onDismissRequest = onDismiss) {
+            Column(
+                Modifier.fillMaxWidth().background(
+                    Color(0xFF171D27), RoundedCornerShape(18.dp)
+                ).padding(20.dp)
+            ) {
+                Text("This link cannot be previewed.", color = Color.White)
+                TextButton(onClick = onDismiss) { Text("Close") }
+            }
+        }
+        return
+    }
     val context = androidx.compose.ui.platform.LocalContext.current
     val peek = remember(url) { browser.newPeekSession(url) }
     val view = remember(url) { GeckoView(context) }
     var currentUrl by remember(url) { mutableStateOf(url) }
     var title by remember(url) { mutableStateOf("Link preview") }
     var canGoBack by remember(url) { mutableStateOf(false) }
-    var isLoading by remember(url) { mutableStateOf(true) }
+    // The current BrowserController starts the first request before Peek can
+    // install delegates; defaulting to true could leave a permanent spinner
+    // when an extremely fast/cached page finishes before delegate wiring.
+    // A4 should change the controller to defer loadUri until delegates exist.
+    var isLoading by remember(url) { mutableStateOf(false) }
     var error by remember(url) { mutableStateOf<String?>(null) }
 
     DisposableEffect(peek) {
@@ -86,7 +107,8 @@ fun PeekOverlay(
                 perms: List<GeckoSession.PermissionDelegate.ContentPermission>,
                 hasUserGesture: Boolean
             ) {
-                if (pageUrl != null && SiteOrigins.fromUrl(pageUrl) != null) {
+                if (pageUrl != null && PeekNavigationPolicy.allows(pageUrl)) {
+                    if (currentUrl != pageUrl) title = "Link preview"
                     currentUrl = pageUrl
                 }
             }
@@ -153,7 +175,8 @@ fun PeekOverlay(
                     )
                 }
                 IconButton(
-                    enabled = SiteOrigins.fromUrl(currentUrl) != null,
+                    enabled = !isLoading && error == null &&
+                        PeekNavigationPolicy.allows(currentUrl),
                     onClick = { onOpen(currentUrl) }
                 ) {
                     Icon(Icons.Rounded.OpenInNew, "Open current preview in a tab",
@@ -169,10 +192,20 @@ fun PeekOverlay(
                     factory = { view.apply { setSession(peek) } },
                     modifier = Modifier.fillMaxSize()
                 )
-                error?.let {
-                    Text(it, color = Color(0xFFB00020),
-                        modifier = Modifier.align(Alignment.TopCenter)
-                            .background(Color.White).padding(12.dp))
+                error?.let { message ->
+                    Row(
+                        Modifier.align(Alignment.TopCenter)
+                            .background(Color.White).padding(horizontal = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(message, color = Color(0xFFB00020),
+                            modifier = Modifier.weight(1f))
+                        TextButton(onClick = {
+                            error = null
+                            isLoading = true
+                            peek.reload()
+                        }) { Text("Retry") }
+                    }
                 }
             }
         }

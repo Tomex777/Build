@@ -75,6 +75,8 @@ fun TimeMachineArchivePanel(
     var expanded by rememberSaveable { mutableStateOf("") }
     var pendingDelete by remember { mutableStateOf<TimeMachineVersion?>(null) }
     var pendingExport by remember { mutableStateOf<TimeMachineVersion?>(null) }
+    var oldestFirst by rememberSaveable { mutableStateOf(false) }
+    var pendingCompare by remember { mutableStateOf<Pair<TimeMachineVersion, TimeMachineVersion>?>(null) }
     val exportPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/pdf")
     ) { uri: Uri? ->
@@ -88,10 +90,13 @@ fun TimeMachineArchivePanel(
             it.title.contains(query.trim(), ignoreCase = true) ||
             it.url.contains(query.trim(), ignoreCase = true)
     }
-    val groups = filtered.groupBy { TimeMachineLimits.pageKey(it.url) }
-        .entries.sortedByDescending { entry ->
-            entry.value.maxOfOrNull { it.capturedAt } ?: 0L
-        }
+    val groups = filtered.groupBy {
+        // Recovered orphan copies do not have a known URL; never group unrelated files.
+        TimeMachineLimits.pageKey(it.url).ifBlank { "recovered:" + it.id }
+    }.entries.sortedWith(compareBy { entry ->
+        val newest = entry.value.maxOfOrNull { it.capturedAt } ?: 0L
+        if (oldestFirst) newest else -newest
+    })
     val used = archive.usedBytes
 
     Column(Modifier.fillMaxSize().background(PageInk)) {
@@ -124,10 +129,19 @@ fun TimeMachineArchivePanel(
                 trackColor = PageBorder
             )
             Text(
-                "New copies are saved as versions. Old copies are never deleted automatically.",
+                "Each copy is saved separately. Old copies are never deleted automatically.",
                 color = PageMuted, fontSize = 11.sp,
                 modifier = Modifier.padding(top = 10.dp)
             )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Spacer(Modifier.weight(1f))
+                TextButton(onClick = { oldestFirst = !oldestFirst }) {
+                    Text(
+                        if (oldestFirst) "Oldest first" else "Newest first",
+                        fontSize = 12.sp, color = PageAccent
+                    )
+                }
+            }
         }
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 16.dp)
@@ -167,8 +181,9 @@ fun TimeMachineArchivePanel(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(groups, key = { it.key }) { entry ->
-                    val pages = entry.value.sortedByDescending { it.capturedAt }
-                    val latest = pages.first()
+                    val chronology = entry.value.sortedBy { it.capturedAt }
+                    val pages = if (oldestFirst) chronology else chronology.asReversed()
+                    val latest = chronology.last()
                     val isExpanded = expanded == entry.key || (expanded.isBlank() && groups.size == 1)
                     Column(
                         Modifier.fillMaxWidth()
@@ -180,7 +195,11 @@ fun TimeMachineArchivePanel(
                             }.padding(start = 16.dp, end = 9.dp, top = 13.dp, bottom = 13.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Rounded.PictureAsPdf, contentDescription = null, tint = PageAccent)
+                            if (archive.health(latest) == ArchiveFileHealth.READY) {
+                                TimeMachinePdfPreview(archive, latest, 43.dp, 62.dp)
+                            } else {
+                                Icon(Icons.Rounded.PictureAsPdf, contentDescription = null, tint = PageAccent)
+                            }
                             Spacer(Modifier.width(12.dp))
                             Column(Modifier.weight(1f)) {
                                 Text(
@@ -207,16 +226,22 @@ fun TimeMachineArchivePanel(
                         }
                         if (isExpanded) {
                             pages.forEach { item ->
+                                val older = chronology.indexOfFirst { it.id == item.id }
+                                    .let { i -> if (i > 0) chronology[i - 1] else null }
                                 HorizontalDivider(color = PageBorder)
                                 TimeMachineVersionRow(
                                     item = item,
-                                    exists = archive.exists(item),
+                                    health = archive.health(item),
                                     onOpen = { openSaved(item) },
                                     onExport = {
                                         pendingExport = item
                                         exportPicker.launch(archive.suggestedFileName(item))
                                     },
-                                    onDelete = { pendingDelete = item }
+                                    onDelete = { pendingDelete = item },
+                                    onCompare = if (older != null &&
+                                        archive.health(item) == ArchiveFileHealth.READY &&
+                                        archive.health(older) == ArchiveFileHealth.READY
+                                    ) ({ pendingCompare = item to older }) else null
                                 )
                             }
                         }
@@ -224,6 +249,51 @@ fun TimeMachineArchivePanel(
                 }
             }
         }
+    }
+
+    pendingCompare?.let { (newer, older) ->
+        AlertDialog(
+            onDismissRequest = { pendingCompare = null },
+            title = { Text("Compare PDF versions") },
+            text = {
+                Column {
+                    Text("First-page visual comparison · PDF copies, not live page history",
+                        color = PageMuted, fontSize = 12.sp)
+                    Spacer(Modifier.height(12.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        listOf(newer, older).forEachIndexed { i, item ->
+                            Column(Modifier.weight(1f)) {
+                                Text(if (i == 0) "Selected" else "Previous",
+                                    color = PageBright, fontSize = 12.sp)
+                                Text(versionDate(item.capturedAt),
+                                    color = PageMuted, fontSize = 10.sp)
+                                Spacer(Modifier.height(8.dp))
+                                TimeMachinePdfPreview(
+                                    archive = archive, version = item,
+                                    width = 116.dp, height = 160.dp
+                                )
+                                Text(formatArchiveBytes(item.sizeBytes),
+                                    color = PageMuted, fontSize = 11.sp)
+                            }
+                        }
+                    }
+                    val difference = newer.sizeBytes - older.sizeBytes
+                    Text(
+                        "Size change: " + when {
+                            difference > 0 -> "+" + formatArchiveBytes(difference)
+                            difference < 0 -> "-" + formatArchiveBytes(-difference)
+                            else -> "No size change"
+                        },
+                        color = PageMuted, fontSize = 12.sp,
+                        modifier = Modifier.padding(top = 12.dp)
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { pendingCompare = null }) { Text("Close") }
+            },
+            containerColor = PageRaised
+        )
     }
 
     pendingDelete?.let { item ->
@@ -241,7 +311,7 @@ fun TimeMachineArchivePanel(
                     pendingDelete = null
                     onNotice(
                         if (archive.delete(item)) "PDF version deleted."
-                        else "Couldn't delete this PDF file."
+                        else "Couldn't fully remove this version. Check the archive."
                     )
                 }) { Text("Delete", color = Color(0xFFFFA9AE)) }
             },
@@ -256,40 +326,52 @@ fun TimeMachineArchivePanel(
 @Composable
 private fun TimeMachineVersionRow(
     item: TimeMachineVersion,
-    exists: Boolean,
+    health: ArchiveFileHealth,
     onOpen: () -> Unit,
     onExport: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onCompare: (() -> Unit)?
 ) {
+    Column {
     Row(
         Modifier.fillMaxWidth().padding(start = 17.dp, end = 7.dp, top = 9.dp, bottom = 9.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(Modifier.weight(1f)) {
+            Text(versionDate(item.capturedAt), color = PageBright, fontSize = 13.sp)
             Text(
-                if (item.capturedAt > 0) DateFormat.getDateTimeInstance(
-                    DateFormat.MEDIUM, DateFormat.SHORT
-                ).format(Date(item.capturedAt)) else "Unknown capture date",
-                color = PageBright, fontSize = 13.sp
-            )
-            Text(
-                if (exists) "PDF · " + formatArchiveBytes(item.sizeBytes)
-                else "PDF file missing",
-                color = if (exists) PageMuted else Color(0xFFFFA9AE),
+                when (health) {
+                    ArchiveFileHealth.READY -> "PDF · " + formatArchiveBytes(item.sizeBytes)
+                    ArchiveFileHealth.MISSING -> "PDF file missing"
+                    ArchiveFileHealth.CORRUPT -> "PDF file damaged"
+                },
+                color = if (health == ArchiveFileHealth.READY) PageMuted else Color(0xFFFFA9AE),
                 fontSize = 11.sp
             )
         }
-        IconButton(onClick = onOpen, enabled = exists, modifier = Modifier.size(42.dp)) {
-            Icon(Icons.Rounded.FolderOpen, "Open PDF version", tint = if (exists) PageAccent else PageMuted)
+        val ready = health == ArchiveFileHealth.READY
+        IconButton(onClick = onOpen, enabled = ready, modifier = Modifier.size(38.dp)) {
+            Icon(Icons.Rounded.FolderOpen, "Open PDF version", tint = if (ready) PageAccent else PageMuted)
         }
-        IconButton(onClick = onExport, enabled = exists, modifier = Modifier.size(42.dp)) {
-            Icon(Icons.Rounded.FileDownload, "Export PDF to a folder", tint = if (exists) PageAccent else PageMuted)
+        IconButton(onClick = onExport, enabled = ready, modifier = Modifier.size(38.dp)) {
+            Icon(Icons.Rounded.FileDownload, "Export PDF to a folder", tint = if (ready) PageAccent else PageMuted)
         }
-        IconButton(onClick = onDelete, modifier = Modifier.size(42.dp)) {
+        IconButton(onClick = onDelete, modifier = Modifier.size(38.dp)) {
             Icon(Icons.Rounded.DeleteOutline, "Delete PDF version", tint = PageMuted)
         }
     }
+    if (onCompare != null) {
+        TextButton(onClick = onCompare,
+            modifier = Modifier.align(Alignment.End).padding(end = 12.dp)) {
+            Text("Compare with previous PDF", color = PageAccent, fontSize = 11.sp)
+        }
+    }
 }
+
+private fun versionDate(capturedAt: Long): String =
+    if (capturedAt > 0) DateFormat.getDateTimeInstance(
+        DateFormat.MEDIUM, DateFormat.SHORT
+    ).format(Date(capturedAt)) else "Unknown capture date"
 
 private fun formatArchiveBytes(value: Long): String =
     if (value < 1024 * 1024) (value / 1024).coerceAtLeast(0L).toString() + " KB"

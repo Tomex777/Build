@@ -13,9 +13,17 @@ internal object GeckoDownloadNames {
         val utf8 = Regex("""(?:^|;)\s*filename\*\s*=\s*([^;]+)""", RegexOption.IGNORE_CASE)
             .find(header)?.groupValues?.getOrNull(1)?.trim()?.trim('"')
         if (!utf8.isNullOrBlank()) {
-            val encoded = utf8.substringAfter("''", utf8)
-            val decoded = runCatching { URLDecoder.decode(encoded, "UTF-8") }.getOrNull()
-            if (!decoded.isNullOrBlank()) return decoded
+            // RFC 5987 permits UTF-8 / ISO-8859-1 and literal '+' is PLUS,
+            // unlike application/x-www-form-urlencoded where '+' means space.
+            val parts = utf8.split('\'', limit = 3)
+            val charset = if (parts.size == 3) parts[0].lowercase() else "utf-8"
+            val encoded = if (parts.size == 3) parts[2] else utf8
+            if (charset == "utf-8" || charset == "iso-8859-1") {
+                val decoded = runCatching {
+                    URLDecoder.decode(encoded.replace("+", "%2B"), charset)
+                }.getOrNull()
+                if (!decoded.isNullOrBlank()) return decoded
+            }
         }
         val plain = Regex(
             """(?:^|;)\s*filename\s*=\s*(?:"([^"]+)"|([^;]+))""",

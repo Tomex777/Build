@@ -45,16 +45,27 @@ data class LibraryDownload(
     val totalBytes: Long = -1,
     val reason: Int = 0,
     /** App-owned Gecko response filename, never a user-controlled path. Empty for system records. */
-    val localFile: String = ""
+    val localFile: String = "",
+    /** False for expiring/signed URL and authenticated requests; never replay stripped tokens. */
+    val retryable: Boolean = false
 ) {
     val complete get() = status == DownloadManager.STATUS_SUCCESSFUL
 }
 
 internal object DownloadFileNames {
+    /** A URL without expiring query credentials may be retried using DownloadManager. */
+    fun canSafelyRetry(url: String, hasSessionHeaders: Boolean = false): Boolean = runCatching {
+        val uri = java.net.URI(url)
+        !hasSessionHeaders && LibraryRules.validWebUrl(url) &&
+            uri.rawQuery == null && uri.rawFragment == null
+    }.getOrDefault(false)
+
     fun safe(name: String?, mime: String? = null): String {
         val raw = name.orEmpty().substringBefore('?').substringBefore('#')
             .substringAfterLast('/').substringAfterLast('\\')
         val cleaned = raw.replace(Regex("[\\x00-\\x1f\\x7f<>:\"|?*/\\\\]"), "_")
+            // Reject invisible directional controls that can spoof extensions in UI.
+            .replace(Regex("[\\u200B-\\u200F\\u202A-\\u202E\\u2066-\\u2069]"), "")
             .trim().trim('.').take(100)
         if (cleaned.isNotBlank()) return cleaned
         val extension = when (mime?.lowercase(Locale.ROOT)) {
@@ -106,6 +117,10 @@ class DownloadLibrary private constructor(private val context: Context) {
         private set
 
     init {
+        // Re-serialize legacy DownloadManager rows at startup, permanently removing
+        // old URL query strings/userinfo from our SharedPreferences (not just in RAM).
+        // OS DownloadManager retains the original network request for its own lifecycle.
+        persist()
         // A process-killed Gecko stream cannot be resumed; remove orphaned temp fragments.
         Thread({
             localDirectory.listFiles()?.filter { it.isFile && it.name.endsWith(".part") }
@@ -126,7 +141,12 @@ class DownloadLibrary private constructor(private val context: Context) {
     ): Result<LibraryDownload> = runCatching {
         require(LibraryRules.validWebUrl(url)) { "Only HTTP(S) downloads are supported." }
         val parsed = Uri.parse(url)
-        require(!parsed.host.isNullOrBlank()) { "Invalid download address." }
+        require(!parsed.host.isNullOrBlank() && parsed.userInfo == null) {
+            "Invalid download address."
+        }
+        val canRetry = DownloadFileNames.canSafelyRetry(
+            url, !cookieHeader.isNullOrBlank() || !userAgent.isNullOrBlank()
+        )
         val suggested = fileName ?: parsed.lastPathSegment?.let {
             runCatching { URLDecoder.decode(it, "UTF-8") }.getOrNull()
         }
@@ -143,7 +163,12 @@ class DownloadLibrary private constructor(private val context: Context) {
         userAgent?.takeIf { it.isNotBlank() }?.let { request.addRequestHeader("User-Agent", it) }
         cookieHeader?.takeIf { it.isNotBlank() }?.let { request.addRequestHeader("Cookie", it) }
         val id = manager.enqueue(request)
-        val record = LibraryDownload(id, url, cleaned, mimeType, System.currentTimeMillis())
+        // DownloadManager holds the original transfer address. Library keeps only a
+        // credential-free, query-free display address: never persist signed tokens.
+        val record = LibraryDownload(
+            id, GeckoDownloadNames.redactUrl(url), cleaned, mimeType,
+            System.currentTimeMillis(), retryable = canRetry
+        )
         items = listOf(record) + items
         persist()
         record
@@ -179,8 +204,10 @@ class DownloadLibrary private constructor(private val context: Context) {
     }
 
     fun retry(record: LibraryDownload): Result<LibraryDownload> {
-        if (record.localFile.isNotBlank()) return Result.failure(
-            IOException("Retry this download from its original webpage."))
+        if (record.localFile.isNotBlank() || !record.retryable) return Result.failure(
+            IOException("Return to the original site to get a fresh download link."))
+        if (record.status != DownloadManager.STATUS_FAILED) return Result.failure(
+            IOException("Only failed downloads can be retried."))
         val fresh = enqueue(record.url, record.fileName, record.mimeType)
         if (fresh.isSuccess) remove(record)
         return fresh
@@ -331,6 +358,55 @@ class DownloadLibrary private constructor(private val context: Context) {
         }, "night-gecko-download").start()
     }
 
+    /**
+     * Private-tab downloads are explicitly exported with SAF. Their Gecko stream
+     * goes directly to the user-selected document, never to DownloadManager or
+     * the persistent Library download index. A cancelled picker closes the body.
+     * Agent 1 must pass BrowserTab.isPrivate to WebDownloadConsent.offer after A3.
+     */
+    fun exportPrivateGeckoResponse(
+        response: WebResponse, destination: Uri, onEvent: (String) -> Unit = {}
+    ) {
+        val body = response.body
+        if (body == null || response.statusCode !in 200..299) {
+            runCatching { body?.close() }
+            onEvent("The website did not provide a downloadable file.")
+            return
+        }
+        val length = response.headers.entries.firstOrNull {
+            it.key.equals("content-length", true)
+        }?.value?.toLongOrNull()?.takeIf { it > 0 } ?: -1L
+        Thread({
+            try {
+                var count = 0L
+                body.use { input ->
+                    val sink = context.contentResolver.openOutputStream(destination, "w")
+                        ?: throw IOException("Cannot write to the selected location.")
+                    sink.use { output ->
+                        val chunk = ByteArray(64 * 1024)
+                        while (true) {
+                            val n = input.read(chunk)
+                            if (n < 0) break
+                            output.write(chunk, 0, n)
+                            count += n
+                        }
+                    }
+                }
+                if (length > 0 && count != length) throw IOException("Incomplete transfer.")
+                mainThread.post { onEvent("Private file saved") }
+            } catch (error: Exception) {
+                runCatching { body.close() }
+                // ACTION_CREATE_DOCUMENT created this URI just for this transfer;
+                // remove the incomplete document when a provider permits deletion.
+                runCatching { context.contentResolver.delete(destination, null, null) }
+                mainThread.post {
+                    onEvent("Couldn't save private file: " +
+                        (error.message ?: "storage or connection error"))
+                }
+            }
+        }, "night-private-download").start()
+    }
+
     fun statusText(row: LibraryDownload): String = when (row.status) {
         DownloadManager.STATUS_SUCCESSFUL -> "Completed"
         DownloadManager.STATUS_PENDING -> "Waiting"
@@ -359,10 +435,17 @@ class DownloadLibrary private constructor(private val context: Context) {
         val array = JSONArray(prefs.getString("rows", "[]"))
         (0 until array.length()).map { i ->
             val x = array.getJSONObject(i)
-            LibraryDownload(x.getLong("id"), x.getString("url"), x.getString("file"),
+            // Migrate v1 rows in memory without resurfacing query/access tokens.
+            // Old records have unknown cookie/user-agent inputs; disable blind retry.
+            val rawUrl = x.getString("url")
+            val safeUrl = GeckoDownloadNames.redactUrl(rawUrl)
+            val eligible = x.has("retryable") && x.optBoolean("retryable") &&
+                DownloadFileNames.canSafelyRetry(rawUrl)
+            LibraryDownload(x.getLong("id"), safeUrl, x.getString("file"),
                 x.optString("mime", "application/octet-stream"), x.optLong("created"),
                 x.optInt("status", DownloadManager.STATUS_PENDING),
-                x.optLong("bytes"), x.optLong("total", -1), x.optInt("reason"), x.optString("localFile")).let { row ->
+                x.optLong("bytes"), x.optLong("total", -1), x.optInt("reason"),
+                x.optString("localFile"), retryable = eligible).let { row ->
                 if (row.localFile.isNotBlank() && row.status == DownloadManager.STATUS_RUNNING)
                     row.copy(status = DownloadManager.STATUS_FAILED) else row
             }
@@ -376,7 +459,7 @@ class DownloadLibrary private constructor(private val context: Context) {
                 .put("mime", it.mimeType).put("created", it.createdAt)
                 .put("status", it.status).put("bytes", it.bytes)
                 .put("total", it.totalBytes).put("reason", it.reason)
-                .put("localFile", it.localFile))
+                .put("localFile", it.localFile).put("retryable", it.retryable))
         }
         prefs.edit().putString("rows", array.toString()).apply()
     }

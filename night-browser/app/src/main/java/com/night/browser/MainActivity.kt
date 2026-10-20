@@ -74,28 +74,24 @@ class MainActivity : ComponentActivity() {
         // All Gecko response downloads require affirmative user consent.
         // The prompt owns the original response stream and closes it on cancellation.
         downloadPrompt = WebDownloadConsent(DownloadLibrary.shared(applicationContext))
-        browser.downloadHandler = downloadPrompt::offer
+        browser.downloadHandler = { tab, response ->
+            downloadPrompt.offer(response, tab.isPrivate)
+        }
         setContent {
             MaterialTheme(colorScheme = darkColorScheme(
                 background = Ink, surface = Raised, primary = Accent,
                 onSurface = Bright, onBackground = Bright
             )) {
-                LaunchedEffect(downloadPrompt.eventMessage) {
-                    downloadPrompt.consumeMessage()?.let { browser.notice = it }
-                }
                 NightDownloadPrompt(downloadPrompt)
-                NightBrowser(browser) { saved ->
-                    val file = File(File(filesDir, "saved-pages"), saved.fileName)
-                    if (!file.exists()) {
-                        browser.notice = "The saved copy is missing."
-                    } else {
-                        val uri = FileProvider.getUriForFile(
-                            this, "com.night.browser.files", file)
-                        val intent = Intent(Intent.ACTION_VIEW)
-                            .setDataAndType(uri, "application/pdf")
-                            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                        try { startActivity(intent) }
-                        catch (e: Exception) { browser.notice = "Install a PDF viewer to open this copy." }
+                NightBrowser(browser) { file ->
+                    val uri = FileProvider.getUriForFile(
+                        this, "com.night.browser.files", file)
+                    val intent = Intent(Intent.ACTION_VIEW)
+                        .setDataAndType(uri, "application/pdf")
+                        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    try { startActivity(intent) }
+                    catch (e: Exception) {
+                        browser.notice = "Install a PDF viewer to open this copy."
                     }
                 }
             }
@@ -122,7 +118,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> Unit) {
+private fun NightBrowser(browser: BrowserController, openSaved: (File) -> Unit) {
     var page by remember { mutableStateOf(Page.HOME) }
     var address by remember { mutableStateOf("") }
     var addressFocused by remember { mutableStateOf(false) }
@@ -212,7 +208,10 @@ private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> U
                     Page.TIME_MACHINE -> TimeMachineArchivePanel(
                         archive = archive,
                         openSaved = { item ->
-                            openSaved(SavedPage(item.fileName, item.url, item.title, item.capturedAt))
+                            archive.fileForPreview(item)?.let(openSaved)
+                                ?: run {
+                                    browser.notice = "This PDF is missing or damaged."
+                                }
                         },
                         onNotice = { browser.notice = it }
                     )
@@ -345,9 +344,11 @@ private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> U
                             leadingIcon = { Icon(Icons.Rounded.SaveAlt, null) },
                             enabled = current.url.startsWith("http") && !current.isPrivate,
                             onClick = { dismiss {
-                                archive.savePdf(current.session, current.url, current.title) {
-                                    browser.notice = it
-                                }
+                                archive.savePdf(
+                                    current.session, current.url, current.title,
+                                    isPrivate = current.isPrivate,
+                                    onNotice = { browser.notice = it }
+                                )
                             } })
                         DropdownMenuItem(
                             text = { Text("Reload") },

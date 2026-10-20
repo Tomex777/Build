@@ -2,7 +2,7 @@ name: NIGHT Browser Agent 9 CI
 
 on:
   push:
-    branches: [agent/browser-09-peek-site-studio]
+    branches: [agent/browser-09-peek-site-studio, agent/browser-v2-09-site-studio]
     paths:
       - 'night-browser/**'
       - '.github/workflows/night-browser-agent09-ci.yml'

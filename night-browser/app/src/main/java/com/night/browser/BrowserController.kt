@@ -101,7 +101,7 @@ class BrowserController(
     var contextLink by mutableStateOf<String?>(null)
     var notice by mutableStateOf<String?>(null)
     /** Agent 6 can bind its download library here without replacing Gecko delegates. */
-    var downloadHandler: ((WebResponse) -> Unit)? = null
+    var downloadHandler: ((BrowserTab, WebResponse) -> Unit)? = null
 
     val active: BrowserTab get() = tabs.first { it.id == activeId }
 
@@ -152,7 +152,7 @@ class BrowserController(
         attachJourneyTracker(tab, restored?.lastNode ?: seedNodeId)
         installDelegates(tab, session)
         session.open(runtime)
-        if (!tab.isPrivate) siteStudio.attach(session)
+        siteStudio.attach(session, tab.isPrivate)
         tabs.add(tab)
         select(tab.id)
         if (restored != null) {
@@ -176,7 +176,7 @@ class BrowserController(
             popupSession, parent.journeyId, parent.isPrivate)
         attachJourneyTracker(popup, parent.lastNode)
         installDelegates(popup, popup.session)
-        if (!popup.isPrivate) siteStudio.attach(popup.session)
+        siteStudio.attach(popup.session, popup.isPrivate)
         tabs.add(popup)
         select(popup.id)
         return popup
@@ -300,7 +300,7 @@ class BrowserController(
                 try {
                     // Contract with Agent 6: successful callback assumes ownership
                     // of response.body and MUST close it after copying/cancellation.
-                    sink(response)
+                    sink(tab, response)
                 } catch (_: Exception) {
                     runCatching { response.body?.close() }
                     notice = "Couldn't start this download."
@@ -563,7 +563,13 @@ class BrowserController(
                 }
             }
             peek.open(runtime)
-            peek.loadUri(url)
+            // Allow PeekOverlay's DisposableEffect to install navigation/progress
+            // handlers before initial navigation (including cached documents).
+            handler.post {
+                if (peek.isOpen && PeekNavigationPolicy.allows(url)) {
+                    peek.loadUri(url)
+                }
+            }
         }
 
     fun savePdfSnapshot() {

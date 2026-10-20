@@ -40,10 +40,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -88,13 +90,21 @@ fun NightStartPage(
     val focus = LocalFocusManager.current
     val clipboard = LocalClipboardManager.current
     var search by rememberSaveable { mutableStateOf("") }
+    var invalidAddress by rememberSaveable { mutableStateOf(false) }
+    val compactHome = LocalConfiguration.current.screenHeightDp < 620
     var editMode by rememberSaveable { mutableStateOf(false) }
     var editorVisible by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<StartSite?>(null) }
 
     fun submit() {
-        if (search.isBlank()) return
-        onOpen(search.trim())
+        val entered = search.trim()
+        if (entered.isBlank()) return
+        if (AddressInput.resolve(entered) == null) {
+            invalidAddress = true
+            return
+        }
+        invalidAddress = false
+        onOpen(entered)
         keyboard?.hide()
         focus.clearFocus()
         search = ""
@@ -110,6 +120,21 @@ fun NightStartPage(
         .filter { it.nodes.isNotEmpty() }
         .maxByOrNull { it.nodes.maxOfOrNull(JourneyNode::timestamp) ?: 0L }
 
+    // Filter only user-owned shortcuts and existing on-device history.
+    // Never send per-keystroke suggestion requests to a search provider.
+    val localSuggestions = if (search.isBlank()) emptyList() else {
+        val query = search.trim()
+        (shortcuts.sites.asSequence() +
+            recentPages.asSequence().map {
+                StartSite(it.title.ifBlank { it.url }, it.url)
+            })
+            .filter { it.title.contains(query, ignoreCase = true) ||
+                it.url.contains(query, ignoreCase = true) }
+            .distinctBy { it.url.lowercase() }
+            .take(4)
+            .toList()
+    }
+
     Box(
         modifier = Modifier.fillMaxSize().background(HomeBg),
         contentAlignment = Alignment.TopCenter
@@ -119,19 +144,21 @@ fun NightStartPage(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp)
         ) {
-            Spacer(Modifier.height(22.dp))
+            Spacer(Modifier.height(if (compactHome) 12.dp else 22.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(20.dp).background(HomeAccent, RoundedCornerShape(5.dp)),
-                    contentAlignment = Alignment.Center) {
-                    Text("N", fontSize = 13.sp, fontWeight = FontWeight.Black, color = HomeBg)
-                }
+                Image(
+                    painter = painterResource(id = R.drawable.ic_night),
+                    contentDescription = null,
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier.size(24.dp).clip(RoundedCornerShape(6.dp))
+                )
                 Spacer(Modifier.width(10.dp))
                 Text("NIGHT", fontSize = 15.sp, letterSpacing = 2.5.sp,
                     fontWeight = FontWeight.Bold, color = HomeText)
                 Spacer(Modifier.width(7.dp))
                 Text("Browser", fontSize = 13.sp, color = HomeSubtle)
             }
-            Spacer(Modifier.height(36.dp))
+            Spacer(Modifier.height(if (compactHome) 18.dp else 30.dp))
             Surface(
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 shape = RoundedCornerShape(18.dp),
@@ -147,7 +174,7 @@ fun NightStartPage(
                     Spacer(Modifier.width(12.dp))
                     BasicTextField(
                         value = search,
-                        onValueChange = { search = it },
+                        onValueChange = { search = it; invalidAddress = false },
                         modifier = Modifier.weight(1f),
                         singleLine = true,
                         textStyle = TextStyle(color = HomeText, fontSize = 15.sp),
@@ -166,7 +193,12 @@ fun NightStartPage(
                     )
                     if (search.isBlank()) {
                         IconButton(
-                            onClick = { clipboard.getText()?.text?.toString()?.let { search = it } },
+                            onClick = {
+                                clipboard.getText()?.text?.toString()?.let {
+                                    search = it
+                                    invalidAddress = false
+                                }
+                            },
                             modifier = Modifier.size(44.dp)
                         ) {
                             Icon(Icons.Rounded.ContentPaste, contentDescription = "Paste address",
@@ -181,7 +213,43 @@ fun NightStartPage(
                     }
                 }
             }
-            Spacer(Modifier.height(33.dp))
+            if (invalidAddress) {
+                Text("This address can't be opened.", color = Color(0xFFFFA1A1),
+                    fontSize = 12.sp, modifier = Modifier.padding(start = 12.dp, top = 8.dp))
+            }
+            if (localSuggestions.isNotEmpty()) {
+                Spacer(Modifier.height(6.dp))
+                Surface(color = HomeTile, shape = RoundedCornerShape(15.dp),
+                    border = BorderStroke(1.dp, HomeStroke)) {
+                    Column(Modifier.fillMaxWidth()) {
+                        localSuggestions.forEach { site ->
+                            Row(
+                                Modifier.fillMaxWidth().clickable {
+                                    onOpen(site.url)
+                                    keyboard?.hide()
+                                    focus.clearFocus()
+                                    search = ""
+                                }.padding(horizontal = 16.dp, vertical = 11.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Rounded.History, contentDescription = null,
+                                    tint = HomeSubtle, modifier = Modifier.size(17.dp))
+                                Spacer(Modifier.width(11.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text(site.title, color = HomeText, fontSize = 13.sp,
+                                        maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text(site.url, color = HomeSubtle, fontSize = 11.sp,
+                                        maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                }
+                                Icon(Icons.AutoMirrored.Rounded.ArrowForward,
+                                    contentDescription = "Open ${site.title}",
+                                    tint = HomeSubtle, modifier = Modifier.size(17.dp))
+                            }
+                        }
+                    }
+                }
+            }
+            Spacer(Modifier.height(if (compactHome || localSuggestions.isNotEmpty()) 17.dp else 33.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Quick access", color = HomeText, fontWeight = FontWeight.SemiBold,
                     fontSize = 18.sp, modifier = Modifier.weight(1f))
@@ -472,7 +540,10 @@ private fun ShortcutEditor(
                 fontSize = 19.sp, color = HomeText)
         },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
                 EditorField("Name", title, { title = it; error = false }, KeyboardType.Text)
                 EditorField("Website", url, { url = it; error = false }, KeyboardType.Uri)
                 if (error) Text("Check the address or remove the duplicate shortcut.",
@@ -498,7 +569,9 @@ private fun EditorField(
     value: String,
     update: (String) -> Unit,
     type: KeyboardType
-) {
+ ) {
+    val keyboard = LocalSoftwareKeyboardController.current
+    val focus = LocalFocusManager.current
     Column {
         Text(label, color = HomeSubtle, fontSize = 12.sp)
         Spacer(Modifier.height(7.dp))
@@ -511,7 +584,12 @@ private fun EditorField(
                 singleLine = true,
                 textStyle = TextStyle(color = HomeText, fontSize = 14.sp),
                 cursorBrush = SolidColor(HomeAccent),
-                keyboardOptions = KeyboardOptions(keyboardType = type, imeAction = ImeAction.Done)
+                keyboardOptions = KeyboardOptions(keyboardType = type,
+                    imeAction = if (label == "Name") ImeAction.Next else ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = {
+                    keyboard?.hide()
+                    focus.clearFocus()
+                })
             )
         }
     }

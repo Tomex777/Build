@@ -24,6 +24,7 @@ class NightLibraryRulesTest {
         assertEquals("image.png", DownloadFileNames.safe("image.png", "image/png"))
         assertEquals("download.pdf", DownloadFileNames.safe("..", "application/pdf"))
         assertEquals("download", DownloadFileNames.safe(null, null))
+        assertEquals("report.pdf", DownloadFileNames.safe("report" + 0x202E.toChar() + ".pdf")
     }
 
     @Test fun downloadDispositionAndRedactionDoNotLeakSecrets() {
@@ -31,9 +32,26 @@ class NightLibraryRulesTest {
             "attachment; filename*=UTF-8''my%20report.pdf"))
         assertEquals("home page.txt", GeckoDownloadNames.fromDisposition(
             "attachment; filename=\"home page.txt\""))
+        assertEquals("a+b.pdf", GeckoDownloadNames.fromDisposition(
+            "attachment; filename*=UTF-8''a+b.pdf"))
+        assertEquals("café.pdf", GeckoDownloadNames.fromDisposition(
+            "attachment; filename*=ISO-8859-1''caf%E9.pdf"))
         assertEquals("https://example.com/folder/file.pdf",
             GeckoDownloadNames.redactUrl(
                 "https://user:password@example.com/folder/file.pdf?access_token=secret#fragment"))
+    }
+
+    @Test fun signedAndAuthenticatedDownloadsCannotBeReplayedFromRedactedHistory() {
+        assertTrue(DownloadFileNames.canSafelyRetry("https://example.org/file.pdf"))
+        assertFalse(DownloadFileNames.canSafelyRetry(
+            "https://example.org/file.pdf?token=ONE_TIME_SIGNED_KEY"))
+        assertFalse(DownloadFileNames.canSafelyRetry(
+            "https://user:password@example.org/file.pdf"))
+        assertFalse(DownloadFileNames.canSafelyRetry("https://example.org/file.pdf#secret"))
+        assertFalse(DownloadFileNames.canSafelyRetry("https://example.org/file.pdf", true))
+        assertFalse(DownloadFileNames.canSafelyRetry("javascript:alert(1)"))
+        assertEquals("https://example.org/file.pdf",
+            GeckoDownloadNames.redactUrl("https://example.org/file.pdf?token=secret"))
     }
 
     @Test fun urlsWithEmbeddedCredentialsAreNotBookmarkable() {

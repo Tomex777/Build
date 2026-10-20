@@ -1,3 +1,15 @@
+# Wave-2 A6 updates — 20 October 2026
+
+**Source head:** `76c21aba6fc15b6cff622d2ce9501d743ca92d51` (at note time), existing specialist PR #432. A1 should reuse this source instead of creating a duplicate disconnected Library. Integration still missing; original first-wave notes below describe the earlier state.
+
+- **Signed/authenticated download privacy:** the Android system service receives the original request; NIGHT's own SharedPreferences now retain a query-free/credential-free URL only. Legacy saved URLs are re-serialized at startup to remove tokens. Retry is available only for failed simple public HTTP(S) URLs with no user-agent/cookie headers; signed, ephemeral and authenticated streams must restart from their original webpage. Unit cases cover this guard.
+- **True private download export:** Gecko original response bytes go directly to an Android Storage Access Framework `CreateDocument` URI and **never** to persistent Library, app-private download folder or Android DownloadManager. Declining/private picker cancellation closes the stream; errors attempt deletion of incomplete documents. This is only active after tab privacy is bound; cannot infer privacy from a URL.
+- **Mandatory combined integration contract:** with A4's `downloadHandler: ((BrowserTab, WebResponse) -> Unit)?` and A3's `BrowserTab.isPrivate`, wire `browser.downloadHandler = { tab, response -> consent.offer(response, tab.isPrivate) }`. Plain `consent.offer(response)` retains public behavior for legacy callers and is **not adequate for private tabs**. Render `NightDownloadPrompt(consent)` and `NightLibraryScreen(browser, onOpen)` in coordinator-owned MainActivity. Keep the `browser-downloads/` FileProvider path.
+- **Filename quality:** RFC 5987 filenames preserve literal `+`, support UTF-8/ISO-8859-1 and remove Unicode bidirectional filename-spoofing characters. Regression tests included.
+- **Verification:** Earlier head `7a030f7` had Android/Agent6 CI success (runs 39378081988 / 39378081967). Later commits above triggered **new workflows still queued at documentation time**. Neither compile success on new head nor API26/API36 install/authenticated live-site tests should be inferred. A10 should specifically run incognito response → SAF picker → bytes verified → Library empty, signed URL → persisted prefs redacted, aborted partial file, and private-cancel cleanup.
+
+---
+
 # Agent 6 — Library / download integration handoff (2026-10-20)
 
 **Branch:** agent/browser-06-library
