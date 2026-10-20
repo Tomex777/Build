@@ -96,7 +96,8 @@ class BrowserController(private val appContext: Context) {
                 perms: List<GeckoSession.PermissionDelegate.ContentPermission>,
                 hasUserGesture: Boolean
             ) {
-                if (url.isNullOrBlank()) return
+                // Do not show Gecko's internal blank document as a visited website.
+                if (url.isNullOrBlank() || url == "about:blank") return
                 if (tab.url != url) {
                     tab.url = url
                     if (!tab.isPrivate) {
