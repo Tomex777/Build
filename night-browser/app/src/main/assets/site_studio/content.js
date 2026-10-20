@@ -7,7 +7,7 @@
   "use strict";
   if (window !== window.top || !/^https?:$/.test(location.protocol)) return;
 
-  browser.runtime.sendNativeMessage("night-site-studio", {
+  browser.runtime.sendNativeMessage("night.site_studio", {
     type: "rulesForPage"
   }).then((rule) => {
     if (!rule || typeof rule !== "object") return;
@@ -19,7 +19,7 @@
     }
     if (typeof rule.css === "string" && rule.css.length <= 32768 && rule.css) {
       const style = document.createElement("style");
-      style.setAttribute("data-night-site-studio", "user-style");
+      style.setAttribute("data-night.site_studio", "user-style");
       style.textContent = rule.css;
       (document.head || document.documentElement).appendChild(style);
     }
@@ -30,7 +30,7 @@
       // site's Content Security Policy allows inline page scripts.
       // Never bypass the site's CSP and never eval in extension context.
       const script = document.createElement("script");
-      script.setAttribute("data-night-site-studio", "user-script");
+      script.setAttribute("data-night.site_studio", "user-script");
       script.textContent = rule.javascript;
       (document.head || document.documentElement).appendChild(script);
       script.remove();
