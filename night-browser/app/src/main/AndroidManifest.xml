@@ -21,6 +21,7 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity android:name=".SavedPdfActivity" android:exported="false" />
         <provider android:name="androidx.core.content.FileProvider"
                   android:authorities="com.night.browser.files"
                   android:exported="false"
