@@ -54,6 +54,13 @@ class OfflineFlowTest {
             assertNotNull("Minesweeper native touch cells missing", center)
             saveScreenshot(device, context, "03-native-minesweeper-opening.png")
             center!!.click()
+            SystemClock.sleep(700)
+            saveScreenshot(device, context, "03-native-minesweeper-after-tap.png")
+            val savedMineState = NativeMinesEngine.decode(
+                context.getSharedPreferences("native_mines", android.content.Context.MODE_PRIVATE)
+                    .getString("board", null))
+            org.junit.Assert.assertTrue("Minesweeper tap did not reach Kotlin engine",
+                savedMineState != null && savedMineState.revealed.isNotEmpty())
             assertNotNull("Native Minesweeper did not reveal the first safe square",
                 device.wait(Until.findObject(By.descContains("Mine cell 5, 5: revealed")), 7000))
             saveScreenshot(device, context, "03-native-minesweeper-revealed.png")
