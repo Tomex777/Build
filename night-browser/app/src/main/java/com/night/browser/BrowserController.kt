@@ -18,7 +18,8 @@ class BrowserTab(
     val id: String,
     val session: GeckoSession,
     val journeyId: String,
-    val journeyTracker: JourneyVisitTracker
+    val journeyTracker: JourneyVisitTracker,
+    val recordsJourney: Boolean
 ) {
     var title by mutableStateOf("New tab")
     var url by mutableStateOf("")
@@ -49,17 +50,22 @@ class BrowserController(private val appContext: Context) {
     fun newTab(
         url: String? = null,
         journeyId: String = store.journeys.first().id,
-        seedNodeId: String? = null
+        seedNodeId: String? = null,
+        recordJourney: Boolean = true
     ): BrowserTab {
         val session = GeckoSession()
         val tracker = JourneyVisitTracker(
-            lookup = { nodeId -> store.getNode(journeyId, nodeId) },
+            lookup = { nodeId ->
+                if (recordJourney) store.getNode(journeyId, nodeId) else null
+            },
             saveVisit = { visitedUrl, title, parentId ->
-                store.record(journeyId, visitedUrl, title, parentId)
+                if (recordJourney) store.record(journeyId, visitedUrl, title, parentId)
+                else null
             },
             seedNodeId = seedNodeId
         )
-        val tab = BrowserTab(UUID.randomUUID().toString(), session, journeyId, tracker)
+        val tab = BrowserTab(UUID.randomUUID().toString(), session, journeyId,
+            tracker, recordJourney)
         tab.lastNode = tracker.nodeId
         session.navigationDelegate = object : GeckoSession.NavigationDelegate {
             override fun onLocationChange(
@@ -88,7 +94,8 @@ class BrowserController(private val appContext: Context) {
             }
 
             override fun onNewSession(session: GeckoSession, uri: String): GeckoResult<GeckoSession> {
-                val popup = newTab(journeyId = tab.journeyId, seedNodeId = tab.lastNode)
+                val popup = newTab(journeyId = tab.journeyId,
+                    seedNodeId = tab.lastNode, recordJourney = tab.recordsJourney)
                 return GeckoResult.fromValue(popup.session)
             }
         }
