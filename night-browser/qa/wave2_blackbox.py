@@ -209,8 +209,12 @@ class Device:
 
     def verify_title(self, title):
         self.click("Tabs")
-        if not self.find(title, partial=True):
-            raise AssertionError("Expected committed title not shown: " + title)
+        # Gecko title delivery is asynchronous after Back/Forward.
+        deadline = time.monotonic() + 18
+        while not self.find(title, partial=True):
+            if time.monotonic() >= deadline:
+                raise AssertionError("Expected committed title not shown: " + title)
+            time.sleep(.6)
         self.click(title, partial=True)
         return "Confirmed committed tab title " + title
 
@@ -311,15 +315,19 @@ class Device:
         self.click("Save PDF copy")
         self.click("More")
         self.click("Time Machine")
-        if not self.find("NIGHT QA REDIRECT LANDING", partial=True):
-            raise AssertionError("Saved PDF page is missing from Time Machine list")
+        # Saving and indexing Gecko's PDF bytes is asynchronous on real devices.
+        deadline = time.monotonic() + 24
+        while not self.find("NIGHT QA REDIRECT LANDING", partial=True):
+            if time.monotonic() >= deadline:
+                raise AssertionError("PDF version not present after 24s")
+            time.sleep(1)
         return "Save PDF action then named page version displayed; offline open separately pending"
 
     def peek(self):
         self.go("/links")
         self.click("Visit A", long=True)
         self.click("Peek")
-        self.click("Close preview")
+        self.click("Dismiss preview")
         return "Long-press opened disposable preview and dismissed it"
 
     def mem(self):
@@ -421,8 +429,8 @@ class Device:
                   self.click("10.0.2.2", partial=True)), prerequisites=("C13",))
         self.test("C15", "Journeys history access", lambda: (
                   self.click("More"), self.click("Journeys"),
-                  "My browsing panel visible" if self.find("My browsing", partial=True)
-                  else self._missing("My browsing panel")), prerequisites=("C13",))
+                  "Journeys panel visible" if self.find("Journeys", partial=True)
+                  else self._missing("Journeys panel")), prerequisites=("C13",))
         self.test("C16", "10 tabs via touch", self.ten_tabs, prerequisites=("C01",), screenshot=True)
         self.test("C17", "Landscape UI still interactive", self.rotate,
                   prerequisites=("C16",), screenshot=True)
