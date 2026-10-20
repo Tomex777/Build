@@ -77,14 +77,18 @@ fun UniversalSearchPanel(
     var generation by remember { mutableIntStateOf(0) }
     var job by remember { mutableStateOf<Job?>(null) }
     val approved = remember(bookmarks, journeys) {
-        val rows = mutableListOf<SearchSource>()
-        bookmarks.forEach { mark ->
-            rows.add(SearchSource("S" + (rows.size + 1), mark.title, mark.url, "Bookmark"))
+        // Bound work for large history stores and ensure visited pages are not
+        // crowded out by a long bookmark list.
+        val marks = bookmarks.asSequence().take(35).mapIndexed { i, mark ->
+            SearchSource("B" + (i + 1), mark.title, mark.url, "Bookmark")
         }
-        journeys.flatMap { it.nodes }.asReversed().forEach { node ->
-            rows.add(SearchSource("S" + (rows.size + 1), node.title, node.url, "Visit"))
-        }
-        UniversalSearchPolicy.eligibleCandidates(rows)
+        val visits = journeys.asSequence()
+            .flatMap { it.nodes.asReversed().asSequence() }
+            .take(120)
+            .mapIndexed { i, node ->
+                SearchSource("V" + (i + 1), node.title, node.url, "Visit")
+            }
+        UniversalSearchPolicy.eligibleCandidates((marks + visits).toList())
     }
     val selected = remember { mutableStateListOf<String>() }
 
