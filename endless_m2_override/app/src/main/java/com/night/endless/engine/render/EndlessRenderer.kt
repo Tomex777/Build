@@ -1623,6 +1623,28 @@ class EndlessRenderer(
             GLES30.glGetUniformLocation(ringProgram, "uMvp"),
             1, false, mvp, 0
         )
+        GLES30.glUniformMatrix4fv(
+            GLES30.glGetUniformLocation(ringProgram, "uModel"),
+            1, false, model, 0
+        )
+        // Solar illumination is from the Sun at world origin. Ringed gas
+        // giants cast a real planet-shaped umbra over the far-side annulus;
+        // the previous ring texture glowed uniformly through Saturn's night.
+        GLES30.glUniform3f(
+            GLES30.glGetUniformLocation(ringProgram, "uPlanetCenter"),
+            saturn.position.x.toFloat(),
+            saturn.position.y.toFloat(),
+            saturn.position.z.toFloat()
+        )
+        val tiltRad = Math.toRadians(saturn.axialTiltDeg)
+        GLES30.glUniform3f(
+            GLES30.glGetUniformLocation(ringProgram, "uRingNormal"),
+            -sin(tiltRad).toFloat(), cos(tiltRad).toFloat(), 0f
+        )
+        GLES30.glUniform1f(
+            GLES30.glGetUniformLocation(ringProgram, "uEquatorialRadius"),
+            ringRadius
+        )
 
         bindTexture(0, saturnRingTexture)
         GLES30.glUniform1i(
@@ -2446,19 +2468,26 @@ void main() {
 layout(location=0) in vec3 aPosition;
 layout(location=1) in vec2 aUv;
 uniform mat4 uMvp;
+uniform mat4 uModel;
 out vec2 vUv;
+out highp vec3 vWorld;
 
 void main() {
     vUv = aUv;
+    vWorld = (uModel * vec4(aPosition, 1.0)).xyz;
     gl_Position = uMvp * vec4(aPosition, 1.0);
 }
 """
 
         private const val RING_FRAGMENT_SHADER = """#version 300 es
-precision mediump float;
+precision highp float;
 
 in vec2 vUv;
+in highp vec3 vWorld;
 uniform sampler2D uTexture;
+uniform vec3 uPlanetCenter;
+uniform vec3 uRingNormal;
+uniform float uEquatorialRadius;
 out vec4 fragColor;
 
 void main() {
@@ -2466,7 +2495,24 @@ void main() {
     float band = max(t.r, max(t.g, t.b));
     float alpha = t.a * band * 0.92;
     if (alpha < 0.02) discard;
-    fragColor = vec4(t.rgb, alpha);
+
+    vec3 toSun = normalize(-uPlanetCenter);
+    vec3 location = vWorld - uPlanetCenter;
+    float sunHeight = abs(dot(normalize(uRingNormal), toSun));
+    // Rings scatter sunlight across both their sides, but their radiance
+    // drops when illuminated nearly edge-on at ring-plane crossings.
+    float illumination = 0.20 + 0.80 * sqrt(max(sunHeight, 0.0));
+
+    // Planet shadow in the ring plane. The ray from the ring particle toward
+    // the Sun must pass through Saturn before entering sunlight.
+    float behindPlanet = dot(location, toSun);
+    vec3 tangent = location - behindPlanet * toSun;
+    float radialSunDistance = length(tangent) / max(uEquatorialRadius, .001);
+    float blocking = (1.0 - smoothstep(.990, 1.025, radialSunDistance))
+                     * (1.0 - smoothstep(-0.025, 0.025, behindPlanet));
+    // Preserve a small indirect scattering floor inside the umbra.
+    float shadow = mix(1.0, 0.11, blocking);
+    fragColor = vec4(t.rgb * illumination * shadow, alpha);
 }
 """
     }
