@@ -27,6 +27,9 @@ jobs:
       - name: Discover official original character artwork
         working-directory: cards
         run: node bin/eminence-discover.mjs
+      - name: Verify official cutout source dimensions
+        working-directory: cards
+        run: node bin/eminence-probe.mjs
       - name: Preserve public source inventory
         if: always()
         uses: actions/upload-artifact@v4
