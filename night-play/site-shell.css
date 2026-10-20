@@ -51,3 +51,49 @@
  .mobile-nav a:focus-visible{outline:2px solid #356e4b;outline-offset:-2px}
 }
 @media(max-width:350px){.mobile-nav{gap:4px;padding-left:9px;padding-right:9px}}
+
+/* Accessibility and viewport polish: shared site navigation only.
+   Do not change game engines or the approved Channels screen. */
+.site-header .logo,
+.site-header .links a,
+.site-header .actions .btn {
+  min-height:44px;
+}
+.site-header .links a {
+  display:inline-flex;
+  align-items:center;
+}
+.site-header .logo:focus-visible,
+.site-header .links a:focus-visible,
+.site-header .actions .btn:focus-visible,
+.mobile-nav a:focus-visible {
+  outline:2px solid #306b55;
+  outline-offset:3px;
+}
+/* A fixed game page already owns its own back/settings header.
+   The sticky site header otherwise layers above it (z-index 60 vs 20),
+   obscuring controls, and leaves the bottom tabs focusable behind play. */
+body.in-game .site-header,
+body.in-game .mobile-nav {
+  visibility:hidden!important;
+  pointer-events:none!important;
+}
+@media (min-width:601px) and (max-width:760px) {
+  .site-header .wrap{padding-inline:18px}
+  .site-header .nav{gap:10px}
+  .site-header .links{gap:10px;font-size:11px}
+  .site-header .logo{font-size:18px;letter-spacing:-.9px;gap:7px}
+  .site-header .brand-sub{display:none}
+  .site-header .actions{gap:7px}
+  .site-header .actions .btn{padding:10px 12px;font-size:11px}
+}
+@media (max-width:600px) {
+  .site-header .nav{gap:8px}
+  .site-header .logo{font-size:18px;letter-spacing:-.9px;gap:7px;flex-shrink:0}
+  .site-header .actions{gap:6px;min-width:0}
+  .site-header .actions .btn{min-height:44px;min-width:0;padding:8px 11px;font-size:11px;line-height:1.2;text-align:center}
+}
+@media (max-width:370px) {
+  .site-header .logo{font-size:16px;gap:6px}
+  .site-header .actions .btn{padding:8px 9px;font-size:10px;max-width:125px;white-space:normal}
+}
