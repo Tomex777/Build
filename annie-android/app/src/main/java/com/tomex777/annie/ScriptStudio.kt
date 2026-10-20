@@ -42,7 +42,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -1434,7 +1433,7 @@ private fun ScriptEnvFieldCard(
                     var value by remember(scriptId, field.key) {
                         mutableStateOf(workspace.envValue(scriptId, field.key)?.toString().orEmpty())
                     }
-                    OutlinedTextField(
+                    AnnieSettingsInput(
                         value = value,
                         onValueChange = {
                             value = it
@@ -1442,21 +1441,20 @@ private fun ScriptEnvFieldCard(
                                 .onFailure { error -> onStatus(error.message ?: "ENV update failed") }
                         },
                         modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        label = { Text(field.label) },
+                        label = field.label,
                     )
                 }
 
                 ScriptEnvFieldType.SECRET -> {
                     var value by remember(scriptId, field.key) { mutableStateOf("") }
                     var configured by remember(scriptId, field.key) { mutableStateOf(workspace.envHasSecret(scriptId, field.key)) }
-                    OutlinedTextField(
+                    AnnieSettingsInput(
                         value = value,
                         onValueChange = { value = it },
-                        modifier = Modifier.fillMaxWidth().testTag("script_env_secret_${field.key}"),
-                        singleLine = true,
-                        label = { Text(if (configured && value.isBlank()) "${field.label} · configured" else field.label) },
-                        visualTransformation = PasswordVisualTransformation(),
+                        modifier = Modifier.fillMaxWidth(),
+                        label = if (configured && value.isBlank()) "${field.label} · configured" else field.label,
+                        secret = true,
+                        tag = "script_env_secret_${field.key}",
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         StudioAction(
@@ -1495,7 +1493,7 @@ private fun ScriptEnvFieldCard(
                     var value by remember(scriptId, field.key) {
                         mutableStateOf(workspace.envValue(scriptId, field.key)?.toString().orEmpty())
                     }
-                    OutlinedTextField(
+                    AnnieSettingsInput(
                         value = value,
                         onValueChange = { next ->
                             value = next
@@ -1505,8 +1503,8 @@ private fun ScriptEnvFieldCard(
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        label = { Text(field.label) },
+                        label = field.label,
+                        numeric = true,
                     )
                 }
 
