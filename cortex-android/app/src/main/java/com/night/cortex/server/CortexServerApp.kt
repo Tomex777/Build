@@ -264,7 +264,7 @@ fun CortexServerApp(vm: ServerPanelViewModel = viewModel()) {
                         ServerTab.CLOUD -> CloudSetupPage(
                             state = state,
                             onRefresh = vm::refreshCloud,
-                            onSave = vm::saveEnvironment,
+                            onSave = vm::saveCloudCredential,
                             onAutoAssign = vm::configureCloudVideoLayout,
                             onVerify = vm::verifyCloudFolder,
                             onRestart = { vm.power(HostingPowerAction.RESTART) },
