@@ -10,10 +10,14 @@ object AddressInput {
         if (input.isBlank()) return null
         if (input.contains("://")) {
             val uri = runCatching { URI(input) }.getOrNull() ?: return null
-            return if ((uri.scheme == "https" || uri.scheme == "http") && !uri.host.isNullOrBlank()) input else null
+            return if ((uri.scheme.equals("https", true) || uri.scheme.equals("http", true)) &&
+                !uri.host.isNullOrBlank() && uri.rawUserInfo == null) input else null
         }
         if (!input.contains(' ') &&
-            (input.equals("localhost", true) || input.contains('.')) &&
+            (input.equals("localhost", true) ||
+                input.startsWith("localhost:", true) ||
+                input.startsWith("localhost/", true) ||
+                input.contains('.')) &&
             !input.startsWith("javascript:", true) &&
             !input.startsWith("data:", true)) {
             val uri = runCatching { URI("https://$input") }.getOrNull()
