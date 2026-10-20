@@ -111,12 +111,21 @@ class TimeMachineArchive(context: Context) {
             it.name.endsWith(".pdf.part") }.forEach { it.delete() }
     }
 
-    val usedBytes: Long get() = versions.sumOf { item ->
-        resolveFile(item.fileName)?.takeIf { it.isFile }?.length() ?: 0L
-    }
+    /** Count actual files, including complete orphan copies awaiting recovery. */
+    val usedBytes: Long get() = folder.listFiles()?.asSequence()
+        ?.filter { it.isFile && isSafeFileName(it.name) }
+        ?.sumOf { it.length() } ?: 0L
+
+    fun health(item: TimeMachineVersion): ArchiveFileHealth =
+        TimeMachinePdfHealth.inspect(resolveFile(item.fileName), item.sizeBytes)
+
+    fun fileForPreview(item: TimeMachineVersion): File? =
+        resolveFile(item.fileName)?.takeIf {
+            TimeMachinePdfHealth.inspect(it, item.sizeBytes) == ArchiveFileHealth.READY
+        }
 
     fun exists(item: TimeMachineVersion): Boolean =
-        resolveFile(item.fileName)?.isFile == true
+        health(item) == ArchiveFileHealth.READY
 
     /**
      * A fresh capture always becomes a new version, never overwrites an older one.
@@ -126,8 +135,13 @@ class TimeMachineArchive(context: Context) {
         session: GeckoSession,
         url: String,
         title: String,
+        isPrivate: Boolean,
         onNotice: (String) -> Unit
     ) {
+        if (isPrivate) {
+            onNotice("Private tabs cannot be saved to Time Machine.")
+            return
+        }
         if (!url.startsWith("https://") && !url.startsWith("http://")) {
             onNotice("Open a webpage before saving a PDF copy.")
             return
@@ -172,6 +186,9 @@ class TimeMachineArchive(context: Context) {
                             }
                         }
                         check(bytes > 0) { "Empty PDF" }
+                        check(TimeMachinePdfHealth.inspect(part, bytes) == ArchiveFileHealth.READY) {
+                            "The saved PDF was incomplete or unreadable"
+                        }
                         // Count files already saved, not only previously cached UI state.
                         val used = usedBytes
                         check(TimeMachineLimits.canAdd(versions.size, used, bytes)) {
@@ -187,10 +204,18 @@ class TimeMachineArchive(context: Context) {
                             sizeBytes = bytes
                         )
                         main.post {
+                            val previous = versions
                             versions = (listOf(item) + versions).sortedByDescending { it.capturedAt }
-                            persist()
-                            captureBusy.set(false)
-                            onNotice("PDF version saved in Time Machine.")
+                            if (!persist()) {
+                                // Never report success when the metadata write was rejected.
+                                versions = previous
+                                // Keep the complete file for recovery on next launch.
+                                captureBusy.set(false)
+                                onNotice("PDF captured, but its record could not be saved. Reopen Time Machine to recover it.")
+                            } else {
+                                captureBusy.set(false)
+                                onNotice("PDF version saved in Time Machine.")
+                            }
                         }
                         return@Thread
                     } catch (e: Exception) {
@@ -228,9 +253,9 @@ class TimeMachineArchive(context: Context) {
 
     /** SAF export: the user chooses the destination. The original is retained. */
     fun exportToUri(item: TimeMachineVersion, destination: Uri, onNotice: (String) -> Unit) {
-        val file = resolveFile(item.fileName)
-        if (file?.isFile != true) {
-            onNotice("This PDF copy is missing. You can delete its record.")
+        val file = fileForPreview(item)
+        if (file == null) {
+            onNotice("This PDF is missing or damaged. You can delete its record.")
             return
         }
         Thread {
@@ -277,7 +302,7 @@ class TimeMachineArchive(context: Context) {
         }.sortedByDescending { it.capturedAt }
     }.getOrDefault(emptyList())
 
-    private fun persist(migrated: Boolean? = null) {
+    private fun persist(migrated: Boolean? = null): Boolean {
         val array = JSONArray()
         versions.forEach { item ->
             array.put(JSONObject().put("id", item.id).put("url", item.url)
@@ -286,6 +311,6 @@ class TimeMachineArchive(context: Context) {
         }
         val edit = prefs.edit().putString("versions", array.toString())
         if (migrated != null) edit.putBoolean("legacy_migrated", migrated)
-        edit.commit()
+        return edit.commit()
     }
 }
