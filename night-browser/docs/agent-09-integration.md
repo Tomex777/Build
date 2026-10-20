@@ -1,6 +1,6 @@
 # Agent 9 — integration contract, safety and QA
 
-Branch: `agent/browser-09-peek-site-studio`. Scope is new files only; **do not merge blindly until Agent 1/2/3/4 arbitrate shared ownership**. This PR deliberately avoids modifying `MainActivity.kt`, `BrowserController.kt`, `JourneyStore.kt`, Gradle, and the manifest while other agents work.
+Wave-2 branch: `agent/browser-v2-09-site-studio` (continues PR #434). Scope is new files only; **do not merge blindly until Agent 1/2/3/4 arbitrate shared ownership**. This PR deliberately avoids modifying `MainActivity.kt`, `BrowserController.kt`, `JourneyStore.kt`, Gradle, and the manifest while other agents work.
 
 ## Implemented in this branch
 
@@ -15,7 +15,8 @@ Branch: `agent/browser-09-peek-site-studio`. Scope is new files only; **do not m
 
 1. **Gecko engine owner (Agent 4):** In `BrowserController`, instantiate
    `val siteStudioStore = SiteStudioStore(appContext)` and
-   `val siteStudio = SiteStudioBridge(runtime, siteStudioStore)` once. Immediately before a new GeckoSession is navigated call `siteStudio.attach(session)`. On tab close call `siteStudio.detach(tab.session)` before close. Do not attach to incognito sessions unless a deliberately separate, nonpersistent rule policy is implemented.
+   `val siteStudio = SiteStudioBridge(runtime, siteStudioStore)` once. Immediately before a normal GeckoSession is navigated call `siteStudio.attach(session, isPrivate = false)` and before a private session `siteStudio.attach(session, isPrivate = true)` (which explicitly rejects private access). On tab close call `siteStudio.detach(tab.session)` before close. Do NOT attach disposable Peek sessions, or provide saved normal-profile rules in private mode. The boolean is mandatory: no accidental implicit regular-profile default.
+   **Peek safety dependency for Agent 4:** current `BrowserController.newPeekSession` already `loadUri`s before `PeekOverlay` installs navigation/permission/download delegates, so cached pages can beat the preview and initial requests lack Peek's restrictions. Expose a factory that configures delegates before the first load; keep external intents/file schemes/download prompts disallowed for previews. Do not claim this race solved by an overlay URL check alone.
 2. **UI owner (Agent 1/2):** Replace the old `PeekDialog` call with
    `PeekOverlay(browser, url, onDismiss = { peekUrl = null }, onOpen = { finalUrl -> browser.newTab(finalUrl); peekUrl = null; page = Page.WEB })`.
    Eliminate old PeekDialog after import extraction; do **not** keep duplicate previews.
@@ -45,3 +46,11 @@ Rules are stored in app-private storage; the app manifest disables backup. A tem
 ## Status (2026-10-20)
 
 **Implemented:** modules and tests above. **Wired/integrated:** not yet; shared file ownership belongs to Agent 1/2/4. **Built/installed/interaction-tested:** awaiting dedicated CI and coordinator emulator. **Known limitations:** inline user JS may be blocked by website CSP; Peek tab promotion reopens its current URL instead of transferring live form/scroll state. Do not present either capability as complete parity before end-to-end verification.
+
+## Wave-2 hardening (2026-10-20)
+
+- Copies existing modules from #434 onto current Wave-2 integration base, not a parallel redesign.
+- Site Studio content bridge now checks **only** `location.origin` after async native response. A reconstructed host fallback could otherwise turn an inconsistent origin into a false success.
+- Native bridge requires an explicit `isPrivate` argument to `attach`, refuses private access, and synchronizes weak session containers across Gecko callbacks/editor requests.
+- Peek rejects unsupported initial URLs before creating a Gecko session, does not leave a perpetual spinner on ultra-fast pages that beat delegate assignment, offers retry on load errors, and prevents promoting stale/in-flight URLs.
+- Remaining work: A4 Peek pre-load delegate hook, A1 editor/menu wiring, A3 private/lifecycle and memory hook, A10 API26/API36 live screenshots + web interactions. The source code cannot be called integrated or released until those pass.
