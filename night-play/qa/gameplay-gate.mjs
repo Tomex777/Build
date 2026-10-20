@@ -1,5 +1,5 @@
 /* NIGHT Play independent regression gate.
- * Real Chromium touch swipes, game snapshots, and visual captures across
+ * Real Chromium touch swipes on phones, mouse swipes on desktop, game snapshots, and visual captures across
  * narrow phones and desktop. Passing this gate is NOT a human visual sign-off.
  */
 import assert from 'node:assert/strict';
@@ -53,6 +53,12 @@ async function actualTouchSwipe(page,a,b){
  await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
  await cdp.detach();
 }
+async function actualMouseSwipe(page,a,b){
+ await page.mouse.move(a.x,a.y);
+ await page.mouse.down();
+ await page.mouse.move(b.x,b.y,{steps:8});
+ await page.mouse.up();
+}
 async function evidence(page,name){
  await page.screenshot({path:path.join(output,name+'.jpg'),type:'jpeg',quality:75});
 }
@@ -85,13 +91,13 @@ try{
   const box=await page.locator('canvas').boundingBox();
   const p=(x,y)=>({x:box.x+x/390*box.width,y:box.y+y/550*box.height});
   // Swipe through empty space first. A gesture alone MUST NOT award points.
-  await actualTouchSwipe(page,p(12,45),p(105,45));
+  await (isMobile?actualTouchSwipe:actualMouseSwipe)(page,p(12,45),p(105,45));
   assert.equal((await snapshot(page)).score,0,'off-fruit real touch swipe cannot score');
   await evidence(page,'qa-fruit-before-'+width);
   // Find fruit again because gravity continues during swipe and screenshot.
   const current=(await snapshot(page)).fruits.find(f=>f.kind!=='bomb'&&f.y>35&&f.y<500);
   assert.ok(current,'fruit still on screen before cut');
-  await actualTouchSwipe(page,p(current.x-39,current.y),p(current.x+39,current.y));
+  await (isMobile?actualTouchSwipe:actualMouseSwipe)(page,p(current.x-39,current.y),p(current.x+39,current.y));
   const cut=await snapshot(page);
   assert.equal(cut.score,10,'one real touch crossing earns exactly ten at '+width);
   assert.equal(cut.halves.length,2,'actual cut replaces fruit with two halves at '+width);
