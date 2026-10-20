@@ -107,6 +107,10 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        android_api: [26, 29]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -125,7 +129,7 @@ jobs:
       - name: Run in airplane-mode-equivalent emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 29
+          api-level: ${{ matrix.android_api }}
           arch: x86_64
           target: default
           profile: pixel_3a
@@ -136,7 +140,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: offline-games-emulator-evidence
+          name: offline-games-emulator-${{ matrix.android_api }}-evidence
           path: |
             offline-games/smoke-screenshots
             offline-games/app/build/outputs/androidTest-results
