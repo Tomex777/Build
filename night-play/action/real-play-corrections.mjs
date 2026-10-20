@@ -194,7 +194,10 @@ try{
   // ALL live fruit to equal two; do require exactly two apex targets.
   const atApex=fruits=>fruits.filter(f=>f.kind!=='bomb'&&!f.hit&&
    Math.abs(f.vy)<75&&f.y>110&&f.y<300);
-  await waitFor(page,()=>atApex(window.__nightActionTest.snapshot().fruits).length===2,5000);
+  // Playwright serializes this function into the browser realm: it cannot
+  // capture the Node-side atApex helper from above.
+  await waitFor(page,()=>window.__nightActionTest.snapshot().fruits.filter(f=>
+   f.kind!=='bomb'&&!f.hit&&Math.abs(f.vy)<75&&f.y>110&&f.y<300).length===2,5000);
   const targets=atApex((await snap(page)).fruits);
   assert.equal(targets.length,2,'two distinct fruit are at the apex of their real volley');
   assert.ok(Math.abs(targets[0].x-targets[1].x)>80,'volley fruits remain visually distinguishable');
