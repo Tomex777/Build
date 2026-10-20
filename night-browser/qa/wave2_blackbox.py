@@ -272,9 +272,9 @@ class Device:
     def restart(self):
         shell("am", "force-stop", PKG)
         shell("am", "start", "-W", "-n", PKG + "/.MainActivity")
-        labels = self.tab_count()
-        if not any(re.search(r"(?:Regular\s+10|^10$)", x) for x in labels):
-            raise AssertionError("Tab count not restored after force-stop")
+        self.click("Tabs")
+        if self.regular_count() != 10:
+            raise AssertionError("Regular tab count not restored after force-stop")
         return "After app restart ten tabs restored"
 
     def private(self):
