@@ -1,12 +1,10 @@
 {
-  "releaseId": "night-cortex-endpoints-thenkiri-take-20261020",
+  "releaseId": "night-cortex-protected-write-20261020",
   "baseBranch": "mscc-azure",
-  "baseCommit": "969a2c8783e7db292206d6ed4c9d1e4f50595fa9",
+  "baseCommit": "52158594ad55376828f869e4622426c053653004",
   "pullRequests": [
-    424,
-    490,
-    496
+    508
   ],
-  "preparedAt": "2026-10-20T16:10:24.030Z",
-  "notes": "Combined user-requested NIGHT release: fix TheNkiri large movie/TV uploads and queue responsiveness (#424), reliable .take sticker metadata/name (#490), and verify Cortex mobile HTTPS endpoints/response schemas (#496). All component heads validated individually; require fresh combined CI on this exact integration PR before merge. Only one protected mscc-production environment approval for this batch. Never deploy components separately; preserve WhatsApp sessions, Cortex token and SSH allowlist. Azure production status and live WhatsApp behavior must be confirmed after user approval. An Android v1.0.5 binary release is handled on independent cortex-android-live branch."
+  "preparedAt": "2026-10-20T21:28:29.463Z",
+  "notes": "Cortex emergency repair requested Oct 20: restore protected command-settings writes and verify idempotent authenticated settings/ENV POST on production host. Exactly pinned reviewed Agent PR #503 already merged to cortex-android-live, installed only via protected MSCC release. Existing Cortex bearer token, WhatsApp authentication and Azure SSH forced-command policy retained. Android v1.0.6 PR #502 separately merged; install on user device afterwards. One mscc-production approval, followed by live endpoint and Cloud credential save validation. No unrelated TheNkiri or bot changes."
 }

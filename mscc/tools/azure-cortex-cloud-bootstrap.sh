@@ -5,16 +5,18 @@
 set -euo pipefail
 umask 077
 
-readonly SOURCE_SHA=442ef1410fdedffdcb8c515bc31373b294ae387c
-readonly AGENT_BLOB=558a8394d574aec9b8798e39d9d4475f6b6bf4a9
-readonly PREVIOUS_AGENT_BLOB=b353643bf6978d71d76a066f84400aca100baecd
-readonly HELPER_BLOB=4e0fa0455c604d3793a72254a1c3b4e260b67f4e
-readonly PREVIOUS_HELPER_BLOB=b590dd2b6174c273ef3beef62f2825d6089d0311
-readonly INSTALL_BLOB=a058b3cf0e8fa09a117e816e5111ccb6bc8b58d0
+readonly SOURCE_SHA=d280c2a67dd8ebce6927962cfb341122447ec777
+readonly AGENT_BLOB=781d3dcd7b35a00e236abd8be70298170928f3c5
+readonly PREVIOUS_AGENT_BLOB=558a8394d574aec9b8798e39d9d4475f6b6bf4a9
+readonly HELPER_BLOB=8bc55110b92f60bfe31b8097cbc5dad32ae0a820
+readonly PREVIOUS_HELPER_BLOB=4e0fa0455c604d3793a72254a1c3b4e260b67f4e
+readonly INSTALL_BLOB=e5ac0fe87511310cc4248aa261a6cb185e3afe9d
 readonly PACKAGE_BLOB=c2032a0fddf20a85e0cb1e9201bfd28652c046ba
 readonly SERVICE_BLOB=82518da0a5a09d5148671aac1d8d3cfa3d7fb7fc
 readonly AGENT_TARGET=/opt/cortex-agent/index.js
 readonly HELPER_TARGET=/usr/local/libexec/cortex-agent-control
+readonly SETTINGS_WRITE_BLOB=ad3f66e3b02ffca4367de009cda505e7f189db66
+readonly SETTINGS_WRITE_TARGET=/usr/local/libexec/cortex-agent-settings-write.cjs
 readonly BOOTSTRAP_MARK=/var/lib/cortex/.mscc-mega-cloud-bootstrapped
 
 if [[ "$(id -u)" -eq 0 ]]; then
@@ -38,13 +40,14 @@ if [[ ! -f "$AGENT_TARGET" || ! -f "$HELPER_TARGET" ]] ||
   echo 'Existing Cortex Agent incomplete or inactive; performing pinned first-time installation.'
   setup_dir="$(mktemp -d)"
   trap 'rm -rf "$setup_dir"' EXIT
-  for row in index.js cortex-agent-control install.sh package.json cortex-agent.service; do
+  for row in index.js cortex-agent-control install.sh package.json cortex-agent.service protected-settings-write.cjs; do
     curl --fail --silent --show-error --location --retry 3 --max-time 50 \
       "https://raw.githubusercontent.com/Tomex777/Build/$SOURCE_SHA/cortex-agent/$row" \
       --output "$setup_dir/$row"
   done
   for expected in \
     "$AGENT_BLOB index.js" "$HELPER_BLOB cortex-agent-control" \
+    "$SETTINGS_WRITE_BLOB protected-settings-write.cjs" \
     "$INSTALL_BLOB install.sh" "$PACKAGE_BLOB package.json" \
     "$SERVICE_BLOB cortex-agent.service"; do
     read -r blob filename <<< "$expected"
@@ -292,7 +295,11 @@ trap - EXIT
 # never overwrite a later/manual Agent revision or weaken forced-command SSH.
 current_agent_blob="$(git hash-object "$AGENT_TARGET")"
 current_helper_blob="$(git hash-object "$HELPER_TARGET")"
-if [[ "$current_agent_blob" == "$AGENT_BLOB" && "$current_helper_blob" == "$HELPER_BLOB" ]]; then
+if [[ "$current_agent_blob" == "$AGENT_BLOB" && "$current_helper_blob" == "$HELPER_BLOB" && \
+      "$(sudo -n test -f "$SETTINGS_WRITE_TARGET" && sudo -n git hash-object "$SETTINGS_WRITE_TARGET" || true)" == "$SETTINGS_WRITE_BLOB" ]]; then
+  sudo -n grep -Fxq 'cortex-agent ALL=(root) NOPASSWD: /usr/local/libexec/cortex-agent-control setting-set *' /etc/sudoers.d/cortex-agent || {
+    echo 'The protected Cortex settings write capability is not configured.' >&2; exit 1;
+  }
   echo 'Approved Cortex Agent already active; retaining existing token and release.'
   sudo -n install -d -m 0750 /var/lib/cortex
   printf '%s\n' "$SOURCE_SHA" | sudo -n tee "$BOOTSTRAP_MARK" >/dev/null
@@ -324,9 +331,17 @@ rollback() {
   code=$?
   trap - EXIT
   if ((code != 0 && changed == 1)); then
-    echo 'Cortex bootstrap failed; restoring only the former Agent and helper.' >&2
+    echo 'Cortex bootstrap failed; restoring only the former Agent, helper and privilege policy.' >&2
     sudo -n install -m 0644 "$tmp/previous-index.js" "$AGENT_TARGET" || true
     sudo -n install -m 0755 "$tmp/previous-helper.sh" "$HELPER_TARGET" || true
+    if [[ -f "$tmp/previous-sudoers" ]]; then
+      sudo -n install -m 0440 "$tmp/previous-sudoers" /etc/sudoers.d/cortex-agent || true
+    fi
+    if [[ -f "$tmp/previous-settings-helper" ]]; then
+      sudo -n install -m 0644 "$tmp/previous-settings-helper" "$SETTINGS_WRITE_TARGET" || true
+    else
+      sudo -n rm -f "$SETTINGS_WRITE_TARGET" || true
+    fi
     sudo -n systemctl restart cortex-agent.service || true
   fi
   rm -rf "$tmp"
@@ -334,7 +349,7 @@ rollback() {
 }
 trap rollback EXIT
 
-for row in index.js cortex-agent-control; do
+for row in index.js cortex-agent-control protected-settings-write.cjs; do
   curl --fail --silent --show-error --location --retry 3 --max-time 40 \
     "https://raw.githubusercontent.com/Tomex777/Build/$SOURCE_SHA/cortex-agent/$row" \
     --output "$tmp/$row"
@@ -345,13 +360,37 @@ done
 [[ "$(git hash-object "$tmp/cortex-agent-control")" == "$HELPER_BLOB" ]] || {
   echo 'Cortex Cloud helper does not match pinned Git blob.' >&2; exit 1;
 }
+[[ "$(git hash-object "$tmp/protected-settings-write.cjs")" == "$SETTINGS_WRITE_BLOB" ]] || {
+  echo 'Cortex private settings helper does not match pinned Git blob.' >&2; exit 1;
+}
 node --check "$tmp/index.js"
 bash -n "$tmp/cortex-agent-control"
+node --check "$tmp/protected-settings-write.cjs"
 cp "$AGENT_TARGET" "$tmp/previous-index.js"
 sudo -n cat "$HELPER_TARGET" > "$tmp/previous-helper.sh"
+sudo -n cat /etc/sudoers.d/cortex-agent > "$tmp/previous-sudoers"
+if sudo -n test -e "$SETTINGS_WRITE_TARGET"; then
+  # This is a new managed binary; never silently overwrite an unrelated file.
+  [[ "$(sudo -n git hash-object "$SETTINGS_WRITE_TARGET")" == "$SETTINGS_WRITE_BLOB" ]] || {
+    echo 'Existing protected Cortex writer does not match the approved pinned revision.' >&2; exit 1;
+  }
+  sudo -n cat "$SETTINGS_WRITE_TARGET" > "$tmp/previous-settings-helper"
+fi
 
-sudo -n install -m 0644 "$tmp/index.js" "$AGENT_TARGET"
+grep -Fq 'cortex-agent ALL=(root) NOPASSWD: /usr/local/libexec/cortex-agent-control env-set *' "$tmp/previous-sudoers" || {
+  echo 'Existing Cortex sudoers contract is incompatible; refusing to broaden privileges.' >&2; exit 1;
+}
+cp "$tmp/previous-sudoers" "$tmp/new-sudoers"
+if ! grep -Fxq 'cortex-agent ALL=(root) NOPASSWD: /usr/local/libexec/cortex-agent-control setting-set *' "$tmp/new-sudoers"; then
+  printf '%s\n' 'cortex-agent ALL=(root) NOPASSWD: /usr/local/libexec/cortex-agent-control setting-set *' >> "$tmp/new-sudoers"
+fi
+sudo -n visudo -cf "$tmp/new-sudoers" >/dev/null
+
+# All bytes and sudo policy are validated before modifying production.
 changed=1
+sudo -n install -m 0644 "$tmp/protected-settings-write.cjs" "$SETTINGS_WRITE_TARGET"
+sudo -n install -m 0440 "$tmp/new-sudoers" /etc/sudoers.d/cortex-agent
+sudo -n install -m 0644 "$tmp/index.js" "$AGENT_TARGET"
 sudo -n install -m 0755 "$tmp/cortex-agent-control" "$HELPER_TARGET"
 sudo -n systemctl restart cortex-agent.service
 
@@ -384,6 +423,77 @@ curl -fsS --max-time 12 \
       }
       console.log("Cortex MEGA and AI environment controls verified; secrets remain hidden.");
     });'
+# Prove the write paths that the phone actually uses. Reapply existing
+# non-secret values only: no MEGA credentials, account state or toggles change.
+# All HTTP responses remain in a private scratch directory, never CI logs.
+curl -fsS --max-time 12 -o "$tmp/settings-before.json" \
+  -H "Authorization: Bearer $TOKEN" \
+  http://127.0.0.1:47831/api/cortex/host/settings
+settings_same="$(node - "$tmp/settings-before.json" <<'READ_SETTING'
+const fs=require('node:fs');
+const entries=JSON.parse(fs.readFileSync(process.argv[2],'utf8')).entries;
+const row=Array.isArray(entries)?entries.find(x=>typeof x?.enabled==='boolean' &&
+  /^[A-Za-z_][A-Za-z0-9._-]{0,79}$/.test(x.key)):null;
+if (!row) process.exit(2);
+process.stdout.write(JSON.stringify({key:row.key,enabled:row.enabled}));
+READ_SETTING
+)" || {
+  echo 'No safe boolean setting available for Cortex write verification.' >&2
+  exit 1
+}
+settings_code="$(curl --silent --show-error --max-time 14 \
+  --output "$tmp/settings-after.json" --write-out '%{http_code}' \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  --data "$settings_same" \
+  http://127.0.0.1:47831/api/cortex/host/settings)"
+[[ "$settings_code" == 200 ]] || {
+  echo "Cortex protected settings write failed (HTTP $settings_code)." >&2; exit 1;
+}
+node - "$tmp/settings-before.json" "$tmp/settings-after.json" "$settings_same" <<'VERIFY_SETTING'
+const fs=require('node:fs');
+const original=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+const after=JSON.parse(fs.readFileSync(process.argv[3],'utf8'));
+const expected=JSON.parse(process.argv[4]);
+const matched=after.entries?.find(x=>x.key===expected.key);
+if (matched?.enabled!==expected.enabled ||
+  !Array.isArray(original.entries) || after.entries.length!==original.entries.length)
+  process.exit(2);
+console.log('Cortex protected command-setting write readback passed (no value changed).');
+VERIFY_SETTING
+
+curl -fsS --max-time 12 -o "$tmp/environment-before.json" \
+  -H "Authorization: Bearer $TOKEN" \
+  http://127.0.0.1:47831/api/cortex/host/environment
+log_level="$(node - "$tmp/environment-before.json" <<'READ_LOG_LEVEL'
+const fs=require('node:fs');
+const rows=JSON.parse(fs.readFileSync(process.argv[2],'utf8')).entries;
+const value=rows?.find(x=>x.key==='LOG_LEVEL')?.value;
+if (!['silent','fatal','error','warn','info','debug','trace'].includes(value)) process.exit(2);
+process.stdout.write(value);
+READ_LOG_LEVEL
+)" || {
+  echo 'Cortex ENV write probe requires an existing safe LOG_LEVEL value.' >&2
+  exit 1
+}
+env_payload="$(node -e 'process.stdout.write(JSON.stringify({key:"LOG_LEVEL",value:process.argv[1]}))' "$log_level")"
+env_code="$(curl --silent --show-error --max-time 15 \
+  --output "$tmp/environment-after.json" --write-out '%{http_code}' \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  --data "$env_payload" \
+  http://127.0.0.1:47831/api/cortex/host/environment)"
+[[ "$env_code" == 200 ]] || {
+  echo "Cortex protected ENV write failed (HTTP $env_code)." >&2; exit 1;
+}
+node - "$tmp/environment-after.json" "$log_level" <<'VERIFY_ENV_WRITE'
+const fs=require('node:fs');
+const response=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+if (response.entries?.find(x=>x.key==='LOG_LEVEL')?.value!==process.argv[3]) process.exit(2);
+if (response.entries?.find(x=>x.key==='MSCC_MEGA_PASSWORD')?.value) process.exit(3);
+console.log('Cortex protected ENV write readback passed with unchanged LOG_LEVEL (secrets hidden).');
+VERIFY_ENV_WRITE
+
 # Verify route exists; downstream /cloud may remain unavailable until the
 # separately authorized MSCC Cloud release is installed.
 status="$(curl -sS --max-time 12 \
