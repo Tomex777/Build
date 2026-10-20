@@ -44,7 +44,7 @@ for(const url of pages){
     const assets=scan(html,url);
     results.push({page:url,htmlBytes:html.length,assets,jsFiles:[...html.matchAll(/<script[^>]+src=["']([^"']+)/ig)].map(m=>new URL(m[1],url).href).slice(0,30)});
     console.log(url,'HTML',html.length,'assets',assets.length);
-    console.log('sample assets',JSON.stringify(assets.filter(x=>/char|alpha|beta|delta|shadow|cid|立ち絵|シャドウ|アルファ/i.test(x.url+' '+x.context)).slice(0,20)));
+    console.log('ALL OFFICIAL ASSETS',JSON.stringify(assets.map(x=>x.url)));\n    console.log('CHARA HTML HINTS',JSON.stringify([...html.matchAll(/.{0,80}chara1.{0,200}/g)].slice(0,15).map(x=>x[0])));
   }catch(e){results.push({page:url,error:e.message,assets:[]});console.error(url,e.message);}
 }
 const output=path.join(root,'dist/eminence-discovery.json');
