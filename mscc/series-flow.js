@@ -702,7 +702,7 @@ function episodeWithNumber(episodes, wantedNumber) {
 async function retryAnimeEpisodeDelivery(ctx, {
   capability, sourceId, series, episode, quality, delivery,
 }) {
-  if (capability !== 'anime' || !Array.isArray(ctx.listSources)) return null
+  if (capability !== 'anime' || typeof ctx.listSources !== 'function') return null
 
   let identity = null
   if (typeof ctx.resolveAniListTitles === 'function') {
