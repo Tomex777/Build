@@ -137,6 +137,13 @@ jobs:
           grep -q 'implementation("org.videolan.android:libvlc-all:3.7.6")' later/app/build.gradle.kts
           grep -Fq -- '-keep class org.videolan.libvlc.** { *; }' later/app/proguard-rules.pro
           grep -Fq -- '-keep interface org.videolan.libvlc.** { *; }' later/app/proguard-rules.pro
+          # R8 optimized Media3 Transformer must not resolve API 31 LogSessionId on Android 8.
+          for keep_rule in \
+            '-keep class androidx.media3.transformer.ExoPlayerAssetLoader$Factory { *; }' \
+            '-keep class androidx.media3.transformer.DefaultAssetLoaderFactory { *; }' \
+            '-keep class androidx.media3.transformer.TransformerInternal$SequenceAssetLoaderListener { *; }'; do
+            grep -Fq -- "$keep_rule" later/app/proguard-rules.pro
+          done
           grep -q 'LaterVlcPlayback' later/app/src/main/java/com/night/later/ui/media/LaterMediaViewer.kt
           grep -q 'org.videolan.libvlc.MediaPlayer' later/app/src/main/java/com/night/later/ui/media/LaterVlcStyleVideoSurface.kt
           grep -q 'VLCVideoLayout' later/app/src/main/java/com/night/later/ui/media/LaterVlcStyleVideoSurface.kt
@@ -314,6 +321,13 @@ jobs:
           grep -q 'implementation("org.videolan.android:libvlc-all:3.7.6")' later-clean/app/build.gradle.kts
           grep -Fq -- '-keep class org.videolan.libvlc.** { *; }' later-clean/app/proguard-rules.pro
           grep -Fq -- '-keep interface org.videolan.libvlc.** { *; }' later-clean/app/proguard-rules.pro
+          # R8 optimized Media3 Transformer must not resolve API 31 LogSessionId on Android 8.
+          for keep_rule in \
+            '-keep class androidx.media3.transformer.ExoPlayerAssetLoader$Factory { *; }' \
+            '-keep class androidx.media3.transformer.DefaultAssetLoaderFactory { *; }' \
+            '-keep class androidx.media3.transformer.TransformerInternal$SequenceAssetLoaderListener { *; }'; do
+            grep -Fq -- "$keep_rule" later-clean/app/proguard-rules.pro
+          done
           grep -q 'LaterVlcPlayback' later-clean/app/src/main/java/com/night/later/ui/media/LaterMediaViewer.kt
           grep -q 'org.videolan.libvlc.MediaPlayer' later-clean/app/src/main/java/com/night/later/ui/media/LaterVlcStyleVideoSurface.kt
           grep -q 'VLCVideoLayout' later-clean/app/src/main/java/com/night/later/ui/media/LaterVlcStyleVideoSurface.kt
