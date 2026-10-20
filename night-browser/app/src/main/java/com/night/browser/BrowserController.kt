@@ -196,7 +196,13 @@ class BrowserController(
                 if (!uri.isNullOrBlank() && (
                     uri.startsWith("https://", ignoreCase = true) ||
                     uri.startsWith("http://", ignoreCase = true)
-                )) tab.failedUrl = uri
+                )) {
+                    tab.failedUrl = uri
+                    // Keep the actual failed destination in the omnibar. The
+                    // internal Gecko error document is not a successful visit.
+                    tab.url = uri
+                    tab.title = "Page unavailable"
+                }
                 val kind = when (error.category) {
                     WebRequestError.ERROR_CATEGORY_SECURITY ->
                         BrowserErrorPage.Kind.SECURITY
@@ -356,7 +362,9 @@ class BrowserController(
             override fun onPageStop(session: GeckoSession, success: Boolean) {
                 cancelJourneyUpdate(tab.id)
                 tab.isLoading = false
-                if (success && !tab.isPrivate) {
+                if (success && !tab.isPrivate && tab.failedUrl == null) {
+                    // Error-page data URIs may finish successfully even when the
+                    // requested HTTPS page failed. Never record those as visits.
                     tab.lastNode = tab.journeyTracker?.visited(tab.url, tab.title)
                     schedulePersist()
                 }
