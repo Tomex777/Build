@@ -1,6 +1,7 @@
 package com.night.browser
 
-import android.content.Intent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -65,6 +66,20 @@ fun JourneyScreen(
     var delete by remember { mutableStateOf<DeleteTarget?>(null) }
     var merge by remember { mutableStateOf<Journey?>(null) }
     val context = LocalContext.current
+    var exportPayload by remember { mutableStateOf<String?>(null) }
+    val exportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        val payload = exportPayload
+        if (uri != null && payload != null) {
+            runCatching {
+                checkNotNull(context.contentResolver.openOutputStream(uri)) {
+                    "Unable to open the destination file"
+                }.bufferedWriter().use { it.write(payload) }
+            }
+        }
+        exportPayload = null
+    }
 
     Column(Modifier.fillMaxSize().background(journeyInk)) {
         Row(
@@ -174,11 +189,11 @@ fun JourneyScreen(
                                         onClick = {
                                             actions = false
                                             store.exportJourneyJson(journey.id)?.let { payload ->
-                                                val intent = Intent(Intent.ACTION_SEND)
-                                                    .setType("application/json")
-                                                    .putExtra(Intent.EXTRA_TEXT, payload)
-                                                context.startActivity(Intent.createChooser(
-                                                    intent, "Export Journey"))
+                                                exportPayload = payload
+                                                val filename = journey.name.lowercase()
+                                                    .replace(Regex("[^a-z0-9-]+"), "-")
+                                                    .trim('-').take(40).ifBlank { "journey" }
+                                                exportLauncher.launch("NIGHT-$filename.json")
                                             }
                                         }, leadingIcon = { Icon(Icons.Rounded.IosShare, null) })
                                     DropdownMenuItem(
