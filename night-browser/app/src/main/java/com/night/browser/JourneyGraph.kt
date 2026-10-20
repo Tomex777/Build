@@ -5,7 +5,14 @@ import java.net.URLDecoder
 import java.util.ArrayDeque
 import java.util.Locale
 
-data class JourneyRow(val node: JourneyNode, val depth: Int, val matchesSearch: Boolean)
+data class JourneyRow(
+    val node: JourneyNode,
+    val depth: Int,
+    val matchesSearch: Boolean,
+    /** Ancestor nodes whose vertical stem must continue through this row. */
+    val ancestorContinues: List<Boolean> = emptyList(),
+    val hasNextSibling: Boolean = false
+)
 
 /**
  * Pure, deterministic operations on a local Journey tree.
@@ -112,7 +119,7 @@ object JourneyGraph {
         nodes.filterNot { it.id in visited }.forEach(::walk)
 
         val needle = query.trim()
-        if (needle.isEmpty()) return traversal
+        if (needle.isEmpty()) return withConnectors(traversal)
         val matches = nodes.filter {
             it.title.contains(needle, ignoreCase = true) ||
                 it.url.contains(needle, ignoreCase = true)
@@ -126,7 +133,38 @@ object JourneyGraph {
                 parent = byId[parent]?.parent
             }
         }
-        return traversal.filter { it.node.id in included }
-            .map { it.copy(matchesSearch = it.node.id in matches) }
+        return withConnectors(
+            traversal.filter { it.node.id in included }
+                .map { it.copy(matchesSearch = it.node.id in matches) }
+        )
+    }
+
+    /**
+     * Annotate visible siblings AFTER search filtering: hidden siblings cannot
+     * produce a connector stretching into empty space.
+     */
+    private fun withConnectors(visible: List<JourneyRow>): List<JourneyRow> {
+        val seenParents = mutableSetOf<String?>()
+        val hasSibling = mutableMapOf<String, Boolean>()
+        visible.asReversed().forEach { row ->
+            hasSibling[row.node.id] = !seenParents.add(row.node.parent)
+        }
+        val byId = visible.associateBy { it.node.id }
+        return visible.map { row ->
+            val ancestors = mutableListOf<String>()
+            var id = row.node.parent
+            val visited = mutableSetOf(row.node.id)
+            while (id != null && visited.add(id)) {
+                ancestors.add(id)
+                id = byId[id]?.node?.parent
+            }
+            ancestors.reverse()
+            row.copy(
+                ancestorContinues = ancestors.dropLast(1).map {
+                    hasSibling[it] == true
+                },
+                hasNextSibling = hasSibling[row.node.id] == true
+            )
+        }
     }
 }
