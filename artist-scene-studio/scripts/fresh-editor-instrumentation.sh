@@ -80,6 +80,13 @@ timeout 420s adb shell am instrument -w -r -e class "$TEST_CLASSES" \
   fail "Android instrumentation command failed"
 }
 cat "$INSTRUMENTATION_LOG" | tee -a "$TEST_LOG"
+if grep -q 'INSTRUMENTATION_RESULT: shortMsg=Process crashed' "$INSTRUMENTATION_LOG"; then
+  echo "MISE INSTRUMENTATION PROCESS CRASHED: inspecting actual Android fatal logs" >&2
+  timeout 20s adb logcat -b crash -d -v threadtime | tail -n 200 || true
+  timeout 20s adb logcat -d -v threadtime |
+    grep -E -A 25 -B 10 'FATAL EXCEPTION|Fatal signal|Abort message|SIGSEGV|SIGABRT|OutOfMemoryError|AndroidRuntime' |
+    tail -n 240 || true
+fi
 python3 - "$INSTRUMENTATION_LOG" "$EXPECTED_TESTS" <<'PYINSTRUMENTATION' || fail "Android instrumentation did not pass the complete suite"
 import re, sys
 text = open(sys.argv[1]).read()
@@ -120,6 +127,17 @@ if [ "$TEST_SUITE" != editor ] && [ "$TEST_SUITE" != humanoid ] && [ "$TEST_SUIT
     cp "$PROOF_DIR/mechanical-${stage}.png" "artist-scene-studio-${API_TAG}-mechanical-${stage}.png" || fail "Mechanical $stage screenshot was missing"
     python3 scripts/check-viewport-pixels.py "artist-scene-studio-${API_TAG}-mechanical-${stage}.png" || fail "Mechanical $stage viewport was black"
   done
+  if [ "$TEST_SUITE" != tree ]; then
+    # A non-black renderer is insufficient: verify the actor really moved
+    # between *two unmodified Android screenshots* in the main 3D canvas.
+    python3 scripts/verify-acceptance-frames.py \
+      --case "$TEST_SUITE-part-transform-api$API_LEVEL" \
+      --before "$PROOF_DIR/mechanical-$TEST_SUITE-before.png" \
+      --after "$PROOF_DIR/mechanical-$TEST_SUITE-after.png" \
+      --minimum-pct 0.10 \
+      --json "$PROOF_DIR/qa-$TEST_SUITE-visible-change.json" \
+      || fail "Mechanical $TEST_SUITE before/after screenshots show no meaningful viewport change"
+  fi
   echo "Fresh API $API_LEVEL mechanical actors passed with all screenshot proof"
   exit 0
 fi
@@ -134,6 +152,13 @@ if [ "$TEST_SUITE" = anime ]; then
     cp "$PROOF_DIR/anime-${stage}.png" "artist-scene-studio-${API_TAG}-anime-${stage}.png" || fail "Anime $stage screenshot was missing"
     python3 scripts/check-viewport-pixels.py "artist-scene-studio-${API_TAG}-anime-${stage}.png" || fail "Anime $stage viewport was black"
   done
+  python3 scripts/verify-acceptance-frames.py \
+    --case "anime-pose-api$API_LEVEL" \
+    --before "$PROOF_DIR/anime-neutral.png" \
+    --after "$PROOF_DIR/anime-posed.png" \
+    --minimum-pct 0.10 \
+    --json "$PROOF_DIR/qa-anime-visible-pose.json" \
+    || fail "Anime neutral/posed screenshots do not show a visible scene change"
   echo "Fresh API $API_LEVEL anime rig pose and neutral deformation proved with screenshots"
   exit 0
 fi
@@ -147,6 +172,22 @@ for stage in before hair-short hair-afro hair-bob appearance posed; do
   cp "$PROOF_DIR/humanoid-${stage}.png" "artist-scene-studio-${API_TAG}-humanoid-${stage}.png" || fail "Humanoid $stage screenshot was missing"
   python3 scripts/check-viewport-pixels.py "artist-scene-studio-${API_TAG}-humanoid-${stage}.png" || fail "Humanoid $stage viewport was black"
 done
+# Verify appearance separately from bone posing. Comparing only "before" with
+# "posed" could hide a broken pose behind an otherwise working hair/material edit.
+python3 scripts/verify-acceptance-frames.py \
+  --case "humanoid-appearance-api$API_LEVEL" \
+  --before "$PROOF_DIR/humanoid-before.png" \
+  --after "$PROOF_DIR/humanoid-appearance.png" \
+  --minimum-pct 0.10 \
+  --json "$PROOF_DIR/qa-humanoid-visible-appearance.json" \
+  || fail "Humanoid appearance edits were not visible in actual scene screenshots"
+python3 scripts/verify-acceptance-frames.py \
+  --case "humanoid-joint-pose-api$API_LEVEL" \
+  --before "$PROOF_DIR/humanoid-appearance.png" \
+  --after "$PROOF_DIR/humanoid-posed.png" \
+  --minimum-pct 0.10 \
+  --json "$PROOF_DIR/qa-humanoid-visible-pose.json" \
+  || fail "Humanoid pose edits were not visible after appearance was applied"
 fi
 
 echo "Fresh API $API_LEVEL instrumentation passed with all screenshot proof"
