@@ -95,7 +95,7 @@ fun JourneyScreen(
             Text("Journeys", fontSize = 27.sp, fontWeight = FontWeight.SemiBold,
                 color = journeyText, modifier = Modifier.weight(1f))
             TextButton(onClick = {
-                store.setJourneyRecordingEnabled(!store.journeyRecordingEnabled)
+                store.changeJourneyRecording(!store.journeyRecordingEnabled)
             }) {
                 Text(
                     if (store.journeyRecordingEnabled) "Pause" else "Resume",
