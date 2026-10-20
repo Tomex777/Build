@@ -41,6 +41,7 @@ class BrowserController(private val appContext: Context) {
     private val writes = Executors.newSingleThreadExecutor()
     private val handler = Handler(Looper.getMainLooper())
     private val pendingSave = Runnable { persistNow() }
+    private var isClosed = false
     private val recentlyClosedNormal = mutableListOf<TabSessionStore.Entry>()
     val tabs = mutableStateListOf<BrowserTab>()
     var activeId by mutableStateOf("")
@@ -212,12 +213,14 @@ class BrowserController(private val appContext: Context) {
             tab.lastNode, tab.sessionState)
 
     private fun schedulePersist() {
+        if (isClosed) return
         handler.removeCallbacks(pendingSave)
         handler.postDelayed(pendingSave, 950L)
     }
 
     /** Persists only NORMAL tabs. Content/form state is encrypted before disk write. */
     fun persistNow() {
+        if (isClosed) return
         handler.removeCallbacks(pendingSave)
         val normal = tabs.filterNot { it.isPrivate }.map(::toSavedTab)
         val activeNormalId = activeId.takeIf { id -> normal.any { it.id == id } }
@@ -229,7 +232,10 @@ class BrowserController(private val appContext: Context) {
     fun trimPreviews() { tabs.forEach { it.thumbnail = null } }
 
     fun close() {
+        if (isClosed) return
         persistNow()
+        isClosed = true
+        handler.removeCallbacks(pendingSave)
         tabs.forEach { if (it.session.isOpen) it.session.close() }
         writes.shutdown()
     }
