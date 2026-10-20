@@ -63,10 +63,17 @@ internal class VrmSpringRuntime private constructor(
         val dt = if (lastFrameNs == 0L) 1f / 60f else
             ((nanoTime - lastFrameNs).toDouble() / 1_000_000_000.0).toFloat()
         lastFrameNs = nanoTime
-        if (dt <= 0f || !dt.isFinite() || dt > .15f) {
+        if (dt <= 0f || !dt.isFinite()) return
+        // Android 8 emulators and budget phones can miss a 150ms frame while
+        // loading textures or handling a sheet gesture. Resetting the springs on
+        // EVERY slow frame makes wind/gravity look permanently disabled. The
+        // integrator already bounds each step to 1/30s, so advance on a bounded
+        // timestep; only reset after a genuine background-sized pause.
+        if (dt > 2f) {
             roots.forEach { it.motion.reset() }
             return
         }
+        val safeDt = dt.coerceAtMost(1f / 30f)
         var changed = false
         roots.forEach { root ->
             val enabled = if (root.category == "hair") appearance.hairPhysicsEnabled
@@ -84,7 +91,7 @@ internal class VrmSpringRuntime private constructor(
             val world = manager.getWorldTransform(root.instance, reusableRoot)
             val pivot = Vec3(world[12], world[13], world[14])
             val wobble = root.motion.advance(
-                dtSeconds = dt,
+                dtSeconds = safeDt,
                 gravityLocal = gravity,
                 pivotWorld = pivot,
                 gravityPower = appearance.hairGravityStrength,
@@ -136,9 +143,15 @@ internal class VrmSpringRuntime private constructor(
                 return null
             }
             val manager = model.engine.transformManager
-            val joints = (0 until model.skinCount)
-                .flatMap { model.getJointsAt(it).toList() }
-                .distinct()
+            // VRM springs are authored glTF NODES, not necessarily vertices
+            // weighted in the CURRENT skinned mesh. Android's compact GPU
+            // palettes may legitimately remove spring-root nodes from
+            // getJointsAt(), even though the complete GLB hierarchy remains.
+            // Resolve against all FilamentAsset nodes first; the skin-only
+            // lookup caused live hair controls to produce no rendered motion.
+            val allNodes = model.asset.entities
+                .filter { manager.hasComponent(it) }
+            val joints = allNodes
                 .associateBy { model.asset.getName(it).orEmpty() }
             val roots = buildList {
                 val chains = data.getJSONArray("chains")
@@ -168,8 +181,11 @@ internal class VrmSpringRuntime private constructor(
                     ))
                 }
             }
-            if (roots.isEmpty()) return null
-            Log.i("MiseHairPhysics", "Real VRM spring rig: ${roots.count { it.category == "hair" }} hair and ${roots.count { it.category == "fabric" }} fabric bones")
+            if (roots.isEmpty()) {
+                Log.e("MiseHairPhysics", "No authored spring roots bound: asset=${asset.assetId} nodes=${allNodes.size}")
+                return null
+            }
+            Log.i("MiseHairPhysics", "Real VRM spring rig: ${roots.count { it.category == "hair" }} hair and ${roots.count { it.category == "fabric" }} fabric bones (from ${allNodes.size} glTF nodes)")
             return VrmSpringRuntime(model, roots)
         }
     }
