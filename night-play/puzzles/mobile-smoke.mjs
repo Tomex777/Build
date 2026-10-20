@@ -92,7 +92,8 @@ try{
  // The v2 Memory engine owns a separate persistence key, not the older puzzle-room namespace.
  assert.equal(await page.locator('.memory-card').count(),30);
  assert.equal(await page.locator('.memory-playing-board .memory-card[data-photo-requested]').count(),0,'face-down 6×5 cards do not fetch hidden remote photos');
- assert.equal(await page.locator('.memory-playing-board img').count(),0,'large photo decks render with local fallbacks until revealed');
+ assert.equal(await page.locator('.memory-playing-board img').count(),0,'hidden photographs are not requested before first flip');
+ assert.equal(await page.locator('.memory-card-front svg').count(),0,'hidden artwork is not pre-rendered 30 times');
  assert.equal(await page.locator('.memory-playing-board').evaluate(el=>getComputedStyle(el).gridTemplateColumns.split(' ').length),6);
  const fit=await page.evaluate(()=>{
   const board=document.getElementById('board').getBoundingClientRect();
@@ -111,6 +112,7 @@ try{
  const first=mem.deck[0],mate=mem.deck.findIndex((x,i)=>i>0&&x===first);
  await page.locator('[data-memory="0"]').click();
  assert.equal(await page.locator('.memory-card[data-photo-requested="1"]').count(),1,'first flip requests only its own photograph');
+ assert.equal(await page.locator('.memory-card[data-face-ready="1"]').count(),1,'first flip renders only that card face');
  await page.locator('[data-memory="'+mate+'"]').click();
  assert.equal(await page.locator('.memory-card[data-photo-requested="1"]').count(),2,'matching pair does not eagerly load other faces');
  await page.waitForTimeout(420);
@@ -157,6 +159,7 @@ try{
  assert.equal(mem.deck.length,60,'six columns and TEN rows (60 cards)');
  assert.equal(new Set(mem.deck).size,30,'30 distinct original storybook characters');
  assert.equal(await page.locator('.memory-card[data-photo-requested]').count(),0,'60-card deck starts without hidden network image requests');
+ assert.equal(await page.locator('.memory-card-front svg').count(),0,'60 complex SVG portraits are deferred until needed');
  for(const [width,height] of [[320,568],[390,844],[412,915],[540,760],[768,1024]]){
   await page.setViewportSize({width,height});
   const m=await page.locator('#board').evaluate(el=>{
@@ -177,6 +180,7 @@ try{
  // A brief touch to the larger board persists independently of its vertical scroll.
  await page.locator('[data-memory-action="start"]').click();
  await page.locator('[data-memory="59"]').click();
+ assert.equal(await page.locator('.memory-card[data-face-ready="1"]').count(),1,'60-card board lazily creates a single illustrated face');
  const savedCards=await page.evaluate(()=>JSON.parse(localStorage.getItem('night-play-memory-v2')));
  assert.equal(savedCards.deck.length,60);
  await page.reload();
