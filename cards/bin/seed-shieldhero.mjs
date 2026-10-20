@@ -83,7 +83,7 @@ for(const item of sources.sources){
   }
   const design=designForRank(item.rank.letter);
   const crop=[0,0,native.width,native.height];
-  const artworkPlacement={[design]:{x:0,y:8,width:1000}};
+  const artworkPlacement={[design]: item.id==='ren-sword-hero' ? {x:-115,y:-115,width:1350} : item.id==='atla-hengen-muso' ? {x:-185,y:-365,width:1700} : {x:0,y:8,width:1000}};
   const aliases=[...new Set(item.aliases??[item.name,item.title,item.character])];
   catalogue.cards.push({id:item.id,number:item.number,character:item.character,
     name:item.name,title:item.title,form:item.form,formId:item.formId,aliases,
