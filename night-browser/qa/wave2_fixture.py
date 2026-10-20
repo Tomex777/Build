@@ -69,6 +69,11 @@ def uploaded_part_sha256(body: bytes, content_type: str) -> str | None:
     return None
 
 
+def has_test_cookie(header: str) -> bool:
+    # Do not count another cookie whose name merely ends with the marker.
+    return re.search(r"(?:^|;\\s*)nightQa=fixture(?:;|$)", header) is not None
+
+
 class State:
     def __init__(self):
         self.lock = Lock()
@@ -84,7 +89,7 @@ class State:
         with self.lock:
             self.count[path] += 1
             if path == "/cookie/echo":
-                self.cookie_observed[self.count[path]] = "nightQa=fixture" in cookie
+                self.cookie_observed[self.count[path]] = has_test_cookie(cookie)
 
     def snapshot(self):
         with self.lock:
@@ -140,7 +145,7 @@ class Handler(BaseHTTPRequestHandler):
                 "Content-Disposition": "attachment; filename=night-qa.bin"})
         if path == "/secure/file.bin":
             # Synthetic cookie-backed resource; no credentials or token values logged.
-            authorized = "nightQa=fixture" in self.headers.get("Cookie", "")
+            authorized = has_test_cookie(self.headers.get("Cookie", ""))
             with self.state.lock:
                 if authorized:
                     self.state.secure_download_ok += 1
