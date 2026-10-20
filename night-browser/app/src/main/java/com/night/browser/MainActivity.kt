@@ -52,6 +52,7 @@ import java.io.File
 import java.text.DateFormat
 import java.util.Date
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 private val Ink = Color(0xFF0C1017)
 private val Raised = Color(0xFF171D27)
@@ -100,9 +101,21 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onStop() {
+        browser.persistNow()
+        super.onStop()
+    }
+
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (level >= android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW) {
+            browser.trimPreviews()
+        }
+    }
+
     override fun onDestroy() {
         downloadPrompt.dismiss()
-        if (isFinishing) browser.tabs.forEach { if (it.session.isOpen) it.session.close() }
+        browser.close()
         super.onDestroy()
     }
 }
@@ -119,6 +132,7 @@ private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> U
     val keyboard = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
     val snack = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(current.url, current.id) {
         if (!addressFocused) address = current.url
@@ -158,14 +172,29 @@ private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> U
         Column(Modifier.fillMaxSize().padding(padding)) {
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 when (page) {
-                    Page.HOME -> NightStartPage(browser,
+                    Page.HOME -> if (current.isPrivate) PrivateStartPage() else NightStartPage(browser,
                         onOpen = { raw -> browser.navigate(raw); page = Page.WEB },
                         onJourneys = { page = Page.JOURNEYS })
                     Page.WEB -> WebSurface(current)
                     Page.TABS -> TabPanel(browser,
                         onOpen = { openTab(it) },
-                        onClose = { browser.closeTab(it.id) },
-                        onNew = { browser.newTab(); page = Page.HOME })
+                        onClose = { tab ->
+                            browser.closeTab(tab.id)
+                            if (!tab.isPrivate) {
+                                scope.launch {
+                                    val response = snack.showSnackbar(
+                                        message = "Tab closed", actionLabel = "Undo",
+                                        duration = SnackbarDuration.Short
+                                    )
+                                    if (response == SnackbarResult.ActionPerformed &&
+                                        browser.undoCloseTab(tab.id)) page = Page.WEB
+                                }
+                            }
+                        },
+                        onNew = { privateMode ->
+                            browser.newTab(privateMode = privateMode)
+                            page = Page.HOME
+                        })
                     Page.JOURNEYS -> JourneyPanel(browser,
                         onNew = { newJourneyDialog = true },
                         onOpen = { j, url ->
@@ -192,7 +221,7 @@ private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> U
 
             // The custom start page owns the sole omnibar on Home.
             // Website address entry belongs to real web browsing only.
-            if (page == Page.WEB) {
+            if (page == Page.WEB || (page == Page.HOME && current.isPrivate)) {
             Row(
                 Modifier.fillMaxWidth().background(Ink)
                     .padding(horizontal = 14.dp, vertical = 8.dp),
@@ -204,10 +233,15 @@ private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> U
                         .padding(horizontal = 15.dp),
                     contentAlignment = Alignment.CenterStart
                 ) {
+                    if (current.isPrivate) {
+                        Icon(Icons.Rounded.Lock, contentDescription = "Private browsing",
+                            tint = Accent, modifier = Modifier.size(16.dp))
+                    }
                     BasicTextField(
                         value = address,
                         onValueChange = { address = it },
                         modifier = Modifier.fillMaxWidth()
+                            .padding(start = if (current.isPrivate) 12.dp else 0.dp)
                             .onFocusChanged { addressFocused = it.isFocused },
                         singleLine = true,
                         textStyle = TextStyle(color = Bright, fontSize = 15.sp),
@@ -251,9 +285,12 @@ private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> U
                     ) {
                         fun dismiss(action: () -> Unit) { menuExpanded = false; action() }
                         DropdownMenuItem(
-                            text = { Text("New tab") },
+                            text = { Text(if (current.isPrivate) "New private tab" else "New tab") },
                             leadingIcon = { Icon(Icons.Rounded.Add, null) },
-                            onClick = { dismiss { browser.newTab(); page = Page.HOME } })
+                            onClick = { dismiss {
+                                browser.newTab(privateMode = current.isPrivate)
+                                page = Page.HOME
+                            } })
                         DropdownMenuItem(
                             text = { Text("Journeys") },
                             leadingIcon = { Icon(Icons.Rounded.AccountTree, null) },
@@ -269,12 +306,12 @@ private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> U
                         DropdownMenuItem(
                             text = { Text("Bookmark page") },
                             leadingIcon = { Icon(Icons.Rounded.BookmarkAdd, null) },
-                            enabled = current.url.startsWith("http"),
+                            enabled = current.url.startsWith("http") && !current.isPrivate,
                             onClick = { dismiss { browser.bookmark() } })
                         DropdownMenuItem(
                             text = { Text("Save PDF copy") },
                             leadingIcon = { Icon(Icons.Rounded.SaveAlt, null) },
-                            enabled = current.url.startsWith("http"),
+                            enabled = current.url.startsWith("http") && !current.isPrivate,
                             onClick = { dismiss { browser.savePdfSnapshot() } })
                         DropdownMenuItem(
                             text = { Text("Reload") },
@@ -300,7 +337,7 @@ private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> U
             dismissButton = {
                 TextButton(onClick = {
                     browser.contextLink = null
-                    browser.newTab(link)
+                    browser.newTab(link, privateMode = current.isPrivate)
                     page = Page.WEB
                 }) { Text("New tab") }
             },
@@ -312,7 +349,7 @@ private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> U
         PeekOverlay(browser, url,
             onDismiss = { peekUrl = null },
             onOpen = { previewUrl ->
-                browser.newTab(previewUrl)
+                browser.newTab(previewUrl, privateMode = current.isPrivate)
                 peekUrl = null
                 page = Page.WEB
             })
@@ -534,86 +571,6 @@ private fun HomePanel(
             }
         }
         Spacer(Modifier.height(35.dp))
-    }
-}
-
-@Composable
-private fun TabPanel(
-    browser: BrowserController,
-    onOpen: (BrowserTab) -> Unit,
-    onClose: (BrowserTab) -> Unit,
-    onNew: () -> Unit
-) {
-    Column(Modifier.fillMaxSize()) {
-        Row(
-            Modifier.fillMaxWidth().padding(start = 20.dp, end = 10.dp, top = 15.dp, bottom = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text("Tabs", fontSize = 25.sp, fontWeight = FontWeight.SemiBold,
-                color = Bright)
-            Text("  ${browser.tabs.size}", color = Muted, fontSize = 15.sp)
-            Spacer(Modifier.weight(1f))
-            ChromeIcon(Icons.Rounded.Add, "New tab", onClick = onNew)
-        }
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(start = 14.dp, end = 14.dp, bottom = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            items(browser.tabs.size, key = { browser.tabs[it].id }) { index ->
-                val tab = browser.tabs[index]
-                val selected = tab.id == browser.activeId
-                Surface(
-                    modifier = Modifier.fillMaxWidth().height(248.dp)
-                        .clickable { onOpen(tab) },
-                    shape = RoundedCornerShape(16.dp),
-                    color = Raised,
-                    border = BorderStroke(if (selected) 2.dp else 1.dp,
-                        if (selected) Accent else Border)
-                ) {
-                    Column {
-                        Row(
-                            Modifier.fillMaxWidth().height(51.dp)
-                                .padding(start = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(tab.title, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                                color = Bright, fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium,
-                                modifier = Modifier.weight(1f))
-                            ChromeIcon(Icons.Rounded.Close, "Close ${tab.title}") {
-                                onClose(tab)
-                            }
-                        }
-                        Box(
-                            Modifier.fillMaxWidth().weight(1f).background(Ink),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            val preview = tab.thumbnail
-                            if (preview != null) {
-                                Image(
-                                    bitmap = preview.asImageBitmap(),
-                                    contentDescription = "Preview of ${tab.title}",
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentScale = ContentScale.Crop
-                                )
-                            } else {
-                                Icon(Icons.Rounded.Public, null, tint = Muted,
-                                    modifier = Modifier.size(36.dp))
-                            }
-                        }
-                        Text(
-                            tab.url.ifBlank { "New tab" },
-                            modifier = Modifier.fillMaxWidth().padding(9.dp),
-                            color = Muted, fontSize = 10.sp,
-                            maxLines = 1, overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                }
-            }
-        }
     }
 }
 
