@@ -753,21 +753,41 @@ function completeBricks(){
  $('message').textContent='Arcade cleared!';audio('point');
 }
 function tickBricks(dt){
- const q=state,b=q.ball;
+ const q=state,b=q.ball,previousPaddle=q.paddle;
  if(inputs.left)q.paddle-=365*dt;if(inputs.right)q.paddle+=365*dt;
- if(inputs.drag)q.paddle=inputs.lastX;q.paddle=clamp(q.paddle,43,W-43);
+ if(inputs.drag)q.paddle=inputs.lastX;
+ q.paddle=clamp(q.paddle,q.paddleWidth/2,W-q.paddleWidth/2);
+ // A brick's sparks and paddle flash are short-lived; they must continue
+ // fading even while a replacement ball waits on the paddle.
+ q.impact=Math.max(0,q.impact-dt);
+ for(const p of q.particles){
+  p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=180*dt;p.life-=dt;
+ }
+ q.particles=q.particles.filter(p=>p.life>0);
  if(q.attached){b.x=q.paddle;q.trail=[];return}
  const oldX=b.x,oldY=b.y,dx=b.vx*dt,dy=b.vy*dt;
  b.x+=dx;b.y+=dy;
  if(b.x<8){b.x=16-b.x;b.vx=Math.abs(b.vx)}
  if(b.x>W-8){b.x=2*(W-8)-b.x;b.vx=-Math.abs(b.vx)}
  if(b.y<8){b.y=16-b.y;b.vy=Math.abs(b.vy)}
- // Paddle is 76px across; the impact offset controls a bounded real angle.
- if(b.vy>0&&oldY+8<=490&&b.y+8>=490&&Math.abs(b.x-q.paddle)<43){
-  b.y=482;
-  const hit=clamp((b.x-q.paddle)/38,-1,1),speed=Math.min(590,370+q.hits*5);
-  const angle=hit*1.05;
-  b.vx=Math.sin(angle)*speed;b.vy=-Math.cos(angle)*speed;audio('hit');
+ // Calculate the actual contact point at the top of the paddle, not the
+ // frame's final X. At later levels the visible paddle shrinks; its hitbox
+ // must shrink as well (with the ball's 8px radius), or it catches thin air.
+ const surfaceY=490-8;
+ const crossesPaddle=dy>0&&oldY<=surfaceY&&b.y>=surfaceY;
+ const contactT=crossesPaddle?(surfaceY-oldY)/dy:0;
+ const contactX=oldX+dx*contactT;
+ if(crossesPaddle&&Math.abs(contactX-q.paddle)<=q.paddleWidth/2+8){
+  b.x=contactX;b.y=surfaceY;
+  const offset=clamp((contactX-q.paddle)/(q.paddleWidth/2+3),-1,1);
+  const paddleVelocity=(q.paddle-previousPaddle)/Math.max(dt,.008);
+  const spin=clamp(paddleVelocity/1500,-.25,.25);
+  let angle=clamp(offset*1.02+spin,-1.12,1.12);
+  // Never deadlock into a straight vertical lane on a perfect centre hit.
+  if(Math.abs(angle)<.1)angle=Math.sign(b.vx||1)*.1;
+  const speed=brickSpeed(q);
+  b.vx=Math.sin(angle)*speed;b.vy=-Math.cos(angle)*speed;
+  q.impact=.16;audio('hit');
  }
  let impacted=null;
  for(const brick of q.bricks){
