@@ -35,6 +35,13 @@ class FixtureTests(unittest.TestCase):
         self.assertIn(b"NIGHT QA LINKS", result)
         self.assertEqual(resp.status, 200)
 
+    def test_file_upload_page_has_clickable_accessible_label(self):
+        html, response = self.fetch("/upload")
+        self.assertEqual(response.status, 200)
+        self.assertIn(b'<label for="qa-file-input">Choose File</label>', html)
+        self.assertIn(b'id="qa-file-input" type="file" name="qa-file"', html)
+        self.assertIn(b"Upload test file", html)
+
     def test_redirect_tracks_destination(self):
         data, resp = self.fetch("/redirect")
         self.assertIn(b"REDIRECT LANDING", data)
