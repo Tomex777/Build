@@ -188,14 +188,26 @@ void main() {
     if (uWorld == 0) {
         float darkBasalt = smoothstep(0.34, 0.75,
             areaNoise * 0.55 + steepness * 0.35 + granules * 0.10);
-        vec3 rustDust = vec3(0.41, 0.195, 0.105);
-        vec3 ferricSand = vec3(0.58, 0.295, 0.145);
-        vec3 rock = vec3(0.24, 0.18, 0.15);
-        float dunes = smoothstep(0.20, 0.83, noiseFiltered(ground * vec2(80.0, 23.0)));
+        // Martian regolith reflects dusty ochre, weathered basalt, and
+        // subdued reddish fines, not a uniformly fluorescent orange.
+        // Physical color cue from NASA Mars mineralogy; the exact rock and
+        // silt distributions below are illustrative for Olympus Mons.
+        vec3 rustDust = vec3(.445, .263, .181);
+        vec3 ferricSand = vec3(.527, .326, .219);
+        vec3 rock = vec3(.285, .207, .173);
+        float dunes = smoothstep(0.20, 0.83,
+            noiseFiltered(ground * vec2(80.0, 23.0)));
         albedo = mix(rustDust, ferricSand, dunes * 0.55);
         albedo = mix(albedo, rock, darkBasalt * 0.63);
-        albedo *= 0.76 + granules * 0.52;
-        albedo *= mix(1.0, 0.83, grain * grain);
+        // Low-frequency dust cover and basalt patches create broad,
+        // correlated 10-150m material zones in ground coordinates.
+        float ferricCover = noiseFiltered(ground * 22.0 + vec2(7.0, -9.0));
+        float basaltPebbles = noiseFiltered(ground * 176.0 + vec2(-22.0, 14.0));
+        float mineralDeposit = smoothstep(.37, .69,
+            ferricCover * .65 + basaltPebbles * .35);
+        albedo *= mix(.80, 1.12, mineralDeposit);
+        albedo *= 0.78 + granules * 0.48;
+        albedo *= mix(1.0, 0.87, grain * grain);
     } else {
         float highlands = smoothstep(0.30, 0.72,
             areaNoise * 0.65 + steepness * 0.35);
@@ -411,8 +423,11 @@ void main() {
     if (uWorld == 0) {
         // Warm atmospheric extinction and aerial perspective on Mars, with
         // clear close foreground. The Moon intentionally has zero dust fog.
-        vec3 dust = vec3(0.42, 0.235, 0.16);
-        float transmittance = exp(-max(vDistance, 0.0) * 0.205);
+        // Suspended Martian dust reddens and desaturates distant basins.
+        // Calibrate the far fade separately from ground colour; it must
+        // never look like a flat paper cut-out along the crater rim.
+        vec3 dust = vec3(.448, .264, .187);
+        float transmittance = exp(-max(vDistance, 0.0) * 0.235);
         color = mix(dust, color, transmittance);
     }
 
