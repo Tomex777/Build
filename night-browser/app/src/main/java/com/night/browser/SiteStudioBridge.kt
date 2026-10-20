@@ -93,6 +93,12 @@ class SiteStudioBridge(
         return true
     }
 
+    fun editorRule(session: GeckoSession, pageUrl: String): SiteRule? {
+        val origin = SiteOrigins.fromUrl(pageUrl) ?: return null
+        return previews[session]?.takeIf { it.origin == origin }
+            ?: store.get(pageUrl) ?: SiteRule(origin)
+    }
+
     fun discardPreview(session: GeckoSession) {
         previews.remove(session)
     }
