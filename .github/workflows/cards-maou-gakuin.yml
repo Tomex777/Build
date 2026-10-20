@@ -1,0 +1,90 @@
+name: NIGHT Maou Gakuin Card Candidates
+
+on:
+  push:
+    branches: [feature/cards-maou-gakuin-20261020]
+    paths:
+      - 'cards/catalog/maou-gakuin-*'
+      - 'cards/bin/seed-maou-gakuin.mjs'
+      - 'cards/bin/maou-gakuin-gallery.mjs'
+      - 'cards/tests/maou-gakuin-sources.test.mjs'
+      - '.github/workflows/cards-maou-gakuin.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: night-maou-gakuin-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  create-candidates:
+    runs-on: ubuntu-latest
+    timeout-minutes: 80
+    defaults:
+      run:
+        working-directory: cards
+    steps:
+      - name: Checkout source branch
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: cards/package-lock.json
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Fetch and SHA-pin official transparent illustrations
+        run: node bin/seed-maou-gakuin.mjs --write-lock
+      - name: Test identity, ranking, source and universal renderer
+        run: npm test
+      - name: Install browser requirements
+        run: npx playwright install-deps chromium
+      - name: Prepare exact card renderer Chrome 131
+        run: |
+          curl --fail --location --retry 3 https://storage.googleapis.com/chrome-for-testing-public/131.0.6778.204/linux64/chrome-headless-shell-linux64.zip -o "$RUNNER_TEMP/night-chrome.zip"
+          unzip -q "$RUNNER_TEMP/night-chrome.zip" -d "$RUNNER_TEMP/night-browser"
+          chmod +x "$RUNNER_TEMP/night-browser/chrome-headless-shell-linux64/chrome-headless-shell"
+          echo "NIGHT_BROWSER_PATH=$RUNNER_TEMP/night-browser/chrome-headless-shell-linux64/chrome-headless-shell" >> "$GITHUB_ENV"
+      - name: Render 3000 x 4800 original NIGHT design masters
+        run: npm run build -- --series maou-gakuin --width 3000 --out dist/maou-gakuin
+      - name: Export embeddable standalone full-resolution gallery
+        run: npm run gallery -- --series maou-gakuin --out dist/maou-gakuin --file dist/NIGHT-Maou-Gakuin-Collection.html
+      - name: Label actual NIGHT-rendered previews with franchise
+        run: |
+          node bin/maou-gakuin-gallery.mjs dist/maou-gakuin/index.html
+          node bin/maou-gakuin-gallery.mjs dist/NIGHT-Maou-Gakuin-Collection.html
+      - name: Store source locks and lightweight genuine card preview
+        if: success() && github.event_name == 'push'
+        working-directory: .
+        run: |
+          git config user.name 'NIGHT Cards Provenance'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          mkdir -p cards/previews/maou-gakuin
+          cp cards/dist/maou-gakuin/index.html cards/previews/maou-gakuin/index.html
+          find cards/dist/maou-gakuin -maxdepth 1 -type f \\( -name '*--view.jpg' -o -name '*--phone.png' \\) -exec cp {} cards/previews/maou-gakuin/ \\;
+          git add cards/catalog/maou-gakuin-source-lock.json cards/catalog/maou-gakuin.json cards/catalog/power/maou-gakuin.json
+          git add cards/previews/maou-gakuin
+          if ! git diff --cached --quiet; then
+            git commit -m "cards(maou-gakuin): pin source art and add genuine rendered preview"
+            git pull --rebase origin "$GITHUB_REF_NAME"
+            git push origin "HEAD:$GITHUB_REF_NAME"
+          fi
+      - name: Preserve actual PNG masters, SVGs and phone proofs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NIGHT-Maou-Gakuin-Actual-Card-Masters
+          path: |
+            cards/dist/maou-gakuin/
+            cards/dist/NIGHT-Maou-Gakuin-Collection.html
+            cards/catalog/maou-gakuin.json
+            cards/catalog/power/maou-gakuin.json
+            cards/catalog/maou-gakuin-source-lock.json
+          if-no-files-found: warn
+          retention-days: 21
+          compression-level: 0
