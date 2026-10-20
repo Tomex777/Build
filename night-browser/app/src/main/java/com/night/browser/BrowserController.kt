@@ -8,6 +8,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import org.mozilla.geckoview.AllowOrDeny
+import org.mozilla.geckoview.WebResponse
 import org.mozilla.geckoview.GeckoResult
 import org.mozilla.geckoview.GeckoRuntime
 import org.mozilla.geckoview.GeckoSession
@@ -26,11 +28,17 @@ class BrowserTab(
     var canGoBack by mutableStateOf(false)
     var canGoForward by mutableStateOf(false)
     var lastNode by mutableStateOf<String?>(null)
+    var crashed by mutableStateOf(false)
+    var secureConnection by mutableStateOf(false)
+    var mixedContent by mutableStateOf(false)
     // In-memory reduced page preview. Never written to the browsing-history store.
     var thumbnail by mutableStateOf<Bitmap?>(null)
 }
 
-class BrowserController(private val appContext: Context) {
+class BrowserController(
+    private val appContext: Context,
+    private val platform: BrowserPlatformHost
+) {
     val store = JourneyStore(appContext)
     private val runtime: GeckoRuntime = GeckoRuntime.create(appContext)
     val tabs = mutableStateListOf<BrowserTab>()
@@ -38,6 +46,8 @@ class BrowserController(private val appContext: Context) {
         private set
     var contextLink by mutableStateOf<String?>(null)
     var notice by mutableStateOf<String?>(null)
+    /** Agent 6 can bind its download library here without replacing Gecko delegates. */
+    var downloadHandler: ((WebResponse) -> Unit)? = null
 
     val active: BrowserTab get() = tabs.first { it.id == activeId }
 
@@ -48,7 +58,41 @@ class BrowserController(private val appContext: Context) {
     fun newTab(url: String? = null, journeyId: String = store.journeys.first().id): BrowserTab {
         val session = GeckoSession()
         val tab = BrowserTab(UUID.randomUUID().toString(), session, journeyId)
+        installDelegates(tab, session)
+        session.open(runtime)
+        tabs.add(tab)
+        select(tab.id)
+        url?.takeIf { it.isNotBlank() }?.let(session::loadUri)
+        return tab
+    }
+
+    private fun installDelegates(tab: BrowserTab, session: GeckoSession) {
+        session.permissionDelegate = platform
+        session.promptDelegate = platform
         session.navigationDelegate = object : GeckoSession.NavigationDelegate {
+            override fun onLoadRequest(
+                session: GeckoSession,
+                request: GeckoSession.NavigationDelegate.LoadRequest
+            ): GeckoResult<AllowOrDeny> {
+                return when (ExternalNavigation.decide(
+                    request.uri, request.hasUserGesture,
+                    request.isDirectNavigation, request.isRedirect
+                )) {
+                    ExternalNavigation.Decision.ENGINE -> GeckoResult.fromValue(AllowOrDeny.ALLOW)
+                    ExternalNavigation.Decision.CONFIRM_EXTERNAL -> {
+                        platform.confirmExternalLaunch(request.uri) {
+                            notice = "No app can open this link."
+                        }
+                        GeckoResult.fromValue(AllowOrDeny.DENY)
+                    }
+                    ExternalNavigation.Decision.BLOCK -> {
+                        // Do not dispatch script-created intent/file/custom scheme URLs.
+                        notice = "This link type isn't supported."
+                        GeckoResult.fromValue(AllowOrDeny.DENY)
+                    }
+                }
+            }
+
             override fun onLocationChange(
                 session: GeckoSession,
                 url: String?,
@@ -92,11 +136,33 @@ class BrowserController(private val appContext: Context) {
                 }
             }
 
+            override fun onExternalResponse(session: GeckoSession, response: WebResponse) {
+                val sink = downloadHandler
+                if (sink != null) sink(response)
+                else notice = "Download manager is not connected yet."
+            }
+
+            override fun onKill(session: GeckoSession) {
+                tab.isLoading = false
+                tab.crashed = true
+                notice = "Tab was stopped. Tap Reload to restore the page."
+            }
+
             override fun onCrash(session: GeckoSession) {
-                notice = "This tab crashed. Close it and open a new tab."
+                tab.isLoading = false
+                tab.crashed = true
+                notice = "Tab crashed. Tap Reload to restore the page."
             }
         }
         session.progressDelegate = object : GeckoSession.ProgressDelegate {
+            override fun onSecurityChange(
+                session: GeckoSession,
+                securityInfo: GeckoSession.ProgressDelegate.SecurityInformation
+            ) {
+                tab.secureConnection = securityInfo.isSecure && !securityInfo.isException
+                tab.mixedContent = securityInfo.mixedModeActive ==
+                    GeckoSession.ProgressDelegate.SecurityInformation.CONTENT_LOADED
+            }
             override fun onPageStart(session: GeckoSession, url: String) {
                 tab.isLoading = true
             }
@@ -108,11 +174,6 @@ class BrowserController(private val appContext: Context) {
                 tab.progress = progress
             }
         }
-        session.open(runtime)
-        tabs.add(tab)
-        select(tab.id)
-        url?.takeIf { it.isNotBlank() }?.let(session::loadUri)
-        return tab
     }
 
     fun select(tabId: String) {
@@ -140,11 +201,67 @@ class BrowserController(private val appContext: Context) {
 
     fun goBack() { if (active.canGoBack) active.session.goBack() }
     fun goForward() { if (active.canGoForward) active.session.goForward() }
-    fun reload() { active.session.reload() }
+    fun reload() {
+        val tab = active
+        if (!tab.crashed) {
+            tab.session.reload()
+            return
+        }
+        val restoreUrl = tab.url
+        tab.crashed = false
+        try {
+            // Gecko documents that a crashed or killed GeckoSession is closed;
+            // opening it again is allowed, but no in-memory page state survives.
+            tab.session.open(runtime)
+            if (restoreUrl.isNotBlank()) tab.session.loadUri(restoreUrl)
+        } catch (_: RuntimeException) {
+            tab.crashed = true
+            notice = "Couldn't restore this tab. Open a new tab instead."
+        }
+    }
     fun bookmark() { store.bookmark(active.url, active.title); notice = "Added to Library" }
 
     fun newPeekSession(url: String): GeckoSession =
-        GeckoSession().also { it.open(runtime); it.loadUri(url) }
+        GeckoSession().also { peek ->
+            // Disposable previews are denied all powerful permissions. A Peek
+            // must not become a second permission-owning browser profile.
+            peek.permissionDelegate = object : GeckoSession.PermissionDelegate {
+                override fun onAndroidPermissionsRequest(
+                    session: GeckoSession, permissions: Array<out String>?,
+                    callback: GeckoSession.PermissionDelegate.Callback
+                ) { callback.reject() }
+
+                override fun onContentPermissionRequest(
+                    session: GeckoSession,
+                    perm: GeckoSession.PermissionDelegate.ContentPermission
+                ): GeckoResult<Int> = GeckoResult.fromValue(
+                    GeckoSession.PermissionDelegate.ContentPermission.VALUE_DENY
+                )
+
+                override fun onMediaPermissionRequest(
+                    session: GeckoSession, uri: String,
+                    video: Array<out GeckoSession.PermissionDelegate.MediaSource>?,
+                    audio: Array<out GeckoSession.PermissionDelegate.MediaSource>?,
+                    callback: GeckoSession.PermissionDelegate.MediaCallback
+                ) { callback.reject() }
+            }
+            peek.navigationDelegate = object : GeckoSession.NavigationDelegate {
+                override fun onLoadRequest(
+                    session: GeckoSession,
+                    request: GeckoSession.NavigationDelegate.LoadRequest
+                ): GeckoResult<AllowOrDeny> {
+                    return GeckoResult.fromValue(
+                        if (ExternalNavigation.decide(
+                            request.uri, request.hasUserGesture,
+                            request.isDirectNavigation, request.isRedirect
+                        ) == ExternalNavigation.Decision.ENGINE) AllowOrDeny.ALLOW
+                        else AllowOrDeny.DENY
+                    )
+                }
+            }
+            peek.open(runtime)
+            peek.loadUri(url)
+        }
 
     fun savePdfSnapshot() {
         val tab = active
