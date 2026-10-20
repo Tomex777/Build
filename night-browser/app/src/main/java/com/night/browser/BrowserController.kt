@@ -488,8 +488,10 @@ class BrowserController(
     private fun recover(tab: BrowserTab, url: String) {
         tab.crashed = false
         try {
-            // GeckoSession is closed after onCrash/onKill; reopen before load.
-            // The page's unsaved form state cannot be recovered by a plain URL.
+            // Crashed Gecko sessions can still report isOpen; reopening without
+            // first closing that broken handle raises IllegalStateException.
+            // Unsaved form data cannot be reconstructed from the URL.
+            if (tab.session.isOpen) tab.session.close()
             tab.session.open(runtime)
             if (url.isNotBlank()) tab.session.loadUri(url)
         } catch (_: RuntimeException) {
@@ -534,12 +536,12 @@ class BrowserController(
         notice = "Added to Library"
     }
 
-    fun newPeekSession(url: String): GeckoSession =
+    fun newPeekSession(url: String, configure: (GeckoSession) -> Unit = {}): GeckoSession =
         GeckoSession(GeckoSessionSettings.Builder()
             .usePrivateMode(active.isPrivate).build()).also { peek ->
             // Disposable previews are denied all powerful permissions. A Peek
             // must not become a second permission-owning browser profile.
-            peek.permissionDelegate = object : GeckoSession.PermissionDelegate {
+            val denyPermissions = object : GeckoSession.PermissionDelegate {
                 override fun onAndroidPermissionsRequest(
                     session: GeckoSession, permissions: Array<out String>?,
                     callback: GeckoSession.PermissionDelegate.Callback
@@ -573,14 +575,12 @@ class BrowserController(
                     )
                 }
             }
+            // Let PeekOverlay register its delegates before the first request.
+            configure(peek)
+            // Do not allow a caller to replace Peek's permanent deny-permissions policy.
+            peek.permissionDelegate = denyPermissions
             peek.open(runtime)
-            // Allow PeekOverlay's DisposableEffect to install navigation/progress
-            // handlers before initial navigation (including cached documents).
-            handler.post {
-                if (peek.isOpen && PeekNavigationPolicy.allows(url)) {
-                    peek.loadUri(url)
-                }
-            }
+            if (PeekNavigationPolicy.allows(url)) peek.loadUri(url)
         }
 
 }

@@ -76,8 +76,6 @@ fun PeekOverlay(
         return
     }
     val context = androidx.compose.ui.platform.LocalContext.current
-    val peek = remember(url) { browser.newPeekSession(url) }
-    val view = remember(url) { GeckoView(context) }
     var currentUrl by remember(url) { mutableStateOf(url) }
     var title by remember(url) { mutableStateOf("Link preview") }
     var canGoBack by remember(url) { mutableStateOf(false) }
@@ -88,7 +86,11 @@ fun PeekOverlay(
     var isLoading by remember(url) { mutableStateOf(false) }
     var error by remember(url) { mutableStateOf<String?>(null) }
 
-    DisposableEffect(peek) {
+
+    // Gecko delegates must exist BEFORE open/load; otherwise fast/cached pages
+    // can finish before Peek receives callbacks, leaving stale progress/UI.
+    val peek = remember(browser, url) {
+        browser.newPeekSession(url) { peek ->
         peek.navigationDelegate = object : GeckoSession.NavigationDelegate {
             // GeckoSession has a single navigationDelegate. Preserve Agent 4's
             // scheme-blocking guarantee when replacing the Peek delegate;
@@ -135,12 +137,15 @@ fun PeekOverlay(
                 error = "Preview closed unexpectedly."
             }
         }
+        }
+    }
+    val view = remember(url) { GeckoView(context) }
+    DisposableEffect(peek, view) {
         onDispose {
             view.releaseSession()
             if (peek.isOpen) peek.close()
         }
     }
-
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
