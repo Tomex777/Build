@@ -783,6 +783,8 @@ function renderCheckers(){
   }
   const oldHud=mounted.querySelector(".checker-scoreline"),newHud=next.querySelector(".checker-scoreline");
   if(oldHud.innerHTML!==newHud.innerHTML)oldHud.innerHTML=newHud.innerHTML;
+  const oldMode=mounted.querySelector('[data-checker-mode]'),newMode=next.querySelector('[data-checker-mode]');
+  if(oldMode&&newMode){oldMode.dataset.checkerMode=newMode.dataset.checkerMode;oldMode.textContent=newMode.textContent;}
  }else board.innerHTML=markup;
  setStatus(s.winner!==null?label+"!":label+". "+s.msg);
  controlsHTML('<div class="checker-sidebar-head"><span class="badge">WHITE '+whites+'</span><span class="badge">BLACK '+blacks+'</span></div>');
@@ -967,6 +969,9 @@ const action=e.target.closest("[data-action]");if(!action)return;
 switch(action.dataset.action){case"whot-hand-open":whotOpenExpanded();break;case"whot-hand-close":whotCloseExpanded();break;case"ludo-roll":ludoRoll();break;case"ludo-new":if(confirm("Restart the Ludo match?")){closeLudoSettings();reset("ludo");}break;case"ludo-sound":state.ludo.sound=!state.ludo.sound;render();break;case"estate-roll":estateRoll();break;case"estate-buy":estateDecision(true);break;case"estate-pass":estateDecision(false);break;case"estate-end":estateEnd();break;case"card-draw":cardDraw(active);break;case"whot-rematch":if(active==="whot"&&state.whot.winner!==null){if(whotOptions.mode==="tournament"&&Math.max(...(whotCareer.tournamentWins||[0,0]))>=2){whotCareer.tournamentWins=[0,0];whotStore()}reset("whot")}break;
 case"whot-last-call":if(active==="whot"&&state.whot.turn===0&&state.whot.hands[0].length===1){state.whot.calledLast=[true,Boolean(state.whot.calledLast?.[1])];state.whot.msg="Last card declared!";render()}break;case"whot-call-cancel":if(active==='whot'&&!cardMotionBusy){state.whot.pendingWhot=null;render();}break;case"snakes-roll":snakesRoll();break;case"draw-ready":drawReady();break;case"draw-next":drawNext();break;case"draw-guess":drawReadyToGuess();break;case"draw-clear":if(drawCtx){drawCtx.clearRect(0,0,800,600);}break;case"draw-erase":setBrush("erase");break;case"checkers-reset":reset("checkers");break;}
 });
+// Read-only diagnostics for two-player and CPU match verification.
+window.__nightCheckersQA=()=>({mode:state.checkers?.mode||'local',turn:state.checkers?.turn,winner:state.checkers?.winner,
+ pieces:state.checkers?.cells.slice(),busy:checkerMotionBusy,moving:document.querySelectorAll('.checker-flying').length});
 // Read-only motion diagnostics for real Chromium touch and frame tests.
 window.__nightWhotMotion=()=>({...cardMotionMetrics,timings:{...whotMotion},busy:cardMotionBusy,waitingForCall:state.whot?.pendingWhot!=null,
  visibleFlights:document.querySelectorAll('.whot-flight').length,
