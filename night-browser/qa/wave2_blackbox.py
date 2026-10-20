@@ -297,9 +297,31 @@ class Device:
                 self.click("New tab")
 
     def upload(self):
+        # Use a test-only file. The fixture records only whether the expected
+        # bytes reached it; never write or upload a real user's file.
+        file = self.out / "night-qa-upload.txt"
+        file.write_bytes(b"NIGHT_QA_UPLOAD_TEST_ONLY")
+        adb("push", str(file), "/sdcard/Download/night-qa-upload.txt")
+        old = hits("/upload/submit")
         self.go("/upload")
-        self.click("Choose File", partial=True, timeout=8)
-        raise Blocked("File picker launched: requires OS picker navigation + byte assertion; not a verified upload")
+        try:
+            chooser = "Choose File" if self.find("Choose File", partial=True) else "Browse"
+            self.click(chooser, partial=True, timeout=12)
+            if self.find("Browse", partial=True):
+                self.click("Browse", partial=True)
+            if self.find("Downloads", partial=True):
+                self.click("Downloads", partial=True)
+            self.click("night-qa-upload.txt", partial=True, timeout=15)
+            self.click("Upload test file", partial=True, timeout=10)
+            wait_hit("/upload/submit", old)
+            state = fixture()
+            if not state["upload_verified"]:
+                raise AssertionError("Fixture received POST but missing expected uploaded bytes")
+            return "File picker returned real file; fixture confirmed test-only content bytes"
+        finally:
+            # Escape any OS chooser left open by a broken upload workflow.
+            if not fixture()["upload_verified"]:
+                shell("input", "keyevent", "4", check=False)
 
     def download(self, path):
         # Real Gecko response -> native Save dialog -> Library -> actual bytes.
