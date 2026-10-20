@@ -6,6 +6,9 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalContext
+import android.widget.Toast
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -52,6 +55,14 @@ class WebDownloadConsent(private val downloads: DownloadLibrary) {
 
 @Composable
 fun NightDownloadPrompt(state: WebDownloadConsent) {
+    val context = LocalContext.current
+    val message = state.eventMessage
+    LaunchedEffect(message) {
+        if (message != null) {
+            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+            state.consumeMessage()
+        }
+    }
     val response = state.pending ?: return
     val contentDisposition = response.headers.entries.firstOrNull {
         it.key.equals("content-disposition", true)
