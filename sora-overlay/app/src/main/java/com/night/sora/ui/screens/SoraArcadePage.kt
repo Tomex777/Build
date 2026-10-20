@@ -29,6 +29,7 @@ private data class ArcadeEntry(val key: String, val title: String, val subtitle:
 private val arcadeEntries = listOf(
     ArcadeEntry("snake", "Snake", "Swipe to steer, survive and grow", R.drawable.sora_game_snake),
     ArcadeEntry("tiles", "2048", "Swipe and merge matching numbers", R.drawable.sora_game_tiles),
+    ArcadeEntry("water", "Water Sort", "Pour matching colours into tubes", R.drawable.sora_game_water),
     ArcadeEntry("ttt", "Tic-tac-toe", "Challenge a computer opponent", R.drawable.sora_game_tictactoe),
     ArcadeEntry("memory", "Memory match", "Find all eight hidden pairs", R.drawable.sora_game_memory),
     ArcadeEntry("quiz", "Cover quiz", "Guess titles saved in your Library", R.drawable.sora_game_quiz),
@@ -169,6 +170,7 @@ fun SoraArcadePage(
         when(selected) {
             "snake" -> SnakeArcade(Modifier.weight(1f))
             "tiles" -> TilesArcade(Modifier.weight(1f))
+            "water" -> WaterSortArcade(Modifier.weight(1f))
             "ttt" -> TicTacToeArcade(Modifier.weight(1f))
             "memory" -> MemoryArcade(Modifier.weight(1f))
             "daily", "who", "quotes", "bible" -> MediaTriviaArcade(selected, Modifier.weight(1f))
