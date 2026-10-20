@@ -77,6 +77,8 @@ class State:
         self.upload_length = 0
         self.upload_sha256 = None
         self.form_posted = False
+        self.secure_download_ok = 0
+        self.secure_download_denied = 0
 
     def record(self, path, cookie):
         with self.lock:
@@ -90,7 +92,9 @@ class State:
                     "cookie_seen": dict(self.cookie_observed),
                     "upload_length": self.upload_length,
                     "upload_sha256": self.upload_sha256,
-                    "form_posted": self.form_posted}
+                    "form_posted": self.form_posted,
+                    "secure_download_ok": self.secure_download_ok,
+                    "secure_download_denied": self.secure_download_denied}
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -134,6 +138,18 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/file.bin":
             return self.send(BIN, "application/octet-stream", headers={
                 "Content-Disposition": "attachment; filename=night-qa.bin"})
+        if path == "/secure/file.bin":
+            # Synthetic cookie-backed resource; no credentials or token values logged.
+            authorized = "nightQa=fixture" in self.headers.get("Cookie", "")
+            with self.state.lock:
+                if authorized:
+                    self.state.secure_download_ok += 1
+                else:
+                    self.state.secure_download_denied += 1
+            if not authorized:
+                return self.send("Forbidden", code=403)
+            return self.send(BIN, "application/octet-stream", headers={
+                "Content-Disposition": "attachment; filename=night-secure-qa.bin"})
         if path == "/not-found":
             return self.send(self.page("404"), code=404)
         if path == "/server-error":
