@@ -80,6 +80,13 @@ timeout 420s adb shell am instrument -w -r -e class "$TEST_CLASSES" \
   fail "Android instrumentation command failed"
 }
 cat "$INSTRUMENTATION_LOG" | tee -a "$TEST_LOG"
+if grep -q 'INSTRUMENTATION_RESULT: shortMsg=Process crashed' "$INSTRUMENTATION_LOG"; then
+  echo "MISE INSTRUMENTATION PROCESS CRASHED: inspecting actual Android fatal logs" >&2
+  timeout 20s adb logcat -b crash -d -v threadtime | tail -n 200 || true
+  timeout 20s adb logcat -d -v threadtime |
+    grep -E -A 25 -B 10 'FATAL EXCEPTION|Fatal signal|Abort message|SIGSEGV|SIGABRT|OutOfMemoryError|AndroidRuntime' |
+    tail -n 240 || true
+fi
 python3 - "$INSTRUMENTATION_LOG" "$EXPECTED_TESTS" <<'PYINSTRUMENTATION' || fail "Android instrumentation did not pass the complete suite"
 import re, sys
 text = open(sys.argv[1]).read()
