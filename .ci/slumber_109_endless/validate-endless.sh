@@ -84,8 +84,11 @@ W=$((X1-X0)); H=$((Y1-Y0)); LANE_W=$((W/4))
 FIRST_X=$((X0 + ((2*LANE-1)*LANE_W)/2))
 FIRST_Y=$((Y0 + (955*H)/1000 - (190*LANE_W)/200))
 # Trigger pause immediately after a real tile hit; no dependency on private app data.
-PAUSE_X=$((X1-45)); PAUSE_Y=$((Y0-40)); ((PAUSE_Y > 20)) || PAUSE_Y=55
-adb shell "input tap $FIRST_X $FIRST_Y; input tap $PAUSE_X $PAUSE_Y"
+# The pause control is in the top app bar, not in the subtitle row.
+# Compose adds it after the starting tile is accepted: allow a short frame
+# for recomposition, then tap the actual header button center.
+PAUSE_X=$((X1-45)); PAUSE_Y=$((HEADER_TOP+28))
+adb shell "input tap $FIRST_X $FIRST_Y; sleep 0.25; input tap $PAUSE_X $PAUSE_Y"
 wait_ui "PAUSED"
 capture tiles-paused
 sleep 3
