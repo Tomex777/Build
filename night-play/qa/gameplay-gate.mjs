@@ -138,6 +138,7 @@ try{
   await page.locator('#overlayStart').click();
   await page.waitForFunction(()=>window.__nightActionTest.snapshot().over,null,{timeout:10000});
   assert.equal((await snapshot(page)).over,true,'idle runner must eventually collide and lose');
+  assert.equal(await page.locator('#overlayTag').innerText(),'GAME OVER','death overlay cannot say ROUND COMPLETE');
   await evidence(page,'qa-runner-collision-390');
   await page.locator('#restart').click();
   assert.equal((await snapshot(page)).over,false,'restart clears game-over');
