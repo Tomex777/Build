@@ -124,6 +124,7 @@ class MainActivity : ComponentActivity() {
         customAppearanceHex = YomiAppearances.normalizedHex(
             appearancePrefs.getString("hex", YomiAppearances.DEFAULT_CUSTOM_HEX).orEmpty(),
         ) ?: YomiAppearances.DEFAULT_CUSTOM_HEX
+        Log.i(STARTUP_TAG, "appearance-restored palette=$appearanceId hex=$customAppearanceHex")
         enableEdgeToEdge()
         WindowCompat.getInsetsController(window, window.decorView).apply {
             isAppearanceLightStatusBars = false
@@ -870,6 +871,7 @@ class MainActivity : ComponentActivity() {
                 onSelectPreset = { id ->
                     appearanceId = id
                     appearancePrefs.edit().putString("palette", id).apply()
+                    Log.i(STARTUP_TAG, "appearance-selected palette=$id")
                 },
                 onApplyCustomHex = { hex ->
                     customAppearanceHex = hex
@@ -878,6 +880,7 @@ class MainActivity : ComponentActivity() {
                         .putString("hex", hex)
                         .putString("palette", YomiAppearances.CUSTOM_ID)
                         .apply()
+                    Log.i(STARTUP_TAG, "appearance-selected palette=custom hex=$hex")
                 },
                 onDismiss = { showThemeStudio = false },
             )
