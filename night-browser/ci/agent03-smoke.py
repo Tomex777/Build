@@ -107,6 +107,9 @@ for index, domain in enumerate(sites):
 tap("Tabs")
 assert count_profile("Regular") >= len(sites), "Normal tabs are not independently created"
 screenshot("02-regular-tabs.png")
+(OUT / "meminfo-ten-tabs.txt").write_text(
+    adb("shell", "dumpsys", "meminfo", "com.night.browser")
+)
 
 # Open private tab and navigate; it must not be stored by regular-tab persistence.
 tap("Private", contains=True)
