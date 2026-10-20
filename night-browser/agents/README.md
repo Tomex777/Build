@@ -1,3 +1,7 @@
+## CRITICAL RESUME INSTRUCTION — consolidate existing Wave 2 code FIRST (20 October 2026)
+
+**If a user says just "Continue", "Resume", or "Keep going" in an existing NIGHT Browser Agent chat:** reopen your **existing** Wave 2 work/PR; immediately read `night-browser/docs/integration-resume.md`, GitHub [Issue #460](https://github.com/Tomex777/Build/issues/460) latest comments, all relevant open PRs and current integration tip. Do not open another disconnected variant of the browser. Agent 1 must actually resolve and integrate the existing draft unified app PR #468 into a compiling, installed APK and coordinate Agent 10's real-device audit; Agents 2–9 prioritize making their modules work in this combined shell, resolve reported compile/privacy/site regressions and send exact handoffs; Agent 10 independently tests the integrated SHA. A queued CI job is not a pass. **Ordinary ChatGPT chats do not keep running after their turns end; the user must send another message to resume each chat.**
+
 # NIGHT Browser — Wave 2 large-scale integration and polishing
 
 This is a **continuation**, not another prototype. Browser integration branch: `feature/night-browser-multi-agent-20261020`, head at baseline `1f28e9d5cedf`; updated heads must be checked live. Existing Home and agent1 coordination PRs merged; browser PR #439 is still **draft partial assembly**, and the remaining specialist PRs are not integrated. The first-wave docs after this introductory section are archival where contradicted.
