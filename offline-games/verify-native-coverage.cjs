@@ -7,7 +7,8 @@ const main=fs.readFileSync(path.join(java,'MainActivity.kt'),'utf8');
 const entries=[...main.matchAll(/GameEntry\("([^"]+)"/g)].map(m=>m[1]);
 const native=[
  ['2048','Game2048Screen','Game2048Screen.kt','Board2048.kt'],
- ['snake','NativeSnakeScreen','NativeSnakeScreen.kt','NativeSnakeEngine.kt']
+ ['snake','NativeSnakeScreen','NativeSnakeScreen.kt','NativeSnakeEngine.kt'],
+ ['reversi','NativeReversiScreen','NativeReversiScreen.kt','NativeReversiEngine.kt'],
  ['ttt','NativeTicTacToeScreen','NativeTicTacToeScreen.kt','NativeTicTacToe.kt'],
  ['colorsort','WaterSortScreen','WaterSortScreen.kt','WaterSortEngine.kt'],
  ['shark','SharkSurvivalScreen','SharkSurvivalScreen.kt','SharkEngine.kt']
