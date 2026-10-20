@@ -1,0 +1,40 @@
+/* Sora's own dark shell around bundled NIGHT Play engines.
+   Game logic, canvas visuals, game controls and story pacing are untouched. */
+:root { color-scheme: dark; }
+html, body { background-color: #121211 !important; color: #eeeae1 !important; }
+.night-shell-header, .site-top, .game-topline, .top.night-shell-header {
+  background: #171715 !important; color: #efede7 !important;
+  border-bottom: 1px solid #34332c !important;
+  box-shadow: none !important;
+}
+.night-brand, .night-brand strong, .night-brand em,
+.wordmark, .wordmark strong, .brand, .brand b,
+.game-topline .wordmark { color: #f1eee6 !important; }
+.night-brand em, .brand em, .wordmark em { color: #ddbd73 !important; }
+.night-back, .night-settings, .go-back, .back-link,
+.top-settings, .site-top .go-back {
+  color: #e9e4d7 !important; background: #282722 !important;
+  border-color: #3e3b32 !important;
+}
+.night-game-intro h1, .night-game-intro h2,
+.page-intro h1, .play-heading h2, .title-row h1 {
+  color: #f1eee5 !important;
+}
+.night-game-intro p, .page-intro p, .night-game-intro .night-eyebrow,
+.page-intro .eyebrow { color: #b9ad8d !important; }
+.night-play-hud {
+  background: #24231f !important; border-color: #403d32 !important;
+  color: #eeeae1 !important;
+}
+.night-hud-value small { color: #aaa18c !important; }
+.night-hud-value strong { color: #f4e8c4 !important; }
+.night-action-row button:not(.primary) {
+  color: #f2e6ca !important; background: #2a2923 !important;
+  border-color: #4b4433 !important;
+}
+.night-action-row button.primary { background: #a47a37 !important; color: #161410 !important; }
+@media (prefers-reduced-motion: reduce) {
+  .night-shell-header *, .night-action-row *, .night-play-hud * {
+    animation-duration: 0ms !important; transition-duration: 0ms !important;
+  }
+}

@@ -159,8 +159,31 @@ fun NightPlayGameScreen(gameId: String, onClose: () -> Unit) {
                 mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
                 mediaPlaybackRequiresUserGesture = true
             }
-            webChromeClient = WebChromeClient()
+            webChromeClient = object : WebChromeClient() {
+                override fun onConsoleMessage(message: android.webkit.ConsoleMessage): Boolean {
+                    if (message.messageLevel() == android.webkit.ConsoleMessage.MessageLevel.ERROR) {
+                        android.util.Log.e(
+                            "SoraNightPlay",
+                            "${message.sourceId()}:${message.lineNumber()}: ${message.message()}"
+                        )
+                    }
+                    return super.onConsoleMessage(message)
+                }
+            }
             webViewClient = object : WebViewClient() {
+                override fun onPageFinished(view: WebView?, url: String?) {
+                    super.onPageFinished(view, url)
+                    // The manuscript already has its own approved dark reader.
+                    // Preserve it; unify only the lighter standalone game shells.
+                    if (url?.startsWith("https://$ASSET_ORIGIN/") == true &&
+                        !url.contains("/stories/") && !url.contains("/sling-siege/")) {
+                        view?.evaluateJavascript(
+                            "(function(){if(document.getElementById('sora-game-theme'))return;" +
+                                "var e=document.createElement('link');e.id='sora-game-theme';" +
+                                "e.rel='stylesheet';e.href='/sora-game-theme.css';" +
+                                "document.head.appendChild(e)})()", null)
+                    }
+                }
                 override fun shouldInterceptRequest(view: WebView?, request: WebResourceRequest): WebResourceResponse? =
                     response(context, request)
 
