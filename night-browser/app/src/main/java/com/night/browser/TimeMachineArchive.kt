@@ -123,7 +123,7 @@ class TimeMachineArchive(context: Context) {
         ?.filter { it.isFile && isSafeFileName(it.name) }
         ?.sumOf { it.length() } ?: 0L
 
-    fun health(item: TimeMachineVersion): ArchiveFileHealth =
+    internal fun health(item: TimeMachineVersion): ArchiveFileHealth =
         TimeMachinePdfHealth.inspect(resolveFile(item.fileName), item.sizeBytes)
 
     fun fileForPreview(item: TimeMachineVersion): File? =

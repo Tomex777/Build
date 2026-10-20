@@ -366,6 +366,7 @@ private fun TimeMachineVersionRow(
             Text("Compare with previous PDF", color = PageAccent, fontSize = 11.sp)
         }
     }
+    } // Version row column
 }
 
 private fun versionDate(capturedAt: Long): String =
