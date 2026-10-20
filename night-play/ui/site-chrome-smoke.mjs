@@ -70,6 +70,16 @@ try {
     await page.screenshot({ path: join(output, 'site-' + width + '.png') })
     await page.goto(url + '/games')
     await page.locator('#view-games').waitFor({ state: 'visible' })
+    const library = await page.evaluate(() => ({
+      cards: document.querySelectorAll('.library-card').length,
+      overflow: document.documentElement.scrollWidth - innerWidth,
+      emojiThumbnails: document.querySelectorAll('.library-card .game-emoji').length
+    }))
+    assert.ok(library.cards >= 10, 'The original NIGHT catalogue must remain populated at ' + width)
+    assert.ok(library.overflow <= 1, 'The game library must not horizontally overflow at ' + width)
+    assert.equal(library.emojiThumbnails, 0, 'Library should retain original artwork at ' + width)
+    await page.screenshot({ path: join(output, 'library-' + width + '.png') })
+    console.log('NIGHT_UI_LIBRARY ' + JSON.stringify({ width, ...library }))
     await page.locator('.library-card[data-game="2048"]').click()
     await page.locator('body.in-game').waitFor()
     await page.locator('#board2048').waitFor({ state: 'visible' })
@@ -133,6 +143,13 @@ try {
     await page.locator('#gameDialog .game-topline [data-close-game]').click()
     assert.equal(await page.locator('body').evaluate(el => el.classList.contains('in-game')), false)
     assert.equal(await page.locator('.site-header').evaluate(el => getComputedStyle(el).visibility), 'visible')
+    await page.goto(url + '/profile')
+    await page.locator('#view-profile').waitFor({ state: 'visible' })
+    assert.ok(await page.locator('#editPlayerName').isVisible(), 'Player name editor is accessible at ' + width)
+    const profileOverflow = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)
+    assert.ok(profileOverflow <= 1, 'Profile does not overflow horizontally at ' + width)
+    await page.screenshot({ path: join(output, 'profile-' + width + '.png') })
+    console.log('NIGHT_UI_PROFILE ' + JSON.stringify({ width, overflow: profileOverflow }))
     assert.deepEqual(errors, [], 'Browser page errors at ' + width)
     console.log('NIGHT_UI_GAME ' + JSON.stringify({ width, ...game, errors }))
     await page.close()
