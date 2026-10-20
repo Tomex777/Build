@@ -117,18 +117,20 @@ internal fun StudioAxisField(
         }
     }
 
-    fun resetEditing() {
+    fun resetEditing(clearFocus: Boolean = true) {
         editing = false
         draft = AxisNumericDraft.display(value)
-        focusManager.clearFocus(force = true)
-        keyboard?.hide()
+        if (clearFocus) {
+            focusManager.clearFocus(force = true)
+            keyboard?.hide()
+        }
     }
 
-    fun commit() {
+    fun commit(clearFocus: Boolean = true) {
         if (editing) {
             AxisNumericDraft.parse(draft)?.takeIf { canEdit }?.let(onSet)
         }
-        resetEditing()
+        resetEditing(clearFocus)
     }
 
     Row(
@@ -206,7 +208,8 @@ internal fun StudioAxisField(
                     .focusRequester(requestFocus)
                     .onFocusChanged { state ->
                         if (wasFocused && !state.isFocused && editing) {
-                            commit()
+                            // Focus is already elsewhere; don't change focus from its callback.
+                            commit(clearFocus = false)
                         }
                         wasFocused = state.isFocused
                     },
