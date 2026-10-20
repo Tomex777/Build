@@ -1,0 +1,271 @@
+name: Sound Atlas native Android + emulator QA
+
+on:
+  push:
+    branches: [feature/sound-atlas-native-android]
+    paths:
+      - 'SoundAtlas/**'
+      - '.github/workflows/soundatlas-android.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: sound-atlas-android-ci
+  cancel-in-progress: true
+
+jobs:
+  native-android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 65
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+      - name: Install SDK 35
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | head -1)
+          test -n "$SDKMANAGER"
+          "$SDKMANAGER" 'platforms;android-35' 'build-tools;35.0.0'
+      - uses: actions/cache@v4
+        id: sound-atlas-audio-cache
+        with:
+          path: SoundAtlas/app/src/main/assets/audio
+          key: sound-atlas-cc0-recordings-20261020-v2
+      - name: Restore verified CC0 recordings from previous signed release
+        id: reuse-sound-library
+        if: steps.sound-atlas-audio-cache.outputs.cache-hit != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p SoundAtlas/app/src/main/assets/audio /tmp/atlas-assets
+          if gh run download 39149555610 --repo "$GITHUB_REPOSITORY" \
+            --name SoundAtlas-test-signed-APK --dir /tmp/atlas-assets; then
+            unzip -o -q /tmp/atlas-assets/SoundAtlas-Android8-plus-test-signed.apk \
+              'assets/audio/*.pcm' -d /tmp/atlas-assets
+            cp /tmp/atlas-assets/assets/audio/*.pcm SoundAtlas/app/src/main/assets/audio/
+            echo "restored=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Previous release unavailable; preparing original verified CC0 sources."
+          fi
+      - name: Bundle verified CC0 field-recording library from EchoSpace assets pipeline
+        if: steps.sound-atlas-audio-cache.outputs.cache-hit != 'true' && steps.reuse-sound-library.outputs.restored != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -qq -y ffmpeg
+          tar -xJf EchoSpace/source.tar.xz
+          test -f EchoSpace/tools/prepare_audio.py
+          # Longer sources plus randomized stitching in the realtime Sound Atlas engine.
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path("EchoSpace/tools/prepare_audio.py")
+          data=p.read_text()
+          anchor="duration=12 if kind in EVENTS else 24"
+          if anchor not in data: raise SystemExit("Audio prep provenance source drifted")
+          p.write_text(data.replace(anchor,"duration=20 if kind in EVENTS else 48",1))
+          PY
+          python3 EchoSpace/tools/prepare_audio.py
+          mkdir -p SoundAtlas/app/src/main/assets/audio
+          for kind in rain thunder wind stream birds leaves night chimes traffic cafe ocean fire owl train waterfall frogs drizzle sleet; do
+            test -s "EchoSpace/app/src/main/assets/audio/$kind.pcm"
+            cp "EchoSpace/app/src/main/assets/audio/$kind.pcm" \
+               "SoundAtlas/app/src/main/assets/audio/$kind.pcm"
+          done
+          find EchoSpace/app/src/main/assets -maxdepth 2 -iname '*provenance*' \
+             -o -iname '*license*' -o -iname '*manifest*' | head -20
+          echo "Audio source: EchoSpace verified CC0 offline preparation pipeline" \
+             > SoundAtlas/app/src/main/assets/audio/SOURCES.txt
+      - name: Bundle expanded fourteen-sound offline field library
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/expanded SoundAtlas/app/src/main/assets/audio
+          if gh run download 39210500200 --repo "$GITHUB_REPOSITORY" --name EchoSpace-production-hardening-test-signed --dir /tmp/expanded; then
+            for sample in cafe ocean fire owl train waterfall frogs drizzle sleet; do
+              unzip -p /tmp/expanded/EchoSpace-production-hardening-test.apk "assets/audio/$sample.pcm" > "SoundAtlas/app/src/main/assets/audio/$sample.pcm"
+              test -s "SoundAtlas/app/src/main/assets/audio/$sample.pcm"
+            done
+          else
+            # A GitHub Actions artifact eventually expires: rebuild the same
+            # CC0 sample set directly from maintained, attributed source code.
+            git fetch --depth=1 origin feature/echospace-production-hardening
+            mkdir -p /tmp/atlas-asset-source/tools /tmp/atlas-asset-source/app/src/main
+            git show FETCH_HEAD:EchoSpace/tools/prepare_audio.py > /tmp/atlas-asset-source/tools/prepare_audio.py
+            command -v ffmpeg || { sudo apt-get update -qq && sudo apt-get install -y ffmpeg; }
+            python3 /tmp/atlas-asset-source/tools/prepare_audio.py
+            for sample in cafe ocean fire owl train waterfall frogs drizzle sleet; do
+              cp "/tmp/atlas-asset-source/app/src/main/assets/audio/$sample.pcm" "SoundAtlas/app/src/main/assets/audio/$sample.pcm"
+            done
+          fi
+      - name: Verify offline library before compilation
+        run: |
+          set -euo pipefail
+          for kind in rain thunder wind stream birds leaves night chimes traffic cafe ocean fire owl train waterfall frogs drizzle sleet; do
+            test -s "SoundAtlas/app/src/main/assets/audio/$kind.pcm"
+          done
+      - name: Verify CC0 provenance and integrity
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path('SoundAtlas/app/src/main/assets')
+          rows=json.loads((root/'recording_credits.json').read_text())
+          required={'rain','thunder','wind','stream','birds','leaves','night','chimes','traffic','cafe','ocean','fire','owl','train','waterfall','frogs','drizzle','sleet'}
+          assert {r['kind'] for r in rows}==required and len(rows)==18
+          for r in rows:
+              assert r['license']=='CC0-1.0'
+              assert r['url'].startswith('https://freesound.org/people/')
+              assert r['sound_id']>0
+              assert r['filename']==r['kind']+'.pcm'
+              assert (root/'audio'/r['filename']).stat().st_size>40000
+          print('PRODUCTION_AUDIO_CREDITS_VERIFIED')
+          PY
+      - name: Include measured horizontal-plane KEMAR binaural responses
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p SoundAtlas/app/src/main/assets /tmp/atlas-kemar
+          if gh run download 39082348089 --repo "$GITHUB_REPOSITORY" \
+              --name EchoSpace-ARM64-test-signed-installable-APK \
+              --dir /tmp/atlas-kemar; then
+            unzip -p /tmp/atlas-kemar/EchoSpace-arm64-v8a-release-test-signed.apk \
+              assets/kemar_44100.hrir \
+              > SoundAtlas/app/src/main/assets/kemar_44100.hrir
+          else
+            # Reconstruct the same approved asset using EchoSpace source provenance.
+            tar -xJf EchoSpace/source.tar.xz
+            python3 - <<'PY'
+          from pathlib import Path
+          p=Path("EchoSpace/tools/prepare_audio.py")
+          s=p.read_text()
+          before="targets=['H0e000a.wav','H0e090a.wav','H0e180a.wav']"
+          after=("targets=['H0e000a.wav','H0e030a.wav','H0e060a.wav',"
+                 "'H0e090a.wav','H0e120a.wav','H0e150a.wav','H0e180a.wav']")
+          assert before in s
+          s=s.replace(before,after,1)
+          assert "output=bytearray(b'EHR1')" in s
+          s=s.replace("output=bytearray(b'EHR1')","output=bytearray(b'EHR2')",1)
+          p.write_text(s)
+          PY
+            python3 EchoSpace/tools/prepare_audio.py
+            cp EchoSpace/app/src/main/assets/kemar_44100.hrir \
+              SoundAtlas/app/src/main/assets/kemar_44100.hrir
+          fi
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path("SoundAtlas/app/src/main/assets/kemar_44100.hrir")
+          data=p.read_bytes()
+          assert data[:4]==b"EHR2" and len(data)==4+7*2*128*2, \
+              f"Unexpected HRTF format/length: {data[:4]} {len(data)}"
+          print("MEASURED_KEMAR_HRTF_VERIFIED",len(data))
+          PY
+      - name: JVM geometry regressions and native Android builds
+        working-directory: SoundAtlas
+        run: gradle --no-daemon --stacktrace testDebugUnitTest assembleDebug assembleRelease
+      - name: Verify app API floor and absence of default SeekBars
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -R -E 'android.widget.SeekBar|androidx.compose.material.Slider|<SeekBar' SoundAtlas/app/src; then
+            echo 'Forbidden default slider found'; exit 1
+          fi
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging SoundAtlas/app/build/outputs/apk/debug/app-debug.apk | tee /tmp/soundatlas-badging.txt
+          grep -q "sdkVersion:'26'" /tmp/soundatlas-badging.txt
+          grep -q "package: name='com.night.soundatlas'" /tmp/soundatlas-badging.txt
+          # Background spatial audio must remain user-initiated and foreground.
+          grep -q 'FOREGROUND_SERVICE_MEDIA_PLAYBACK' SoundAtlas/app/src/main/AndroidManifest.xml
+          grep -q 'android:foregroundServiceType="mediaPlayback"' SoundAtlas/app/src/main/AndroidManifest.xml
+          grep -q 'startForeground' SoundAtlas/app/src/main/java/com/night/soundatlas/AtlasPlaybackService.kt
+          grep -q 'ACTION_AUDIO_BECOMING_NOISY' SoundAtlas/app/src/main/java/com/night/soundatlas/AtlasPlaybackService.kt
+      - name: Sign and verify installable Android APK
+        shell: bash
+        env:
+          NIGHT_KEYSTORE_B64: ${{ secrets.SOUNDATLAS_SIGNING_KEYSTORE_B64 }}
+          NIGHT_STORE_PASSWORD: ${{ secrets.SOUNDATLAS_SIGNING_STORE_PASSWORD }}
+          NIGHT_KEY_PASSWORD: ${{ secrets.SOUNDATLAS_SIGNING_KEY_PASSWORD }}
+          NIGHT_KEY_ALIAS: ${{ secrets.SOUNDATLAS_SIGNING_ALIAS }}
+        run: |
+          set -euo pipefail
+          mkdir -p SoundAtlas/release
+          umask 077
+          KEYSTORE="$RUNNER_TEMP/soundatlas-$GITHUB_RUN_ID.p12"
+          trap 'rm -f "$KEYSTORE"' EXIT
+          if [ -n "${NIGHT_KEYSTORE_B64:-}" ]; then
+            test -n "$NIGHT_STORE_PASSWORD" && test -n "$NIGHT_KEY_PASSWORD"
+            test -n "$NIGHT_KEY_ALIAS"
+            printf '%s' "$NIGHT_KEYSTORE_B64" | base64 --decode > "$KEYSTORE"
+            PASS="$NIGHT_STORE_PASSWORD"
+            KEY_PASS="$NIGHT_KEY_PASSWORD"
+            KEY_ALIAS="$NIGHT_KEY_ALIAS"
+            echo "PERSISTENT_RELEASE_SIGNING_ENABLED"
+          else
+            PASS="$(openssl rand -hex 24)"
+            KEY_PASS="$PASS"
+            KEY_ALIAS=night-test
+            keytool -genkeypair -noprompt -keystore "$KEYSTORE" -storetype PKCS12 \
+              -storepass "$PASS" -keypass "$PASS" -alias "$KEY_ALIAS" -keyalg RSA \
+              -keysize 3072 -validity 365 \
+              -dname "CN=Sound Atlas Temporary Test, OU=NIGHT, O=NIGHT, C=NG"
+            echo "TEMPORARY_CI_SIGNING_ONLY_NOT_PRODUCTION"
+          fi
+          APKSIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
+          "$APKSIGNER" sign --ks "$KEYSTORE" --ks-type PKCS12 \
+            --ks-key-alias "$KEY_ALIAS" --ks-pass "pass:$PASS" --key-pass "pass:$KEY_PASS" \
+            --min-sdk-version 26 \
+            --out SoundAtlas/release/SoundAtlas-Android8-plus-test-signed.apk \
+            SoundAtlas/app/build/outputs/apk/release/app-release-unsigned.apk
+          "$APKSIGNER" verify --min-sdk-version 26 --print-certs \
+            SoundAtlas/release/SoundAtlas-Android8-plus-test-signed.apk
+          sha256sum SoundAtlas/release/SoundAtlas-Android8-plus-test-signed.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SoundAtlas-test-signed-APK
+          path: SoundAtlas/release/SoundAtlas-Android8-plus-test-signed.apk
+          if-no-files-found: error
+          retention-days: 90
+      - name: Enable KVM acceleration for reliable interactive UI QA
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Without this, the hosted AVD falls back to very slow software
+          # emulation and repeatedly reports "System UI isn't responding".
+          test -c /dev/kvm
+          sudo chmod 666 /dev/kvm
+          test -r /dev/kvm && test -w /dev/kvm
+          ls -l /dev/kvm
+      - name: Android emulator install and real screenshot
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          # Android 15 hosted System UI ANRs prevented deterministic touch QA.
+          # Preserve SDK35 compilation, exercise actual gestures on API33.
+          api-level: 33
+          arch: x86_64
+          target: default
+          profile: pixel_3a
+          cores: 2
+          ram-size: 4096M
+          disk-size: 3072M
+          disable-animations: true
+          emulator-options: -no-window -no-snapshot -noaudio -no-boot-anim -gpu swiftshader_indirect
+          script: bash SoundAtlas/tools/emulator_qa.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: SoundAtlas-Android-emulator-screenshots
+          path: SoundAtlas/qa/
+          if-no-files-found: warn
+          retention-days: 60

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+  <symbol id="play" viewBox="0 0 24 24"><path d="M8,5 L19,12 L8,19 Z" fill="currentColor" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="pause" viewBox="0 0 24 24"><path d="M5,4 H10 V20 H5 Z M14,4 H19 V20 H14 Z" fill="currentColor" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="save" viewBox="0 0 24 24"><path d="M4,3 H17 L21,7 V21 H3 V3 Z M7,3 V9 H16 V3 M7,21 V14 H17 V21" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="load" viewBox="0 0 24 24"><path d="M12,3 V14 M7,9 L12,14 L17,9 M4,17 V20 H20 V17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="share" viewBox="0 0 24 24"><path d="M18,7 A2.5,2.5 0,1 1,18,2 A2.5,2.5 0,1 1,18,7 Z M5,14.5 A2.5,2.5 0,1 1,5,9.5 A2.5,2.5 0,1 1,5,14.5 Z M18,22 A2.5,2.5 0,1 1,18,17 A2.5,2.5 0,1 1,18,22 Z M7,11 L15.5,5.5 M7,13 L15.5,18.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="library" viewBox="0 0 24 24"><path d="M3,4 H11 V20 H3 Z M14,7 H21 V20 H14 Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="sounds" viewBox="0 0 24 24"><path d="M3,10 V14 M7,6 V18 M11,3 V21 M15,7 V17 M19,9 V15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="wall" viewBox="0 0 24 24"><path d="M3,5 H21 V19 H3 Z M3,12 H21 M9,5 V12 M15,12 V19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="zones" viewBox="0 0 24 24"><path d="M3,3 H21 V21 H3 Z M13,3 V21 M3,13 H13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="walk" viewBox="0 0 24 24"><path d="M13,5 A2,2 0,1 1,13,1 A2,2 0,1 1,13,5 Z M13,7 L9,12 L14,15 L12,22 M9,12 L4,19 M13,7 L18,11 L21,11" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="close" viewBox="0 0 24 24"><path d="M5,5 L19,19 M19,5 L5,19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="plus" viewBox="0 0 24 24"><path d="M12,5 V19 M5,12 H19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="weather" viewBox="0 0 24 24"><path d="M7,16 A4,4 0,1 1,8,8 A6,6 0,0 1,20,11 A4,4 0,0 1,19,19 H7 A4,4 0,0 1,7,11 M5,21 L3,24 M12,21 L10,24 M19,21 L17,24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="minus" viewBox="0 0 24 24"><path d="M5,12 H19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+</svg>

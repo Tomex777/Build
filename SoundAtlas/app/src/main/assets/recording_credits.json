@@ -1,0 +1,160 @@
+[
+  {
+    "kind": "rain",
+    "creator": "yzhamua",
+    "sound_id": 188655,
+    "license": "CC0-1.0",
+    "url": "https://freesound.org/people/yzhamua/sounds/188655/",
+    "filename": "rain.pcm",
+    "seconds": 48
+  },
+  {
+    "kind": "thunder",
+    "creator": "roboroo",
+    "sound_id": 436790,
+    "license": "CC0-1.0",
+    "url": "https://freesound.org/people/roboroo/sounds/436790/",
+    "filename": "thunder.pcm",
+    "seconds": 4.17
+  },
+  {
+    "kind": "wind",
+    "creator": "Sheyvan",
+    "sound_id": 479430,
+    "license": "CC0-1.0",
+    "url": "https://freesound.org/people/Sheyvan/sounds/479430/",
+    "filename": "wind.pcm",
+    "seconds": 48
+  },
+  {
+    "kind": "chimes",
+    "creator": "OPMartin",
+    "sound_id": 324325,
+    "license": "CC0-1.0",
+    "url": "https://freesound.org/people/OPMartin/sounds/324325/",
+    "filename": "chimes.pcm",
+    "seconds": 20
+  },
+  {
+    "kind": "birds",
+    "creator": "guidofm",
+    "sound_id": 509176,
+    "license": "CC0-1.0",
+    "url": "https://freesound.org/people/guidofm/sounds/509176/",
+    "filename": "birds.pcm",
+    "seconds": 20.59
+  },
+  {
+    "kind": "night",
+    "creator": "nick121087",
+    "sound_id": 476887,
+    "license": "CC0-1.0",
+    "url": "https://freesound.org/people/nick121087/sounds/476887/",
+    "filename": "night.pcm",
+    "seconds": 48
+  },
+  {
+    "kind": "stream",
+    "creator": "ciccarelli",
+    "sound_id": 569457,
+    "license": "CC0-1.0",
+    "url": "https://freesound.org/people/ciccarelli/sounds/569457/",
+    "filename": "stream.pcm",
+    "seconds": 48
+  },
+  {
+    "kind": "leaves",
+    "creator": "Anya_Media",
+    "sound_id": 523389,
+    "license": "CC0-1.0",
+    "url": "https://freesound.org/people/Anya_Media/sounds/523389/",
+    "filename": "leaves.pcm",
+    "seconds": 48
+  },
+  {
+    "kind": "traffic",
+    "creator": "GustavoGE",
+    "sound_id": 404115,
+    "license": "CC0-1.0",
+    "url": "https://freesound.org/people/GustavoGE/sounds/404115/",
+    "filename": "traffic.pcm",
+    "seconds": 48
+  },
+  {
+    "kind": "cafe",
+    "creator": "aidansamuel",
+    "sound_id": 540299,
+    "license": "CC0-1.0",
+    "url": "https://freesound.org/people/aidansamuel/sounds/540299/",
+    "filename": "cafe.pcm",
+    "seconds": 48
+  },
+  {
+    "kind": "ocean",
+    "creator": "Noted451",
+    "sound_id": 531015,
+    "license": "CC0-1.0",
+    "url": "https://freesound.org/people/Noted451/sounds/531015/",
+    "filename": "ocean.pcm",
+    "seconds": 48
+  },
+  {
+    "kind": "fire",
+    "creator": "StevenMyat_",
+    "sound_id": 676385,
+    "license": "CC0-1.0",
+    "url": "https://freesound.org/people/StevenMyat_/sounds/676385/",
+    "filename": "fire.pcm",
+    "seconds": 11.6
+  },
+  {
+    "kind": "owl",
+    "creator": "mael46",
+    "sound_id": 573771,
+    "license": "CC0-1.0",
+    "url": "https://freesound.org/people/mael46/sounds/573771/",
+    "filename": "owl.pcm",
+    "seconds": 12.75
+  },
+  {
+    "kind": "train",
+    "creator": "marion3825",
+    "sound_id": 510822,
+    "license": "CC0-1.0",
+    "url": "https://freesound.org/people/marion3825/sounds/510822/",
+    "filename": "train.pcm",
+    "seconds": 48
+  },
+  {
+    "kind": "waterfall",
+    "creator": "Masou",
+    "sound_id": 250943,
+    "license": "CC0-1.0",
+    "url": "https://freesound.org/people/Masou/sounds/250943/",
+    "filename": "waterfall.pcm"
+  },
+  {
+    "kind": "frogs",
+    "creator": "MLaudio",
+    "sound_id": 521666,
+    "license": "CC0-1.0",
+    "url": "https://freesound.org/people/MLaudio/sounds/521666/",
+    "filename": "frogs.pcm"
+  },
+  {
+    "kind": "drizzle",
+    "creator": "Andron827",
+    "sound_id": 464334,
+    "license": "CC0-1.0",
+    "url": "https://freesound.org/people/Andron827/sounds/464334/",
+    "filename": "drizzle.pcm"
+  },
+  {
+    "kind": "sleet",
+    "creator": "Ambient-X",
+    "sound_id": 677545,
+    "license": "CC0-1.0",
+    "url": "https://freesound.org/people/Ambient-X/sounds/677545/",
+    "filename": "sleet.pcm"
+  }
+]
