@@ -870,18 +870,27 @@ class MainActivity : ComponentActivity() {
                 selectedId = appearanceId,
                 customHex = customAppearanceHex,
                 onSelectPreset = { id ->
-                    appearanceId = id
-                    appearancePrefs.edit().putString("palette", id).apply()
-                    Log.i(STARTUP_TAG, "appearance-selected palette=$id")
+                    // A very fast process stop after selection must not lose
+                    // the preference: commit before reporting the choice.
+                    if (appearancePrefs.edit().putString("palette", id).commit()) {
+                        appearanceId = id
+                        Log.i(STARTUP_TAG, "appearance-selected palette=$id")
+                    } else {
+                        Toast.makeText(this@MainActivity, "Theme could not be saved", Toast.LENGTH_SHORT).show()
+                    }
                 },
                 onApplyCustomHex = { hex ->
-                    customAppearanceHex = hex
-                    appearanceId = YomiAppearances.CUSTOM_ID
-                    appearancePrefs.edit()
-                        .putString("hex", hex)
-                        .putString("palette", YomiAppearances.CUSTOM_ID)
-                        .apply()
-                    Log.i(STARTUP_TAG, "appearance-selected palette=custom hex=$hex")
+                    if (appearancePrefs.edit()
+                            .putString("hex", hex)
+                            .putString("palette", YomiAppearances.CUSTOM_ID)
+                            .commit()
+                    ) {
+                        customAppearanceHex = hex
+                        appearanceId = YomiAppearances.CUSTOM_ID
+                        Log.i(STARTUP_TAG, "appearance-selected palette=custom hex=$hex")
+                    } else {
+                        Toast.makeText(this@MainActivity, "Theme could not be saved", Toast.LENGTH_SHORT).show()
+                    }
                 },
                 onDismiss = { showThemeStudio = false },
             )
