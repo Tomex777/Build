@@ -40,6 +40,8 @@ class WebDownloadConsent(private val downloads: DownloadLibrary) {
         private set
     var selectingDestination by mutableStateOf(false)
         private set
+    var isRepeatDownload by mutableStateOf(false)
+        private set
 
     fun offer(response: WebResponse, privateMode: Boolean = false) {
         // The SAF picker belongs to the pending original stream. Never swap a second
@@ -53,6 +55,18 @@ class WebDownloadConsent(private val downloads: DownloadLibrary) {
         // multiple download requests while one is awaiting user consent.
         dismiss()
         this.privateMode = privateMode
+        val disposition = response.headers.entries.firstOrNull {
+            it.key.equals("content-disposition", true)
+        }?.value
+        val mime = response.headers.entries.firstOrNull {
+            it.key.equals("content-type", true)
+        }?.value?.substringBefore(';')
+        val filename = DownloadFileNames.safe(
+            GeckoDownloadNames.fromDisposition(disposition)
+                ?: Uri.parse(response.uri).lastPathSegment, mime
+        )
+        isRepeatDownload = !privateMode &&
+            downloads.existingCompletedDuplicate(response.uri, filename) != null
         pending = response
     }
 
