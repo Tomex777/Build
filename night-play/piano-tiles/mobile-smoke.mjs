@@ -50,12 +50,12 @@ try{
  await page.locator('#pause').click();
  assert.equal(await page.locator('#cover').isHidden(),true);
  const first=await page.evaluate(()=>window.__nightPianoTest.snapshot().notes[0]);
- await page.waitForFunction(at=>window.__nightPianoTest.snapshot().elapsed>=at-.03,first.at);
+ await page.waitForFunction(at=>window.__nightPianoTest.snapshot().elapsed>=at-.13,first.at);
  let bb=await page.locator('#board').boundingBox();
  const x=bb.x+(first.lane+.5)*bb.width/4,y=bb.y+(660-93-40)*bb.height/660;
  await page.mouse.click(x,y);
  let state=await page.evaluate(()=>window.__nightPianoTest.snapshot());
- assert.equal(state.complete,1,'Live pointer click actually hits a timed piano tile');
+ assert.equal(state.complete,1,'Live pointer click actually hits a timed piano tile: '+JSON.stringify(state));
  assert.ok(state.score>=100,'Piano tap produces real score');
  writeFileSync(path.join(output,'piano-play-tap.png'),await page.screenshot({fullPage:true}));
  await page.mouse.click(bb.x+bb.width*.9,bb.y+bb.height*.83);
