@@ -53,3 +53,13 @@ Agent 6 should replace history source inputs with the eventual unified History/L
 ## Privacy clarification
 
 OpenAI receives the prompt and the explicitly chosen record titles/domains once confirmed; this is not zero-data AI. A key or model being unavailable is a visible "not configured" or error state. The API key belongs to the user. The user must review the provider's privacy/billing terms before connecting.
+
+## 2026-10-20 continuation — privacy and exact consent hardening
+
+- **Leak fix:** document titles can be Gecko's fallback full URL or include an account email. The source filter now rejects URL-bearing and email-bearing titles (including percent-encoded URLs), control-character titles and double-encoded sensitive routes. A safe *URL field* alone does not make the *title field* safe to transmit.
+- **Identity hardening:** duplicate catalog IDs cannot authorize different URLs under one checkbox.
+- **Recall:** candidate assembly checks up to 500 saved bookmarks and 1,500 visit nodes before applying the 60-safe-source UI cap, so the first block of sensitive entries cannot hide valid pages.
+- **Consent accuracy:** dialog is scrollable and displays the complete question and **all** selected 160-character title/domain payload records, rather than only five truncated records. While inference runs, input and page selection cannot silently drift from the user-confirmed request. Changing fields after a result invalidates the stale answer.
+- **Unit coverage:** title URL/email/encoded URL leaks, double-encoded sensitive paths, same-ID collisions, and long runs of ineligible bookmarks/history.
+- **Gate:** earlier head `6658948f6e8e9cad60607c4e79f029ec7c5d5c6b` passed 3 CI workflows (Agent 8 run 39377600104). Latest UI/privacy commit `c2316c23c98b26253ed87a8a739de078a59501c3` created new queued Agent 8 run 39384499937. Do **not** claim this latest commit built until that run finishes successfully, and do not claim a live provider call or install without real device evidence.
+- **Integration remains blocked:** Agent 1/2 must wire the entrypoint, Agent 3 must provide actual private-tab state, and Agent 10 must perform consent, network-trace, device and model-provider tests.
