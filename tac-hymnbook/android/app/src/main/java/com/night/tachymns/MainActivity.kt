@@ -158,7 +158,9 @@ class MainActivity : ComponentActivity() {
                             },
                             onImportYoruba = {
                                 if (!importing) {
-                                    importPicker.launch(arrayOf("application/json", "text/plain"))
+                                    // File providers often report .json as application/octet-stream.
+                                    // Accept the file, then validate its actual JSON contents.
+                                    importPicker.launch(arrayOf("*/*"))
                                 }
                             },
                             importing = importing
