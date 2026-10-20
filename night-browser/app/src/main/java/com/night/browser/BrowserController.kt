@@ -15,13 +15,16 @@ import org.mozilla.geckoview.WebResponse
 import org.mozilla.geckoview.GeckoResult
 import org.mozilla.geckoview.GeckoRuntime
 import org.mozilla.geckoview.GeckoSession
+import org.mozilla.geckoview.GeckoSessionSettings
+import java.util.concurrent.Executors
 import java.io.File
 import java.util.UUID
 
 class BrowserTab(
     val id: String,
     val session: GeckoSession,
-    val journeyId: String
+    val journeyId: String,
+    val isPrivate: Boolean = false
 ) {
     var title by mutableStateOf("New tab")
     var url by mutableStateOf("")
@@ -37,6 +40,7 @@ class BrowserTab(
     var knownSitePermissions by mutableStateOf<List<GeckoSession.PermissionDelegate.ContentPermission>>(emptyList())
     // In-memory reduced page preview. Never written to the browsing-history store.
     var thumbnail by mutableStateOf<Bitmap?>(null)
+    var sessionState: String? = null
 }
 
 class BrowserController(
@@ -45,6 +49,12 @@ class BrowserController(
 ) {
     val store = JourneyStore(appContext)
     private val runtime: GeckoRuntime = GeckoRuntime.create(appContext)
+    private val tabStore = TabSessionStore(appContext)
+    private val writes = Executors.newSingleThreadExecutor()
+    private val handler = Handler(Looper.getMainLooper())
+    private val pendingSave = Runnable { persistNow() }
+    private var isClosed = false
+    private val recentlyClosedNormal = mutableListOf<TabSessionStore.Entry>()
     val tabs = mutableStateListOf<BrowserTab>()
     var activeId by mutableStateOf("")
         private set
@@ -56,27 +66,66 @@ class BrowserController(
     val active: BrowserTab get() = tabs.first { it.id == activeId }
 
     init {
-        newTab()
+        val saved = tabStore.read()
+        if (saved == null || saved.tabs.isEmpty()) {
+            newTab()
+        } else {
+            saved.tabs.forEach { entry ->
+                val journey = store.journeys.find { it.id == entry.journeyId }?.id
+                    ?: store.journeys.first().id
+                createTab(journeyId = journey, restored = entry)
+            }
+            select(saved.activeId?.takeIf { id -> tabs.any { it.id == id } }
+                ?: tabs.last().id)
+        }
     }
 
-    fun newTab(url: String? = null, journeyId: String = store.journeys.first().id): BrowserTab {
-        val session = GeckoSession()
-        val tab = BrowserTab(UUID.randomUUID().toString(), session, journeyId)
+    fun newTab(
+        url: String? = null,
+        journeyId: String = store.journeys.first().id,
+        privateMode: Boolean = false
+    ): BrowserTab = createTab(url, journeyId, privateMode)
+
+    private fun createTab(
+        url: String? = null,
+        journeyId: String = store.journeys.first().id,
+        privateMode: Boolean = false,
+        restored: TabSessionStore.Entry? = null
+    ): BrowserTab {
+        val session = GeckoSession(
+            GeckoSessionSettings.Builder().usePrivateMode(privateMode).build()
+        )
+        val tab = BrowserTab(restored?.id ?: UUID.randomUUID().toString(),
+            session, journeyId, privateMode)
+        if (restored != null) {
+            tab.title = restored.title.ifBlank { "New tab" }
+            tab.url = restored.url
+            tab.lastNode = restored.lastNode
+            tab.sessionState = restored.sessionState
+        }
         installDelegates(tab, session)
         session.open(runtime)
         tabs.add(tab)
         select(tab.id)
-        url?.takeIf { it.isNotBlank() }?.let(session::loadUri)
+        if (restored != null) {
+            val prior = restored.sessionState?.let { encoded ->
+                runCatching { GeckoSession.SessionState.fromString(encoded) }.getOrNull()
+            }
+            val recovered = prior?.let { runCatching { session.restoreState(it) }.isSuccess } == true
+            if (!recovered && restored.url.isNotBlank()) session.loadUri(restored.url)
+        } else {
+            url?.takeIf { it.isNotBlank() }?.let(session::loadUri)
+        }
         return tab
     }
 
-    /**
-     * Gecko MUST receive an unopened session for onNewSession. Gecko opens it
-     * using the parent runtime and loads the requested popup URI itself.
-     * Sharing newTab() here caused Gecko to reject window.open/target=_blank.
-     */
+    /** Gecko expects an unopened popup. Inherit the initiating tab's private mode. */
     private fun newPopupTab(parent: BrowserTab): BrowserTab {
-        val popup = BrowserTab(UUID.randomUUID().toString(), GeckoSession(), parent.journeyId)
+        val popupSession = GeckoSession(
+            GeckoSessionSettings.Builder().usePrivateMode(parent.isPrivate).build()
+        )
+        val popup = BrowserTab(UUID.randomUUID().toString(),
+            popupSession, parent.journeyId, parent.isPrivate)
         installDelegates(popup, popup.session)
         tabs.add(popup)
         select(popup.id)
@@ -146,7 +195,11 @@ class BrowserController(
                 tab.knownSitePermissions = perms
                 if (tab.url != url) {
                     tab.url = url
-                    store.record(tab.journeyId, url, tab.title, tab.lastNode)?.let { tab.lastNode = it }
+                    if (!tab.isPrivate) {
+                        store.record(tab.journeyId, url, tab.title, tab.lastNode)
+                            ?.let { tab.lastNode = it }
+                        schedulePersist()
+                    }
                 }
             }
 
@@ -167,7 +220,10 @@ class BrowserController(
             override fun onTitleChange(session: GeckoSession, title: String?) {
                 if (!title.isNullOrBlank()) {
                     tab.title = title
-                    store.renameNode(tab.journeyId, tab.lastNode, title)
+                    if (!tab.isPrivate) {
+                        store.renameNode(tab.journeyId, tab.lastNode, title)
+                        schedulePersist()
+                    }
                 }
             }
 
@@ -217,6 +273,14 @@ class BrowserController(
             }
         }
         session.progressDelegate = object : GeckoSession.ProgressDelegate {
+            override fun onSessionStateChange(
+                session: GeckoSession, state: GeckoSession.SessionState
+            ) {
+                if (!tab.isPrivate) {
+                    tab.sessionState = state.toString()
+                    schedulePersist()
+                }
+            }
             override fun onSecurityChange(
                 session: GeckoSession,
                 securityInfo: GeckoSession.ProgressDelegate.SecurityInformation
@@ -249,14 +313,63 @@ class BrowserController(
         if (tabs.none { it.id == tabId }) return
         activeId = tabId
         tabs.forEach { it.session.setActive(it.id == activeId) }
+        schedulePersist()
     }
 
     fun closeTab(tabId: String) {
         val tab = tabs.firstOrNull { it.id == tabId } ?: return
+        if (!tab.isPrivate) {
+            recentlyClosedNormal.add(toSavedTab(tab))
+            if (recentlyClosedNormal.size > 5) recentlyClosedNormal.removeAt(0)
+        }
         if (tabs.size == 1) newTab(journeyId = tab.journeyId)
         else if (tabId == activeId) select(tabs.first { it.id != tabId }.id)
         tabs.remove(tab)
+        tab.thumbnail = null
         if (tab.session.isOpen) tab.session.close()
+        schedulePersist()
+    }
+
+    fun undoCloseTab(tabId: String): Boolean {
+        val index = recentlyClosedNormal.indexOfLast { it.id == tabId }
+        if (index < 0) return false
+        val entry = recentlyClosedNormal.removeAt(index)
+        val journey = store.journeys.find { it.id == entry.journeyId }?.id
+            ?: store.journeys.first().id
+        createTab(journeyId = journey, restored = entry)
+        return true
+    }
+
+    private fun toSavedTab(tab: BrowserTab): TabSessionStore.Entry =
+        TabSessionStore.Entry(tab.id, tab.journeyId, tab.url,
+            tab.title, tab.lastNode, tab.sessionState)
+
+    private fun schedulePersist() {
+        if (isClosed) return
+        handler.removeCallbacks(pendingSave)
+        handler.postDelayed(pendingSave, 950L)
+    }
+
+    /** Only regular tabs and encrypted Gecko SessionState reach disk. */
+    fun persistNow() {
+        if (isClosed) return
+        handler.removeCallbacks(pendingSave)
+        val normal = tabs.filterNot { it.isPrivate }.map(::toSavedTab)
+        val activeNormalId = activeId.takeIf { id -> normal.any { it.id == id } }
+            ?: normal.lastOrNull()?.id
+        val snapshot = TabSessionStore.Snapshot(activeNormalId, normal)
+        writes.execute { runCatching { tabStore.write(snapshot) } }
+    }
+
+    fun trimPreviews() { tabs.forEach { it.thumbnail = null } }
+
+    fun close() {
+        if (isClosed) return
+        persistNow()
+        isClosed = true
+        handler.removeCallbacks(pendingSave)
+        tabs.forEach { if (it.session.isOpen) it.session.close() }
+        writes.shutdown()
     }
 
     fun navigate(input: String) {
@@ -330,10 +443,15 @@ class BrowserController(
         notice = "Site content permissions reset. Reload to apply changes."
     }
 
-    fun bookmark() { store.bookmark(active.url, active.title); notice = "Added to Library" }
+    fun bookmark() {
+        if (active.isPrivate) { notice = "Private tabs do not save bookmarks"; return }
+        store.bookmark(active.url, active.title)
+        notice = "Added to Library"
+    }
 
     fun newPeekSession(url: String): GeckoSession =
-        GeckoSession().also { peek ->
+        GeckoSession(GeckoSessionSettings.Builder()
+            .usePrivateMode(active.isPrivate).build()).also { peek ->
             // Disposable previews are denied all powerful permissions. A Peek
             // must not become a second permission-owning browser profile.
             peek.permissionDelegate = object : GeckoSession.PermissionDelegate {
@@ -376,6 +494,7 @@ class BrowserController(
 
     fun savePdfSnapshot() {
         val tab = active
+        if (tab.isPrivate) { notice = "Unavailable in private tabs"; return }
         if (!tab.url.startsWith("http")) {
             notice = "Open a webpage before saving a copy."
             return
