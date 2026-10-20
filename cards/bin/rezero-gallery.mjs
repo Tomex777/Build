@@ -14,4 +14,4 @@ html=html.replaceAll('NIGHT / BLEACH','NIGHT / RE:ZERO')
   .replaceAll('NIGHT editorial grade for this form within BLEACH','NIGHT editorial grade for this form within Re:Zero')
   .replaceAll('Other universes are ranked independently','Other universes are ranked independently');
 await atomic(file,html);
-console.log('Corrected Re:Zero gallery identity:',path.relative(inside('.'),file));
+console.log('Corrected Re:Zero gallery identity:',path.relative(inside('dist'),file));
