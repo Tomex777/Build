@@ -105,6 +105,14 @@ class DownloadLibrary private constructor(private val context: Context) {
     var items by mutableStateOf(load())
         private set
 
+    init {
+        // A process-killed Gecko stream cannot be resumed; remove orphaned temp fragments.
+        Thread({
+            localDirectory.listFiles()?.filter { it.isFile && it.name.endsWith(".part") }
+                ?.forEach { runCatching { it.delete() } }
+        }, "night-download-cleanup").start()
+    }
+
     /**
      * Files stay in app-specific external Downloads; users can export using SAF.
      * This does not request broad storage permissions.
@@ -299,7 +307,7 @@ class DownloadLibrary private constructor(private val context: Context) {
                 if (count == 0L && length > 0) throw IOException("Empty downloaded file.")
                 if (length > 0 && count != length) throw IOException("Incomplete download.")
                 if (!temp.renameTo(destination)) throw IOException("Could not finalize download.")
-                if (cancelled.get()) { destination.delete(); return@Thread }
+                if (cancelled.get()) throw InterruptedIOException("Download cancelled")
                 mainThread.post {
                     updateRow(id) {
                         it.copy(bytes = count, totalBytes = if (length > 0) length else count,
@@ -312,6 +320,7 @@ class DownloadLibrary private constructor(private val context: Context) {
                 // Close the response stream even if opening destination fails.
                 runCatching { body.close() }
                 temp.delete()
+                if (cancelled.get()) destination.delete()
                 mainThread.post {
                     updateRow(id) { it.copy(status = DownloadManager.STATUS_FAILED) }
                     if (!cancelled.get())
