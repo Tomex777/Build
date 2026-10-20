@@ -47,8 +47,10 @@ class AtlasPlaybackService:Service() {
                 }
                 AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
                 AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
-                    shouldResume=playing
-                    pauseSession(abandonFocus=false)
+                    // Repeated transient callbacks must not erase the pending
+                    // resume if playback has already been temporarily paused.
+                    shouldResume=shouldResume || playing
+                    if(playing)pauseSession(abandonFocus=false)
                 }
                 AudioManager.AUDIOFOCUS_LOSS -> {
                     shouldResume=false
@@ -157,11 +159,19 @@ class AtlasPlaybackService:Service() {
         engine.stop()
         playing=false
         if(abandonFocus){
-            focusRequest?.let(manager::abandonAudioFocusRequest)
+            // This includes explicit Pause, speaker-route changes, and
+            // permanent focus loss: never restart these without user action.
             shouldResume=false
+            focusRequest?.let(manager::abandonAudioFocusRequest)
+            stopForeground(STOP_FOREGROUND_REMOVE)
+            stopSelf()
+        } else {
+            // Keep a visible foreground notification during brief calls/
+            // navigation prompts so Android can deliver AUDIOFOCUS_GAIN and
+            // the user still has an explicit Pause control.
+            getSystemService(NotificationManager::class.java)
+                .notify(NOTIFICATION_ID,notification())
         }
-        stopForeground(STOP_FOREGROUND_REMOVE)
-        if(abandonFocus)stopSelf()
         onChanged?.invoke()
     }
     private fun notification():Notification {
@@ -173,7 +183,8 @@ class AtlasPlaybackService:Service() {
         return Notification.Builder(this,CHANNEL)
             .setSmallIcon(R.drawable.atlas_ic_play)
             .setContentTitle("Sound Atlas · "+world.name)
-            .setContentText("Spatial world playing")
+            .setContentText(if(shouldResume && !playing)
+                "Temporarily paused for another app" else "Spatial world playing")
             .setContentIntent(open)
             .setOnlyAlertOnce(true)
             .setOngoing(true)
@@ -181,6 +192,8 @@ class AtlasPlaybackService:Service() {
             .build()
     }
     override fun onDestroy() {
+        shouldResume=false
+        playing=false
         if(listening){unregisterReceiver(noisy);listening=false}
         onChanged=null
         engine.close()
