@@ -337,6 +337,33 @@ assert.equal(await page.locator("#title").innerText(),"Maze Chase");
 assert.equal(await page.evaluate(()=>window.__nightArcadeTest.snapshot().walls.length),21);
 assert.equal(await page.evaluate(()=>window.__nightArcadeTest.perf().mazeCached),true,"Maze Chase caches static walls and collectible dots");
 assert.ok(await page.evaluate(()=>window.__nightArcadeTest.snapshot().total)>100);
+const mazeBegin=await page.evaluate(()=>window.__nightArcadeTest.snapshot());
+assert.equal(mazeBegin.power.flat().filter(Boolean).length,4,"Maze has four collectible power pellets");
+assert.equal(mazeBegin.ghosts.length,2,"Maze has distinct hunting ghosts");
+// Exercise the actual Restart control followed by a queued keyboard turn
+// in the same browser task so a 155ms movement tick cannot race the input.
+await page.evaluate(()=>{
+ document.querySelector('#restart').click();
+ document.querySelector('[data-control="down"]').click();
+});
+await page.waitForTimeout(520);
+const firstPower=await page.evaluate(()=>window.__nightArcadeTest.snapshot());
+assert.equal(firstPower.power[3][1],0,"Player can collect the lower-left corner power pellet");
+assert.ok(firstPower.frightened>0,"Power pellet triggers the edible-ghost timer");
+assert.ok(await page.evaluate(()=>window.__nightArcadeTest.flags().points)>=50,"Collecting power pellets adds actual score");
+assert.ok(firstPower.total<mazeBegin.total,"Maze progress truly consumes collectibles");
+const boxMaze=await page.locator('#screen').boundingBox();
+await page.mouse.move(boxMaze.x+boxMaze.width/2,boxMaze.y+boxMaze.height/2);
+await page.mouse.down();
+await page.mouse.move(boxMaze.x+boxMaze.width/2+45,boxMaze.y+boxMaze.height/2,{steps:4});
+await page.mouse.up();
+assert.deepEqual(await page.evaluate(()=>window.__nightArcadeTest.snapshot().p.wish),[1,0],"Dragging over the live maze updates the buffered turn");
+const ghostBefore=await page.evaluate(()=>window.__nightArcadeTest.snapshot().ghosts.map(g=>[g.x,g.y]));
+await page.waitForTimeout(1000);
+const ghostAfter=await page.evaluate(()=>window.__nightArcadeTest.snapshot().ghosts.map(g=>[g.x,g.y]));
+assert.notDeepEqual(ghostAfter,ghostBefore,"Chasing ghosts really move during play");
+console.log('NIGHT_MAZE_CHASE_POWER_PELLET_JPEG_BASE64='+
+ (await page.screenshot({type:'jpeg',quality:55,fullPage:true})).toString('base64'));
 await page.locator('[data-control="down"]').click();
 assert.deepEqual(await page.evaluate(()=>window.__nightArcadeTest.snapshot().p.dir),[0,1]);
 await page.locator('[data-control="pause"]').click();
