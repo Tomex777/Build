@@ -21,7 +21,8 @@ check("isUniversalApk = true" in gradle, "universal APK artifact was removed")
 check('applicationId = "com.tomex777.annie"' in gradle,
       "the existing-app upgrade path changed without an explicit migration")
 
-for file in ("HostAiSettings.kt", "ScriptStudio.kt", "AnnieGeckoBrowser.kt",\n             "MainActivity.kt", "AnnieBrowserUi.kt"):
+for file in ("HostAiSettings.kt", "ScriptStudio.kt", "AnnieGeckoBrowser.kt",
+             "MainActivity.kt", "AnnieBrowserUi.kt"):
     contents = (source / file).read_text()
     check("OutlinedTextField(" not in contents, f"stock material input in {file}")
     check("TextField(" not in contents.replace("BasicTextField(", ""),
