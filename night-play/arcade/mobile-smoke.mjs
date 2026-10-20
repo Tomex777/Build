@@ -365,7 +365,7 @@ assert.notDeepEqual(ghostAfter,ghostBefore,"Chasing ghosts really move during pl
 console.log('NIGHT_MAZE_CHASE_POWER_PELLET_JPEG_BASE64='+
  (await page.screenshot({type:'jpeg',quality:55,fullPage:true})).toString('base64'));
 await page.locator('[data-control="down"]').click();
-assert.deepEqual(await page.evaluate(()=>window.__nightArcadeTest.snapshot().p.dir),[0,1]);
+assert.deepEqual(await page.evaluate(()=>window.__nightArcadeTest.snapshot().p.wish),[0,1],"Input queues a legal turn rather than reversing blindly into a wall");
 await page.locator('[data-control="pause"]').click();
 assert.equal(await page.evaluate(()=>window.__nightArcadeTest.flags().paused),true);
 for(const name of ["bird","blocks","mines","maze"]){
