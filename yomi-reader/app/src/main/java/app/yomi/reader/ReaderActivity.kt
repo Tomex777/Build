@@ -169,6 +169,11 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
     private var viewerChapters: List<ViewerChapter> = emptyList()
     private var activeChapterIndex = 0
     private var chapterPromotionJob: Job? = null
+    private var chapterNavigationJob: Job? = null
+    // Repeated next/previous presses while SAF chapters load should queue the
+    // requested destination rather than reopening the same chapter twice.
+    private var pendingChapterIndex: Int? = null
+    private var chapterNavigationRevision = 0L
     private var title: String = "Book"
     private var mode: ReadingMode = ReadingMode.LTR_PAGED
     private val progressSink by lazy { SharedPreferencesProgressSink(this) }
@@ -850,6 +855,11 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
         }
 
         if (chapterIndex != activeChapterIndex) {
+            // A real page transition takes precedence over a pending explicit
+            // chapter button request, which may still be opening on IO.
+            chapterNavigationRevision++
+            pendingChapterIndex = null
+            chapterNavigationJob?.cancel()
             activeChapterIndex = chapterIndex
             chapterPromotionJob?.cancel()
             chapterPromotionJob = lifecycleScope.launch {
@@ -957,6 +967,7 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
     override fun onDestroy() {
         if (::root.isInitialized) root.removeCallbacks(hideChromeRunnable)
         chapterPromotionJob?.cancel()
+        chapterNavigationJob?.cancel()
         viewer?.destroy()
         tapZoneOverlay?.let(root::removeView)
         tapZoneOverlay = null
@@ -980,20 +991,37 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
     }
 
     private fun changeChapter(offset: Int) {
-        val target = activeChapterIndex + offset
+        val target = (pendingChapterIndex ?: activeChapterIndex) + offset
         if (target !in viewerChapters.indices) return
-        lifecycleScope.launch {
-            runCatching {
+        pendingChapterIndex = target
+        val revision = ++chapterNavigationRevision
+        chapterNavigationJob?.cancel()
+        chapterNavigationJob = lifecycleScope.launch {
+            try {
                 prepareWindow(target)
+                // A later tap or swipe wins even when the old SAF read finishes
+                // out of order. Never jump back to a stale chapter.
+                if (revision != chapterNavigationRevision || isFinishing) return@launch
+                check(viewerChapters[target].pages?.isNotEmpty() == true) {
+                    "Selected chapter has no readable pages"
+                }
                 activeChapterIndex = target
-                val chapter = viewerChapters[target]
                 lastLocation = null
                 viewer?.setChapters(window(target))
                 preloadNearbyChapters(target)
                 refreshChrome()
-            }.onFailure {
-                Log.e(READER_TAG, "chapter-navigation-failed", it)
-                Toast.makeText(this@ReaderActivity, "Could not open chapter", Toast.LENGTH_SHORT).show()
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                if (revision == chapterNavigationRevision && !isFinishing) {
+                    Log.e(READER_TAG, "chapter-navigation-failed", error)
+                    Toast.makeText(this@ReaderActivity, "Could not open chapter", Toast.LENGTH_SHORT).show()
+                }
+            } finally {
+                if (revision == chapterNavigationRevision) {
+                    pendingChapterIndex = null
+                    chapterNavigationJob = null
+                }
             }
         }
     }
