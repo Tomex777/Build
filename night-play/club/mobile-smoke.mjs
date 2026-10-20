@@ -604,10 +604,13 @@ try{
   assert.equal(await page.locator('.piece').count(),32,'CPU must make a legal response');
   assert.ok(chessWorkerStarts>0,'computer search executes in a real Web Worker, not on the UI thread');
   assert.ok(await page.evaluate(()=>window.__nightChessQA().cpuWorkerReplies>=1),'a real worker search result drives the CPU response (not a fallback)');
+  await page.locator('#chessSettingsOpen').click();
   await page.locator('#cpuDifficulty').selectOption('hard');
+  await page.locator('#chessSettingsClose').click();
   assert.equal(await page.evaluate(()=>window.__nightChessQA().difficulty),'hard','difficulty selection changes CPU policy');
   await page.reload();
   assert.equal(await page.locator('#cpuDifficulty').inputValue(),'hard','chosen difficulty survives reload');
+  await page.locator('#chessSettingsOpen').click();
   await page.locator('#newMatch').click();
   const startHard=Date.now();
   await page.locator('[data-square="e2"]').click();
@@ -619,14 +622,19 @@ try{
   assert.ok(hardQA.cpuWorkerReplies>=1&&hardQA.lastCpuNodes>0&&hardQA.lastCpuDepth>=1,
    'challenging computer move is computed in the new page Web Worker');
   assert.ok(Date.now()-startHard<9500,'challenging mode returns a response within the gameplay budget');
+  await page.locator('#chessSettingsOpen').click();
   await page.locator('#newMatch').click();
   await page.locator('[data-square="e2"]').click();
   await page.locator('[data-square="e4"]').click();
   await page.waitForFunction(()=>window.__nightChessQA().moves.length===1&&!window.__nightChessQA().busy);
+  await page.locator('#chessSettingsOpen').click();
   await page.locator('#undo').click();
   await page.waitForTimeout(450);
   assert.equal(await page.evaluate(()=>window.__nightChessQA().moves.length),0,'undo cancels a pending computer move');
+  await page.locator('#chessSettingsOpen').click();
   await page.locator('#cpuDifficulty').selectOption('normal');
+  await page.locator('#chessSettingsClose').click();
+  await page.locator('#chessSettingsOpen').click();
   await page.locator('#newMatch').click();
   await page.locator('[data-square="e2"]').click();
   await page.locator('[data-square="e4"]').click();
@@ -648,7 +656,9 @@ try{
   }
   await page.setViewportSize({width:390,height:844});
   await page.screenshot({path:'night-play/visual-output/CHESS-CPU-MOBILE.jpg',type:'jpeg',quality:82,fullPage:true});
+  await page.locator('#chessSettingsOpen').click();
   await page.locator('#vsLocal').click();
+  await page.locator('#chessSettingsClose').click();
   assert.equal(await page.evaluate(()=>window.__nightChessQA().mode),'local','two-player mode is clearly separate from CPU');
   const playChess=async(from,to,index)=>{
    await page.locator('[data-square="'+from+'"]').click();
@@ -661,8 +671,11 @@ try{
   await playChess('d1','h5',5);await playChess('g8','f6',6);
   await playChess('h5','f7',7);
   assert.equal(await page.evaluate(()=>window.__nightChessQA().gameOver),true,'checkmate ends a complete played match');
-  assert.ok((await page.locator('#matchStatus').innerText()).includes('White wins by checkmate'));
+  assert.equal(await page.locator('#chessFinish').isVisible(),true,'checkmate result appears over the chess board');
+  assert.ok((await page.locator('#chessFinishTitle').innerText()).includes('White wins!'));
+  assert.ok((await page.locator('#chessFinishDetail').innerText()).toLowerCase().includes('checkmate'));
   await page.screenshot({path:'night-play/visual-output/CHESS-SCHOLARS-MATE.jpg',type:'jpeg',quality:83,fullPage:true});
+  await page.locator('#chessSettingsOpen').click();
   await page.locator('#newMatch').click();
   assert.equal(await page.evaluate(()=>window.__nightChessQA().moves.length),0,'restart clears moves');
   await page.goto(base+"/games");
