@@ -3,6 +3,7 @@ package com.night.browser
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -29,6 +30,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -328,18 +331,43 @@ private fun JourneyNodeRow(
 ) {
     var menu by remember(row.node.id) { mutableStateOf(false) }
     Row(
-        Modifier.fillMaxWidth().padding(start = (row.depth.coerceAtMost(7) * 13).dp)
+        Modifier.fillMaxWidth()
             .background(journeyCard, RoundedCornerShape(12.dp))
             .clickable(onClick = onClick)
-            .padding(start = 10.dp, top = 7.dp, bottom = 7.dp, end = 2.dp),
+            .padding(start = 8.dp, top = 5.dp, bottom = 5.dp, end = 2.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(Modifier.size(22.dp), contentAlignment = Alignment.Center) {
-            Box(Modifier.size(if (row.depth == 0) 8.dp else 6.dp)
-                .background(if (row.matchesSearch) journeyAccent else journeySubtle,
-                    RoundedCornerShape(50)))
+        val shownDepth = row.depth.coerceAtMost(6)
+        Canvas(Modifier.width((26 + shownDepth * 15).dp).height(44.dp)) {
+            val x0 = 9.dp.toPx()
+            val step = 15.dp.toPx()
+            val middle = size.height * 0.5f
+            val width = 1.4.dp.toPx()
+            val stem = journeySubtle.copy(alpha = 0.47f)
+            val continuation = row.ancestorContinues.takeLast((shownDepth - 1).coerceAtLeast(0))
+            continuation.forEachIndexed { level, continues ->
+                if (continues) {
+                    val x = x0 + level * step
+                    drawLine(stem, Offset(x, 0f), Offset(x, size.height), width)
+                }
+            }
+            val nodeX = x0 + shownDepth * step
+            if (shownDepth > 0) {
+                val parentX = nodeX - step
+                drawLine(stem, Offset(parentX, 0f), Offset(parentX, middle), width)
+                if (row.hasNextSibling) {
+                    drawLine(stem, Offset(parentX, middle), Offset(parentX, size.height), width)
+                }
+                drawLine(stem, Offset(parentX, middle), Offset(nodeX, middle),
+                    width, cap = StrokeCap.Round)
+            }
+            drawCircle(
+                color = if (row.matchesSearch) journeyAccent else journeySubtle,
+                radius = if (shownDepth == 0) 4.dp.toPx() else 3.dp.toPx(),
+                center = Offset(nodeX, middle)
+            )
         }
-        Spacer(Modifier.width(8.dp))
+        Spacer(Modifier.width(3.dp))
         Column(Modifier.weight(1f)) {
             Text(row.node.title.ifBlank { row.node.url },
                 color = journeyText, fontSize = 14.sp,
