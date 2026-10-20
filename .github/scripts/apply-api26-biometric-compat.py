@@ -462,3 +462,203 @@ editor_text = (
     + editor_text[picker_function_end:]
 )
 editor.write_text(editor_text)
+
+# The cached image viewer/editor must also support API 26 and API 27.
+# Android ImageDecoder is API 28+, and a missing OnHeaderDecodedListener
+# prevented cached thumbnails from ever leaving their loading spinner.
+viewer_path = root / "app/src/main/java/com/night/later/ui/media/LaterMediaViewer.kt"
+viewer_text = viewer_path.read_text()
+# Use the fully qualified BitmapFactory in the compatibility branch; another
+# Later source transform can manage imports independently without collisions.
+if viewer_text.count("import android.graphics.ImageDecoder\n") != 1:
+    raise SystemExit("expected one ImageDecoder import in LaterMediaViewer")
+old_decode = """    return runCatching {
+        ImageDecoder.decodeBitmap(
+            ImageDecoder.createSource(file)
+        ) { decoder, info, _ ->
+            decoder.setAllocator(ImageDecoder.ALLOCATOR_SOFTWARE)
+            val width = info.size.width
+            val height = info.size.height
+            val longest = maxOf(width, height)
+            if (longest > maxDimension && maxDimension > 0) {
+                val scale = maxDimension.toFloat() / longest.toFloat()
+                decoder.setTargetSize(
+                    (width * scale).toInt().coerceAtLeast(1),
+                    (height * scale).toInt().coerceAtLeast(1)
+                )
+            }
+        }
+    }.getOrNull()
+"""
+new_decode = """    return runCatching {
+        // The API 26-safe decoder is used at every SDK level: R8 could inline
+        // ImageDecoder callbacks into the release method, making Android 8's
+        // verifier resolve an API 28-only listener even behind an SDK guard.
+        val bounds = android.graphics.BitmapFactory.Options().apply {
+            inJustDecodeBounds = true
+        }
+        android.graphics.BitmapFactory.decodeFile(file.absolutePath, bounds)
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
+            return@runCatching null
+        }
+        var sampling = 1
+        if (maxDimension > 0) {
+            while (maxOf(
+                bounds.outWidth / (sampling * 2),
+                bounds.outHeight / (sampling * 2)
+            ) >= maxDimension) {
+                sampling *= 2
+            }
+        }
+        val options = android.graphics.BitmapFactory.Options().apply {
+            inSampleSize = sampling
+            inPreferredConfig = Bitmap.Config.ARGB_8888
+        }
+        val decoded = android.graphics.BitmapFactory.decodeFile(
+            file.absolutePath,
+            options
+        ) ?: return@runCatching null
+        val longest = maxOf(decoded.width, decoded.height)
+        if (maxDimension <= 0 || longest <= maxDimension) {
+            decoded
+        } else {
+            val scale = maxDimension.toFloat() / longest.toFloat()
+            val resized = Bitmap.createScaledBitmap(
+                decoded,
+                (decoded.width * scale).toInt().coerceAtLeast(1),
+                (decoded.height * scale).toInt().coerceAtLeast(1),
+                true
+            )
+            if (resized !== decoded) decoded.recycle()
+            resized
+        }
+    }.getOrNull()
+"""
+if viewer_text.count(old_decode) != 1:
+    raise SystemExit("expected exactly one cached image decoder")
+viewer_path.write_text(viewer_text.replace(old_decode, new_decode, 1))
+
+
+# The editor's own attachment thumbnails ALSO used ImageDecoder unconditionally,
+# independent of the fullscreen decoder above. On API 26-27 that call is absent;
+# its swallowed failure left a permanent spinner despite successful imports.
+# Use bounded two-pass BitmapFactory decoding on ALL API levels so release R8
+# cannot inline API 28-only ImageDecoder callback types into the thumbnail path.
+editor_text = editor.read_text()
+old_import = "import android.graphics.ImageDecoder\n"
+if editor_text.count(old_import) != 1:
+    raise SystemExit("expected one editor ImageDecoder import")
+editor_text = editor_text.replace(
+    old_import,
+    "import android.graphics.BitmapFactory\n",
+    1,
+)
+start_marker = "@Composable\nprivate fun rememberAttachmentThumbnail("
+end_marker = "\nprivate fun normalizedEditorBlocks("
+if editor_text.count(start_marker) != 1 or editor_text.count(end_marker) != 1:
+    raise SystemExit("editor attachment thumbnail block changed unexpectedly")
+start = editor_text.index(start_marker)
+end = editor_text.index(end_marker, start)
+thumbnail_impl = """@Composable
+private fun rememberAttachmentThumbnail(
+    block: DraftCapsuleBlock
+): Bitmap? {
+    val context = LocalContext.current
+    var bitmap by remember(
+        block.sourcePath, block.sourceUri, block.type
+    ) { mutableStateOf<Bitmap?>(null) }
+
+    LaunchedEffect(block.sourcePath, block.sourceUri, block.type) {
+        bitmap = withContext(Dispatchers.IO) {
+            when (block.type) {
+                CapsuleBlockType.IMAGE -> {
+                    val local = block.sourcePath?.let(::File)?.takeIf { it.isFile }
+                    if (local != null) {
+                        decodeAttachmentBitmap(1280) { local.inputStream() }
+                    } else {
+                        val source = block.sourceUri ?: return@withContext null
+                        decodeAttachmentBitmap(1200) {
+                            context.contentResolver.openInputStream(Uri.parse(source))
+                        }
+                    }
+                }
+                CapsuleBlockType.VIDEO -> {
+                    val source = block.sourceUri ?: block.sourcePath
+                        ?: return@withContext null
+                    loadThumbnail(context, Uri.parse(source), block.type)
+                }
+                else -> null
+            }
+        }
+    }
+    return bitmap
+}
+
+/** Bounded decoding with fresh input per pass; safe from Android 8 onwards. */
+private fun decodeAttachmentBitmap(
+    maxSide: Int,
+    openInput: () -> java.io.InputStream?
+): Bitmap? = runCatching {
+    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    val first = openInput() ?: return@runCatching null
+    first.use { BitmapFactory.decodeStream(it, null, bounds) }
+    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
+        return@runCatching null
+    }
+    var sample = 1
+    while (maxOf(
+        bounds.outWidth / (sample * 2),
+        bounds.outHeight / (sample * 2)
+    ) >= maxSide) {
+        sample *= 2
+    }
+    val options = BitmapFactory.Options().apply {
+        inSampleSize = sample
+        inPreferredConfig = Bitmap.Config.ARGB_8888
+    }
+    val second = openInput() ?: return@runCatching null
+    val decoded = second.use { BitmapFactory.decodeStream(it, null, options) }
+        ?: return@runCatching null
+    val largest = maxOf(decoded.width, decoded.height)
+    if (largest <= maxSide) {
+        decoded
+    } else {
+        val scale = maxSide.toFloat() / largest
+        val resized = Bitmap.createScaledBitmap(
+            decoded,
+            (decoded.width * scale).toInt().coerceAtLeast(1),
+            (decoded.height * scale).toInt().coerceAtLeast(1),
+            true
+        )
+        if (resized !== decoded) decoded.recycle()
+        resized
+    }
+}.getOrNull()
+
+private fun loadThumbnail(
+    context: Context,
+    uri: Uri,
+    type: CapsuleBlockType
+): Bitmap? = when (type) {
+    CapsuleBlockType.IMAGE ->
+        decodeAttachmentBitmap(1200) {
+            context.contentResolver.openInputStream(uri)
+        }
+    CapsuleBlockType.VIDEO -> runCatching {
+        val retriever = MediaMetadataRetriever()
+        try {
+            retriever.setDataSource(context, uri)
+            retriever.getFrameAtTime(
+                0, MediaMetadataRetriever.OPTION_CLOSEST_SYNC
+            )
+        } finally {
+            retriever.release()
+        }
+    }.getOrNull()
+    else -> null
+}
+"""
+editor_text = editor_text[:start] + thumbnail_impl + editor_text[end:]
+if "ImageDecoder" in editor_text or editor_text.count("decodeAttachmentBitmap(") != 4:
+    raise SystemExit("editor thumbnail compatibility rewrite incomplete")
+editor.write_text(editor_text)

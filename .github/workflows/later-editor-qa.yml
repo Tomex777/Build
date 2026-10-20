@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - later-editor-qa
+  pull_request:
+    branches:
+      - later-editor-qa
 
 concurrency:
   group: later-editor-qa
@@ -25,6 +28,21 @@ jobs:
     steps:
       - name: Checkout QA branch
         uses: actions/checkout@v4
+
+      - name: Guard production UI cleanup from source corruption
+        run: python3 .github/scripts/test-later-cleanup.py
+
+      - name: Validate emulator QA scripts
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n .github/scripts/later-media-qa.sh
+          bash -n .github/scripts/later-editor-qa.sh
+          grep -Fq 'fraction="${2:-0.35}"' .github/scripts/later-media-qa.sh
+          if grep -Fq 'fraction="\${2:-0.35}"' .github/scripts/later-media-qa.sh; then
+            echo "Emulator would pass a literal video seek fraction to Python" >&2
+            exit 1
+          fi
 
       - name: Restore verified Later source
         shell: bash
@@ -96,11 +114,44 @@ jobs:
           python3 .github/scripts/apply-media-overlay-hoist.py later
           python3 .github/scripts/apply-media-config-lifecycle.py later
           python3 .github/scripts/apply-vlc-style-video-player.py later
+          # API 26 has no ImageDecoder: the thumbnail decoder must be safe too,
+          # not just the fullscreen viewer and draft preparation routines.
+          ! grep -q 'ImageDecoder' later/app/src/main/java/com/night/later/ui/editor/CapsuleEditorScreen.kt
+          grep -Fq 'BitmapFactory.decodeStream(' later/app/src/main/java/com/night/later/ui/editor/CapsuleEditorScreen.kt
+          # Pre-28 cached-image decoding is mandatory for API 26 release media QA.
+          # Catch accidental second transforms or verifier-unsafe R8 callbacks here.
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path("later/app/src/main/java/com/night/later/ui/media/LaterMediaViewer.kt")
+          source = path.read_text()
+          start = source.index("fun decodeMediaBitmap(")
+          end = source.index("\nprivate fun formatMediaDuration(", start)
+          decoder = source[start:end]
+          if decoder.count("android.graphics.BitmapFactory.decodeFile(") != 2:
+              raise SystemExit("Later bitmap decoder is not API 26 compatible")
+          if "ImageDecoder.decodeBitmap(" in decoder or "ImageDecoder.createSource(" in decoder:
+              raise SystemExit("ImageDecoder callback may be inlined into the API 26 release viewer")
+          if source.count("fun decodeMediaBitmap(") != 1:
+              raise SystemExit("Later media decoder transform duplicated")
+          PY
           grep -q 'implementation("org.videolan.android:libvlc-all:3.7.6")' later/app/build.gradle.kts
+          grep -Fq -- '-keep class org.videolan.libvlc.** { *; }' later/app/proguard-rules.pro
+          grep -Fq -- '-keep interface org.videolan.libvlc.** { *; }' later/app/proguard-rules.pro
+          # R8 optimized Media3 Transformer must not resolve API 31 LogSessionId on Android 8.
+          for keep_rule in \
+            '-keep class androidx.media3.transformer.ExoPlayerAssetLoader$Factory { *; }' \
+            '-keep class androidx.media3.transformer.DefaultAssetLoaderFactory { *; }' \
+            '-keep class androidx.media3.transformer.TransformerInternal$SequenceAssetLoaderListener { *; }'; do
+            grep -Fq -- "$keep_rule" later/app/proguard-rules.pro
+          done
           grep -q 'LaterVlcPlayback' later/app/src/main/java/com/night/later/ui/media/LaterMediaViewer.kt
           grep -q 'org.videolan.libvlc.MediaPlayer' later/app/src/main/java/com/night/later/ui/media/LaterVlcStyleVideoSurface.kt
           grep -q 'VLCVideoLayout' later/app/src/main/java/com/night/later/ui/media/LaterVlcStyleVideoSurface.kt
           grep -q 'contentDescription = "Video seek bar"' later/app/src/main/java/com/night/later/ui/media/LaterVlcStyleVideoSurface.kt
+          grep -q 'progressBarRangeInfo = ProgressBarRangeInfo' later/app/src/main/java/com/night/later/ui/media/LaterVlcStyleVideoSurface.kt
+          grep -q 'setProgress { fraction ->' later/app/src/main/java/com/night/later/ui/media/LaterVlcStyleVideoSurface.kt
+          grep -q 'height(48.dp)' later/app/src/main/java/com/night/later/ui/media/LaterVlcStyleVideoSurface.kt
+          grep -q 'dialogWindow?.addFlags(android.view.WindowManager.LayoutParams.FLAG_FULLSCREEN)' later/app/src/main/java/com/night/later/ui/media/LaterMediaViewer.kt
           ! grep -q 'ExoPlayer' later/app/src/main/java/com/night/later/ui/media/LaterMediaViewer.kt
           ! grep -q 'PlayerView' later/app/src/main/java/com/night/later/ui/media/LaterMediaViewer.kt
           ! grep -Eq '(^|[^[:alnum:]_])(RangeSlider|Slider)[[:space:]]*[(]' later/app/src/main/java/com/night/later/ui/media/LaterVlcStyleVideoSurface.kt
@@ -265,11 +316,26 @@ jobs:
           python3 .github/scripts/apply-media-overlay-hoist.py later-clean
           python3 .github/scripts/apply-media-config-lifecycle.py later-clean
           python3 .github/scripts/apply-vlc-style-video-player.py later-clean
+          ! grep -q 'ImageDecoder' later-clean/app/src/main/java/com/night/later/ui/editor/CapsuleEditorScreen.kt
+          grep -Fq 'BitmapFactory.decodeStream(' later-clean/app/src/main/java/com/night/later/ui/editor/CapsuleEditorScreen.kt
           grep -q 'implementation("org.videolan.android:libvlc-all:3.7.6")' later-clean/app/build.gradle.kts
+          grep -Fq -- '-keep class org.videolan.libvlc.** { *; }' later-clean/app/proguard-rules.pro
+          grep -Fq -- '-keep interface org.videolan.libvlc.** { *; }' later-clean/app/proguard-rules.pro
+          # R8 optimized Media3 Transformer must not resolve API 31 LogSessionId on Android 8.
+          for keep_rule in \
+            '-keep class androidx.media3.transformer.ExoPlayerAssetLoader$Factory { *; }' \
+            '-keep class androidx.media3.transformer.DefaultAssetLoaderFactory { *; }' \
+            '-keep class androidx.media3.transformer.TransformerInternal$SequenceAssetLoaderListener { *; }'; do
+            grep -Fq -- "$keep_rule" later-clean/app/proguard-rules.pro
+          done
           grep -q 'LaterVlcPlayback' later-clean/app/src/main/java/com/night/later/ui/media/LaterMediaViewer.kt
           grep -q 'org.videolan.libvlc.MediaPlayer' later-clean/app/src/main/java/com/night/later/ui/media/LaterVlcStyleVideoSurface.kt
           grep -q 'VLCVideoLayout' later-clean/app/src/main/java/com/night/later/ui/media/LaterVlcStyleVideoSurface.kt
           grep -q 'contentDescription = "Video seek bar"' later-clean/app/src/main/java/com/night/later/ui/media/LaterVlcStyleVideoSurface.kt
+          grep -q 'progressBarRangeInfo = ProgressBarRangeInfo' later-clean/app/src/main/java/com/night/later/ui/media/LaterVlcStyleVideoSurface.kt
+          grep -q 'setProgress { fraction ->' later-clean/app/src/main/java/com/night/later/ui/media/LaterVlcStyleVideoSurface.kt
+          grep -q 'height(48.dp)' later-clean/app/src/main/java/com/night/later/ui/media/LaterVlcStyleVideoSurface.kt
+          grep -q 'dialogWindow?.addFlags(android.view.WindowManager.LayoutParams.FLAG_FULLSCREEN)' later-clean/app/src/main/java/com/night/later/ui/media/LaterMediaViewer.kt
           ! grep -q 'ExoPlayer' later-clean/app/src/main/java/com/night/later/ui/media/LaterMediaViewer.kt
           ! grep -q 'PlayerView' later-clean/app/src/main/java/com/night/later/ui/media/LaterMediaViewer.kt
           ! grep -Eq '(^|[^[:alnum:]_])(RangeSlider|Slider)[[:space:]]*[(]' later-clean/app/src/main/java/com/night/later/ui/media/LaterVlcStyleVideoSurface.kt
@@ -521,18 +587,6 @@ jobs:
           fi
           cat "${release_base}.sha256"
 
-      - name: API 36 release APK acceptance
-        uses: reactivecircus/android-emulator-runner@v2
-        env:
-          LATER_QA_APK: ${{ github.workspace }}/Later_V2_2_4_RELEASE_2026-09-28_X86_64_QA_SIGNED.apk
-        with:
-          api-level: 36
-          arch: x86_64
-          target: google_apis
-          disable-animations: true
-          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          script: bash .github/scripts/later-editor-qa.sh && bash .github/scripts/later-media-qa.sh && bash .github/scripts/later-format-scroll-qa.sh && bash .github/scripts/later-production-ui-qa.sh
-
       - name: API 26 release sanity
         uses: reactivecircus/android-emulator-runner@v2
         env:
@@ -544,6 +598,18 @@ jobs:
           disable-animations: true
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           script: bash .github/scripts/later-api26-release-smoke.sh && bash .github/scripts/later-media-qa.sh
+
+      - name: API 36 release APK acceptance
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          LATER_QA_APK: ${{ github.workspace }}/Later_V2_2_4_RELEASE_2026-09-28_X86_64_QA_SIGNED.apk
+        with:
+          api-level: 36
+          arch: x86_64
+          target: google_apis
+          disable-animations: true
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: bash .github/scripts/later-editor-qa.sh && bash .github/scripts/later-media-qa.sh && bash .github/scripts/later-format-scroll-qa.sh && bash .github/scripts/later-production-ui-qa.sh
 
       - name: Upload clean Later package
         uses: actions/upload-artifact@v4

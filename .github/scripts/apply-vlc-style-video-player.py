@@ -19,6 +19,54 @@ if dependency not in build:
     build = build.replace(marker, marker + "\n    " + dependency, 1)
 build_file.write_text(build)
 
+# LibVLC resolves Java wrappers by name inside its native JNI_OnLoad.
+# R8 sees no direct Kotlin reference to e.g. IMedia$Track and can strip it
+# from an optimized release APK, causing libvlcjni to exit the whole app.
+rules = root / "app/proguard-rules.pro"
+existing_rules = rules.read_text() if rules.exists() else ""
+vlc_keep_rules = (
+    "-keep class org.videolan.libvlc.** { *; }",
+    "-keep interface org.videolan.libvlc.** { *; }",
+)
+missing_rules = [rule for rule in vlc_keep_rules if rule not in existing_rules]
+if missing_rules:
+    rules.parent.mkdir(parents=True, exist_ok=True)
+    separator = "" if not existing_rules or existing_rules.endswith("\n") else "\n"
+    rules.write_text(
+        existing_rules
+        + separator
+        + "# JNI reflection requires these wrappers after R8 minification.\n"
+        + "\n".join(missing_rules)
+        + "\n"
+    )
+
+
+# R8 horizontal class merging can make Media3 Transformer resolve the
+# android.media.metrics.LogSessionId type (API 31) on Android 8–11.
+# Debug video export succeeds while optimized release export then fails.
+# Keep the affected factory/listener types rather than disabling all R8
+# optimizations or trying to bundle an unavailable framework class.
+# See: https://github.com/androidx/media/issues/2535
+media3_transformer_keep_rules = (
+    "-keep class androidx.media3.transformer.ExoPlayerAssetLoader$Factory { *; }",
+    "-keep class androidx.media3.transformer.DefaultAssetLoaderFactory { *; }",
+    "-keep class androidx.media3.transformer.TransformerInternal$SequenceAssetLoaderListener { *; }",
+)
+current_rules = rules.read_text()
+missing_transformer_rules = [
+    rule for rule in media3_transformer_keep_rules if rule not in current_rules
+]
+if missing_transformer_rules:
+    separator = "" if current_rules.endswith("\n") else "\n"
+    rules.write_text(
+        current_rules
+        + separator
+        + "# Protect Media3 Transformer release export on API <31 against R8 class merging.\n"
+        + "\n".join(missing_transformer_rules)
+        + "\n"
+    )
+
+
 text = viewer.read_text()
 for imp in (
     "import androidx.media3.common.MediaItem\n",
@@ -101,6 +149,14 @@ private fun FullscreenVideoDialog(
 ) {
     var playbackSpeed by remember(playback) { mutableFloatStateOf(1f) }
     var muted by remember(playback) { mutableStateOf(false) }
+    // These controls are scoped to fullscreen, not permanent playback preferences.
+    // Restore defaults when returning to the embedded player.
+    DisposableEffect(playback) {
+        onDispose {
+            runCatching { playback.player.setRate(1f) }
+            runCatching { playback.player.setVolume(100) }
+        }
+    }
     BackHandler(onBack = onDismiss)
     Dialog(
         onDismissRequest = onDismiss,
@@ -109,6 +165,17 @@ private fun FullscreenVideoDialog(
             decorFitsSystemWindows = false
         )
     ) {
+        // Dialogs have their own window: decorFitsSystemWindows=false alone
+        // does not hide the Android status bar on API 26+.
+        val dialogWindow =
+            (androidx.compose.ui.platform.LocalView.current.parent
+                as? androidx.compose.ui.window.DialogWindowProvider)?.window
+        DisposableEffect(dialogWindow) {
+            dialogWindow?.addFlags(android.view.WindowManager.LayoutParams.FLAG_FULLSCREEN)
+            onDispose {
+                dialogWindow?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_FULLSCREEN)
+            }
+        }
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -149,7 +216,7 @@ private fun FullscreenVideoDialog(
             }
 
             Row(
-                modifier = Modifier.align(Alignment.TopEnd).padding(12.dp),
+                modifier = Modifier.align(Alignment.TopEnd).padding(top = 68.dp, end = 12.dp),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -207,6 +274,126 @@ private fun LaterVideoPlayerSurface(
 '''
 
 text = text[:start] + replacement + text[end:]
+
+# ABR: image adjustments share Later's custom 48dp scrub interaction;
+# never ship the platform Material Slider simply because the video slider
+# was replaced. Accessibility exposes the real range and direct setProgress.
+for old, new in (
+    ("import androidx.compose.material3.Slider\n", ""),
+    ("import androidx.compose.foundation.Image\n",
+     "import androidx.compose.foundation.Image\nimport androidx.compose.foundation.Canvas as ComposeCanvas\n"),
+    ("import androidx.compose.ui.graphics.Color\n",
+     "import androidx.compose.ui.graphics.Color\nimport androidx.compose.ui.graphics.StrokeCap\n"),
+    ("import androidx.compose.ui.input.pointer.pointerInput\n",
+     "import androidx.compose.ui.input.pointer.pointerInput\n"
+     "import androidx.compose.ui.semantics.ProgressBarRangeInfo\n"
+     "import androidx.compose.ui.semantics.contentDescription\n"
+     "import androidx.compose.ui.semantics.progressBarRangeInfo\n"
+     "import androidx.compose.ui.semantics.setProgress\n"
+     "import androidx.compose.ui.semantics.stateDescription\n"
+     "import androidx.compose.ui.semantics.semantics\n"),
+):
+    if text.count(old) != 1:
+        raise SystemExit(f"image adjustments: expected one import {old!r}")
+    text = text.replace(old, new, 1)
+
+slider_start = "@Composable\nprivate fun ImageAdjustmentSlider("
+slider_end = "\n@Composable\nprivate fun TextButtonCompat("
+if text.count(slider_start) != 1 or text.count(slider_end) != 1:
+    raise SystemExit("image adjustment slider function changed")
+start_slider = text.index(slider_start)
+end_slider = text.index(slider_end, start_slider)
+text = text[:start_slider] + '''@Composable
+private fun ImageAdjustmentSlider(
+    label: String,
+    valueLabel: String,
+    value: Float,
+    valueRange: ClosedFloatingPointRange<Float>,
+    onValueChange: (Float) -> Unit
+) {
+    val accent = MaterialTheme.colorScheme.primary
+    val changeValue by rememberUpdatedState(onValueChange)
+    val span = (valueRange.endInclusive - valueRange.start).coerceAtLeast(0.0001f)
+    val fraction = ((value - valueRange.start) / span).coerceIn(0f, 1f)
+
+    fun moveTo(x: Float, width: Float) {
+        if (width <= 0f) return
+        val next = valueRange.start + (x / width).coerceIn(0f, 1f) * span
+        changeValue(next.coerceIn(valueRange.start, valueRange.endInclusive))
+    }
+
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Text(
+            text = label,
+            color = Color.White,
+            fontSize = 11.sp,
+            modifier = Modifier.width(68.dp)
+        )
+        ComposeCanvas(
+            modifier = Modifier
+                .weight(1f)
+                .height(48.dp)
+                .semantics {
+                    contentDescription = "$label adjustment"
+                    stateDescription = valueLabel
+                    progressBarRangeInfo = ProgressBarRangeInfo(value, valueRange)
+                    setProgress { next ->
+                        changeValue(next.coerceIn(valueRange.start, valueRange.endInclusive))
+                        true
+                    }
+                }
+                .pointerInput(valueRange.start, valueRange.endInclusive) {
+                    detectTapGestures { point ->
+                        moveTo(point.x, size.width.toFloat())
+                    }
+                }
+                .pointerInput(valueRange.start, valueRange.endInclusive) {
+                    detectDragGestures(
+                        onDragStart = { point -> moveTo(point.x, size.width.toFloat()) },
+                        onDrag = { change, _ ->
+                            moveTo(change.position.x, size.width.toFloat())
+                            change.consume()
+                        }
+                    )
+                }
+        ) {
+            val y = size.height / 2f
+            drawLine(
+                color = Color.White.copy(alpha = 0.24f),
+                start = Offset(0f, y),
+                end = Offset(size.width, y),
+                strokeWidth = 4.dp.toPx(),
+                cap = StrokeCap.Round
+            )
+            drawLine(
+                color = accent,
+                start = Offset(0f, y),
+                end = Offset(size.width * fraction, y),
+                strokeWidth = 4.dp.toPx(),
+                cap = StrokeCap.Round
+            )
+            drawCircle(
+                color = accent,
+                radius = 7.dp.toPx(),
+                center = Offset(size.width * fraction, y)
+            )
+        }
+        Text(
+            text = valueLabel,
+            color = Color.White.copy(alpha = .72f),
+            fontSize = 10.sp,
+            modifier = Modifier.width(42.dp)
+        )
+    }
+}
+''' + text[end_slider:]
+if "import androidx.compose.material3.Slider" in text or "ImageAdjustmentSlider(" not in text:
+    raise SystemExit("default image slider leaked into final viewer")
+
 viewer.write_text(text)
 
 surface = media_dir / "LaterVlcStyleVideoSurface.kt"
@@ -254,8 +441,12 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.setProgress
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -429,7 +620,7 @@ internal fun LaterVlcStyleVideoSurface(
                     if (onFullscreen != null) {
                         IconButton(
                             onClick = onFullscreen,
-                            modifier = Modifier.size(42.dp)
+                            modifier = Modifier.size(48.dp)
                         ) {
                             Icon(
                                 Icons.Rounded.Fullscreen,
@@ -470,7 +661,7 @@ private fun VlcTextControl(
     Surface(
         modifier =
             Modifier
-                .size(42.dp)
+                .size(48.dp)
                 .semantics { contentDescription = description }
                 .clickable(onClick = onClick),
         shape = CircleShape,
@@ -493,8 +684,10 @@ private fun LaterVideoSeekBar(
     val playedFraction =
         if (dragFraction >= 0f) {
             dragFraction
-        } else {
+        } else if (durationMs > 0L) {
             (positionMs.toFloat() / duration.toFloat()).coerceIn(0f, 1f)
+        } else {
+            0f
         }
     val accent = MaterialTheme.colorScheme.primary
 
@@ -502,11 +695,24 @@ private fun LaterVideoSeekBar(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .height(30.dp)
-                .semantics { contentDescription = "Video seek bar" }
+                .height(48.dp)
+                .semantics {
+                    contentDescription = "Video seek bar"
+                    stateDescription =
+                        "${formatVideoClock((durationMs * playedFraction).toLong())} of ${formatVideoClock(durationMs)}"
+                    progressBarRangeInfo = ProgressBarRangeInfo(playedFraction, 0f..1f)
+                    setProgress { fraction ->
+                        if (durationMs <= 0L) {
+                            false
+                        } else {
+                            onSeek((durationMs * fraction.coerceIn(0f, 1f)).toLong())
+                            true
+                        }
+                    }
+                }
                 .pointerInput(durationMs) {
                     detectTapGestures { offset ->
-                        if (size.width > 0) {
+                        if (size.width > 0 && durationMs > 0L) {
                             val fraction =
                                 (offset.x / size.width.toFloat())
                                     .coerceIn(0f, 1f)
@@ -517,7 +723,7 @@ private fun LaterVideoSeekBar(
                 .pointerInput(durationMs) {
                     detectDragGestures(
                         onDragStart = { offset ->
-                            if (size.width > 0) {
+                            if (size.width > 0 && durationMs > 0L) {
                                 dragFraction =
                                     (offset.x / size.width.toFloat())
                                         .coerceIn(0f, 1f)
@@ -531,7 +737,7 @@ private fun LaterVideoSeekBar(
                         },
                         onDragCancel = { dragFraction = -1f },
                         onDrag = { change, _ ->
-                            if (size.width > 0) {
+                            if (size.width > 0 && durationMs > 0L) {
                                 dragFraction =
                                     (change.position.x / size.width.toFloat())
                                         .coerceIn(0f, 1f)
@@ -548,19 +754,19 @@ private fun LaterVideoSeekBar(
             color = Color.White.copy(alpha = 0.24f),
             start = trackStart,
             end = trackEnd,
-            strokeWidth = 4.dp.toPx(),
+            strokeWidth = 5.dp.toPx(),
             cap = StrokeCap.Round
         )
         drawLine(
             color = accent,
             start = trackStart,
             end = Offset(size.width * playedFraction, y),
-            strokeWidth = 4.dp.toPx(),
+            strokeWidth = 5.dp.toPx(),
             cap = StrokeCap.Round
         )
         drawCircle(
             color = accent,
-            radius = 6.dp.toPx(),
+            radius = 8.dp.toPx(),
             center = Offset(size.width * playedFraction, y)
         )
     }

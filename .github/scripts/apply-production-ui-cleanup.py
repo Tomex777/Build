@@ -65,7 +65,7 @@ def remove_all_text_calls(source: str, marker: str) -> tuple[str, int]:
             if in_string:
                 if escaped:
                     escaped = False
-                elif ch == "\\\\":
+                elif ch == "\\":
                     escaped = True
                 elif ch == '"':
                     in_string = False
@@ -78,8 +78,8 @@ def remove_all_text_calls(source: str, marker: str) -> tuple[str, int]:
                     depth -= 1
                     if depth == 0:
                         end = i + 1
-                        line_start = source.rfind("\\n", 0, call_at) + 1
-                        line_end = source.find("\\n", end)
+                        line_start = source.rfind("\n", 0, call_at) + 1
+                        line_end = source.find("\n", end)
                         if line_end < 0:
                             line_end = end
                         else:

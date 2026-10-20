@@ -174,7 +174,7 @@ PY
 }
 
 seek_video_progress_semantically() {
-  local xml="$1" fraction="\${2:-0.35}"
+  local xml="$1" fraction="${2:-0.35}"
   python3 - "$xml" "$fraction" <<'PY'
 import re, subprocess, sys, xml.etree.ElementTree as ET
 path, fraction_raw = sys.argv[1], sys.argv[2]
@@ -323,6 +323,13 @@ ensure_media_visible() {
     sleep 0.7
   done
   cat "qa-evidence/${name}.xml"
+  # Diagnose the actual import failure rather than treating a permanent
+  # thumbnail spinner as a slow emulator. This is captured in CI even for
+  # non-debuggable release APKs, without weakening app storage isolation.
+  echo "Media block $name never resolved; Android media/import diagnostics:" >&2
+  adb logcat -d -v brief 2>/dev/null |
+    grep -E -A 12 'LaterMediaImport|LaterMediaPicker|AndroidRuntime|FATAL EXCEPTION|BitmapFactory|SecurityException|Unable to decode|MediaDraftPreparer|com\\.night\\.later' |
+    tail -n 160 >&2 || true
   echo "Could not resolve a ready $kind media block in the editor viewport" >&2
   exit 1
 }
@@ -652,19 +659,20 @@ paused_progress="$(video_progress_seconds qa-evidence/video-viewer-paused.xml)"
   exit 1
 }
 
-# Exercise Later's custom VLC seek bar. At 35% of a 20-second fixture the
-# semantic position should settle near seven seconds.
-seek_video_progress_semantically qa-evidence/video-viewer-paused.xml
+# Exercise Later's custom VLC seek bar with a deliberately distant target.
+# A 35% tap can coincide with the current 6-7s playback position, giving a
+# false failure even when the player is seekable. A 75% tap targets ~15s.
+seek_video_progress_semantically qa-evidence/video-viewer-paused.xml 0.75
 sleep 0.5
 dump video-viewer-seeked; shot video-viewer-seeked
 assert_label qa-evidence/video-viewer-seeked.xml 'Play'
 video_progress_after_seek="$(video_progress_seconds qa-evidence/video-viewer-seeked.xml)"
-[ "$video_progress_after_seek" -ne "$paused_progress" ] || {
-  echo "libVLC seek did not change position: $video_progress_after_seek" >&2
+if [ "$video_progress_after_seek" -lt 13 ] || [ "$video_progress_after_seek" -gt 17 ]; then
+  echo "libVLC seek landed outside expected 75% target window: $video_progress_after_seek" >&2
   exit 1
-}
-if [ "$video_progress_after_seek" -lt 5 ] || [ "$video_progress_after_seek" -gt 9 ]; then
-  echo "libVLC seek landed outside expected 35% target window: $video_progress_after_seek" >&2
+fi
+if [ "$video_progress_after_seek" -eq "$paused_progress" ]; then
+  echo "libVLC seek did not change position: $video_progress_after_seek" >&2
   exit 1
 fi
 click_label qa-evidence/video-viewer-seeked.xml 'Edit'; sleep 4
@@ -945,12 +953,39 @@ if grep -Eq 'text="[^"]*_edited\.mp4"' qa-evidence/exported-video-viewer.xml; th
   echo 'Fullscreen video viewer leaked generated storage filename' >&2
   exit 1
 fi
+exported_video_play_xml="qa-evidence/exported-video-viewer.xml"
 if [ "$PRIVATE_INSPECTION" -eq 0 ]; then
-  # Release builds intentionally hide generated filename/duration metadata.
-  # Prove the exported clip is actually shorter through Later's VLC timeline:
-  # seeking to 90% of the edited clip should land well before the ~18s position
-  # a full 20s source would report.
-  seek_video_progress_semantically qa-evidence/exported-video-viewer.xml 0.90
+  # libVLC may not have discovered the file's duration before its first Play
+  # (especially with a release-only app-private content URI). A zero-duration
+  # seek is deliberately ignored by our custom control. Start real playback
+  # and wait for a usable timeline instead of tapping a non-seekable surface.
+  assert_label "$exported_video_play_xml" 'Play'
+  click_desc "$exported_video_play_xml" 'Play'
+  ready_duration=0
+  ready_progress=0
+  for attempt in $(seq 1 12); do
+    sleep 1
+    dump exported-video-release-loaded
+    ready_duration="$(video_duration_seconds qa-evidence/exported-video-release-loaded.xml)"
+    ready_progress="$(video_progress_seconds qa-evidence/exported-video-release-loaded.xml)"
+    if [ "$ready_duration" -ge 10 ] && [ "$ready_progress" -gt 0 ]; then
+      break
+    fi
+  done
+  if [ "$ready_duration" -lt 10 ] || [ "$ready_duration" -ge 19 ] || [ "$ready_progress" -le 0 ]; then
+    cat qa-evidence/exported-video-release-loaded.xml
+    echo "Release edited video never became playable with the trimmed duration: ${ready_progress}s / ${ready_duration}s" >&2
+    exit 1
+  fi
+  assert_label qa-evidence/exported-video-release-loaded.xml 'Pause'
+  click_desc qa-evidence/exported-video-release-loaded.xml 'Pause'
+  sleep 0.5
+  dump exported-video-release-paused
+  assert_label qa-evidence/exported-video-release-paused.xml 'Play'
+
+  # Prove real release-file seeking with a *known* duration; the original
+  # 20-second fixture would land at ~18s, rather than the trimmed 10-18s file.
+  seek_video_progress_semantically qa-evidence/exported-video-release-paused.xml 0.90
   sleep 0.5
   dump exported-video-release-near-end
   shot exported-video-release-near-end
@@ -961,9 +996,16 @@ if [ "$PRIVATE_INSPECTION" -eq 0 ]; then
     exit 1
   fi
   echo "Release VLC timeline proves trimmed edited duration: 90% seek landed at ${release_near_end_progress}s"
+
+  # Resume the separate playback acceptance from the middle of the clip,
+  # so end-of-file does not race the progress assertion.
+  seek_video_progress_semantically qa-evidence/exported-video-release-near-end.xml 0.35
+  sleep 0.5
+  dump exported-video-release-ready-to-play
+  exported_video_play_xml="qa-evidence/exported-video-release-ready-to-play.xml"
 fi
-assert_label qa-evidence/exported-video-viewer.xml 'Play'
-click_desc qa-evidence/exported-video-viewer.xml 'Play'
+assert_label "$exported_video_play_xml" 'Play'
+click_desc "$exported_video_play_xml" 'Play'
 edited_video_progress=0
 for attempt in $(seq 1 12); do
   sleep 1
