@@ -95,7 +95,7 @@ private val games = listOf(
     GameEntry("lights", "Lights Out", "Puzzle", "Switch every light off"),
     GameEntry("sliding", "Sliding Puzzle", "Puzzle", "Restore the scrambled 15 tiles"),
     GameEntry("hanoi", "Tower of Hanoi", "Puzzle", "Transfer five disks legally"),
-    GameEntry("colorsort", "Color Sort", "Puzzle", "Sort liquids into matching tubes"),
+    GameEntry("colorsort", "Water Sort Puzzle", "Puzzle", "Pour matching colours into the same tubes"),
     GameEntry("nonogram", "Nonogram", "Puzzle", "Decode the picture from clues"),
     GameEntry("wordsearch", "Word Search", "Puzzle", "Find six words in the grid"),
     GameEntry("simon", "Simon", "Memory", "Repeat a growing colour pattern"),
@@ -182,7 +182,8 @@ private val games = listOf(
     GameEntry("patternlock", "Pattern Lock", "Puzzle", "Remember the connected-dot sequence"),
     GameEntry("brickbuilder", "Brick Builder", "Puzzle", "Clear complete lines and squares"),
     GameEntry("centipede", "Centipede", "Arcade", "Shoot descending segmented enemies"),
-    GameEntry("galaga", "Galaga Blitz", "Arcade", "Survive five diving attack formations")
+    GameEntry("galaga", "Galaga Blitz", "Arcade", "Survive five diving attack formations"),
+    GameEntry("shark", "Shark Survival", "Action", "Swim freely, eat prey and evade ocean predators")
 )
 private val categories = listOf("All", "Favourites", "Arcade", "Puzzle", "Board", "Memory", "Strategy", "Card", "Action", "Endless", "Sports", "Racing")
 
@@ -302,6 +303,10 @@ private fun OfflineHub() {
             }
         } else if (selected == "2048") {
             Game2048Screen(onExit = { selected = null })
+        } else if (selected == "colorsort") {
+            WaterSortScreen(onExit = { selected = null })
+        } else if (selected == "shark") {
+            SharkSurvivalScreen(onExit = { selected = null })
         } else {
             // A completely bundled, isolated version of the existing NIGHT Play arcade.
             // No INTERNET permission or remote script/assets are necessary.
