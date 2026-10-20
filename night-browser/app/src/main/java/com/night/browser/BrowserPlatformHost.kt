@@ -188,11 +188,10 @@ class BrowserPlatformHost(private val activity: ComponentActivity) :
         audio: Array<out GeckoSession.PermissionDelegate.MediaSource>?,
         callback: GeckoSession.PermissionDelegate.MediaCallback
     ) {
-        val source = GeckoSession.PermissionDelegate.MediaSource
         // Screen sharing and system-audio capture need a separate MediaProjection
         // bridge. Don't mislabel those requests as camera or microphone access.
-        if (video?.any { it.source != source.SOURCE_CAMERA } == true ||
-            audio?.any { it.source != source.SOURCE_MICROPHONE } == true
+        if (video?.any { it.source != GeckoSession.PermissionDelegate.MediaSource.SOURCE_CAMERA } == true ||
+            audio?.any { it.source != GeckoSession.PermissionDelegate.MediaSource.SOURCE_MICROPHONE } == true
         ) { callback.reject(); return }
         val camera = !video.isNullOrEmpty()
         val microphone = !audio.isNullOrEmpty()
