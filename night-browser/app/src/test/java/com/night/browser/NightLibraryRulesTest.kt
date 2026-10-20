@@ -24,6 +24,7 @@ class NightLibraryRulesTest {
         assertEquals("image.png", DownloadFileNames.safe("image.png", "image/png"))
         assertEquals("download.pdf", DownloadFileNames.safe("..", "application/pdf"))
         assertEquals("download", DownloadFileNames.safe(null, null))
+        assertEquals("report.pdf", DownloadFileNames.safe("report\\u202E.pdf"))
     }
 
     @Test fun downloadDispositionAndRedactionDoNotLeakSecrets() {
@@ -31,6 +32,10 @@ class NightLibraryRulesTest {
             "attachment; filename*=UTF-8''my%20report.pdf"))
         assertEquals("home page.txt", GeckoDownloadNames.fromDisposition(
             "attachment; filename=\"home page.txt\""))
+        assertEquals("a+b.pdf", GeckoDownloadNames.fromDisposition(
+            "attachment; filename*=UTF-8''a+b.pdf"))
+        assertEquals("café.pdf", GeckoDownloadNames.fromDisposition(
+            "attachment; filename*=ISO-8859-1''caf%E9.pdf"))
         assertEquals("https://example.com/folder/file.pdf",
             GeckoDownloadNames.redactUrl(
                 "https://user:password@example.com/folder/file.pdf?access_token=secret#fragment"))
