@@ -1,0 +1,176 @@
+{
+  "version": 1,
+  "series": "one-piece",
+  "universe": "one-piece",
+  "scope": "in-universe",
+  "scale": "night-universe-power-v1",
+  "status": "editorial-proposal",
+  "notes": "Exact Film Red illustrated outfits. No Gear 5, Asura, Ifrit Jambe, Demonio Fleur or other transformation inferred from clothing.",
+  "assessments": {
+    "luffy-film-red": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "A",
+      "formId": "film-red-pirate",
+      "artworkSHA256": "7c134b80796ec8c161bc24b4ad774d5ccc27e83c3f42f1c5c8d1c8cedd850c21",
+      "universe": "one-piece",
+      "continuity": "one-piece-film-red",
+      "scope": "Monkey D. Luffy — Film Red illustrated costume",
+      "basis": "Rubber-body combat and Haki are known within the continuity; this illustrated outfit alone does not depict an active Gear.",
+      "limits": "Film Red pirate costume is not proof of Gear 4 or Gear 5.",
+      "references": [
+        "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara03_en.html"
+      ]
+    },
+    "zoro-film-red": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "A",
+      "formId": "film-red-pirate",
+      "artworkSHA256": "d7a68f9ca348fde6448bb45fea4636d75f39096f99d93ba11540c5c4840a32bf",
+      "universe": "one-piece",
+      "continuity": "one-piece-film-red",
+      "scope": "Roronoa Zoro — Film Red illustrated costume",
+      "basis": "Highly skilled three-sword combatant with Haki and hard-won battle experience.",
+      "limits": "Do not label this ordinary Film Red costume as King of Hell or Asura.",
+      "references": [
+        "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara04_en.html"
+      ]
+    },
+    "nami-film-red": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "C",
+      "formId": "film-red-pirate",
+      "artworkSHA256": "ddec0371d02ba995cc1dd25787c774bfc4530b863c71b8f39b241c36e63b5f9e",
+      "universe": "one-piece",
+      "continuity": "one-piece-film-red",
+      "scope": "Nami — Film Red illustrated costume",
+      "basis": "Weather-based staff techniques and sharp tactical thinking.",
+      "limits": "No Zeus-based finisher is visible in this pose; avoid treating outfit as activated ability.",
+      "references": [
+        "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara05_en.html"
+      ]
+    },
+    "usopp-film-red": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "C",
+      "formId": "film-red-pirate",
+      "artworkSHA256": "e63dfca51eceaf31bc13cd640432576117583b4c5f01f0c2e8ce1c09b6223553",
+      "universe": "one-piece",
+      "continuity": "one-piece-film-red",
+      "scope": "Usopp — Film Red illustrated costume",
+      "basis": "Expert ranged trick shots, utility ammunition and survival under pressure.",
+      "limits": "No unrestricted Haki mastery or giant-scale offence.",
+      "references": [
+        "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara06_en.html"
+      ]
+    },
+    "sanji-film-red": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "A",
+      "formId": "film-red-pirate",
+      "artworkSHA256": "6af3572454136a2190f0f86e3de35730f475e0a83a3f513958412ca501f63dd9",
+      "universe": "one-piece",
+      "continuity": "one-piece-film-red",
+      "scope": "Sanji — Film Red illustrated costume",
+      "basis": "Elite close-quarters kicks, mobility and fire-based techniques.",
+      "limits": "This costume is not an illustration of an active Ifrit Jambe strike.",
+      "references": [
+        "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara07_en.html"
+      ]
+    },
+    "chopper-film-red": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "C",
+      "formId": "film-red-pirate",
+      "artworkSHA256": "37664d043549964b614c064fb38aeaaf919dc744a950713ce7e0954792575bda",
+      "universe": "one-piece",
+      "continuity": "one-piece-film-red",
+      "scope": "Tony Tony Chopper — Film Red illustrated costume",
+      "basis": "Zoan transformations and medical expertise underpin situational fighting.",
+      "limits": "Small base appearance does not depict Monster Point.",
+      "references": [
+        "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara08_en.html"
+      ]
+    },
+    "robin-film-red": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "B",
+      "formId": "film-red-pirate",
+      "artworkSHA256": "157e138c2a868dab3f5e53692cf51fa8881405824bd23bc6bd4e486409983ae2",
+      "universe": "one-piece",
+      "continuity": "one-piece-film-red",
+      "scope": "Nico Robin — Film Red illustrated costume",
+      "basis": "Hana Hana no Mi limb projection and grappling provide effective close combat.",
+      "limits": "This image is not Demonio Fleur; no transformation is inferred.",
+      "references": [
+        "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara09_en.html"
+      ]
+    },
+    "franky-film-red": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "B",
+      "formId": "film-red-pirate",
+      "artworkSHA256": "8c4e6289147979a956ff9dcd440f2d2e8755394bbc52683e0aff97aaa9a48e19",
+      "universe": "one-piece",
+      "continuity": "one-piece-film-red",
+      "scope": "Franky — Film Red illustrated costume",
+      "basis": "Cyborg strength, built-in weaponry and resilience offer broad offence.",
+      "limits": "The outfit is not automatically General Franky or a special cannon deployment.",
+      "references": [
+        "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara10_en.html"
+      ]
+    },
+    "brook-film-red": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "B",
+      "formId": "film-red-pirate",
+      "artworkSHA256": "8f7e11455ad2a43d791167f49819fdaf36350625c9b60e84408ba587c273054b",
+      "universe": "one-piece",
+      "continuity": "one-piece-film-red",
+      "scope": "Brook — Film Red illustrated costume",
+      "basis": "Fast swordplay, music and soul-based utility plus cold techniques.",
+      "limits": "Do not assume a special soul-projection transformation from the costume.",
+      "references": [
+        "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara11_en.html"
+      ]
+    },
+    "jinbe-film-red": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "A",
+      "formId": "film-red-pirate",
+      "artworkSHA256": "ee62e4a0010b9e78c7094518af2578a615a763ad601daeb9eaa4c6db372a1e82",
+      "universe": "one-piece",
+      "continuity": "one-piece-film-red",
+      "scope": "Jinbe — Film Red illustrated costume",
+      "basis": "Mastery of Fish-Man Karate and Haki, with high durability.",
+      "limits": "Water availability and terrain can change his strongest tactics.",
+      "references": [
+        "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara12_en.html"
+      ]
+    },
+    "shanks-film-red": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "S",
+      "formId": "film-red-captain",
+      "artworkSHA256": "985a819ae7e9ec924c3d71200630357e62ab9e23137e36568a12b8f1980f358e",
+      "universe": "one-piece",
+      "continuity": "one-piece-film-red",
+      "scope": "Shanks — Film Red illustrated costume",
+      "basis": "An Emperor renowned for extreme Haki mastery and formidable sword combat.",
+      "limits": "Do not interpret status alone as evidence for SS, SSS, EX or limitless attacks.",
+      "references": [
+        "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara13_en.html"
+      ]
+    }
+  }
+}

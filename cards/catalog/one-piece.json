@@ -1,0 +1,767 @@
+{
+  "version": 1,
+  "series": "one-piece",
+  "name": "ONE PIECE / NIGHT Collection",
+  "dimensions": [
+    3000,
+    4800
+  ],
+  "artworkPolicy": {
+    "distinctPerEdition": true
+  },
+  "tierPolicy": {
+    "mode": "power-selects-design"
+  },
+  "notes": "Reference-only isolated official artwork. Candidate visual reviews required.",
+  "cards": [
+    {
+      "id": "luffy-film-red",
+      "number": 1,
+      "character": "luffy",
+      "name": "Monkey D. Luffy",
+      "title": "Luffy",
+      "form": "Film Red / pirate outfit",
+      "formId": "film-red-pirate",
+      "aliases": [
+        "Monkey D. Luffy",
+        "Luffy"
+      ],
+      "designs": [
+        "nocturne"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "one-piece-film-red-official",
+        "page": "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara03_en.html",
+        "image": "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara03.png",
+        "localPath": "artwork/one-piece/luffy-film-red.png",
+        "sha256": "7c134b80796ec8c161bc24b4ad774d5ccc27e83c3f42f1c5c8d1c8cedd850c21",
+        "width": 700,
+        "height": 1358,
+        "rights": "© Eiichiro Oda / SHUEISHA, Fuji TV, Toei Animation and the ONE PIECE FILM RED committee. All rights reserved.",
+        "usage": "reference-only",
+        "artist": "ONE PIECE FILM RED production",
+        "credit": "Official ONE PIECE FILM RED character visual",
+        "nativeOriginal": {
+          "sha256": "2d441b4ca63ec8209e3204d35b2d6e8a034dea4001e5115d90de3268f0a67b01",
+          "width": 1800,
+          "height": 1346
+        },
+        "isolatedPixels": [
+          602,
+          1198
+        ],
+        "extraction": [
+          0.17,
+          0.02,
+          0.37,
+          0.96
+        ],
+        "note": "Original Film Red alpha pixels isolated without AI or upscaling"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          700,
+          1358
+        ],
+        "bottomPadding": 0.15,
+        "edgeFade": 0.02,
+        "bottomFade": 0.05,
+        "focal": [
+          0.5,
+          0.31
+        ],
+        "artworkPlacement": {
+          "nocturne": {
+            "x": -70,
+            "y": 55,
+            "width": 1120
+          }
+        }
+      }
+    },
+    {
+      "id": "zoro-film-red",
+      "number": 2,
+      "character": "zoro",
+      "name": "Roronoa Zoro",
+      "title": "Zoro",
+      "form": "Film Red / pirate outfit",
+      "formId": "film-red-pirate",
+      "aliases": [
+        "Roronoa Zoro",
+        "Zoro"
+      ],
+      "designs": [
+        "nocturne"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "one-piece-film-red-official",
+        "page": "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara04_en.html",
+        "image": "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara04.png",
+        "localPath": "artwork/one-piece/zoro-film-red.png",
+        "sha256": "d7a68f9ca348fde6448bb45fea4636d75f39096f99d93ba11540c5c4840a32bf",
+        "width": 777,
+        "height": 1459,
+        "rights": "© Eiichiro Oda / SHUEISHA, Fuji TV, Toei Animation and the ONE PIECE FILM RED committee. All rights reserved.",
+        "usage": "reference-only",
+        "artist": "ONE PIECE FILM RED production",
+        "credit": "Official ONE PIECE FILM RED character visual",
+        "nativeOriginal": {
+          "sha256": "fb957fdc588672541af04df8b07bc6316eb10fc16e4e5802154715d2939a6c89",
+          "width": 1800,
+          "height": 1346
+        },
+        "isolatedPixels": [
+          697,
+          1299
+        ],
+        "extraction": [
+          0.16,
+          0.01,
+          0.42,
+          0.97
+        ],
+        "note": "Original Film Red alpha pixels isolated without AI or upscaling"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          777,
+          1459
+        ],
+        "bottomPadding": 0.15,
+        "edgeFade": 0.02,
+        "bottomFade": 0.05,
+        "focal": [
+          0.5,
+          0.31
+        ],
+        "artworkPlacement": {
+          "nocturne": {
+            "x": -70,
+            "y": 55,
+            "width": 1120
+          }
+        }
+      }
+    },
+    {
+      "id": "nami-film-red",
+      "number": 3,
+      "character": "nami",
+      "name": "Nami",
+      "title": "Nami",
+      "form": "Film Red / pirate outfit",
+      "formId": "film-red-pirate",
+      "aliases": [
+        "Nami",
+        "Nami"
+      ],
+      "designs": [
+        "crimson"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "one-piece-film-red-official",
+        "page": "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara05_en.html",
+        "image": "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara05.png",
+        "localPath": "artwork/one-piece/nami-film-red.png",
+        "sha256": "ddec0371d02ba995cc1dd25787c774bfc4530b863c71b8f39b241c36e63b5f9e",
+        "width": 700,
+        "height": 1335,
+        "rights": "© Eiichiro Oda / SHUEISHA, Fuji TV, Toei Animation and the ONE PIECE FILM RED committee. All rights reserved.",
+        "usage": "reference-only",
+        "artist": "ONE PIECE FILM RED production",
+        "credit": "Official ONE PIECE FILM RED character visual",
+        "nativeOriginal": {
+          "sha256": "33e027f578097386347a8fd04c7394ad689d74ef7b43d5a890d0ddbe43b9d0e7",
+          "width": 1800,
+          "height": 1346
+        },
+        "isolatedPixels": [
+          464,
+          1175
+        ],
+        "extraction": [
+          0.25,
+          0.05,
+          0.28,
+          0.93
+        ],
+        "note": "Original Film Red alpha pixels isolated without AI or upscaling"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          700,
+          1335
+        ],
+        "bottomPadding": 0.15,
+        "edgeFade": 0.02,
+        "bottomFade": 0.05,
+        "focal": [
+          0.5,
+          0.31
+        ],
+        "artworkPlacement": {
+          "crimson": {
+            "x": -70,
+            "y": 55,
+            "width": 1120
+          }
+        }
+      }
+    },
+    {
+      "id": "usopp-film-red",
+      "number": 4,
+      "character": "usopp",
+      "name": "Usopp",
+      "title": "Usopp",
+      "form": "Film Red / pirate outfit",
+      "formId": "film-red-pirate",
+      "aliases": [
+        "Usopp",
+        "Usopp"
+      ],
+      "designs": [
+        "crimson"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "one-piece-film-red-official",
+        "page": "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara06_en.html",
+        "image": "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara06.png",
+        "localPath": "artwork/one-piece/usopp-film-red.png",
+        "sha256": "e63dfca51eceaf31bc13cd640432576117583b4c5f01f0c2e8ce1c09b6223553",
+        "width": 735,
+        "height": 1180,
+        "rights": "© Eiichiro Oda / SHUEISHA, Fuji TV, Toei Animation and the ONE PIECE FILM RED committee. All rights reserved.",
+        "usage": "reference-only",
+        "artist": "ONE PIECE FILM RED production",
+        "credit": "Official ONE PIECE FILM RED character visual",
+        "nativeOriginal": {
+          "sha256": "90d34d8c225aa8c14cd26d3d14f3e12b8562d304811819ef8f88ff0f688230e1",
+          "width": 1800,
+          "height": 1346
+        },
+        "isolatedPixels": [
+          655,
+          1020
+        ],
+        "extraction": [
+          0.17,
+          0.21,
+          0.4,
+          0.76
+        ],
+        "note": "Original Film Red alpha pixels isolated without AI or upscaling"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          735,
+          1180
+        ],
+        "bottomPadding": 0.15,
+        "edgeFade": 0.02,
+        "bottomFade": 0.05,
+        "focal": [
+          0.5,
+          0.31
+        ],
+        "artworkPlacement": {
+          "crimson": {
+            "x": -70,
+            "y": 55,
+            "width": 1120
+          }
+        }
+      }
+    },
+    {
+      "id": "sanji-film-red",
+      "number": 5,
+      "character": "sanji",
+      "name": "Sanji",
+      "title": "Sanji",
+      "form": "Film Red / pirate outfit",
+      "formId": "film-red-pirate",
+      "aliases": [
+        "Sanji",
+        "Sanji"
+      ],
+      "designs": [
+        "nocturne"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "one-piece-film-red-official",
+        "page": "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara07_en.html",
+        "image": "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara07.png",
+        "localPath": "artwork/one-piece/sanji-film-red.png",
+        "sha256": "6af3572454136a2190f0f86e3de35730f475e0a83a3f513958412ca501f63dd9",
+        "width": 700,
+        "height": 1368,
+        "rights": "© Eiichiro Oda / SHUEISHA, Fuji TV, Toei Animation and the ONE PIECE FILM RED committee. All rights reserved.",
+        "usage": "reference-only",
+        "artist": "ONE PIECE FILM RED production",
+        "credit": "Official ONE PIECE FILM RED character visual",
+        "nativeOriginal": {
+          "sha256": "1326aa1f9bc1752f853d0118a8555b13d5d727be219c5490fcb263290c877872",
+          "width": 1800,
+          "height": 1346
+        },
+        "isolatedPixels": [
+          432,
+          1208
+        ],
+        "extraction": [
+          0.3,
+          0.04,
+          0.24,
+          0.94
+        ],
+        "note": "Original Film Red alpha pixels isolated without AI or upscaling"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          700,
+          1368
+        ],
+        "bottomPadding": 0.15,
+        "edgeFade": 0.02,
+        "bottomFade": 0.05,
+        "focal": [
+          0.5,
+          0.31
+        ],
+        "artworkPlacement": {
+          "nocturne": {
+            "x": -70,
+            "y": 55,
+            "width": 1120
+          }
+        }
+      }
+    },
+    {
+      "id": "chopper-film-red",
+      "number": 6,
+      "character": "chopper",
+      "name": "Tony Tony Chopper",
+      "title": "Chopper",
+      "form": "Film Red / pirate outfit",
+      "formId": "film-red-pirate",
+      "aliases": [
+        "Tony Tony Chopper",
+        "Chopper"
+      ],
+      "designs": [
+        "crimson"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "one-piece-film-red-official",
+        "page": "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara08_en.html",
+        "image": "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara08.png",
+        "localPath": "artwork/one-piece/chopper-film-red.png",
+        "sha256": "37664d043549964b614c064fb38aeaaf919dc744a950713ce7e0954792575bda",
+        "width": 742,
+        "height": 1100,
+        "rights": "© Eiichiro Oda / SHUEISHA, Fuji TV, Toei Animation and the ONE PIECE FILM RED committee. All rights reserved.",
+        "usage": "reference-only",
+        "artist": "ONE PIECE FILM RED production",
+        "credit": "Official ONE PIECE FILM RED character visual",
+        "nativeOriginal": {
+          "sha256": "0472a7b9adedd293b22f467b986167b213549e6c3e8d2c16e0193217db2a6fe5",
+          "width": 1800,
+          "height": 1346
+        },
+        "isolatedPixels": [
+          662,
+          726
+        ],
+        "extraction": [
+          0.16,
+          0.2,
+          0.37,
+          0.66
+        ],
+        "note": "Original Film Red alpha pixels isolated without AI or upscaling"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          742,
+          1100
+        ],
+        "bottomPadding": 0.15,
+        "edgeFade": 0.02,
+        "bottomFade": 0.05,
+        "focal": [
+          0.5,
+          0.31
+        ],
+        "artworkPlacement": {
+          "crimson": {
+            "x": -70,
+            "y": 55,
+            "width": 1120
+          }
+        }
+      }
+    },
+    {
+      "id": "robin-film-red",
+      "number": 7,
+      "character": "robin",
+      "name": "Nico Robin",
+      "title": "Robin",
+      "form": "Film Red / pirate outfit",
+      "formId": "film-red-pirate",
+      "aliases": [
+        "Nico Robin",
+        "Robin"
+      ],
+      "designs": [
+        "tidelight"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "one-piece-film-red-official",
+        "page": "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara09_en.html",
+        "image": "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara09.png",
+        "localPath": "artwork/one-piece/robin-film-red.png",
+        "sha256": "157e138c2a868dab3f5e53692cf51fa8881405824bd23bc6bd4e486409983ae2",
+        "width": 837,
+        "height": 1426,
+        "rights": "© Eiichiro Oda / SHUEISHA, Fuji TV, Toei Animation and the ONE PIECE FILM RED committee. All rights reserved.",
+        "usage": "reference-only",
+        "artist": "ONE PIECE FILM RED production",
+        "credit": "Official ONE PIECE FILM RED character visual",
+        "nativeOriginal": {
+          "sha256": "a1464b5d8bb1db8d2ad3c2f77db16706008b6fb2d8c8fc8edbfb78e6a8c123e9",
+          "width": 1800,
+          "height": 1346
+        },
+        "isolatedPixels": [
+          757,
+          1266
+        ],
+        "extraction": [
+          0.1,
+          0.02,
+          0.43,
+          0.96
+        ],
+        "note": "Original Film Red alpha pixels isolated without AI or upscaling"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          837,
+          1426
+        ],
+        "bottomPadding": 0.15,
+        "edgeFade": 0.02,
+        "bottomFade": 0.05,
+        "focal": [
+          0.5,
+          0.31
+        ],
+        "artworkPlacement": {
+          "tidelight": {
+            "x": -70,
+            "y": 55,
+            "width": 1120
+          }
+        }
+      }
+    },
+    {
+      "id": "franky-film-red",
+      "number": 8,
+      "character": "franky",
+      "name": "Franky",
+      "title": "Franky",
+      "form": "Film Red / pirate outfit",
+      "formId": "film-red-pirate",
+      "aliases": [
+        "Franky",
+        "Franky"
+      ],
+      "designs": [
+        "tidelight"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "one-piece-film-red-official",
+        "page": "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara10_en.html",
+        "image": "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara10.png",
+        "localPath": "artwork/one-piece/franky-film-red.png",
+        "sha256": "8c4e6289147979a956ff9dcd440f2d2e8755394bbc52683e0aff97aaa9a48e19",
+        "width": 1255,
+        "height": 1452,
+        "rights": "© Eiichiro Oda / SHUEISHA, Fuji TV, Toei Animation and the ONE PIECE FILM RED committee. All rights reserved.",
+        "usage": "reference-only",
+        "artist": "ONE PIECE FILM RED production",
+        "credit": "Official ONE PIECE FILM RED character visual",
+        "nativeOriginal": {
+          "sha256": "fb5e59c4deb1a1dca82244e57ab83b8fc627e1c06ba7aea5c87ea4df4b418d8b",
+          "width": 1800,
+          "height": 1346
+        },
+        "isolatedPixels": [
+          1175,
+          1292
+        ],
+        "extraction": [
+          0.02,
+          0.02,
+          0.66,
+          0.96
+        ],
+        "note": "Original Film Red alpha pixels isolated without AI or upscaling"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          1255,
+          1452
+        ],
+        "bottomPadding": 0.15,
+        "edgeFade": 0.02,
+        "bottomFade": 0.05,
+        "focal": [
+          0.5,
+          0.31
+        ],
+        "artworkPlacement": {
+          "tidelight": {
+            "x": -70,
+            "y": 55,
+            "width": 1120
+          }
+        }
+      }
+    },
+    {
+      "id": "brook-film-red",
+      "number": 9,
+      "character": "brook",
+      "name": "Brook",
+      "title": "Brook",
+      "form": "Film Red / pirate outfit",
+      "formId": "film-red-pirate",
+      "aliases": [
+        "Brook",
+        "Brook"
+      ],
+      "designs": [
+        "tidelight"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "one-piece-film-red-official",
+        "page": "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara11_en.html",
+        "image": "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara11.png",
+        "localPath": "artwork/one-piece/brook-film-red.png",
+        "sha256": "8f7e11455ad2a43d791167f49819fdaf36350625c9b60e84408ba587c273054b",
+        "width": 790,
+        "height": 1439,
+        "rights": "© Eiichiro Oda / SHUEISHA, Fuji TV, Toei Animation and the ONE PIECE FILM RED committee. All rights reserved.",
+        "usage": "reference-only",
+        "artist": "ONE PIECE FILM RED production",
+        "credit": "Official ONE PIECE FILM RED character visual",
+        "nativeOriginal": {
+          "sha256": "e761276136a21efd7488000cbe4715b269e7d413943507127ccc918308a6fd49",
+          "width": 1800,
+          "height": 1346
+        },
+        "isolatedPixels": [
+          710,
+          1279
+        ],
+        "extraction": [
+          0.14,
+          0.01,
+          0.42,
+          0.95
+        ],
+        "note": "Original Film Red alpha pixels isolated without AI or upscaling"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          790,
+          1439
+        ],
+        "bottomPadding": 0.15,
+        "edgeFade": 0.02,
+        "bottomFade": 0.05,
+        "focal": [
+          0.5,
+          0.31
+        ],
+        "artworkPlacement": {
+          "tidelight": {
+            "x": -70,
+            "y": 55,
+            "width": 1120
+          }
+        }
+      }
+    },
+    {
+      "id": "jinbe-film-red",
+      "number": 10,
+      "character": "jinbe",
+      "name": "Jinbe",
+      "title": "Jinbe",
+      "form": "Film Red / pirate outfit",
+      "formId": "film-red-pirate",
+      "aliases": [
+        "Jinbe",
+        "Jinbe"
+      ],
+      "designs": [
+        "nocturne"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "one-piece-film-red-official",
+        "page": "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara12_en.html",
+        "image": "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara12.png",
+        "localPath": "artwork/one-piece/jinbe-film-red.png",
+        "sha256": "ee62e4a0010b9e78c7094518af2578a615a763ad601daeb9eaa4c6db372a1e82",
+        "width": 956,
+        "height": 1425,
+        "rights": "© Eiichiro Oda / SHUEISHA, Fuji TV, Toei Animation and the ONE PIECE FILM RED committee. All rights reserved.",
+        "usage": "reference-only",
+        "artist": "ONE PIECE FILM RED production",
+        "credit": "Official ONE PIECE FILM RED character visual",
+        "nativeOriginal": {
+          "sha256": "58f763d39be41d02afdb63e78c671ed23811cc30c99b993654fd6de41d63604e",
+          "width": 1800,
+          "height": 1346
+        },
+        "isolatedPixels": [
+          876,
+          1265
+        ],
+        "extraction": [
+          0.03,
+          0.02,
+          0.52,
+          0.94
+        ],
+        "note": "Original Film Red alpha pixels isolated without AI or upscaling"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          956,
+          1425
+        ],
+        "bottomPadding": 0.15,
+        "edgeFade": 0.02,
+        "bottomFade": 0.05,
+        "focal": [
+          0.5,
+          0.31
+        ],
+        "artworkPlacement": {
+          "nocturne": {
+            "x": -70,
+            "y": 55,
+            "width": 1120
+          }
+        }
+      }
+    },
+    {
+      "id": "shanks-film-red",
+      "number": 11,
+      "character": "shanks",
+      "name": "Shanks",
+      "title": "Shanks",
+      "form": "Film Red / captain outfit",
+      "formId": "film-red-captain",
+      "aliases": [
+        "Shanks",
+        "Shanks"
+      ],
+      "designs": [
+        "emberglass"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "one-piece-film-red-official",
+        "page": "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara13_en.html",
+        "image": "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara13.png",
+        "localPath": "artwork/one-piece/shanks-film-red.png",
+        "sha256": "985a819ae7e9ec924c3d71200630357e62ab9e23137e36568a12b8f1980f358e",
+        "width": 746,
+        "height": 1494,
+        "rights": "© Eiichiro Oda / SHUEISHA, Fuji TV, Toei Animation and the ONE PIECE FILM RED committee. All rights reserved.",
+        "usage": "reference-only",
+        "artist": "ONE PIECE FILM RED production",
+        "credit": "Official ONE PIECE FILM RED character visual",
+        "nativeOriginal": {
+          "sha256": "b6076fc4459c98c60ca69cac63f5fa9d6b04f5c57ec9a31d82417e209dd53daf",
+          "width": 1200,
+          "height": 1840
+        },
+        "isolatedPixels": [
+          666,
+          1334
+        ],
+        "extraction": [
+          0,
+          0,
+          0.56,
+          0.75
+        ],
+        "note": "Original Film Red alpha pixels isolated without AI or upscaling"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          746,
+          1494
+        ],
+        "bottomPadding": 0.15,
+        "edgeFade": 0.02,
+        "bottomFade": 0.05,
+        "focal": [
+          0.5,
+          0.31
+        ],
+        "artworkPlacement": {
+          "emberglass": {
+            "x": -70,
+            "y": 55,
+            "width": 1120
+          }
+        }
+      }
+    }
+  ],
+  "pendingForms": []
+}
