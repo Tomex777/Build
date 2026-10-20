@@ -1,10 +1,11 @@
 {
-  "releaseId": "night-cortex-settings-audit-repair-20261021",
+  "releaseId": "night-cortex-owner-rpc-20261021",
   "baseBranch": "mscc-azure",
-  "baseCommit": "1adc3cab2a1d7aa2090fe538199e7241874444e3",
+  "baseCommit": "fc22c4352216d3fc9162e1833109303724f7f18d",
   "pullRequests": [
-    521
+    523,
+    524
   ],
-  "preparedAt": "2026-10-20T23:06:43.654Z",
-  "notes": "Follow-up to failed protected Azure release #39505566864. Pin passing Cortex Agent #520, repair only private Cortex activity journal permissions, and verify that unchanged settings + environment POSTs persist and create new audit records before releasing. No WhatsApp auth changes, Cortex token resets, unrelated TheNkiri changes, or public credential logging. Exactly one protected mscc-production approval needed after integrated PR checks. Rollback on failures. Android v1.0.6 already built separately."
+  "preparedAt": "2026-10-20T23:35:03.984Z",
+  "notes": "Cortex emergency repair after protected Azure runs #39505566864 and #39513191643 failed on Settings POST HTTP 500/503 and rolled back. NIGHT's local loopback-only Settings RPC owns in-memory and disk persistence; matching Cortex Agent #524 merged at dd4a272909b73b4aada53c846dea7d45240f953c is pinned by exact source and Git blob SHA, eliminating brittle elevated settings writer on that route. Protected release verifies unchanged Settings POST/readback, new agent activity audit record, unchanged LOG_LEVEL ENV POST/readback; preserves all Cortex bearer tokens, MEGA credentials and WhatsApp auth files. Requires one fresh protected mscc-production approval; do not claim fixed until live write proofs and phone check pass. Do not rerun earlier failed jobs; no unrelated bot changes."
 }

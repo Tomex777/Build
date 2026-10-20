@@ -213,6 +213,21 @@ export function startWebPanel({ port, host = '127.0.0.1', password, sessionSecre
       if (req.method === 'GET' && url.pathname === '/state') {
         return sendJson(res, 200, await getState())
       }
+      // Cortex must ask NIGHT itself to change command settings. NIGHT owns
+      // the in-memory settings object and /var/lib/mscc/data; a separately
+      // sandboxed Cortex process must never replace that private JSON file.
+      // This route is on the existing 127.0.0.1-only control listener, not
+      // the public password-gated web panel.
+      if (req.method === 'POST' && url.pathname === '/settings') {
+        const body = await readJson(req)
+        if (typeof body.key !== 'string' ||
+            !/^[A-Za-z_][A-Za-z0-9._-]{0,79}$/.test(body.key) ||
+            typeof body.value !== 'boolean') {
+          return sendJson(res, 400, { error: 'Invalid command setting' })
+        }
+        await setSetting(body.key, body.value)
+        return sendJson(res, 200, { ok: true })
+      }
       if (req.method === 'POST' && url.pathname === '/cloud/verify') {
         const body = await readJson(req)
         return sendJson(res, 200, await verifyCloudFolder({ targetId:body.targetId }))
