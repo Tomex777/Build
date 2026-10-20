@@ -145,12 +145,16 @@ class BrowserController(
             override fun onKill(session: GeckoSession) {
                 tab.isLoading = false
                 tab.crashed = true
+                tab.canGoBack = false
+                tab.canGoForward = false
                 notice = "Tab was stopped. Tap Reload to restore the page."
             }
 
             override fun onCrash(session: GeckoSession) {
                 tab.isLoading = false
                 tab.crashed = true
+                tab.canGoBack = false
+                tab.canGoForward = false
                 notice = "Tab crashed. Tap Reload to restore the page."
             }
         }
@@ -187,7 +191,7 @@ class BrowserController(
         if (tabs.size == 1) newTab(journeyId = tab.journeyId)
         else if (tabId == activeId) select(tabs.first { it.id != tabId }.id)
         tabs.remove(tab)
-        tab.session.close()
+        if (tab.session.isOpen) tab.session.close()
     }
 
     fun navigate(input: String) {
@@ -195,7 +199,12 @@ class BrowserController(
         if (address == null) {
             notice = "Enter a valid website address or search query."
         } else {
-            active.session.loadUri(address)
+            val tab = active
+            if (tab.crashed) {
+                recover(tab, address)
+            } else {
+                tab.session.loadUri(address)
+            }
         }
     }
 
@@ -203,22 +212,23 @@ class BrowserController(
     fun goForward() { if (active.canGoForward) active.session.goForward() }
     fun reload() {
         val tab = active
-        if (!tab.crashed) {
-            tab.session.reload()
-            return
-        }
-        val restoreUrl = tab.url
+        if (tab.crashed) recover(tab, tab.url)
+        else tab.session.reload()
+    }
+
+    private fun recover(tab: BrowserTab, url: String) {
         tab.crashed = false
         try {
-            // Gecko documents that a crashed or killed GeckoSession is closed;
-            // opening it again is allowed, but no in-memory page state survives.
+            // GeckoSession is closed after onCrash/onKill; reopen before load.
+            // The page's unsaved form state cannot be recovered by a plain URL.
             tab.session.open(runtime)
-            if (restoreUrl.isNotBlank()) tab.session.loadUri(restoreUrl)
+            if (url.isNotBlank()) tab.session.loadUri(url)
         } catch (_: RuntimeException) {
             tab.crashed = true
             notice = "Couldn't restore this tab. Open a new tab instead."
         }
     }
+
     fun bookmark() { store.bookmark(active.url, active.title); notice = "Added to Library" }
 
     fun newPeekSession(url: String): GeckoSession =
