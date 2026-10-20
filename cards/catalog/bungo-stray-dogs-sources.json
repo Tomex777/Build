@@ -152,7 +152,8 @@
       "page": "https://bungo-stray-dogs.jp/character/?character=francis-f",
       "image": "https://bungo-stray-dogs.jp/images/character/francis-f/body-sRR8pj9JixQV.png",
       "reviewedBy": "Manual identity matching on official named anime character page, full-body illustration",
-      "formLabel": "Official anime appearance"
+      "formLabel": "Official anime appearance",
+      "displayTitle": "Fitzgerald"
     },
     {
       "id": "lucy-montgomery",
