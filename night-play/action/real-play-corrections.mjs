@@ -189,15 +189,20 @@ try{
   const page=await pageFor('slice',.1);
   await waitFor(page,()=>window.__nightActionTest.snapshot().fruits.filter(f=>
    f.kind!=='bomb'&&!f.hit&&Math.abs(f.vy)<70&&f.y>110&&f.y<300).length>=2,5000);
-  const target=(await snap(page)).fruits[0],box=await page.locator('canvas').boundingBox();
+  const targets=(await snap(page)).fruits.filter(f=>f.kind!=='bomb'&&!f.hit);
+  assert.equal(targets.length,2,'a genuine two-fruit volley is launched');
+  assert.ok(Math.abs(targets[0].x-targets[1].x)>80,'volley fruits remain visually distinguishable');
+  const targetY=targets[0].y,left=Math.max(6,Math.min(...targets.map(f=>f.x))-44),
+   right=Math.min(384,Math.max(...targets.map(f=>f.x))+44);
+  const box=await page.locator('canvas').boundingBox();
   const coord=(x,y)=>({x:box.x+x/390*box.width,y:box.y+y/550*box.height});
   const cdp=await page.context().newCDPSession(page);
   const id=204;
-  await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{...coord(target.x-46,target.y),id}]});
-  for(let i=1;i<=6;i++){
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{...coord(left,targetY),id}]});
+  for(let i=1;i<=8;i++){
    await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{
-    ...coord(target.x-46+i*92/6,target.y),id}]});
-   await page.waitForTimeout(7);
+    ...coord(left+(right-left)*i/8,targetY),id}]});
+   await page.waitForTimeout(6);
   }
   await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
   const hit=await snap(page);
