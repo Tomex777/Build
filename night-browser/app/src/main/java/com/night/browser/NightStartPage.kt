@@ -57,6 +57,8 @@ import java.io.ByteArrayOutputStream
 import java.net.HttpURLConnection
 import java.net.URI
 import java.net.URL
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 
 // New start page owns its own palette until Agent 1 centralizes shared design tokens.
 // All icons below are first-party Compose vectors; no Omni source or assets are copied.
@@ -371,6 +373,37 @@ private object OriginFavicons {
     private val cache = object : LruCache<String, Bitmap>(2 * 1024 * 1024) {
         override fun sizeOf(key: String, value: Bitmap): Int = value.byteCount
     }
+    /** Android's BitmapFactory cannot directly decode many .ico files.
+     * Decode their embedded PNG frames without trusting large pixel dimensions.
+     */
+    private fun decodeIcon(bytes: ByteArray): Bitmap? {
+        fun bitmap(offset: Int, length: Int): Bitmap? {
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeByteArray(bytes, offset, length, bounds)
+            if (bounds.outWidth !in 1..512 || bounds.outHeight !in 1..512) return null
+            return BitmapFactory.decodeByteArray(bytes, offset, length)
+        }
+        bitmap(0, bytes.size)?.let { return it }
+        if (bytes.size < 22) return null
+        val header = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)
+        if (header.getShort(0).toInt() != 0 || header.getShort(2).toInt() != 1) return null
+        val count = header.getShort(4).toInt() and 0xffff
+        if (count !in 1..20 || 6 + count * 16 > bytes.size) return null
+        val pngHeader = byteArrayOf(
+            0x89.toByte(), 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a
+        )
+        for (index in 0 until count) {
+            val start = 6 + index * 16
+            val length = header.getInt(start + 8)
+            val offset = header.getInt(start + 12)
+            if (offset < 0 || length < 24 || offset.toLong() + length > bytes.size) continue
+            if (pngHeader.indices.all { bytes[offset + it] == pngHeader[it] }) {
+                bitmap(offset, length)?.let { return it }
+            }
+        }
+        return null
+    }
+
     fun get(url: String): Bitmap? {
         val origin = runCatching {
             val uri = URI(url)
@@ -395,10 +428,7 @@ private object OriginFavicons {
                 }
             }
             val bytes = out.toByteArray()
-            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
-            if (bounds.outWidth !in 1..512 || bounds.outHeight !in 1..512) return null
-            val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+            val bitmap = decodeIcon(bytes)
             if (bitmap != null) {
                 cache.put(origin.toString(), bitmap)
                 bitmap
