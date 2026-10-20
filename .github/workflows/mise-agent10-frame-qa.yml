@@ -8,6 +8,7 @@ on:
       - "artist-scene-studio/scripts/**"
       - ".github/workflows/mise-agent10-frame-qa.yml"
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     branches: [integrate/mise-studio-completion-20261020]
     paths:
       - "artist-scene-studio/scripts/verify-acceptance-frames.py"
@@ -39,6 +40,7 @@ jobs:
 
   actual-android-frame-proof:
     needs: evidence-validator
+    if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     timeout-minutes: 45
     strategy:
