@@ -58,7 +58,13 @@ object JourneyGraph {
 
     /** Data upgrades and rolling-cap removal cannot leave edges pointing at deleted nodes. */
     fun repair(nodes: List<JourneyNode>, maxNodes: Int = 600): List<JourneyNode> {
-        val kept = nodes.takeLast(maxNodes.coerceAtLeast(0))
+        // Keep the newest occurrence of a legacy duplicated ID. Otherwise
+        // graph rendering can silently hide one visit (both share a cursor ID).
+        val uniqueIds = HashSet<String>()
+        val kept = nodes.asReversed()
+            .filter { it.id.isNotBlank() && uniqueIds.add(it.id) }
+            .asReversed()
+            .takeLast(maxNodes.coerceAtLeast(0))
         val ids = kept.mapTo(HashSet()) { it.id }
         val withoutOrphans = kept.map { node ->
             if (node.parent == node.id || node.parent !in ids) node.copy(parent = null) else node
