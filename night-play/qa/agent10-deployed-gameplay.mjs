@@ -18,7 +18,7 @@ const BASE=(process.env.NIGHT_PLAY_BASE_URL||'https://night-play-combined-previe
 const ARTIFACT_DIR=path.resolve(process.env.NIGHT_QA_ARTIFACT_DIR||'night-play/visual-output/agent10');
 mkdirSync(ARTIFACT_DIR,{recursive:true});
 const result={source:BASE,startedAt:new Date().toISOString(),checks:[],failures:[],notes:[]};
-const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
+const browser=await chromium.launch({headless:true,channel:process.env.NIGHT_TEST_CHROME_CHANNEL||'chrome',args:['--no-sandbox']});
 const snap=page=>page.evaluate(()=>window.__nightActionTest.snapshot());
 const attempt=async(name,action)=>{
   try {const details=await action();result.checks.push({name,status:'PASS',...details});console.log('PASS '+name+' '+JSON.stringify(details).slice(0,480));}
