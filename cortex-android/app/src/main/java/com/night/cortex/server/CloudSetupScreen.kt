@@ -47,7 +47,7 @@ import com.night.cortex.ui.theme.CortexSurface2
 internal fun CloudSetupPage(
     state: ServerPanelState,
     onRefresh: () -> Unit,
-    onSave: (String, String) -> Unit,
+    onSave: (String, String, () -> Unit) -> Unit,
     onAutoAssign: (Set<String>, String?) -> Unit,
     onVerify: (String) -> Unit,
     onRestart: () -> Unit,
@@ -123,8 +123,7 @@ internal fun CloudSetupPage(
                     )
                     Button(
                         onClick = {
-                            onSave("MSCC_MEGA_EMAIL", email.trim())
-                            email = ""
+                            onSave("MSCC_MEGA_EMAIL", email.trim()) { email = "" }
                         },
                         enabled = !state.loading && email.contains("@") && email.isNotBlank(),
                     ) { Text("Save email") }
@@ -150,8 +149,7 @@ internal fun CloudSetupPage(
                     )
                     Button(
                         onClick = {
-                            onSave("MSCC_MEGA_PASSWORD", password)
-                            password = ""
+                            onSave("MSCC_MEGA_PASSWORD", password) { password = "" }
                         },
                         enabled = !state.loading && password.isNotBlank(),
                     ) { Text("Save password securely") }
@@ -170,6 +168,12 @@ internal fun CloudSetupPage(
                 Text("2 · Cloud connection", fontWeight = FontWeight.SemiBold)
                 Text(
                     when {
+                        state.authFailed -> "The Cortex access token was rejected. Update your server connection; MEGA sign-in was not attempted."
+                        state.cloudCredentialsPendingRestart -> if (configured) {
+                            "Saved to Azure, not yet active. Restart NIGHT to apply your MEGA email and password, then refresh to test sign-in."
+                        } else {
+                            "MEGA setting saved. Enter the remaining credential, then restart NIGHT to apply both."
+                        }
                         state.cloudServiceIssue != null -> state.cloudServiceIssue
                         dashboard?.configured == true -> "MEGA is configured. Primary account quota can be verified."
                         state.cloudConnectionFailed -> "Cloud service unavailable. Credentials were not checked."
