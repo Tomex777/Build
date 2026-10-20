@@ -2,6 +2,8 @@ package com.night.browser.search
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -99,6 +102,11 @@ fun UniversalSearchPanel(
         confirmRequest = false
     }
 
+    fun invalidateDisplayedAnswer() {
+        outcome = null
+        showResult = false
+    }
+
     fun revoke() {
         generation++
         job?.cancel()
@@ -146,7 +154,7 @@ fun UniversalSearchPanel(
 
         Column(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 10.dp)) {
             Text(
-                "Find your pages using real AI",
+                "Ask about selected pages",
                 style = MaterialTheme.typography.titleMedium,
             )
             Spacer(Modifier.height(3.dp))
@@ -159,20 +167,38 @@ fun UniversalSearchPanel(
             SearchEntryField(
                 label = "What are you looking for?",
                 value = question,
-                onValueChange = { if (it.length <= 500) question = it },
+                onValueChange = {
+                    if (!busy && it.length <= 500) {
+                        question = it
+                        invalidateDisplayedAnswer()
+                    }
+                },
+                enabled = !busy,
             )
             Spacer(Modifier.height(8.dp))
             SearchEntryField(
                 label = "Temporary OpenAI API key",
                 value = temporaryKey,
-                onValueChange = { temporaryKey = it.replace("\n", "") },
+                onValueChange = {
+                    if (!busy) {
+                        temporaryKey = it.replace("\n", "")
+                        invalidateDisplayedAnswer()
+                    }
+                },
                 secret = true,
+                enabled = !busy,
             )
             Spacer(Modifier.height(8.dp))
             SearchEntryField(
                 label = "Model",
                 value = model,
-                onValueChange = { if (it.length <= 80) model = it },
+                onValueChange = {
+                    if (!busy && it.length <= 80) {
+                        model = it
+                        invalidateDisplayedAnswer()
+                    }
+                },
+                enabled = !busy,
             )
             Spacer(Modifier.height(5.dp))
             Text(
@@ -237,18 +263,22 @@ fun UniversalSearchPanel(
                         val canAdd = isSelected || selected.size < UniversalSearchPolicy.MAX_SHARED_SOURCES
                         Row(
                             Modifier.fillMaxWidth()
-                                .clickable(enabled = canAdd) {
+                                .clickable(enabled = canAdd && !busy) {
                                     if (isSelected) selected.remove(source.id) else selected.add(source.id)
+                                    invalidateDisplayedAnswer()
                                 }.padding(vertical = 3.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Checkbox(
                                 checked = isSelected,
                                 onCheckedChange = {
-                                    if (isSelected) selected.remove(source.id)
-                                    else if (canAdd) selected.add(source.id)
+                                    if (!busy) {
+                                        if (isSelected) selected.remove(source.id)
+                                        else if (canAdd) selected.add(source.id)
+                                        invalidateDisplayedAnswer()
+                                    }
                                 },
-                                enabled = canAdd,
+                                enabled = canAdd && !busy,
                             )
                             Column(Modifier.weight(1f).padding(end = 10.dp)) {
                                 Text(
@@ -303,27 +333,24 @@ fun UniversalSearchPanel(
             text = {
                 val chosen = approved.filter { selected.contains(it.id) }
                     .take(UniversalSearchPolicy.MAX_SHARED_SOURCES)
-                Column {
+                // The disclosure must show EXACTLY the context about to be shared.
+                // Hiding extra sources behind "+ N more" would not be informed consent.
+                Column(Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState())) {
                     Text(
-                        "Send this question and the following page titles/domains to OpenAI once? " +
+                        "Send this question and the page titles/domains below to OpenAI once? " +
                             "The full URLs, page contents, cookies and other history stay on your device. " +
                             "Once sent, the request cannot be retracted."
                     )
                     Spacer(Modifier.height(8.dp))
-                    Text("Question: " + question.trim(),
-                        maxLines = 3, overflow = TextOverflow.Ellipsis)
-                    chosen.take(5).forEach { source ->
+                    Text("Question: " + question.trim())
+                    Spacer(Modifier.height(8.dp))
+                    chosen.forEach { source ->
                         Text(
-                            "• " + source.title.take(100) +
+                            "• " + source.title.trim().take(160) +
                                 " (" + UniversalSearchPolicy.safeHost(source.url).orEmpty() + ")",
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
                             style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(bottom = 6.dp),
                         )
-                    }
-                    if (chosen.size > 5) {
-                        Text("+ " + (chosen.size - 5) + " more selected pages",
-                            style = MaterialTheme.typography.bodySmall)
                     }
                 }
             },
@@ -372,6 +399,7 @@ private fun SearchEntryField(
     value: String,
     onValueChange: (String) -> Unit,
     secret: Boolean = false,
+    enabled: Boolean = true,
 ) {
     val colors = MaterialTheme.colorScheme
     Column {
@@ -390,6 +418,7 @@ private fun SearchEntryField(
             BasicTextField(
                 value = value,
                 onValueChange = onValueChange,
+                enabled = enabled,
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 textStyle = MaterialTheme.typography.bodyMedium.copy(color = colors.onSurface),
