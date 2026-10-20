@@ -382,12 +382,28 @@ function tickRunner(dt){
  updateHud();
 }
 function paintRunner(){
- bg('#d0e4ee','#c3e2d3');
+ bg('#bfdce7','#deede1');
+ // Separate layers travel at different speeds, so the sprint has real depth.
+ for(let i=0;i<6;i++){
+  const x=((i*123-state.distance*.055)%(W+160)+(W+160))%(W+160)-75;
+  const y=68+(i%3)*61;
+  ctx.fillStyle='#ffffff86';ctx.beginPath();
+  ctx.ellipse(x,y,29,10,0,0,TAU);
+  ctx.ellipse(x+17,y-7,22,13,0,0,TAU);ctx.fill();
+ }
+ ctx.fillStyle='#96bab22c';ctx.beginPath();ctx.moveTo(0,440);
+ for(let x=0;x<=W+12;x+=12){
+  ctx.lineTo(x,375+19*Math.sin(x*.015+state.distance*.00025)+
+    11*Math.sin(x*.037+1.5));
+ }
+ ctx.lineTo(W,440);ctx.closePath();ctx.fill();
  const offset=state.distance*.23;
  for(let i=0;i<12;i++){
   const x=((i*95-offset*.5)%490+490)%490-40;
-  fill(x,300+(i%4)*13,52,143,'#a6bfc3',6);
-  fill(x+12,315+(i%4)*13,7,13,'#edf1eb');
+  const roof=300+(i%4)*13;
+  fill(x,roof,52,143,'#a6bfc3',6);
+  fill(x+12,roof+15,7,13,'#edf1eb');
+  fill(x+31,roof+31,6,12,'#edf1ebad');
  }
  fill(0,442,W,108,'#426956');fill(0,440,W,5,'#98c8a6');
  for(let i=0;i<22;i++){const x=((i*41-state.distance)%W+W)%W;fill(x,463+(i%3)*21,25,2,'#6d9e7a')}
@@ -419,14 +435,41 @@ function paintRunner(){
    }else{fill(o.x,442-o.h,o.w,o.h,'#aa8170',10);
    fill(o.x+7,442-o.h+6,19,7,'#e1b7a1',4)}
  }
- const p=state.player,h=p.duck&&p.y>=441?24:48;
- if(p.y>=441&&!p.duck){
-  const run=Math.sin(state.clock*21)*4;
-  fill(p.x-11+run,p.y-9,9,10,'#28463e',3);
-  fill(p.x+2-run,p.y-9,9,10,'#28463e',3);
+ const p=state.player,ducking=p.duck&&p.y>=441,airborne=p.y<441;
+ const stride=Math.sin(state.clock*21);
+ // The shadow separates the playable character from the ground while jumping.
+ ctx.fillStyle='#1b40362b';ctx.beginPath();
+ ctx.ellipse(p.x,443,airborne?11:15,3,0,0,TAU);ctx.fill();
+ ctx.save();ctx.translate(p.x,p.y);
+ if(airborne)ctx.rotate(-.1);
+ if(ducking){
+  // Distinct crouch pose: body below the glider's physical collision height.
+  fill(-14,-17,29,14,'#32725b',7);
+  fill(-16,-7,34,6,'#c28b62',3);
+  fill(-13,-4,11,5,'#28463e',2);fill(5,-4,11,5,'#28463e',2);
+  disk(7,-15,10,'#e9b18c');
+  fill(0,-26,17,7,'#254f49',4);
+  disk(11,-15,1.6,'#263f37');
+ }else{
+  // Arms and staggered legs turn the former tall rectangle into a runner.
+  ctx.lineWidth=5;ctx.lineCap='round';ctx.strokeStyle='#e7ae89';
+  ctx.beginPath();ctx.moveTo(-8,-29);ctx.lineTo(-15,-22+stride*4);
+  ctx.moveTo(8,-29);ctx.lineTo(14,-22-stride*4);ctx.stroke();
+  const swing=airborne?5:stride*6;
+  ctx.lineWidth=7;ctx.strokeStyle='#2b5448';ctx.beginPath();
+  ctx.moveTo(-5,-16);ctx.lineTo(-7+swing,-6);
+  ctx.moveTo(5,-16);ctx.lineTo(7-swing,-6);ctx.stroke();
+  fill(-13+swing,-6,13,6,'#f4e9d4',3);
+  fill(2-swing,-6,13,6,'#f4e9d4',3);
+  fill(-11,-34,22,21,'#32725b',6);
+  fill(-9,-27,18,4,'#8ac0a2',2);
+  fill(-10,-16,20,7,'#be885e',3);
+  disk(0,-41,10,'#e9b18c');
+  fill(-11,-51,22,8,'#254f49',5);
+  fill(-11,-44,22,4,'#386f5b',2);
+  disk(4,-40,1.5,'#253a37');
  }
- fill(p.x-12,p.y-h,24,h,'#315c51',8);disk(p.x+1,p.y-h+9,5,'#ead2b1');
- fill(p.x-15,p.y-4,34,5,'#bd835e',3);
+ ctx.restore();
 }
 
 function initShooter(){return {score:0,wave:1,lives:3,ship:{x:195,y:488,shield:0,invincible:0},shots:[],enemies:[],enemyShots:[],pickups:[],spawn:.4,kills:0,clock:0,shoot:0};}
