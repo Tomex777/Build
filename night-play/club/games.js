@@ -402,20 +402,29 @@ async function cardDraw(kind){
 function whotChooseCPU(s){
  const cards=s.hands[1],legal=cards.map((card,i)=>({card,i})).filter(x=>whotCanPlay(s,x.card));
  if(!legal.length)return -1;
- if(whotOptions.difficulty==="easy")return legal[Math.floor(Math.random()*legal.length)].i;
- if(whotOptions.difficulty==="normal"&&(whotOptions.mode!=="career"||whotRank().level<2))return legal[0].i;
+ if(whotOptions.difficulty==='easy')return legal[Math.floor(Math.random()*legal.length)].i;
  const danger=s.hands[0].length<=2;
- legal.sort((a,b)=>{
-  const score=x=>{
-   const c=x.card;
-   return (danger&&[2,5,8,14].includes(c.n)?32:0)+
-    (c.n===20?(legal.length===1?12:-16):0)+
-    (c.n===2||c.n===5?9:0)+
-    cards.filter(v=>v.s===c.s).length*2+
-    (s.hands[1].length===1&&whotNeedsFinishCard(c)?-60:0);
-  };
-  return score(b)-score(a);
- });
+ const advanced=whotOptions.difficulty==='hard'||(whotOptions.mode==='career'&&whotRank().level>=2);
+ // On Normal, choose a legal card strategically rather than always playing
+ // the first dealt card. On Hard, react to the opponent's hand size.
+ const score=({card:c})=>{
+  const remaining=cards.filter(v=>v!==c);
+  const sameSuit=remaining.filter(v=>v.s===c.s).length;
+  const sameNumber=remaining.filter(v=>v.n===c.n&&v.n!==20).length;
+  const action=[1,2,5,8,14].includes(c.n);
+  const finishing=cards.length===1;
+  let value=sameSuit*2.5+sameNumber*1.3+(c.n===20?-18:0);
+  if(advanced&&danger&&(c.n===2||c.n===5||c.n===8||c.n===14))value+=30;
+  else if((c.n===2||c.n===5)&&s.hands[0].length>=3)value+=7;
+  if(c.n===1||c.n===8)value+=advanced?11:4;
+  if(c.n===14)value+=advanced?5:2;
+  // Strict Check Up: don't deliberately empty the hand with an action card
+  // unless there is no alternative. Penalty defence remains mandatory.
+  if(finishing&&whotNeedsFinishCard(c))value-=55;
+  if(advanced&&action&&remaining.some(v=>v.n===c.n))value-=4;
+  return value;
+ };
+ legal.sort((a,b)=>score(b)-score(a)||a.i-b.i);
  return legal[0].i;
 }
 function queueCPU(kind){
