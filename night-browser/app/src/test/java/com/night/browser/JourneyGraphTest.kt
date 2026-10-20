@@ -32,6 +32,48 @@ class JourneyGraphTest {
         assertEquals(listOf(false), filtered[2].ancestorContinues)
     }
 
+    @Test fun collapsingOneBranchKeepsItsRootAndUnrelatedBranches() {
+        val rows = JourneyGraph.rows(journey, collapsedIds = setOf("B"))
+        assertEquals(listOf("A", "B", "D"), rows.map { it.node.id })
+        assertEquals(listOf(0, 1, 1), rows.map { it.depth })
+        assertTrue(rows.first { it.node.id == "B" }.hasChildren)
+        assertFalse(rows.first { it.node.id == "D" }.hasChildren)
+        assertTrue(rows.first { it.node.id == "B" }.hasNextSibling)
+    }
+
+    @Test fun searchRevealsMatchesBehindCollapsedAncestors() {
+        val rows = JourneyGraph.rows(
+            journey, query = "Third", collapsedIds = setOf("A", "B")
+        )
+        assertEquals(listOf("A", "B", "C"), rows.map { it.node.id })
+        assertEquals(listOf(false, false, true), rows.map { it.matchesSearch })
+    }
+
+    @Test fun completelyCollapsedRootDoesNotResurfaceChildrenAsExtraRoots() {
+        val rows = JourneyGraph.rows(journey, collapsedIds = setOf("A"))
+        assertEquals(listOf("A"), rows.map { it.node.id })
+        assertTrue(rows.single().hasChildren)
+    }
+
+    @Test fun manyNodesCanBeHiddenAndRevealedWithoutChangingSavedTree() {
+        val nodes = (0 until 800).map { i ->
+            JourneyNode("n$i", "https://night.test/$i", "$i",
+                if (i == 0) null else "n${i - 1}", i.toLong())
+        }
+        val normal = JourneyGraph.rows(Journey("large", "Deep", nodes))
+        assertEquals(800, normal.size)
+        val collapsed = JourneyGraph.rows(
+            Journey("large", "Deep", nodes), collapsedIds = setOf("n5")
+        )
+        assertEquals(6, collapsed.size)
+        val matched = JourneyGraph.rows(
+            Journey("large", "Deep", nodes),
+            query = "799", collapsedIds = setOf("n5")
+        )
+        assertEquals(800, matched.size)
+        assertEquals("n799", matched.last().node.id)
+    }
+
     @Test fun largeTreeRetainsValidParentsAndAvoidsRecursionOverflow() {
         val input = (0 until 1000).map { index ->
             JourneyNode(
