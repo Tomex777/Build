@@ -445,7 +445,10 @@ try{
     'WHOT picker stays within table at '+width+': '+JSON.stringify(pickerBounds));
    assert.ok(pickerBounds.choices.every(r=>r.left>=pickerBounds.panel.left&&r.right<=pickerBounds.panel.right&&r.width>=62&&r.height>=70),
     'all five WHOT 20 choices fully visible and sized for touch at '+width);
-   if(width===320)await page.screenshot({path:'night-play/visual-output/WHOT-20-SHAPE-PICKER-320.jpg',type:'jpeg',quality:83,fullPage:true});
+   if(width===320){
+    await page.waitForFunction(()=>parseFloat(getComputedStyle(document.querySelector('.whot-call-panel')).opacity)>=.99,null,{timeout:2000});
+    await page.screenshot({path:'night-play/visual-output/WHOT-20-SHAPE-PICKER-320.jpg',type:'jpeg',quality:83,fullPage:true});
+   }
   }
   await page.setViewportSize({width:390,height:844});
   await page.screenshot({path:'night-play/visual-output/WHOT-20-SHAPE-PICKER.jpg',type:'jpeg',quality:86,fullPage:true});
