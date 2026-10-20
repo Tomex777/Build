@@ -164,6 +164,24 @@ try{
   report.push({game:'slice',case:'natural missed fruit and restart',misses:endState.misses,score:endState.score});
   await page.close();
  }
+ // A blade hitting a bomb terminates the round without fake fruit points.
+ {
+  const page=await pageFor('slice',.01);
+  await waitFor(page,()=>window.__nightActionTest.snapshot().fruits.some(f=>
+   f.kind==='bomb'&&!f.hit&&Math.abs(f.vy)<110&&f.y>70&&f.y<390),4500);
+  const bomb=(await snap(page)).fruits.find(f=>
+   f.kind==='bomb'&&!f.hit&&Math.abs(f.vy)<110&&f.y>70&&f.y<390);
+  assert.ok(bomb,'visible bomb becomes reachable in the slicing lane');
+  const box=await page.locator('canvas').boundingBox();
+  const px=x=>box.x+x/390*box.width,py=y=>box.y+y/550*box.height;
+  await page.mouse.move(px(bomb.x-41),py(bomb.y));await page.mouse.down();
+  await page.mouse.move(px(bomb.x+41),py(bomb.y),{steps:4});await page.mouse.up();
+  const hit=await snap(page);
+  assert.equal(hit.over,true,'an actual cut through a bomb ends the round');
+  assert.equal(hit.score,0,'cutting a bomb must not award points');
+  await shot(page,'fruit-bomb');await page.close();
+  report.push({game:'slice',case:'real bomb collision ends round without points',over:hit.over});
+ }
  // 5. Centre-controlled ball impacts only ONE brick at a time, rebounds in
  // its physical collision axis, and cannot tunnel along a full row.
  {
