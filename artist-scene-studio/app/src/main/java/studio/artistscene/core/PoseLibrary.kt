@@ -145,33 +145,12 @@ enum class FaceExpression(val title: String, val aliases: Set<String>) {
 }
 
 object AnimeExpressions {
-    private fun key(name: String) = name.lowercase().replace(Regex("[^a-z0-9]+"), "")
+    /** Pure model/morph operation; renderer consumes the existing RigPose.morphWeights. */
+    fun canApply(actor: Actor, expression: FaceExpression): Boolean =
+        CharacterExpressionMixer.canApply(actor, expression)
 
-    fun canApply(actor: Actor, expression: FaceExpression): Boolean {
-        val targets = actor.rigDefinition?.morphTargets.orEmpty()
-        return expression == FaceExpression.NEUTRAL && (actor.rig?.morphWeights?.isNotEmpty() == true) ||
-            targets.any { target -> expression.aliases.any { alias -> key(target.name).contains(alias) } }
-    }
-
-    fun apply(actor: Actor, expression: FaceExpression): RigPose? {
-        if (actor.kind != ActorKind.CHARACTER || actor.locked) return null
-        val definition = actor.rigDefinition ?: return null
-        val old = actor.rig ?: RigPose()
-        val matched = definition.morphTargets.filter { morph ->
-            expression.aliases.any { alias -> key(morph.name).contains(alias) }
-        }
-        if (expression != FaceExpression.NEUTRAL && matched.isEmpty()) return null
-        // Replace all expression weights, but retain body/shape targets such as Fat/Muscle.
-        val expressions = FaceExpression.entries.flatMap { it.aliases }.toSet()
-        val expressiveIds = definition.morphTargets.filter { morph ->
-            expressions.any { alias -> key(morph.name).contains(alias) }
-        }.mapTo(mutableSetOf()) { it.id }
-        val next = old.copy(morphWeights =
-            old.morphWeights.filterKeys { it !in expressiveIds } +
-                matched.associate { it.id to 1f },
-        )
-        return next.takeIf { it != old }
-    }
+    fun apply(actor: Actor, expression: FaceExpression): RigPose? =
+        CharacterExpressionMixer.apply(actor, expression)
 }
 
 /** Camera framings are project-independent; they do not create redundant cameras. */
