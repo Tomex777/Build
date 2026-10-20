@@ -20,7 +20,7 @@ const output=path.join(root,'piano-tiles','visual-output');
 mkdirSync(output,{recursive:true});
 let browser;
 try{
- browser=await chromium.launch({headless:true,channel:'chrome',args:['--no-sandbox']});
+ browser=await chromium.launch({headless:true,channel:process.env.NIGHT_TEST_CHROME_CHANNEL||'chrome',args:['--no-sandbox']});
  const page=await browser.newPage({viewport:{width:390,height:844},hasTouch:true,isMobile:true});
  const errors=[];page.on('pageerror',e=>errors.push(String(e)));
  await page.goto(url);
