@@ -46,8 +46,20 @@ shot() {
   adb shell screencap -p /sdcard/night-agent7.png
   adb pull /sdcard/night-agent7.png "$OUT/$1.png" >/dev/null
 }
+pdf_names() {
+  # Nested Android 'sh -c ... | wc' pipelines can be parsed by adb incorrectly.
+  # Count files on CI host after a direct run-as directory listing.
+  adb shell run-as "$PKG" ls files/saved-pages 2>/dev/null | tr -d '\\r' |
+    grep -E '^page-.*[.]pdf$' || true
+}
 pdf_count() {
-  adb shell run-as "$PKG" sh -c 'find files/saved-pages -name "*.pdf" -type f 2>/dev/null | wc -l' | tr -d '\r '
+  pdf_names | awk 'END { print NR + 0 }'
+}
+delete_all_test_pdfs() {
+  while IFS= read -r name; do
+    [ -z "$name" ] && continue
+    adb shell run-as "$PKG" rm "files/saved-pages/$name"
+  done < <(pdf_names)
 }
 wait_for_pdfs() {
   local need="$1"
@@ -61,14 +73,15 @@ wait_for_pdfs() {
   exit 1
 }
 
-# Drive the actual Compose address bar, then the Gecko session page menu.
-if ! tap_ui 'Search or enter address'; then
-  adb shell input tap 360 1740
-fi
-adb shell input text 'example.com'
-tap_ui 'Go'
-sleep 16
+# Use a live site tile instead of blind address coordinates obscured by the IME.
+tap_ui 'Wikipedia'
+sleep 18
+dump_ui
 shot "01-real-webpage"
+if ! grep -qi 'wikipedia.org' "$OUT/ui.xml"; then
+  echo "Browser did not navigate to Wikipedia. Inspect screenshot/UI dump." >&2
+  exit 1
+fi
 
 tap_ui 'More'
 tap_ui 'Save PDF copy'
@@ -117,7 +130,8 @@ test "$(pdf_count)" -eq 1
 shot "06-after-delete"
 
 # Broken-file state must be understandable and deletable rather than crashing.
-adb shell run-as "$PKG" sh -c 'rm -f files/saved-pages/*.pdf'
+delete_all_test_pdfs
+test "$(pdf_count)" -eq 0
 adb shell am force-stop "$PKG"
 adb shell am start -n "$PKG/.MainActivity"
 sleep 7
