@@ -51,8 +51,22 @@ object JourneyGraph {
     fun repair(nodes: List<JourneyNode>, maxNodes: Int = 600): List<JourneyNode> {
         val kept = nodes.takeLast(maxNodes.coerceAtLeast(0))
         val ids = kept.mapTo(HashSet()) { it.id }
-        return kept.map { node ->
+        val withoutOrphans = kept.map { node ->
             if (node.parent == node.id || node.parent !in ids) node.copy(parent = null) else node
+        }
+        val byId = withoutOrphans.associateBy { it.id }
+        return withoutOrphans.map { node ->
+            var ancestor = node.parent
+            val seen = mutableSetOf(node.id)
+            var cycle = false
+            while (ancestor != null) {
+                if (!seen.add(ancestor)) {
+                    cycle = true
+                    break
+                }
+                ancestor = byId[ancestor]?.parent
+            }
+            if (cycle) node.copy(parent = null) else node
         }
     }
 
