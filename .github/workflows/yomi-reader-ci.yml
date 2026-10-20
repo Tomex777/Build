@@ -449,6 +449,11 @@ jobs:
             adb shell am start -n app.yomi.reader.dev/app.yomi.reader.MainActivity
             i=0; until adb logcat -d -v brief YomiStartup:I '*:S' | grep -Fq 'folder-cover-restored title=Yomi CI ZIP Folder'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'SAF folder library cover could not be generated on Android 8' >&2; adb logcat -d -v threadtime > yomi-output/runtime-api26/folder-cover-repair-failure.txt || true; exit 1; }; sleep 2; done
 
+            # Exercise the app's actual appearance gallery and editable HEX
+            # control via accessibility touch nodes, then restart to check
+            # saved selection (not merely a Compose preview).
+            python3 yomi-reader/scripts/verify_theme_studio.py yomi-output/runtime-api26
+
             # Regression: opening a CBZ from Android Files must reach the reader,
             # not silently stop after populating the library. The generated archive
             # was written by YomiCiFixtureActivity above.
