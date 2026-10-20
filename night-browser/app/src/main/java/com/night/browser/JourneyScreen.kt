@@ -20,7 +20,6 @@ import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.ExpandLess
 import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.IosShare
-import androidx.compose.material.icons.rounded.Merge
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.*
@@ -35,8 +34,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import java.text.DateFormat
-import java.util.Date
 
 private val journeyInk = Color(0xFF0C1017)
 private val journeyCard = Color(0xFF171D27)
@@ -170,7 +167,7 @@ fun JourneyScreen(
                                         DropdownMenuItem(
                                             text = { Text("Merge into…") },
                                             onClick = { actions = false; merge = journey },
-                                            leadingIcon = { Icon(Icons.Rounded.Merge, null) })
+                                            leadingIcon = { Icon(Icons.Rounded.AccountTree, null) })
                                     }
                                     DropdownMenuItem(
                                         text = { Text("Export JSON") },
