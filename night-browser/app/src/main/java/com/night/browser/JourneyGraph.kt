@@ -160,7 +160,7 @@ object JourneyGraph {
             }
             ancestors.reverse()
             row.copy(
-                ancestorContinues = ancestors.dropLast(1).map {
+                ancestorContinues = ancestors.drop(1).map {
                     hasSibling[it] == true
                 },
                 hasNextSibling = hasSibling[row.node.id] == true
