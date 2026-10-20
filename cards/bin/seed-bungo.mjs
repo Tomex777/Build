@@ -31,7 +31,7 @@ const cat={version:1,series:roster.series,name:'Bungo Stray Dogs / NIGHT Collect
   cards:[],pendingForms:[]};
 const power={version:1,series:roster.series,universe:roster.series,scope:'in-universe',
   scale:'night-universe-power-v1',status:'editorial-proposal',
-  notes:'BSD anime continuity; independent, unapproved power proposals. Not a completed feat audit.',
+  notes:'BSD mainline manga power mechanics; official anime portrait art. Dead Apple film is a separate continuity. Grades are editorial proposals, not a scene-by-scene verified feat audit.',
   assessments:{}};
 const officialHosts=new Set(['bungosd.com','www.bungosd.com','bungo-stray-dogs.jp','www.bungo-stray-dogs.jp']);
 async function imageBytes(url){
@@ -86,15 +86,15 @@ for(const s of sources.sources){
       bottomFade:.045,focal:[.5,.33],artworkPlacement:{[design]:{x:0,y:30,width:1000}}}
   });
   power.assessments[r.id]={scale:power.scale,status:'proposed',rank:r.proposedRank,
-    formId:r.formId,artworkSHA256:sha,scope:r.name+' — '+(s.formLabel??'official anime portrait'),
-    basis:r.basis,limits:r.limits,references:[s.page,s.image],universe:roster.series,
-    continuity:roster.continuity};
+    formId:r.formId,artworkSHA256:sha,scope:r.name+' — '+r.ability,
+    basis:r.basis,limits:r.limits,references:[s.page,...(r.powerReferences??[])],universe:roster.series,
+    continuity:r.continuity??roster.continuity};
   console.log('CANDIDATE',r.id,meta.width+'x'+meta.height,sha,design,r.proposedRank);
 }
 for(const r of roster.roster.filter(x=>!ids.has(x.id))){
   cat.pendingForms.push({id:r.id,character:r.id,name:r.name,form:r.formId,status:'pending-official-matched-cutout'});
   power.assessments[r.id]={scale:power.scale,status:'pending',rank:null,
-    universe:roster.series,continuity:roster.continuity,formId:r.formId,
+    universe:roster.series,continuity:r.continuity??roster.continuity,formId:r.formId,
     artworkSHA256:null,scope:r.name,basis:r.basis,limits:r.limits,
     references:[roster.officialCharacterPage]};
 }
