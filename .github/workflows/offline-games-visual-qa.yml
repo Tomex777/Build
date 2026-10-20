@@ -32,7 +32,7 @@ jobs:
           python3 -m pip install --user --quiet pillow
       - name: Interact with every registered game and screenshot the result
         run: node offline-games/scripts/visual-audit.cjs
-      - name: Play ten full outcome sequences and verify resume behavior
+      - name: Play sixteen game outcomes, check phone touch layout and resume
         run: node offline-games/scripts/playthrough-checks.cjs
       - name: Build mobile screenshot contact sheets
         if: always()
