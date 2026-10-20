@@ -45,6 +45,8 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -219,9 +221,11 @@ fun NightStartPage(
                             onClick = { submit() },
                             modifier = Modifier.size(44.dp)
                                 .background(HomeAccent, RoundedCornerShape(14.dp))
+                                // Expose the tap target itself to TalkBack/UIAutomator, not just the glyph.
+                                .semantics { contentDescription = "Go to address or search" }
                         ) {
                             Icon(Icons.AutoMirrored.Rounded.ArrowForward,
-                                contentDescription = "Go to address or search",
+                                contentDescription = null,
                                 tint = HomeBg, modifier = Modifier.size(22.dp))
                         }
                     }
