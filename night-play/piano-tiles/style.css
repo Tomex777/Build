@@ -6,13 +6,18 @@ main{max-width:760px;margin:0 auto;padding:8px 12px 36px;text-align:center}
 .night-game-intro{padding:8px 0 7px}.night-game-intro .night-eyebrow{font-size:10px;font-weight:850;letter-spacing:2px;color:#6a777c}
 .night-game-intro h1{font-size:clamp(27px,5vw,37px);font-weight:900;letter-spacing:-1.3px;margin:2px 0 1px}
 .night-game-intro p{font-size:12px;color:#697578;margin:1px 0 7px}
+ .song-selector{display:flex;width:min(100%,420px);margin:0 auto 8px;padding:3px;gap:3px;border:1px solid #dce4e4;border-radius:10px;background:#eef2f1}
+.song-choice{min-width:0;flex:1;padding:7px 5px;font-size:12px;font-weight:760;color:#596b6c;background:transparent;border:0;border-radius:7px;min-height:34px}
+.song-choice[aria-pressed="true"]{background:#fff;color:#193e47;box-shadow:0 1px 5px #17383b19}
+.song-choice:disabled{cursor:default;opacity:.68}
+.song-choice[aria-pressed="true"]:disabled{opacity:1}
 .night-play-hud{display:flex;justify-content:center;gap:0;max-width:420px;margin:0 auto 10px;background:white;border:1px solid #e1e6e4;border-radius:10px;overflow:hidden}
 .night-hud-value{display:grid;gap:0;min-width:0;flex:1;padding:8px 9px 7px}
 .night-hud-value+.night-hud-value{border-left:1px solid #e7eae8}
 .night-hud-value small{font-size:9px;letter-spacing:1.3px;font-weight:800;color:#748282}
 .night-hud-value strong{font-size:23px;line-height:1.15;letter-spacing:-.5px}
 .board-area{display:flex;flex-direction:column;align-items:center}
-.board-shell{position:relative;width:min(100%,420px,calc((100dvh - 208px)*20/33));min-width:min(100%,220px);aspect-ratio:20/33;border:1px solid #253344;border-radius:12px;overflow:hidden;box-shadow:0 12px 28px #22384b24;background:#eff3fa}
+.board-shell{position:relative;width:min(100%,420px,calc((100dvh - 248px)*20/33));min-width:min(100%,220px);aspect-ratio:20/33;border:1px solid #253344;border-radius:12px;overflow:hidden;box-shadow:0 12px 28px #22384b24;background:#eff3fa}
 #board{display:block;width:100%;height:100%;touch-action:none;cursor:pointer}
 .cover{position:absolute;inset:0;background:linear-gradient(165deg,#132744e8,#14192fe9);display:flex;align-items:center;justify-content:center;color:white}
 .cover-content{padding:18px 28px;display:flex;align-items:center;flex-direction:column;gap:13px;max-width:350px}

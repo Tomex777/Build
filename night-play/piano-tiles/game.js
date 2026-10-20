@@ -1,4 +1,4 @@
-/* NIGHT Play Piano Tiles. One finite, public-domain Frère Jacques arrangement;
+/* NIGHT Play Piano Tiles. Two finite public-domain nursery-song arrangements;
  * synthesized note-on events follow actual successful taps and sustained holds.
  * No backing track, remote assets, or nonmusical background audio. */
 (()=>{"use strict";
@@ -7,9 +7,14 @@ const $=id=>document.getElementById(id),board=$("board"),ctx=board.getContext("2
 const colors=["#253a68","#253a68","#263a74","#273a69"],ACCENT="#86d4d4";
 let audioCtx=null,running=false,paused=false,ended=false,elapsed=0,previous=0,raf=0;
 let notes=[],score=0,streak=0,complete=0,held=new Map(),keyHeld=new Set(),ripples=[];
-const bestKey="night-play-piano-tiles-best-v1";
-const readBest=()=>{try{return Math.max(0,Number(localStorage.getItem(bestKey))||0)}catch{return 0}};
-function saveBest(){try{if(score>readBest())localStorage.setItem(bestKey,String(score))}catch{}}
+const SONGS=[
+ {id:"frere",title:"Frère Jacques"},
+ {id:"twinkle",title:"Twinkle, Twinkle"}
+];
+let selectedSong=SONGS[0];
+const bestKey=()=>selectedSong.id==="frere"?"night-play-piano-tiles-best-v1":"night-play-piano-tiles-best-"+selectedSong.id+"-v1";
+const readBest=()=>{try{return Math.max(0,Number(localStorage.getItem(bestKey()))||0)}catch{return 0}};
+function saveBest(){try{if(score>readBest())localStorage.setItem(bestKey(),String(score))}catch{}}
 function scale(){const dpr=Math.min(2.5,Math.max(1,window.devicePixelRatio||1));
  board.width=Math.round(W*dpr);board.height=Math.round(H*dpr);
  ctx.setTransform(dpr,0,0,dpr,0,0);render();}
@@ -18,6 +23,7 @@ function updateHud(){
  $("best").textContent=String(Math.max(score,readBest()));
 }
 function chart(){
+ if(selectedSong.id==="twinkle")return twinkleChart();
  // Frère Jacques (traditional), C-major; lanes determine hit geometry,
  // note.frequency determines pitch. The final bar includes two-note chords.
  const phrase=[
@@ -46,6 +52,33 @@ function chart(){
  }
  return result;
 }
+// Public-domain Twinkle, Twinkle Little Star, full A–B–B–A variation.
+// Interleaved lanes avoid a string of tiny repeated taps on one narrow lane.
+function twinkleChart(){
+ const pitches=[
+ 261.63,261.63,392,392,440,440,392,
+ 349.23,349.23,329.63,329.63,293.66,293.66,261.63,
+ 392,392,349.23,349.23,329.63,329.63,293.66,
+ 392,392,349.23,349.23,329.63,329.63,293.66,
+ 261.63,261.63,392,392,440,440,392,
+ 349.23,349.23,329.63,329.63,293.66,293.66,261.63
+ ];
+ let t=2.15;const result=[];
+ for(let i=0;i<pitches.length;i++){
+  const lane=[0,1,2,3,1,0,2,3][i%8];
+  const beat=Math.max(.44,.60-i*.0038);
+  const hold=[6,13,20,27,34,41].includes(i);
+  const duration=hold?Math.max(.72,beat*1.5):0;
+  result.push({lane,freq:pitches[i],at:t,duration,hold,state:"waiting",pointer:null,
+   start:0,scoreGiven:false,voice:null,flash:0});
+  // The final cadence gets an independent second finger/key harmony.
+  if(i===35||i===40)result.push({lane:(lane+2)%4,freq:pitches[i]/2,at:t,
+   duration:0,hold:false,state:"waiting",pointer:null,start:0,
+   scoreGiven:false,voice:null,flash:0});
+  t+=beat;
+ }
+ return result;
+}
 function cover(kicker,title,copy,button){
  $("coverKicker").textContent=kicker;$("coverKicker").hidden=!kicker;$("coverTitle").textContent=title;
  $("coverCopy").textContent=copy;
@@ -60,22 +93,37 @@ function setPauseButton(){
  $("pauseIcon").setAttribute("href",paused?"#icon-play":"#icon-pause");
 }
 function closeSounds(){for(const n of notes)if(n.voice){n.voice.stop();n.voice=null}}
+function setSongControls(){
+ for(const button of document.querySelectorAll("[data-song]")){
+  const active=button.dataset.song===selectedSong.id;
+  button.setAttribute("aria-pressed",String(active));
+  button.disabled=running&&!ended;
+ }
+}
+function chooseSong(id){
+ if(running&&!ended)return;
+ const found=SONGS.find(song=>song.id===id);
+ if(!found||selectedSong===found)return;
+ selectedSong=found;
+ clearRun();
+ cover("","Feel the rhythm.",selectedSong.title+" · Tap the falling notes; hold extended tiles.","Start playing");
+}
 function clearRun(){
  if(raf)cancelAnimationFrame(raf);raf=0;closeSounds();notes=chart();
  held.clear();keyHeld.clear();ripples=[];score=0;streak=0;complete=0;
  elapsed=0;previous=0;running=false;paused=false;ended=false;
- updateHud();setPauseButton();$("restart").hidden=true;$("status").textContent="";render();
+ updateHud();setPauseButton();setSongControls();$("restart").hidden=true;$("status").textContent="";render();
 }
 function begin(){
  clearRun();running=true;paused=false;ended=false;
- $("cover").hidden=true;$("restart").hidden=false;setPauseButton();$("status").textContent="Play the next tile";
+ $("cover").hidden=true;$("restart").hidden=false;setPauseButton();setSongControls();$("status").textContent="Play the next tile";
  previous=0;raf=requestAnimationFrame(tick);
 }
 function lose(reason){
  if(ended)return;
  ended=true;running=false;paused=false;
  if(raf)cancelAnimationFrame(raf);raf=0;
- closeSounds();held.clear();keyHeld.clear();saveBest();updateHud();setPauseButton();$("restart").hidden=true;
+ closeSounds();held.clear();keyHeld.clear();saveBest();updateHud();setPauseButton();setSongControls();$("restart").hidden=true;
  $("status").textContent="";
  cover("ROUND OVER",reason,"Score "+score+" · "+complete+" / "+notes.length+" notes","Play again");
  render();
@@ -83,7 +131,7 @@ function lose(reason){
 function win(){
  if(ended)return;ended=true;running=false;paused=false;
  if(raf)cancelAnimationFrame(raf);raf=0;
- closeSounds();held.clear();keyHeld.clear();saveBest();updateHud();setPauseButton();
+ closeSounds();held.clear();keyHeld.clear();saveBest();updateHud();setPauseButton();setSongControls();
  $("status").textContent="";
  cover("SONG COMPLETE","Beautifully played.","Score "+score+" · "+complete+" notes","Play again");
  render();
@@ -200,6 +248,7 @@ document.addEventListener("keydown",e=>{
 document.addEventListener("keyup",e=>{
  const key="key-"+e.key.toLowerCase();keyHeld.delete(key);release(key);
 });
+document.querySelectorAll("[data-song]").forEach(button=>button.addEventListener("click",()=>chooseSong(button.dataset.song)));
 $("coverAction").addEventListener("click",begin);
 $("restart").addEventListener("click",begin);
 $("pause").addEventListener("click",pause);
@@ -274,7 +323,7 @@ function render(){
 }
 if(location.hostname==="localhost"||location.hostname==="127.0.0.1")
  window.__nightPianoTest=Object.freeze({snapshot:()=>({
-  running,paused,ended,elapsed,score,streak,complete,
+  song:selectedSong.id,running,paused,ended,elapsed,score,streak,complete,
   notes:notes.map(n=>({lane:n.lane,at:n.at,duration:n.duration,hold:n.hold,state:n.state}))
  }),geometry:()=>notes.map(noteGeometry)});
 clearRun();scale();window.addEventListener("resize",scale,{passive:true});
