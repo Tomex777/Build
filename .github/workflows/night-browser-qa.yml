@@ -40,6 +40,8 @@ jobs:
           gradle-version: '9.7.1'
       - name: Compile app and run unit tests
         run: gradle --no-daemon -p night-browser :app:testDebugUnitTest :app:assembleDebug
+      - name: Validate QA harness logic before opening an emulator
+        run: python3 -m unittest discover -s night-browser/qa -p 'test_*.py' -v
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
