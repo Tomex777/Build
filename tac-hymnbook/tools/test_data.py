@@ -89,7 +89,11 @@ class HymnDataTest(unittest.TestCase):
                 "not_yet_matched",
             })
         self.assertEqual(sum(e["lyrics_imported"] for e in entries), 18)
-        self.assertEqual(sum(e["english_title_status"] == "verified_from_RH2006_index" for e in entries), 354)
+        self.assertEqual(sum(e["english_title_status"] == "verified_from_RH2006_index" for e in entries), 539)
+        self.assertEqual(entries[448]["title_en"], "Lead us heav’nly Father, lead us")
+        self.assertEqual(entries[449]["title_en"], "I need Jesus, my need I now confess")
+        self.assertEqual(entries[538]["title_en"], "Behold the throne of grace")
+        self.assertEqual([e["number"] for e in entries[:539]], list(range(1,540)))
         self.assertEqual(entries[234]["title_en"], "Tarry for the Spirit")
         self.assertEqual(entries[267]["title_en"], "O Word of God incarnate")
         self.assertEqual(entries[353]["title_en"], "Just as I am, without one plea")
