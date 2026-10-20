@@ -30,3 +30,16 @@ Still required: 10+ website manual playthrough; inspect actual screenshots and t
 - Browser interaction test: **CI scenario pending; not certified**.
 - Security/profile isolation: **code-level separation present; live cookie leak test outstanding**.
 - Integrated: **no; Agent 1 review required**.
+
+## Wave 2 continuation — 2026-10-20
+
+**Current head:** `674b4423b06f615e57d0812fb3213cf696002a26`; PR #429 remains an open draft against browser integration. Changes are on the **existing** A3 specialist branch; no detached duplicate module has been created.
+
+- A3-owned `TabPersistencePolicy.kt`, `TabPersistencePolicyTest.kt`: constrain restored normal-tab URLs to safe HTTP(S), preserve existing percent escapes, remove URL userinfo + fragments in encrypted display metadata, reject control characters/local schemes/oversized URLs and keys; cap Gecko-state length.
+- `TabSessionStore.kt`: enforce a maximum encrypted manifest size before decryption, bound metadata fields, dedupe identities, validate active-tab identity and retain complete-or-omitted Gecko session state; never truncate state JSON.
+- A3-owned `TabPreviewBudget.kt`, tests and `TabOverview.kt`: cap 24 remembered pixel previews / 14 MiB, prioritizing active/recent tabs. Never force-recycle a bitmap still referenced by a Compose frame. **The screenshot capture path in shared MainActivity still needs A1/A4 ownership-coordinated review and stale-preview invalidation.**
+- `ci/agent03-smoke.py`: accepts both A2 Home's accessibility action `Go to address or search` and the web omnibar's `Go`. Actual previous emulator failure was an out-of-date selector (run `39377895311`) despite successful Gradle compile.
+- Kotlin CLI independently compiled and ran policy / preview-budget sanity checks locally, **not** the Android application/JUnit Gradle build.
+- This latest commit was **not** Android CI-verified, installed, visually tested or integrated at reporting time. Previous API36 emulator failed before the 10-tab/private flow completed.
+- A1 owns combined `MainActivity.kt`, A4 Gecko controller; A3 did **not** write these shared files in Wave 2. Coordinate on issue #460. Known blocking controller issues: `onNewSession` must return unopened Gecko popup sessions; `onStop` must guarantee queued encrypted manifest writes are flushed before process exit for reliable restore. A3's private-mode flag must propagate to A5 Journeys, A6 downloads, A7 archives, A8 AI and A9 Peek.
+- Next: A1/A4 conflict-safe integration; run actual API26/API36 20-tab navigation/restore/cookie-isolation screenshots + memory sample with A10 and fix discovered defects.
