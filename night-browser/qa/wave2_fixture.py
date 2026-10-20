@@ -9,6 +9,8 @@ import base64
 from collections import Counter
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
+import hashlib
+import re
 from threading import Lock
 from urllib.parse import urlsplit
 
@@ -43,6 +45,27 @@ def make_pdf():
 
 PDF = make_pdf()
 BIN = b"NIGHT-BROWSER-QA-DOWNLOAD-V1\n" * 256
+UPLOAD_BYTES = b"NIGHT_BROWSER_UPLOAD_TEST_V1_NO_PRIVATE_DATA\n" * 16
+
+def uploaded_part_sha256(body: bytes, content_type: str) -> str | None:
+    """Hash only the uploaded qa-file payload; never retain actual upload contents."""
+    match = re.search(r'boundary=(?:"([^"]+)"|([^;\s]+))', content_type, re.I)
+    if match is None:
+        return None
+    boundary = (match.group(1) or match.group(2)).encode("ascii", "strict")
+    if not (1 <= len(boundary) <= 128) or b"\r" in boundary or b"\n" in boundary:
+        return None
+    marker = b"--" + boundary
+    for part in body.split(marker):
+        if b"\r\n\r\n" not in part:
+            continue
+        header, payload = part.split(b"\r\n\r\n", 1)
+        if re.search(rb'(?i)content-disposition:\s*form-data;[^\r\n]*name="qa-file"', header) is None:
+            continue
+        if not payload.endswith(b"\r\n"):
+            return None
+        return hashlib.sha256(payload[:-2]).hexdigest()
+    return None
 
 
 class State:
@@ -51,6 +74,7 @@ class State:
         self.count = Counter()
         self.cookie_observed = {}
         self.upload_length = 0
+        self.upload_sha256 = None
         self.form_posted = False
 
     def record(self, path, cookie):
@@ -64,6 +88,7 @@ class State:
             return {"count": dict(self.count),
                     "cookie_seen": dict(self.cookie_observed),
                     "upload_length": self.upload_length,
+                    "upload_sha256": self.upload_sha256,
                     "form_posted": self.form_posted}
 
 
@@ -148,6 +173,8 @@ class Handler(BaseHTTPRequestHandler):
                 self.state.form_posted = True
             else:
                 self.state.upload_length = len(body)
+                self.state.upload_sha256 = uploaded_part_sha256(
+                    body, self.headers.get("Content-Type", ""))
         return self.send(self.page("POST COMPLETE"))
 
     @staticmethod
