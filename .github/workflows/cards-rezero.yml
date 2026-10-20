@@ -1,0 +1,81 @@
+name: NIGHT Re-Zero Card Candidates
+
+on:
+  push:
+    branches: [feature/cards-rezero-20261020]
+    paths:
+      - 'cards/catalog/rezero*'
+      - 'cards/bin/seed-rezero.mjs'
+      - 'cards/bin/rezero-gallery.mjs'
+      - 'cards/tests/rezero-sources.test.mjs'
+      - '.github/workflows/cards-rezero.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: night-rezero-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  collection:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: cards
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: cards/package-lock.json
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Resolve original Re-Zero cutout images and immutable source pins
+        run: node bin/seed-rezero.mjs --write-lock
+      - name: Validate source identities, powers and existing collections
+        run: npm test
+      - name: Install dependencies for pinned browser
+        run: npx playwright install-deps chromium
+      - name: Install reference Chrome renderer
+        run: |
+          curl --fail --location --retry 3             https://storage.googleapis.com/chrome-for-testing-public/131.0.6778.204/linux64/chrome-headless-shell-linux64.zip             -o "$RUNNER_TEMP/night-chrome.zip"
+          unzip -q "$RUNNER_TEMP/night-chrome.zip" -d "$RUNNER_TEMP/night-browser"
+          chmod +x "$RUNNER_TEMP/night-browser/chrome-headless-shell-linux64/chrome-headless-shell"
+          echo "NIGHT_BROWSER_PATH=$RUNNER_TEMP/night-browser/chrome-headless-shell-linux64/chrome-headless-shell" >> "$GITHUB_ENV"
+      - name: Render actual 3000x4800 candidate masters with frame-break QA
+        run: npm run build -- --series rezero --width 3000 --out dist/rezero
+      - name: Export standalone candidate gallery
+        run: |
+          npm run gallery -- --series rezero --out dist/rezero --file dist/ReZero-Collection.html
+          node bin/rezero-gallery.mjs dist/ReZero-Collection.html
+      - name: Stage pinned source manifest on the collection branch
+        if: success() && github.event_name == 'push'
+        working-directory: .
+        run: |
+          git config user.name 'NIGHT Cards Provenance'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add cards/catalog/rezero-source-lock.json cards/catalog/rezero.json cards/catalog/power/rezero.json
+          if ! git diff --cached --quiet; then
+            git commit -m "cards(rezero): pin verified native artwork checksums and form assessments"
+            git push origin "HEAD:$GITHUB_REF_NAME"
+          fi
+      - name: Candidate master images, phone proofs, gallery and source report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NIGHT-ReZero-Candidate-Cards
+          path: |
+            cards/dist/rezero/
+            cards/dist/ReZero-Collection.html
+            cards/catalog/rezero.json
+            cards/catalog/power/rezero.json
+            cards/catalog/rezero-source-lock.json
+          if-no-files-found: warn
+          compression-level: 0
+          retention-days: 14

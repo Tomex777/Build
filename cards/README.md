@@ -1,4 +1,6 @@
-# NIGHT / BLEACH collection
+# NIGHT anime card library — BLEACH pilot
+
+This is the shared collectible-card design system for **all anime**. BLEACH was the first visual testing catalogue, not the owner of the design language. Re:Zero, Solo Leveling, Naruto and later series must reuse the same NIGHT core frames, tier finishes, typography, rank glyphs and character-breakout renderer. A different anime changes character artwork and source evidence, not the card system. Standalone preview sites must ultimately display exports from this shared renderer; independent CSS mock-card layouts are not accepted as finished collectibles.
 
 A reusable, programmed collectible-card library. The renderer is preserved in `renderer/`, including the original Obsidian PNG, SVG and source in `renderer/preserved/obsidian-v1/`. The restored Nocturne has no circular backdrop; Nocturne and its pearl counterpart Tidelight omit the old emblem.
 
