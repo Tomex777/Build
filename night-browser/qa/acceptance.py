@@ -92,9 +92,11 @@ class Acceptance:
     def replace_omnibar(self, text):
         # BasicTextField contains the actual current URL (e.g. about:blank).
         # A placeholder lookup fails once Gecko emits about:blank on startup.
+        # Ignore input controls owned by the emulator keyboard or onboarding.
         fields = [node for node in self.nodes()
-                  if node.get("class") == "android.widget.EditText"
-                  or node.get("editable") == "true"]
+                  if node.get("package") == PACKAGE and
+                  (node.get("class") == "android.widget.EditText"
+                   or node.get("editable") == "true")]
         if not fields:
             raise AssertionError("No editable address input exposed to Android accessibility")
         def center_y(node):
@@ -115,10 +117,16 @@ class Acceptance:
             self.shell("input", "keyevent", *(["67"] * (min(len(current), 400) + 2)))
         self.shell("input", "text", text)
         time.sleep(.3)
-        candidate = [node.get("text", "") for node in self.nodes()
-                     if node.get("class") == "android.widget.EditText"]
-        if text not in candidate:
-            raise AssertionError(f"ADB text entry did not reach address field: {candidate!r}")
+        deadline = time.monotonic() + 3
+        while time.monotonic() < deadline:
+            candidate = [node.get("text", "") for node in self.nodes()
+                         if node.get("package") == PACKAGE and
+                         (node.get("class") == "android.widget.EditText"
+                          or node.get("editable") == "true")]
+            if any(text in value for value in candidate):
+                return
+            time.sleep(.4)
+        raise AssertionError(f"ADB text entry did not reach NIGHT's address field: {candidate!r}")
 
     def shot(self, name):
         path = self.output / (name + ".png")
@@ -131,11 +139,13 @@ class Acceptance:
     def count_tabs(self):
         """Compose shows a heading 'Tabs' and a separate numeric tab count."""
         self.wait_for("New tab")
-        for node in self.nodes():
-            value = node.get("text", "").strip()
-            if value.isdecimal():
-                return int(value)
-        raise AssertionError("Could not find numeric tab count in tab overview")
+        labels = [node.get("text", "") or node.get("content-desc", "")
+                  for node in self.nodes() if node.get("package") == PACKAGE]
+        for value in labels:
+            match = re.search(r"\bRegular\s+(\d+)\b", value)
+            if match:
+                return int(match.group(1))
+        raise AssertionError("Regular tab count not accessible: " + repr(labels[:16]))
 
     def record(self, case, kind, func):
         print(f"[QA] {kind}: {case}", flush=True)
@@ -173,7 +183,12 @@ class Acceptance:
 
     def navigate(self):
         self.replace_omnibar("example.com")
-        self.tap("Go")
+        if self.seek("Go to address or search") is not None:
+            self.tap("Go to address or search")
+        elif self.seek("Go") is not None:
+            self.tap("Go")
+        else:
+            self.shell("input", "keyevent", "66")
         end = time.monotonic() + 30
         loaded = False
         while time.monotonic() < end:
@@ -204,7 +219,7 @@ class Acceptance:
     def journey(self):
         self.tap("More")
         self.tap("Journeys")
-        self.wait_for("My browsing")
+        self.wait_for("Journeys")
         self.wait_for("example.com", timeout=8, partial=True)
         return self.shot("04-journey-history")
 
@@ -264,14 +279,17 @@ class Acceptance:
         return f"Restored {restored} tabs after force-stop"
 
     def private_tabs(self):
-        self.tap("More")
-        try:
-            options = [self.label(n).lower() for n in self.nodes()]
-            if not any("private" in s or "incognito" in s for s in options):
-                raise AssertionError("Private browsing entry point absent; cannot assert cookie isolation")
-            return "Private entry present; cookie isolation still needs separate on-device test"
-        finally:
-            self.shell("input", "keyevent", "4", check=False)
+        # The real private entry is Tabs > Private > New private tab.
+        # The normal-mode More menu does not expose a private entry.
+        self.tap("Tabs")
+        labels = [self.label(n) for n in self.nodes()]
+        candidate = next((v for v in labels if re.search(r"\bPrivate\s+\d+\b", v)), None)
+        if candidate is None:
+            raise AssertionError("Private tabs filter not accessible")
+        self.tap(candidate)
+        self.tap("New private tab")
+        self.wait_for("Private browsing", timeout=12)
+        return "Opened actual Gecko private tab (cookie isolation remains unverified)"
 
     def offline(self):
         # Disables both services temporarily; always restore connectivity.
