@@ -147,6 +147,10 @@ class BrowserController(private val appContext: Context) {
         return tab
     }
 
+    /** Opening a link in a child tab keeps its Journey relationship to the source page. */
+    fun newChildTab(url: String, sourceTab: BrowserTab = active): BrowserTab =
+        newTab(url, sourceTab.journeyId, sourceTab.lastNode, sourceTab.recordsJourney)
+
     fun select(tabId: String) {
         if (tabs.none { it.id == tabId }) return
         activeId = tabId
