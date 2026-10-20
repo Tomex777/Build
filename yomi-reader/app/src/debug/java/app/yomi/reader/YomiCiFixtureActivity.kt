@@ -23,6 +23,14 @@ class YomiCiFixtureActivity : Activity() {
         super.onCreate(savedInstanceState)
 
         val kind = intent.getStringExtra(EXTRA_KIND) ?: KIND_ARCHIVE
+        if (kind == KIND_MUTATE_CORRUPT_ARCHIVE) {
+            // The provider keeps the same URI as the previously valid book.
+            // A broken reimport must not replace Yomi's last good private copy.
+            File(cacheDir, "yomi-ci-book.cbz").writeText("damaged archive; not a ZIP")
+            Log.i("YomiReader", "ci-source-archive-corrupted")
+            finish()
+            return
+        }
         if (kind == KIND_MUTATE_ARCHIVE) {
             // The content provider keeps exactly the same document URI.
             // Rewrite the underlying source so CI can prove Yomi refreshes
@@ -175,5 +183,6 @@ class YomiCiFixtureActivity : Activity() {
         const val KIND_EXTENSIONLESS = "extensionless"
         const val KIND_ANIMATED_GIF = "animated-gif"
         const val KIND_MUTATE_ARCHIVE = "mutate-archive"
+        const val KIND_MUTATE_CORRUPT_ARCHIVE = "mutate-corrupt-archive"
     }
 }
