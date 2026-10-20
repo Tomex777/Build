@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -59,6 +58,11 @@ internal class AnnieImageViewerActivity : ComponentActivity() {
             statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
         )
+        androidx.core.view.WindowCompat.getInsetsController(window, window.decorView).apply {
+            hide(androidx.core.view.WindowInsetsCompat.Type.statusBars())
+            systemBarsBehavior =
+                androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        }
         val source = intent.getStringExtra(EXTRA_URI).orEmpty()
         val projectId = intent.getStringExtra(EXTRA_PROJECT).orEmpty()
         val caption = intent.getStringExtra(EXTRA_CAPTION).orEmpty()
@@ -165,7 +169,7 @@ private fun FullScreenImageContent(
                 }
             }
         }
-        Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
+        Column(Modifier.fillMaxSize().navigationBarsPadding()) {
             Row(
                 modifier = Modifier.fillMaxWidth().background(Color(0xCC030811)),
                 horizontalArrangement = Arrangement.End,
