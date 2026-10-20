@@ -5,6 +5,8 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import java.io.File
+import java.io.FileOutputStream
+import java.security.MessageDigest
 import java.util.UUID
 import studio.artistscene.core.Actor
 import studio.artistscene.core.ActorKind
@@ -12,6 +14,10 @@ import studio.artistscene.core.AssetReference
 import studio.artistscene.core.AssetStorage
 import studio.artistscene.core.TerrainMesh
 import studio.artistscene.core.TerrainShape
+import studio.artistscene.core.TerrainStroke
+import studio.artistscene.core.TerrainSculpt
+import studio.artistscene.core.GeneratedTerrainReader
+import studio.artistscene.core.GroundSurface
 
 /**
  * Real, fully offline 3D geometry, not a flat decal. Stored in app-scoped
@@ -61,24 +67,118 @@ internal class TerrainAssets(private val context: Context) {
         )
     }
 
-    private fun write(name: String, heights: FloatArray, provenance: String): Actor {
-        val id = UUID.randomUUID().toString().replace("-", "")
+    /**
+     * Creates a NEW terrain asset revision while retaining the Actor's identity,
+     * placement, selection, and the previous immutable GLB for undo/redo.
+     * Generated terrain created in older versions is supported by decoding its
+     * actual positions, so no transient heightfield cache is needed to reopen.
+     *
+     * Caller applies the returned Actor through SceneEditorState's history.
+     * This method deliberately does not delete prior files: they may still be
+     * referenced by undo steps, a previously saved project, or duplicates.
+     */
+    /**
+     * Switch the REAL texture embedded in a generated terrain's PBR GLB.
+     * Flat-ground theme changes previously left generated mountains grassy.
+     * This is whole-terrain retexturing, NOT misleading per-pixel brush paint.
+     * As with sculpting, callers must commit the returned Actor for undo.
+     */
+    fun retexture(existing: Actor, surface: GroundSurface): Actor {
+        val photoName = requireNotNull(surface.photoAsset) {
+            "Choose a photographic ground surface"
+        }
+        val original = terrainFrom(existing)
+        val photo = context.assets.open("world/$photoName").use { it.readBytes() }
+        if (original.embeddedPng?.contentEquals(photo) == true) return existing
+        val bytes = TerrainMesh.encodeGlb(original.heights, photo)
+        val path = saveUniqueTerrain(bytes)
+        val asset = requireNotNull(existing.asset)
+        return existing.copy(
+            asset = asset.copy(
+                relativePath = path,
+                byteSize = bytes.size.toLong(),
+                checksumSha256 = sha256(bytes),
+            ),
+            metadata = existing.metadata +
+                ("terrainSurface" to surface.name) +
+                ("terrainSurfaceSource" to (surface.source ?: "")),
+        )
+    }
+
+    /** Read the authored geometry for a brush panel; caller runs this off the UI thread. */
+    fun heights(existing: Actor): FloatArray = terrainFrom(existing).heights
+
+    fun sculpt(existing: Actor, stroke: TerrainStroke): Actor =
+        sculpt(existing, listOf(stroke))
+
+    /** One drag gesture = one immutable mesh revision and one eventual undo step. */
+    fun sculpt(existing: Actor, strokes: List<TerrainStroke>): Actor {
+        require(strokes.size <= 2048) { "Too many terrain brush samples" }
+        if (strokes.isEmpty()) return existing
+        val terrain = terrainFrom(existing)
+        val sculpted = strokes.fold(terrain.heights) { heights, stroke ->
+            TerrainSculpt.apply(heights, stroke)
+        }
+        if (terrain.heights.contentEquals(sculpted)) return existing
+        val asset = requireNotNull(existing.asset)
+        val bytes = TerrainMesh.encodeGlb(sculpted, terrain.embeddedPng)
+        val revisionPath = saveUniqueTerrain(bytes)
+        val revision = (existing.metadata["terrainRevision"]?.toIntOrNull() ?: 0)
+            .coerceIn(0, Int.MAX_VALUE - 1) + 1
+        return existing.copy(
+            asset = asset.copy(
+                relativePath = revisionPath,
+                byteSize = bytes.size.toLong(),
+                checksumSha256 = sha256(bytes),
+            ),
+            metadata = existing.metadata +
+                ("terrainRevision" to revision.toString()) +
+                ("terrainLastBrush" to strokes.last().brush.name),
+        )
+    }
+
+    private fun terrainFrom(existing: Actor): studio.artistscene.core.GeneratedTerrain {
+        val asset = requireNotNull(existing.asset) { "Choose a generated terrain actor" }
+        require(existing.kind == ActorKind.ENVIRONMENT &&
+            asset.assetId.startsWith("terrain.generated.") &&
+            asset.storage == AssetStorage.PROJECT_FILE) {
+            "Brushes can edit Mise-generated 3D terrain only"
+        }
+        val folder = File(context.filesDir, "models").canonicalFile
+        val original = File(context.filesDir, asset.relativePath).canonicalFile
+        require(original.parentFile == folder && original.isFile) {
+            "Terrain asset is missing or outside the model library"
+        }
+        return GeneratedTerrainReader.decode(original.readBytes())
+    }
+
+    private fun saveUniqueTerrain(bytes: ByteArray): String {
         val folder = File(context.filesDir, "models")
         check(folder.exists() || folder.mkdirs()) { "Cannot create terrain model directory" }
-        val relative = "models/terrain-$id.glb"
+        val relative = "models/terrain-${UUID.randomUUID().toString().replace("-", "")}.glb"
         val file = File(context.filesDir, relative)
-        val photo = context.assets.open("world/leafy_grass_diff_1k.png").use { it.readBytes() }
-        val bytes = TerrainMesh.encodeGlb(heights, photo)
         try {
-            file.outputStream().use { output ->
+            FileOutputStream(file).use { output ->
                 output.write(bytes)
                 output.flush()
-                (output as java.io.FileOutputStream).fd.sync()
+                output.fd.sync()
             }
-        } catch (e: Exception) {
+        } catch (error: Exception) {
             file.delete()
-            throw e
+            throw error
         }
+        return relative
+    }
+
+    private fun sha256(bytes: ByteArray): String = MessageDigest
+        .getInstance("SHA-256").digest(bytes)
+        .joinToString("") { "%02x".format(it.toInt() and 0xff) }
+
+    private fun write(name: String, heights: FloatArray, provenance: String): Actor {
+        val id = UUID.randomUUID().toString().replace("-", "")
+        val photo = context.assets.open("world/leafy_grass_diff_1k.png").use { it.readBytes() }
+        val bytes = TerrainMesh.encodeGlb(heights, photo)
+        val relative = saveUniqueTerrain(bytes)
         return Actor(
             id = "terrain-$id",
             name = name,
@@ -91,8 +191,12 @@ internal class TerrainAssets(private val context: Context) {
                 creator = "Mise / Scene artist",
                 storage = AssetStorage.PROJECT_FILE,
                 byteSize = bytes.size.toLong(),
+                checksumSha256 = sha256(bytes),
             ),
-            metadata = mapOf("terrainOrigin" to provenance),
+            metadata = mapOf(
+                "terrainOrigin" to provenance,
+                "terrainSurface" to GroundSurface.GRASS.name,
+            ),
         )
     }
 }
