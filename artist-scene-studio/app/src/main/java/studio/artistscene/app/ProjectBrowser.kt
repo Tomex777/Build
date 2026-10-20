@@ -106,8 +106,8 @@ internal fun ProjectBrowser(
     ) {
         Box(Modifier.fillMaxSize().safeDrawingPadding().imePadding()) {
             Column(
-                modifier = Modifier.fillMaxWidth().fillMaxHeight()
-                    .widthIn(max = 760.dp)
+                modifier = Modifier.widthIn(max = 760.dp)
+                    .fillMaxWidth().fillMaxHeight()
                     .align(Alignment.TopCenter)
                     .padding(horizontal = 20.dp, vertical = 18.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
