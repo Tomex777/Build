@@ -6,6 +6,7 @@ import {PieceCutter} from './PieceCutter.js';
 
 const SHAPES = Object.freeze({24:[4,6],48:[6,8],144:[12,12]});
 const finite = n => typeof n === 'number' && Number.isFinite(n);
+const uuid = text => typeof text==='string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(text);
 const own = (o,k) => Object.prototype.hasOwnProperty.call(o,k);
 const dirs = ['top','right','bottom','left'];
 const validEdges = value => value && dirs.every(k => own(value,k) && [-1,0,1].includes(value[k]));
@@ -39,14 +40,17 @@ export function makeDropCommand(board, pieceId, expectedVersion, mutationId) {
   throw Error('Invalid piece drop metadata.');
  const piece=board?.pieces?.find(p=>p.id===pieceId);
  if(!piece || piece.isPlaced)throw Error('Piece is not movable.');
+ const roundId=board.lastCoopRoundId;
+ if(!uuid(roundId))throw Error('A verified co-op round snapshot is required before dropping.');
  const {x,y}=toCellPosition(board,piece.x,piece.y);
  // Positions outside the board are valid scatter. Never silently clamp to a
  // board edge: that would snap distant pieces when released on a narrow phone.
- return {type:'drop',pieceId,expectedVersion,x,y,mutationId};
+ return {type:'drop',roundId,pieceId,expectedVersion,x,y,mutationId};
 }
 export function validateSnapshot(snapshot) {
  const pair=SHAPES[snapshot?.count];
- if(!pair || !Array.isArray(snapshot.pieces) ||
+ if(!pair || !uuid(snapshot.roundId) || !/^photo-[a-z0-9-]{1,40}$/.test(snapshot.photoId) ||
+   !Array.isArray(snapshot.pieces) ||
    pair[0]!==snapshot.rows || pair[1]!==snapshot.cols ||
    snapshot.pieces.length!==snapshot.count ||
    !Number.isSafeInteger(snapshot.revision) || snapshot.revision<0 ||
@@ -136,8 +140,12 @@ export function applyServerSnapshot(board,snapshot,{render=true,preserveDragging
  if(!board || typeof board.resize!=='function' || typeof board.setupBoardLayout!=='function' ||
     typeof board.damageForPieces!=='function' || typeof board.render!=='function')
     throw Error('Expected a PuzzleBoard instance.');
+ if(board.lastCoopRoundId===snapshot.roundId && Number.isSafeInteger(board.lastCoopRevision) &&
+    snapshot.revision<=board.lastCoopRevision)
+  return {revision:board.lastCoopRevision,changed:[],completed:snapshot.finishedAt!==null,ignored:true};
+ const roundChanged=board.lastCoopRoundId && board.lastCoopRoundId!==snapshot.roundId;
  const dimensionChanged=board.rows!==snapshot.rows || board.cols!==snapshot.cols;
- if(dimensionChanged){
+ if(dimensionChanged || roundChanged){
   board.pieces=[];board.selectedPieces=[];board.selectedPiece=null;
   board.setDimensions(snapshot.rows,snapshot.cols);
  }
@@ -172,8 +180,9 @@ export function applyServerSnapshot(board,snapshot,{render=true,preserveDragging
  board.moveCount=snapshot.moves;
  board.totalPieces=snapshot.count;
  board.lastCoopRevision=snapshot.revision;
+ board.lastCoopRoundId=snapshot.roundId;
  if(render) {
-  if(dimensionChanged || !previous.size || changed.length>Math.max(24,snapshot.count/3))
+  if(dimensionChanged || roundChanged || !previous.size || changed.length>Math.max(24,snapshot.count/3))
    board.render();
   else if(changed.length)board.renderDamage(damaged.concat(board.damageForPieces(next.filter(p=>changed.includes(p.id)))));
  }
