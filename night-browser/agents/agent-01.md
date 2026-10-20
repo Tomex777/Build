@@ -1,3 +1,25 @@
+# WAVE 2: NIGHT Browser Agent 1 — Coordinator: produce ONE working browser APK
+
+**Priority change:** This supersedes first-wave assignments below where outdated. **Same app, same integration branch `feature/night-browser-multi-agent-20261020`**, short-lived `agent/browser-v2-01-coordinator` branch. In your GitHub-connected chat, saying **"You are NIGHT Browser Agent 1"** or "Continue NIGHT Browser Wave 2" means: read this file, `night-browser/AGENTS.md`, `night-browser/docs/agent-backlog.md`, `night-browser/agents/README.md`, current source/PRs and [Issue #460](https://github.com/Tomex777/Build/issues/460) latest comments. Claim task on #460, coordinate shared edit file lock with Agent 1, implement immediately and create a PR to `feature/night-browser-multi-agent-20261020`. Don't claim other agents are automatically running. **Don't create another disconnected variant of an existing specialist module.**
+
+### Substantial improvement assignment
+
+P0: review PR #439 (draft module assembly) plus specialist #426–#434 and #441. Resolve compiled interfaces and shared files systematically (MainActivity.kt, BrowserController.kt, JourneyStore.kt, manifest, Gradle), not by wholesale replacing another agent's file. Integrate verified modules into current browser branch in small batches and verify the full build before the next merge. Close superseded branches only after confirming replacements. Demand actual Android API26/API36 install + live-site interactions before announcing feature integrated. Organize meaningful interface contracts and acknowledge dependency claims on Issue #460. Deliver cohesive navigation, library/search/site tools from one running shell, then coordinate QA/release candidate.
+
+### Acceptance (real APK / real websites)
+
+One installable integrated APK contains actual active modules; all major surfaces reachable; 20+ real-site scenarios and security/privacy gates tracked by A10; integration PR/commit, failing tests, screenshots and logs traceable. No production release or main merge without owner approval.
+
+### Dependency coordination
+
+Own branch integration and shared UI/manifest wiring, not all specialist implementation; special attention to #439 partial assembly and blank disabled screens.
+
+**Required loop:** inspect baseline → reproduce failure/identify quality gap → communicate exact shared API → implement → build → Android install → interact with actual sites → screenshot/logcat/perf → fix → retest → small PR → ask A10 for independent QA → integrate via A1 → next task. Distinguish real installed tests from CI-only; no unattended execution beyond the active session.
+
+---
+
+## Original first-wave role brief (background, lower priority than Wave 2)
+
 # NIGHT Browser — Agent 1: Lead coordinator and integration
 
 Repo: `Tomex777/Build`; path: `night-browser/`; integration branch: `feature/night-browser-multi-agent-20261020`; your isolated branch: `agent/browser-01-coordinator`.

@@ -1,3 +1,25 @@
+# WAVE 2: NIGHT Browser Agent 5 — Beautiful correct automatic branching Journeys
+
+**Priority change:** This supersedes first-wave assignments below where outdated. **Same app, same integration branch `feature/night-browser-multi-agent-20261020`**, short-lived `agent/browser-v2-05-journeys` branch. In your GitHub-connected chat, saying **"You are NIGHT Browser Agent 5"** or "Continue NIGHT Browser Wave 2" means: read this file, `night-browser/AGENTS.md`, `night-browser/docs/agent-backlog.md`, `night-browser/agents/README.md`, current source/PRs and [Issue #460](https://github.com/Tomex777/Build/issues/460) latest comments. Claim task on #460, coordinate shared edit file lock with Agent 1, implement immediately and create a PR to `feature/night-browser-multi-agent-20261020`. Don't claim other agents are automatically running. **Don't create another disconnected variant of an existing specialist module.**
+
+### Substantial improvement assignment
+
+PR #433 implements graph/tree and visit tracker but still awaits merge. Integrate cursor semantics with real Gecko Back/Forward and new-tab link context: A→B→C, return A→D should branch off A not C; suppress redirect/reload and fragmented duplicates, preserve parent references after trimming and migrations. Improve actual visual flow: pan/zoom/expand selection path, search filtering without losing ancestor context, reopen exact nodes, meaningful names, merge/delete/export, favicon/site title; no unbounded renders or mandatory AI. Treat sensitive/private URL parameters securely.
+
+### Acceptance (real APK / real websites)
+
+Real browser interactions and persistence: multi-branch graph after restart, 600+ nodes memory performance, search/rename/export/delete, no private data persistence; screenshot of graph at phone width and actual tree correctness tests.
+
+### Dependency coordination
+
+A4 Gecko events, A3 tab private flag; A6 Library uses separate storage; A1 integrates Journey screen.
+
+**Required loop:** inspect baseline → reproduce failure/identify quality gap → communicate exact shared API → implement → build → Android install → interact with actual sites → screenshot/logcat/perf → fix → retest → small PR → ask A10 for independent QA → integrate via A1 → next task. Distinguish real installed tests from CI-only; no unattended execution beyond the active session.
+
+---
+
+## Original first-wave role brief (background, lower priority than Wave 2)
+
 # NIGHT Browser — Agent 5: Automatic Browsing Journeys
 
 Repo: `Tomex777/Build`; path: `night-browser/`; integration branch: `feature/night-browser-multi-agent-20261020`; your isolated branch: `agent/browser-05-journeys`.

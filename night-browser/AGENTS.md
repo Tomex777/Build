@@ -1,3 +1,15 @@
+# WAVE 2 — 20 OCT 2026: COMBINED AND QUALITY-FIRST
+
+**Important factual update:** The integration branch contains the GeckoView prototype and **merged** Agent 1 coordination and Agent 2 Home changes (#425, #430, #437). PR **#439 is still an OPEN DRAFT** comprising partial new modules, not one verified browser APK. Specialist PRs #426–#434 plus follow-up Home QA #441 remain partially/unmerged; claiming AI, Downloads, private mode, Site Studio or true offline archives "shipped" is incorrect. Status in archived sections below is from before latest PRs. **Immediate next step is assembly + on-device functionality, not more detached feature branches.**
+
+**Live cross-agent communication:** [Issue #460](https://github.com/Tomex777/Build/issues/460) — read its **latest** comments, post meaningful `[BROWSER A#][CLAIM|DESIGN|BLOCKED|HANDOFF|READY|VERIFIED|INTEGRATED]` with branch/PR, shared API, APK tests and request to another agent. Other chats cannot see your work until they fetch/acknowledge it. Agent 1 acknowledges shared-file windows for MainActivity, BrowserController, JourneyStore, manifest and Gradle.
+
+**Launch:** In a browser chat type `You are NIGHT Browser Agent N` (N=1–10), then agent fetches `night-browser/agents/agent-NN.md` and the latest source on `feature/night-browser-multi-agent-20261020`. Existing chats can say `Continue NIGHT Browser Wave 2: reread agent-NN.md and issue #460; implement.` Keep `com.night.browser`, minSdk 26 on this integration; the separate PR #422 package migration is NOT approved to land invisibly.
+
+**Continuous working:** One integrated app codebase, short-lived isolated edit branches + frequent small reviewed PRs. Agent 1 integrates. Each specialist runs tests/live UI in an active session and records next work. No automated 24/7 running from Markdown, no success claims from queued CI and no main/release merge without approval.
+
+---
+
 # NIGHT Browser — Agent Operating Rules (ABR)
 
 ## Agent N chat activation

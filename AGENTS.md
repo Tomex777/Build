@@ -1,3 +1,9 @@
+# NIGHT Browser Wave 2 — current routing (20 October 2026)
+
+If the chat is identified as **NIGHT Browser** and user says **"You are Agent N"**, **"You are NIGHT Browser Agent N"**, or tells an existing browser agent to **"Continue"**, read `night-browser/agents/README.md`, `night-browser/agents/agent-NN.md`, `night-browser/docs/wave2-acceptance.md`, and **GitHub issue #460 latest comments**. Source is `feature/night-browser-multi-agent-20261020`; Agent 1's top task is to integrate the existing open specialist PRs into one compiled and tested browser. These instructions do not apply to NIGHT Play or MISE. Role Markdown alone does not spawn agents or ensure nonstop running.
+
+---
+
 # Tomex777/Build — Agent entrypoint
 
 This is a **multi-project** repository. Do not confuse NIGHT Browser with NIGHT Play or other apps.

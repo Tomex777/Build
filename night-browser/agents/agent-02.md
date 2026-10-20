@@ -1,3 +1,25 @@
+# WAVE 2: NIGHT Browser Agent 2 — Home, omnibar and visual design mastery
+
+**Priority change:** This supersedes first-wave assignments below where outdated. **Same app, same integration branch `feature/night-browser-multi-agent-20261020`**, short-lived `agent/browser-v2-02-home` branch. In your GitHub-connected chat, saying **"You are NIGHT Browser Agent 2"** or "Continue NIGHT Browser Wave 2" means: read this file, `night-browser/AGENTS.md`, `night-browser/docs/agent-backlog.md`, `night-browser/agents/README.md`, current source/PRs and [Issue #460](https://github.com/Tomex777/Build/issues/460) latest comments. Claim task on #460, coordinate shared edit file lock with Agent 1, implement immediately and create a PR to `feature/night-browser-multi-agent-20261020`. Don't claim other agents are automatically running. **Don't create another disconnected variant of an existing specialist module.**
+
+### Substantial improvement assignment
+
+PRs #430 and #437 already integrated redesigned Home. **Do not recreate old Home.** Review open Agent 2 PR #441, finish installed/interactive UX verification and polish complete browser shell: URL/search focus, IME, safe paste/clipboard, favicons/quick-access edit/persistence, search suggestions with user privacy, landscape/tablet, PDF/fullscreen/media insets, progress and error screens. Compare against Omni Browser inspiration but write original code; don't copy GPL-3.0 assets. Remove unnecessary double bars, generic filler, overlapping status/navigation areas, and broken more-menu targets. Ensure start screen useful with zero history and after many journeys.
+
+### Acceptance (real APK / real websites)
+
+Actual emulator API26/API36/screenshots narrow+wide; repeatedly add/edit/delete speed dial and reopen app, keyboard/paste/search, back/forward, rotated layout and site permission prompt UI. Changed visual design must be visibly better and functional.
+
+### Dependency coordination
+
+A1 controls MainActivity.kt shell wiring; A3 tab overview; A4 Gecko navigation; A9 per-site UI.
+
+**Required loop:** inspect baseline → reproduce failure/identify quality gap → communicate exact shared API → implement → build → Android install → interact with actual sites → screenshot/logcat/perf → fix → retest → small PR → ask A10 for independent QA → integrate via A1 → next task. Distinguish real installed tests from CI-only; no unattended execution beyond the active session.
+
+---
+
+## Original first-wave role brief (background, lower priority than Wave 2)
+
 # NIGHT Browser — Agent 2: Home, Omnibar and navigation UX
 
 Repo: `Tomex777/Build`; path: `night-browser/`; integration branch: `feature/night-browser-multi-agent-20261020`; your isolated branch: `agent/browser-02-home`.
