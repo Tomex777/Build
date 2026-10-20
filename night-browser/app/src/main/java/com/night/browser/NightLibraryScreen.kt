@@ -221,7 +221,9 @@ fun NightLibraryScreen(browser: BrowserController, onOpen: (String) -> Unit) {
                                         downloads.retry(row).exceptionOrNull()?.let { notify(it.message) }
                                     }) { Text("Retry") }
                                 }
-                                TextButton(onClick = { downloads.remove(row) }) {
+                                TextButton(onClick = {
+                                    downloads.remove(row).exceptionOrNull()?.let { notify(it.message) }
+                                }) {
                                     Text(if (row.complete) "Delete" else "Cancel", color = LibMuted)
                                 }
                             }
