@@ -139,5 +139,23 @@ tap_scrolling "Save caption"
 adb shell run-as com.night.sora cat shared_prefs/sora_arcade_captions_v1.xml | grep -q 'Sora Works'
 shot meme-caption-saved
 
+# Search must react on every edit, rather than caching the initial Library
+# contents when only the category filter changes.
+tap "Library"
+wait_node "Paper Moons"
+wait_node "Night Signal"
+tap "Search library"
+wait_node "Search saved items"
+tap "Search saved items"
+adb shell input text 'Night'
+sleep 1
+wait_node "Night Signal"
+if node_exists "Paper Moons" || node_exists "One Saved Meme"; then
+  shot library-search-leaked-items
+  echo 'Library search did not hide unrelated saved titles.' >&2
+  exit 1
+fi
+shot library-live-search
+
 echo 'Cover quiz: real two-round choices and persisted stats verified.'
 echo 'Meme caption: editable custom input, saved caption and single-meme UI verified.'
