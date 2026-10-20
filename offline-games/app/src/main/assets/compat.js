@@ -26,6 +26,33 @@
       configurable: true, writable: true, value: replaceChildren
     });
   });
+  // Android 8's bundled WebView may predate ES2019 Array.flat/flatMap.
+  if (!Array.prototype.flat) Object.defineProperty(Array.prototype, 'flat', {
+    configurable: true, writable: true, value: function (depth) {
+      var result = [];
+      var limit = depth === undefined ? 1 : Math.max(0, Number(depth) || 0);
+      function append(items, level) {
+        for (var i = 0; i < items.length; i++) {
+          if (!(i in items)) continue;
+          var item = items[i];
+          if (Array.isArray(item) && level > 0) append(item, level - 1);
+          else result.push(item);
+        }
+      }
+      append(this, limit);
+      return result;
+    }
+  });
+  if (!Array.prototype.flatMap) Object.defineProperty(Array.prototype, 'flatMap', {
+    configurable: true, writable: true, value: function (mapper, thisArg) {
+      if (typeof mapper !== 'function') throw new TypeError('flatMap mapper required');
+      var values = [];
+      for (var i = 0; i < this.length; i++) {
+        if (i in this) values.push(mapper.call(thisArg, this[i], i, this));
+      }
+      return values.flat(1);
+    }
+  });
   if (!Array.prototype.at) Object.defineProperty(Array.prototype, 'at', {
     configurable: true, writable: true, value: function (index) {
       var i = Math.trunc(Number(index) || 0);
