@@ -305,7 +305,7 @@ private fun ProjectCard(
 
 /** The browser uses an actual Compose BasicTextField rather than a default Android box. */
 @Composable
-private fun BrowserTextInput(
+internal fun BrowserTextInput(
     value: String,
     onValueChange: (String) -> Unit,
     placeholder: String,
