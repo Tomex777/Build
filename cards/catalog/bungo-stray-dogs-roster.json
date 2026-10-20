@@ -29,7 +29,10 @@
       "limits": "Normal-state tiger enhancements are assessed; the fully transformed tiger needs dedicated matching art. Difficult to fight at range.",
       "formId": "standard",
       "sourceStatus": "unverified",
-      "artwork": null
+      "artwork": null,
+      "powerReferences": [
+        "https://bungostraydogs.fandom.com/wiki/Beast_Beneath_the_Moonlight"
+      ]
     },
     {
       "id": "osamu-dazai",
@@ -43,7 +46,10 @@
       "limits": "Nullification is not an offensive blast: touch is required, and bullets, non-ability attacks and non-gift powers remain dangerous.",
       "formId": "standard",
       "sourceStatus": "unverified",
-      "artwork": null
+      "artwork": null,
+      "powerReferences": [
+        "https://bungostraydogs.fandom.com/wiki/No_Longer_Human"
+      ]
     },
     {
       "id": "doppo-kunikida",
@@ -71,7 +77,10 @@
       "limits": "Ranpo has no actual supernatural gift, so the F-grade is specifically direct supernatural-combat power, NOT intellect or overall importance.",
       "formId": "standard",
       "sourceStatus": "unverified",
-      "artwork": null
+      "artwork": null,
+      "powerReferences": [
+        "https://bungostraydogs.fandom.com/wiki/Super_Deduction"
+      ]
     },
     {
       "id": "junichiro-tanizaki",
@@ -113,7 +122,10 @@
       "limits": "Targets must be close to death; it cannot reverse arbitrary death or illnesses and offers little ranged offensive damage.",
       "formId": "standard",
       "sourceStatus": "unverified",
-      "artwork": null
+      "artwork": null,
+      "powerReferences": [
+        "https://bungostraydogs.fandom.com/wiki/Thou_Shalt_Not_Die"
+      ]
     },
     {
       "id": "kyoka-izumi",
@@ -155,7 +167,10 @@
       "limits": "Close physical condition and matchup counters are significant.",
       "formId": "standard",
       "sourceStatus": "unverified",
-      "artwork": null
+      "artwork": null,
+      "powerReferences": [
+        "https://bungostraydogs.fandom.com/wiki/Rash%C5%8Dmon"
+      ]
     },
     {
       "id": "chuya-nakahara",
@@ -169,7 +184,10 @@
       "limits": "Corruption/Arahabaki is a separate, self-destructive release that is NOT included here; Dazai's contact nullification counters this gift.",
       "formId": "standard",
       "sourceStatus": "unverified",
-      "artwork": null
+      "artwork": null,
+      "powerReferences": [
+        "https://bungostraydogs.fandom.com/wiki/Upon_the_Tainted_Sorrow"
+      ]
     },
     {
       "id": "motojiro-kajii",
@@ -253,7 +271,10 @@
       "limits": "An A-grade assessment presumes major expenditure. His no-spend baseline is much lower and must not share its rank without qualification.",
       "formId": "standard",
       "sourceStatus": "unverified",
-      "artwork": null
+      "artwork": null,
+      "powerReferences": [
+        "https://bungostraydogs.fandom.com/wiki/The_Great_Fitzgerald"
+      ]
     },
     {
       "id": "lucy-montgomery",
@@ -281,7 +302,10 @@
       "limits": "A subject must read an applicable novel; setup is significant and it is not a high-output direct attack.",
       "formId": "standard",
       "sourceStatus": "unverified",
-      "artwork": null
+      "artwork": null,
+      "powerReferences": [
+        "https://bungostraydogs.fandom.com/wiki/Black_Cat_in_the_Rue_Morgue"
+      ]
     },
     {
       "id": "fyodor-dostoevsky",
@@ -296,7 +320,10 @@
       "formId": "standard",
       "sourceStatus": "unverified",
       "artwork": null,
-      "spoiler": true
+      "spoiler": true,
+      "powerReferences": [
+        "https://bungostraydogs.fandom.com/wiki/Crime_and_Punishment"
+      ]
     },
     {
       "id": "nikolai-gogol",
@@ -422,7 +449,11 @@
       "limits": "The time-cutting sword is equipment-specific, not his innate gift.",
       "formId": "standard",
       "sourceStatus": "unverified",
-      "artwork": null
+      "artwork": null,
+      "powerReferences": [
+        "https://bungostraydogs.fandom.com/wiki/Mirror_Lion",
+        "https://bungostraydogs.fandom.com/wiki/Shint%C5%8D_Amenogozen"
+      ]
     },
     {
       "id": "sakunosuke-oda",
@@ -492,7 +523,8 @@
       "limits": "Movie-continuity mechanics must not be merged into other forms.",
       "formId": "standard",
       "sourceStatus": "unverified",
-      "artwork": null
+      "artwork": null,
+      "continuity": "bsd-dead-apple-film"
     }
   ],
   "pendingForms": [
