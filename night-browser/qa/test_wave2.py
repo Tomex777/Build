@@ -61,12 +61,13 @@ class FixtureTests(unittest.TestCase):
         self.assertTrue(PNG.startswith(b"\x89PNG"))
 
     def test_limited_upload_post_without_persisting_bytes(self):
-        content = b"TEST-ONLY-FIXTURE" * 100
+        content = b"NIGHT_QA_UPLOAD_TEST_ONLY" * 100
         req = Request(self.base + "/upload/submit", data=content, method="POST")
         with urlopen(req, timeout=3) as resp:
             self.assertEqual(resp.status, 200)
         self.assertEqual(Handler.state.snapshot()["upload_length"], len(content))
-        self.assertNotIn("TEST-ONLY", json.dumps(Handler.state.snapshot()))
+        self.assertTrue(Handler.state.snapshot()["upload_verified"])
+        self.assertNotIn("NIGHT_QA_UPLOAD_TEST_ONLY", json.dumps(Handler.state.snapshot()))
 
     def test_not_found_retains_http_error(self):
         with self.assertRaises(HTTPError) as err:
