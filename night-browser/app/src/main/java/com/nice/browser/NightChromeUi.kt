@@ -103,7 +103,7 @@ internal fun NightHomePanel(
                 .padding(horizontal = 24.dp)
         ) {
             Row(
-                Modifier.fillMaxWidth().padding(top = 24.dp),
+                Modifier.fillMaxWidth().padding(top = 15.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Box(
@@ -144,14 +144,14 @@ internal fun NightHomePanel(
                     }
                 }
             }
-            Spacer(Modifier.height(39.dp))
+            Spacer(Modifier.height(16.dp))
             Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("NIGHT", color = White, fontSize = 43.sp, letterSpacing = 7.sp,
+                Text("NIGHT", color = White, fontSize = 38.sp, letterSpacing = 7.sp,
                     fontWeight = FontWeight.SemiBold)
                 Text("B R O W S E R", color = Lilac, fontSize = 10.sp,
                     letterSpacing = 3.sp, fontWeight = FontWeight.Medium)
             }
-            Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(20.dp))
             Row(
                 Modifier.fillMaxWidth().height(56.dp)
                     .background(Color(0xFF222632), RoundedCornerShape(18.dp))
@@ -194,7 +194,7 @@ internal fun NightHomePanel(
                 }
             }
 
-            Spacer(Modifier.height(33.dp))
+            Spacer(Modifier.height(20.dp))
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text("Quick access", fontSize = 17.sp, color = White, fontWeight = FontWeight.SemiBold)
                 Spacer(Modifier.weight(1f))
@@ -205,7 +205,7 @@ internal fun NightHomePanel(
                         modifier = Modifier.size(16.dp))
                 }
             }
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(5.dp))
             items.chunked(4).forEach { row ->
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     row.forEach { item ->
@@ -213,11 +213,11 @@ internal fun NightHomePanel(
                             Modifier.weight(1f)
                                 .clip(RoundedCornerShape(16.dp))
                                 .clickable { onOpen(item.url) }
-                                .padding(vertical = 9.dp),
+                                .padding(vertical = 6.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Box(
-                                Modifier.size(54.dp)
+                                Modifier.size(48.dp)
                                     .background(Color(0xFF272B37), RoundedCornerShape(19.dp))
                                     .border(1.dp, Color(0xFF383C50), RoundedCornerShape(19.dp)),
                                 contentAlignment = Alignment.Center
@@ -225,7 +225,7 @@ internal fun NightHomePanel(
                                 Icon(item.symbol, contentDescription = null,
                                     tint = item.tint, modifier = Modifier.size(24.dp))
                             }
-                            Spacer(Modifier.height(9.dp))
+                            Spacer(Modifier.height(6.dp))
                             Text(item.name, color = Color(0xFFDEE0EC), fontSize = 11.sp,
                                 maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
@@ -233,7 +233,7 @@ internal fun NightHomePanel(
                     repeat(4 - row.size) { Spacer(Modifier.weight(1f)) }
                 }
             }
-            Spacer(Modifier.height(33.dp))
+            Spacer(Modifier.height(17.dp))
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text("Journeys", color = White, fontSize = 17.sp,
                     fontWeight = FontWeight.SemiBold)
