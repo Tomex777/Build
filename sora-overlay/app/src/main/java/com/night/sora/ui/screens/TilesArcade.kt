@@ -65,9 +65,27 @@ private fun freshBoard(): List<Int> = spawnTile(spawnTile(List(16){0}))
 @Composable
 fun TilesArcade(modifier: Modifier = Modifier) {
     val prefs = LocalContext.current.getSharedPreferences("sora_arcade_v1",Context.MODE_PRIVATE)
-    var tiles by remember { mutableStateOf(freshBoard()) }
-    var score by remember { mutableIntStateOf(0) }
+    // Preserve a live round across tab changes, activity recreation and
+    // process death. A corrupt/old save starts a clean board instead.
+    val restored = remember {
+        prefs.getString("tiles_board", null)
+            ?.split(",")
+            ?.mapNotNull { it.toIntOrNull() }
+            ?.takeIf { board ->
+                board.size == 16 && board.count { it != 0 } >= 2 &&
+                    board.all { it == 0 || (it > 0 && (it and (it - 1)) == 0) }
+            }
+    }
+    var tiles by remember { mutableStateOf(restored ?: freshBoard()) }
+    var score by remember {
+        mutableIntStateOf(if (restored != null) prefs.getInt("tiles_score", 0).coerceAtLeast(0) else 0)
+    }
     var best by remember { mutableIntStateOf(prefs.getInt("tiles_best",0)) }
+
+    fun saveBoard() {
+        prefs.edit().putString("tiles_board", tiles.joinToString(","))
+            .putInt("tiles_score", score).apply()
+    }
     val won = tiles.any { it >= 2048 }
     val stuck = 0 !in tiles && listOf(1 to 0,-1 to 0,0 to 1,0 to -1)
         .all { (x,y) -> slideBoard(tiles,x,y).values == tiles }
@@ -78,13 +96,14 @@ fun TilesArcade(modifier: Modifier = Modifier) {
         tiles = spawnTile(next.values)
         score += next.points
         if (score > best) { best=score; prefs.edit().putInt("tiles_best",best).apply() }
+        saveBoard()
     }
 
     Column(modifier.padding(horizontal=18.dp),horizontalAlignment=Alignment.CenterHorizontally) {
         Row(Modifier.fillMaxWidth().padding(bottom=13.dp),verticalAlignment=Alignment.CenterVertically) {
             Text("SCORE  " + score,color=SoraAccent,fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f))
             Text("BEST  " + best,fontWeight=FontWeight.Bold)
-            TextButton(onClick={tiles=freshBoard();score=0}) { Text("New") }
+            TextButton(onClick={tiles=freshBoard();score=0;saveBoard()}) { Text("New") }
         }
         var dragging by remember { mutableStateOf(Offset.Zero) }
         Column(
