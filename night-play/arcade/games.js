@@ -81,7 +81,7 @@ function wingBird(s){
  ctx.save();ctx.translate(s.x,s.y);
  ctx.rotate(Math.max(-.3,Math.min(.65,s.vy/16)));
  // A soft illustrated wing motion sits behind the actual sprite.
- const lift=Math.sin(performance.now()*.018)*6;
+ const lift=Math.sin(performance.now()*.018)*6+(s.flapGlow||0)*5;
  ctx.fillStyle=s.skin==="chick"?"#e8b12e":"#ac381f";
  ctx.beginPath();ctx.ellipse(-14,9+lift*.28,14,9,-.35+lift*.04,0,Math.PI*2);ctx.fill();
  if(sprite){ctx.imageSmoothingEnabled=true;ctx.drawImage(sprite,-26,-26,52,52);}
@@ -133,9 +133,14 @@ function fitWingBoard(){
   // Avoid spurious death when switching portrait/landscape mid-flight.
   const oldPlay=Math.max(1,old-42),newPlay=newLogicalHeight-42;
   state.y=Math.max(20,Math.min(newPlay-21,state.y/oldPlay*newPlay));
-  state.gap=wingGap(newLogicalHeight);
-  const min=state.gap/2+34,max=newPlay-state.gap/2-34;
-  for(const p of state.pipes)p.y=Math.max(min,Math.min(max,p.y/oldPlay*newPlay));
+  state.gap=Math.max(119,wingGap(newLogicalHeight)-Math.min(48,points*2.5));
+  // Each opening keeps its own gap, so newly increased difficulty never
+  // closes the pipe already surrounding the bird.
+  for(const p of state.pipes){
+   p.gap=Math.max(115,Math.min(wingGap(newLogicalHeight),p.gap/oldPlay*newPlay));
+   const min=p.gap/2+34,max=newPlay-p.gap/2-34;
+   p.y=Math.max(min,Math.min(max,p.y/oldPlay*newPlay));
+  }
   c.height=newLogicalHeight;rebuildWingBackdrop();
  }
 }
@@ -157,14 +162,14 @@ function setupBird(){
  rebuildWingBackdrop();
  let skin="parrot";
  try{skin=localStorage.getItem("night-play-wing-hop-skin")==="chick"?"chick":"parrot"}catch{}
- state={x:95,y:260,vy:0,gap:wingGap(600),pipes:[],distance:0,started:false,dead:false,skin};
+ state={x:95,y:260,vy:0,gap:wingGap(600),speed:2.4,pipes:[],distance:0,started:false,dead:false,skin,flapGlow:0};
  setControls("");
  message("Tap anywhere inside the game to fly.");
  scheduleWingFit();frameLoop(birdFrame);
 }
 function flap(){
  if(type!=="bird"||finished)return;
- state.started=true;state.vy=-6.8;
+ state.started=true;state.vy=-6.8;state.flapGlow=1;
  message("Keep flying!");
 }
 function switchBird(){
@@ -175,27 +180,32 @@ function switchBird(){
 }
 function birdFrame(dt){
  const s=state,step=dt/16.666,ground=c.height-42;
+ s.flapGlow=Math.max(0,(s.flapGlow||0)-dt/150);
  if(s.started){
-  s.vy+=.33*step;s.y+=s.vy*step;s.distance+=2.4*step;
+  s.speed=Math.min(3.35,2.4+points*.045);
+  s.vy+=.33*step;s.y+=s.vy*step;s.distance+=s.speed*step;
   if(!s.pipes.length||s.pipes[s.pipes.length-1].x<165){
    const prev=s.pipes[s.pipes.length-1];
-   if(!prev||prev.x<150)s.pipes.push({
-    x:prev?prev.x+216:365,y:wingPipeCenter(s),scored:false
-   });
+   if(!prev||prev.x<150){
+    // A sensible gradual challenge: slightly faster scroll and narrower
+    // NEW pipe openings. Existing openings never shrink around the bird.
+    s.gap=Math.max(119,wingGap(c.height)-Math.min(48,points*2.5));
+    s.pipes.push({x:prev?prev.x+216:365,y:wingPipeCenter(s),gap:s.gap,scored:false});
+   }
   }
   for(const p of s.pipes){
-   p.x-=2.4*step;
+   p.x-=s.speed*step;
    if(!p.scored&&p.x+62<s.x){p.scored=true;score(points+1);}
    if(s.x+16>p.x&&s.x-16<p.x+62&&
-      (s.y-15<p.y-s.gap/2||s.y+15>p.y+s.gap/2)){end("You hit a pipe!");}
+      (s.y-15<p.y-p.gap/2||s.y+15>p.y+p.gap/2)){end("You hit a pipe!");}
   }
   s.pipes=s.pipes.filter(p=>p.x>-75);
   if(s.y<17||s.y>ground-19)end("Bird down!");
  }
  drawWingBackground(s);
  for(const p of s.pipes){
-  wingPipe(p.x,p.y-s.gap/2,true);
-  wingPipe(p.x,p.y+s.gap/2,false);
+  wingPipe(p.x,p.y-p.gap/2,true);
+  wingPipe(p.x,p.y+p.gap/2,false);
  }
  ctx.fillStyle="#236e5a";ctx.fillRect(0,ground,360,42);
  ctx.fillStyle="#8cc670";ctx.fillRect(0,ground,360,9);
@@ -206,8 +216,6 @@ function birdFrame(dt){
  }
  wingBird(s);
  if(!s.started){
-  // Keep instructions high and away from the bird's starting position.
-  // One compact in-world cue, not a large panel covering the character.
   const top=Math.max(27,Math.min(ground*.14,88));
   ctx.fillStyle="#173c31b9";ctx.beginPath();
   ctx.roundRect(65,top,230,57,13);ctx.fill();
