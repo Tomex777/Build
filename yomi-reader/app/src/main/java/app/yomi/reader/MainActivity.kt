@@ -96,6 +96,7 @@ import app.yomi.reader.local.LocalLibraryStore
 import app.yomi.reader.local.ReaderBookmarkStore
 import app.yomi.reader.local.SharedPreferencesProgressSink
 import app.yomi.reader.local.TreeBookCatalog
+import app.yomi.reader.local.continueReadingLocation
 import app.yomi.reader.local.ZipArchiveScanner
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -1415,10 +1416,13 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun resumePosition(item: LibraryBook): String {
-        val pageCount = item.pageCount ?: return "Resume where you left off"
-        if (pageCount <= 0) return "Resume where you left off"
-        val page = (item.progress * (pageCount - 1)).toInt().coerceIn(0, pageCount - 1) + 1
-        return "Resume at page $page of $pageCount"
+        // "progress" is a book-wide fraction, not an exact page number when
+        // different chapters have different lengths. Use the actual saved
+        // chapter page instead of presenting a misleading approximation.
+        val pageIndex = getSharedPreferences("yomi_reader_progress", MODE_PRIVATE)
+            .getInt("book.${item.id.value}.page", -1)
+            .takeIf { it >= 0 }
+        return continueReadingLocation(item.locationType, item.pageCount, pageIndex)
     }
 
     @Composable
