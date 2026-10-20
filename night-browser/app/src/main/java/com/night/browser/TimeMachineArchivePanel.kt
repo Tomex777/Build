@@ -311,7 +311,7 @@ fun TimeMachineArchivePanel(
                     pendingDelete = null
                     onNotice(
                         if (archive.delete(item)) "PDF version deleted."
-                        else "Couldn't delete this PDF file."
+                        else "Couldn't fully remove this version. Check the archive."
                     )
                 }) { Text("Delete", color = Color(0xFFFFA9AE)) }
             },
