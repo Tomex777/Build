@@ -99,7 +99,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
-        if (level >= TRIM_MEMORY_RUNNING_LOW) browser.trimPreviews()
+        if (level >= android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW) browser.trimPreviews()
     }
 
     override fun onDestroy() {
