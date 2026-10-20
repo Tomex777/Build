@@ -8,6 +8,7 @@ const entries=[...main.matchAll(/GameEntry\("([^"]+)"/g)].map(m=>m[1]);
 const native=[
  ['2048','Game2048Screen','Game2048Screen.kt','Board2048.kt'],
  ['mines','NativeMinesScreen','NativeMinesScreen.kt','NativeMinesEngine.kt'],
+ ['lights','NativeLightsScreen','NativeLightsScreen.kt','NativeLightsEngine.kt'],
  ['snake','NativeSnakeScreen','NativeSnakeScreen.kt','NativeSnakeEngine.kt'],
  ['reversi','NativeReversiScreen','NativeReversiScreen.kt','NativeReversiEngine.kt'],
  ['ttt','NativeTicTacToeScreen','NativeTicTacToeScreen.kt','NativeTicTacToe.kt'],

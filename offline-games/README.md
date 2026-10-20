@@ -63,3 +63,10 @@ The user elected a **fully native Android** app. WebView was a convenience short
 - **Android target:** minSdk 26, application ID `com.night.offlinegames`, no internet permission; keep native gameplay offline-only and avoid redundant controls.
 
 Native conversion must be per game, including accurate rules, real touch testing, lifecycle pause/resume, progress persistence, responsive layout and high quality original/rights-cleared art. Browser screenshots are reference QA evidence, not Android-native certification. Next migration batch: core input-focused games (Checkers and Minesweeper), followed by strategy/card engines, then heavy Canvas action/racing games and requested photographic Jigsaw/Nigerian Ludo. Prioritize art/control quality over counting tiles.
+
+
+## Lights Out native migration
+Lights Out is now a Kotlin/Compose/Canvas 5x5 board rather than a bundled WebView.
+Its exact GF(2) solver provides hints; generated puzzles are solvable and support
+undo and offline save/restore. Native routes: **8 of 106**; legacy WebView: **98**.
+A native route does not imply verified emulator gameplay quality.
