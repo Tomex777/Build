@@ -37,6 +37,23 @@ class BrowserPlatformHost(private val activity: ComponentActivity) :
     )
     private var pendingMedia: PendingMedia? = null
 
+    /**
+     * Release Gecko callbacks when the Activity is destroyed. A SAF picker or
+     * Android runtime permission dialog can outlive the tab/Activity; leaving
+     * its GeckoResult unresolved would hang file fields on page restore.
+     * Never complete with approval during teardown.
+     */
+    fun cancelPending() {
+        pendingFile?.let { (prompt, result) ->
+            runCatching { result.complete(prompt.dismiss()) }
+        }
+        pendingFile = null
+        pendingAndroid?.let { runCatching { it.reject() } }
+        pendingAndroid = null
+        pendingMedia?.let { runCatching { it.callback.reject() } }
+        pendingMedia = null
+    }
+
     private val documents = activity.registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { reply ->
