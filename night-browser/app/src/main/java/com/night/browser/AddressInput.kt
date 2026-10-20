@@ -19,6 +19,8 @@ object AddressInput {
         val input = raw.trim()
         if (input.isEmpty() || input.length > 8192 || input.any(Char::isISOControl)) return null
         if (blockedScheme.containsMatchIn(input)) return null
+        // A user:pass@host paste must never become a search request either.
+        if (Regex("^[^@\\s/:]+:[^@\\s]*@.+").matches(input)) return null
 
         if (input.contains("://")) {
             val uri = runCatching { URI(input) }.getOrNull() ?: return null
