@@ -20,13 +20,15 @@ function windowQuestions(){return Array.from({length:5},(_,i)=>({prompt:'Round '
 function snapshot(actor){
   const host=actor==='host',me=game.players.find(p=>p.id===actor)?.id||null;
   const votes=game.votes.get(game.round)||new Map();
-  const revealed=game.phase==='reveal'||game.phase==='finished';
+  const revealed=game.phase==='reveal'||game.phase==='finished',q=game.questions[game.round];
+  const scores=game.players.map(p=>({...p,points:[...game.votes].filter(([round,all])=>game.questions[round].correct===all.get(p.id)).length}))
+    .sort((a,b)=>b.points-a.points);
   return {code:game.code,mode:game.mode,host,hostName:game.hostName,
-    me,phase:game.phase,round:game.round,total:5,players:game.players.slice(),
-    question:game.phase==='lobby'?null:game.questions[game.round],
+    me,phase:game.phase,round:game.round,total:game.questions.length,players:game.players.slice(),
+    question:game.phase==='lobby'?null:{...q,correct:revealed?q.correct:null},
     voted:me?votes.has(me):false,votedCount:votes.size,
-    results:revealed?[...Array(2)].map((_,i)=>[...votes.values()].filter(a=>a===i).length):null,
-    scores:revealed?game.players.map(p=>({...p,points:0})):null,expiresAt:Date.now()+8000000}
+    results:revealed?[...Array(q.choices.length)].map((_,i)=>[...votes.values()].filter(a=>a===i).length):null,
+    scores:revealed?scores:null,expiresAt:Date.now()+8000000}
 }
 async function mocked(route,actor) {
   if(outageActors.has(actor))return route.fulfill({status:503,json:{error:'Backend temporarily unavailable.'}});
@@ -34,20 +36,32 @@ async function mocked(route,actor) {
   if(req.method()==='GET'){return route.fulfill({json:{linked:actor==='host',profile:actor==='host'?{id:'host',displayName:'Verified Host'}:null}})}
   const {action,...data}=req.postDataJSON();
   const reply=(code,body)=>route.fulfill({status:code,json:body});
-  if(action==='party:create'){assert.equal(actor,'host');assert.equal(data.mode,'wyr');assert.equal(data.questions.length,5);return reply(200,snapshot(actor))}
+  if(action==='party:create'){
+    assert.equal(actor,'host');assert.equal(data.mode,game.mode);assert.equal(data.questions.length,game.questions.length);
+    game.questions=data.questions.map(q=>({...q,choices:q.options}));
+    return reply(200,snapshot(actor));
+  }
   if(action==='party:join'){
     if(game.phase!=='lobby')return reply(409,{error:'Already started'});
     if(!game.players.some(x=>x.id===actor))game.players.push({id:actor,name:data.guestName});
     return reply(200,snapshot(actor));
   }
   if(!game.players.some(x=>x.id===actor)&&actor!=='host')return reply(403,{error:'Join via invitation first.'});
-  if(action==='party:state')return reply(200,snapshot(actor));
+  if(action==='party:state'){
+    if(data.code!==game.code)return reply(404,{error:'Room not found.'});
+    return reply(200,snapshot(actor));
+  }
   if(action==='party:start'){assert.equal(actor,'host');assert.equal(game.players.length,2);game.phase='vote';return reply(200,snapshot(actor))}
   if(action==='party:vote'){
     const votes=game.votes.get(game.round)||new Map();votes.set(actor,data.answer);game.votes.set(game.round,votes);
     if(votes.size===game.players.length)game.phase='reveal';return reply(200,snapshot(actor))
   }
-  if(action==='party:advance'){assert.equal(game.phase,'reveal');game.round++;game.phase=game.round>=5?'finished':'vote';if(game.phase==='finished')game.round=4;return reply(200,snapshot(actor))}
+  if(action==='party:advance'){
+    assert.equal(game.phase,'reveal');game.round++;
+    game.phase=game.round>=game.questions.length?'finished':'vote';
+    if(game.phase==='finished')game.round=game.questions.length-1;
+    return reply(200,snapshot(actor));
+  }
   return reply(400,{error:'Unexpected action: '+action});
 }
 let browser;
@@ -111,12 +125,51 @@ try {
   }
   assert.equal(game.phase,'finished');
   await host.locator('.party-summary').waitFor();
+  // Create an actual personal quiz without entering the host's name. Two
+  // independent guests must take different answers and receive scored results.
+  const personal=[
+    {prompt:'Where does the host prefer to read?',options:['Library','Beach'],correct:0},
+    {prompt:'Which drink does the host choose?',options:['Tea','Water'],correct:1},
+    {prompt:'Which day does the host prefer?',options:['Saturday','Tuesday'],correct:0}
+  ];
+  await host.evaluate(q=>localStorage.setItem('night-play-personal-quiz-v1',JSON.stringify({questions:q})),personal);
+  game.code='GHJK2345';game.mode='quiz';game.phase='lobby';game.round=0;
+  game.questions=personal.map(q=>({...q,choices:q.options}));
+  game.players=[];game.votes=new Map();
+  const personalInvite=address+'/party/room/?code='+game.code;
+  await host.goto(address+'/party/room/?game=quiz');
+  await host.locator('.party-invite-url').waitFor({timeout:8000});
+  assert.equal(await host.locator('.party-player-pill').count(),0,'quiz host never enters own player name');
+  await one.goto(personalInvite);await two.goto(personalInvite);
+  for(const [page,name] of [[one,'Aster'],[two,'Robin']]){
+    await page.locator('#guestName').fill(name);
+    await page.locator('#joinForm button').click();
+    await page.getByText('You’re in.',{exact:true}).waitFor({timeout:8000});
+  }
+  await host.waitForFunction(()=>document.querySelectorAll('.party-player-pill').length===2,{timeout:8000});
+  await host.locator('[data-action="start"]').click();
+  for(let round=0;round<3;round++){
+    await one.locator('[data-answer="'+personal[round].correct+'"]').waitFor({timeout:8000});
+    await one.locator('[data-answer="'+personal[round].correct+'"]').click();
+    await two.locator('[data-answer="'+(1-personal[round].correct)+'"]').click();
+    await host.locator('[data-action="advance"]').waitFor({timeout:8000});
+    if(round===0){
+      game.hostName='Verified Host (updated)';
+      await one.waitForFunction(()=>document.getElementById('subtitle').textContent.includes('updated'),{timeout:8500});
+    }
+    await host.locator('[data-action="advance"]').click();
+  }
+  await host.locator('.party-leaderboard').waitFor({timeout:8000});
+  assert.equal(game.phase,'finished');
+  assert.match(await host.locator('.party-leaderboard').innerText(),/Aster[\\s\\S]*3 \\/ 3/,'host sees actual quiz results');
+  assert.match(await two.locator('.party-leaderboard').innerText().catch(()=>''),/Aster[\\s\\S]*3 \\/ 3/,'guest sees synchronized results');
+  await host.screenshot({path:path.join(output,'party-online-scored-quiz.jpg'),type:'jpeg',quality:78});
   for(const [w,h] of [[320,568],[360,800],[390,844],[412,915],[768,1024],[1280,860]]){
     await host.setViewportSize({width:w,height:h});
     const x=await host.evaluate(()=>({scroll:document.documentElement.scrollWidth,viewport:innerWidth}));
     assert.ok(x.scroll<=x.viewport+2,'online horizontal overflow '+w+'×'+h+' '+JSON.stringify(x));
   }
   assert.deepEqual(errors,[],'no browser script failures');
-  console.log('PASS: NIGHT mock-server host + two independent browser guests finished five rounds; guest outage, reconnection and reload preserved the room; six viewports inspected');
+  console.log('PASS NIGHT Party: 5 live voting rounds + scored 3-question quiz with 2 independent guests, account name refresh, outage/reload and six viewports');
   for(const context of contexts)await context.close();
 }finally{if(browser)await browser.close();await new Promise(ok=>server.close(ok))}
