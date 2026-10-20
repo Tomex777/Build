@@ -1,0 +1,81 @@
+name: NIGHT Shield Hero Card Candidates
+
+on:
+  push:
+    branches: [feature/cards-shieldhero-20261020]
+    paths:
+      - 'cards/catalog/shieldhero*'
+      - 'cards/bin/seed-shieldhero.mjs'
+      - 'cards/bin/shieldhero-gallery.mjs'
+      - 'cards/tests/shieldhero-sources.test.mjs'
+      - '.github/workflows/cards-shieldhero.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: night-shieldhero-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  collection:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: cards
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: cards/package-lock.json
+      - name: Install locked dependencies
+        run: npm ci
+      - name: Resolve original Shield Hero cutout images and immutable source pins
+        run: node bin/seed-shieldhero.mjs --write-lock
+      - name: Validate source identities, powers and existing collections
+        run: npm test
+      - name: Install dependencies for pinned browser
+        run: npx playwright install-deps chromium
+      - name: Install reference Chrome renderer
+        run: |
+          curl --fail --location --retry 3             https://storage.googleapis.com/chrome-for-testing-public/131.0.6778.204/linux64/chrome-headless-shell-linux64.zip             -o "$RUNNER_TEMP/night-chrome.zip"
+          unzip -q "$RUNNER_TEMP/night-chrome.zip" -d "$RUNNER_TEMP/night-browser"
+          chmod +x "$RUNNER_TEMP/night-browser/chrome-headless-shell-linux64/chrome-headless-shell"
+          echo "NIGHT_BROWSER_PATH=$RUNNER_TEMP/night-browser/chrome-headless-shell-linux64/chrome-headless-shell" >> "$GITHUB_ENV"
+      - name: Render actual 3000x4800 candidate masters with frame-break QA
+        run: npm run build -- --series shieldhero --width 3000 --out dist/shieldhero
+      - name: Export standalone candidate gallery
+        run: |
+          npm run gallery -- --series shieldhero --out dist/shieldhero --file dist/ShieldHero-Collection.html
+          node bin/shieldhero-gallery.mjs dist/ShieldHero-Collection.html
+      - name: Stage pinned source manifest on the collection branch
+        if: success() && github.event_name == 'push'
+        working-directory: .
+        run: |
+          git config user.name 'NIGHT Cards Provenance'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add cards/catalog/shieldhero-source-lock.json cards/catalog/shieldhero.json cards/catalog/power/shieldhero.json
+          if ! git diff --cached --quiet; then
+            git commit -m "cards(shieldhero): pin verified native artwork checksums and form assessments"
+            git push origin "HEAD:$GITHUB_REF_NAME"
+          fi
+      - name: Candidate master images, phone proofs, gallery and source report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NIGHT-ShieldHero-Candidate-Cards
+          path: |
+            cards/dist/shieldhero/
+            cards/dist/ShieldHero-Collection.html
+            cards/catalog/shieldhero.json
+            cards/catalog/power/shieldhero.json
+            cards/catalog/shieldhero-source-lock.json
+          if-no-files-found: warn
+          compression-level: 0
+          retention-days: 14
