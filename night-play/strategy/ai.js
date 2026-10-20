@@ -36,28 +36,22 @@
     ctx.nodes++;
     if(ctx.nodes>=ctx.maxNodes||((ctx.nodes&127)===0&&Date.now()>=ctx.deadline))throw STOP;
   }
-  function ending(game,ply){
-    if(game.in_checkmate())return game.turn()==='b'?-MATE+ply:MATE-ply;
-    if(game.in_draw())return 0;
-    return null;
+  function emptyPosition(game,ply){
+    return game.in_check()?(game.turn()==='b'?-MATE+ply:MATE-ply):0;
   }
-  // Resolve hanging captures at leaf nodes to avoid valuing an undefended queen
-  // as safe just because the next opponent move lies over the fixed depth.
+  // A bounded one-ply capture extension makes static search less vulnerable to
+  // obvious hanging-piece traps without making mid-game turns painfully slow.
   function quiet(game,alpha,beta,ply,remaining,ctx){
     checkBudget(ctx);
-    const terminal=ending(game,ply);if(terminal!==null)return terminal;
+    const moves=game.moves({verbose:true});
+    if(!moves.length)return emptyPosition(game,ply);
+    if(game.insufficient_material())return 0;
     const maximize=game.turn()==='b';
-    const inCheck=game.in_check();
-    let best=inCheck?(maximize?-Infinity:Infinity):value(game);
-    if(!inCheck){
-      if(maximize){if(best>=beta)return best;alpha=Math.max(alpha,best)}
-      else{if(best<=alpha)return best;beta=Math.min(beta,best)}
-    }
-    if(remaining<=0&&!inCheck)return best;
-    if(ply>=10)return value(game);
-    const moves=order(game.moves({verbose:true}).filter(m=>inCheck||!!m.captured||!!m.promotion));
-    if(!moves.length)return inCheck?ending(game,ply)??value(game):best;
-    for(const move of moves){
+    let best=value(game);
+    if(maximize){if(best>=beta)return best;alpha=Math.max(alpha,best)}
+    else{if(best<=alpha)return best;beta=Math.min(beta,best)}
+    if(remaining<=0)return best;
+    for(const move of order(moves.filter(m=>!!m.captured||!!m.promotion))){
       game.move(move);
       let score;
       try{score=quiet(game,alpha,beta,ply+1,remaining-1,ctx)}
@@ -70,11 +64,12 @@
   }
   function search(game,depth,alpha,beta,ply,ctx){
     checkBudget(ctx);
-    const terminal=ending(game,ply);if(terminal!==null)return terminal;
-    if(depth===0)return quiet(game,alpha,beta,ply,2,ctx);
+    if(depth===0)return quiet(game,alpha,beta,ply,1,ctx);
+    const moves=order(game.moves({verbose:true}));
+    if(!moves.length)return emptyPosition(game,ply);
+    if(game.insufficient_material())return 0;
     const maximize=game.turn()==='b';
     let best=maximize?-Infinity:Infinity;
-    const moves=order(game.moves({verbose:true}));
     for(const move of moves){
       game.move(move);
       let score;
