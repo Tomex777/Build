@@ -67,7 +67,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        browser = BrowserController(applicationContext)
+        // Register Gecko's SAF/permission launchers before Activity reaches STARTED.\n        browser = BrowserController(applicationContext, BrowserPlatformHost(this))
         setContent {
             MaterialTheme(colorScheme = darkColorScheme(
                 background = Ink, surface = Raised, primary = Accent,
