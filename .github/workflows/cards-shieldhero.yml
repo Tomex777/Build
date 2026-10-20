@@ -79,3 +79,16 @@ jobs:
           if-no-files-found: warn
           compression-level: 0
           retention-days: 14
+      - name: Lightweight offline gallery and phone-size proofs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NIGHT-ShieldHero-Review-Gallery
+          path: |
+            cards/dist/ShieldHero-Collection.html
+            cards/dist/shieldhero/contact-*.png
+            cards/dist/shieldhero/*--phone.png
+            cards/dist/shieldhero/build.json
+          if-no-files-found: warn
+          compression-level: 6
+          retention-days: 14
