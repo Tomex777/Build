@@ -1,0 +1,33 @@
+name: NIGHT Play Agent 4 Gameplay
+
+on:
+  pull_request:
+    paths:
+      - 'night-play/action/**'
+      - 'night-play/arcade/**'
+      - '.github/workflows/night-play-agent4-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  playtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Chromium browser test helper
+        run: npm install --no-save playwright@1.56.1
+      - name: Launch and actually play three arcade games
+        run: node night-play/action/agent4-gameplay.mjs
+      - name: Upload real gameplay frames
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: night-play-agent4-gameplay
+          path: night-play/visual-output/agent4-*.jpg
+          retention-days: 14
