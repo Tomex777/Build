@@ -98,6 +98,25 @@ export class PuzzleBoard{
   if(this.viewportWidth<680&&count>=96){
    const piles=zones.map((z,zid)=>{
     const target=Math.ceil((count-zid)/zones.length);
+    // Try genuine organic non-overlapping tabletop scatter first. Random
+    // packing is restartable at ~50% area density; no fake rows or stacks.
+    // The bounded jittered lattice below is a deterministic fallback only.
+    for(let pass=0;pass<9;pass++){
+     const packed=[];
+     for(let item=0;item<target;item++){
+      let found=null;
+      for(let trial=0;trial<3400;trial++){
+       const candidate={x:z.x+Math.random()*Math.max(0,z.w-pw),
+        y:z.y+Math.random()*Math.max(0,z.h-ph)};
+       if(packed.every(other=>candidate.x+pw<=other.x||
+        other.x+pw<=candidate.x||candidate.y+ph<=other.y||
+        other.y+ph<=candidate.y)){found=candidate;break;}
+      }
+      if(!found)break;
+      packed.push(found);
+     }
+     if(packed.length===target)return packed;
+    }
     const maxCols=Math.max(1,Math.floor((z.w-4)/(pw*1.04)));
     let cols=Math.min(maxCols,Math.max(1,Math.round(
      Math.sqrt(target*(z.w/Math.max(1,z.h))*(ph/pw)))));
