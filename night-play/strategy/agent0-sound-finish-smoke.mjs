@@ -31,7 +31,7 @@ async function move(page,from,to){
 
 }
 try{
- for(const width of [390,1280]){
+ for(const width of [320,360,390,412,1280]){
   const page=await browser.newPage({viewport:{width,height:850},isMobile:width<600,hasTouch:width<600});
   const errors=[],sounds=[];
   page.on('pageerror',e=>errors.push(String(e)));
