@@ -58,4 +58,77 @@ class HymnTextInstrumentedTest {
         assertNotNull(indexedOnly.titleEn)
         assertFalse(hymns.any { it.collection == "main" && it.number == 800 })
     }
+    @Test
+    fun userSuppliedEightHundredHymnPackCanBeReadEntirelyOffline() {
+        val entries = org.json.JSONArray()
+        repeat(800) { offset ->
+            val number = offset + 1
+            entries.put(
+                org.json.JSONObject()
+                    .put("number", number)
+                    .put("title_yo", "Àpẹẹrẹ Yorùbá $number")
+                    .put(
+                        "verses_yo",
+                        org.json.JSONArray().put(
+                            org.json.JSONArray().put("Àpẹẹrẹ ìlà orin $number")
+                        )
+                    )
+            )
+        }
+        val json = org.json.JSONObject()
+            .put("schema_version", 1)
+            .put("collection", "main")
+            .put("hymns", entries)
+            .toString()
+        val pack = YorubaHymnPack.parse(json)
+        assertEquals(800, pack.size)
+        val index = IndexRepository.load(context)
+        val combined = YorubaHymnPack.combine(HymnRepository.load(context), index, pack)
+        val redemption = combined.filter { it.collection == "main" }
+        assertEquals(800, redemption.size)
+        assertEquals((1..800).toList(), redemption.map { it.number })
+        assertEquals(800, redemption.count { it.hasYoruba })
+        assertEquals("Àpẹẹrẹ ìlà orin 800", redemption.last().versesYo[0][0])
+        assertEquals(299, YorubaHymnPack.overlayIndex(index, pack).count { it.collection == "akokun" })
+    }
+
+    @Test
+    fun importedYorubaPackRejectsInvalidNumbersAndBlankLyrics() {
+        val sample = """
+            {
+              "schema_version": 1, "collection": "main",
+              "hymns": [
+                {"number": 25, "title_yo": "Ògo", "verses_yo": [["Ìyìn"]]}
+              ]
+            }
+        """.trimIndent()
+        assertEquals(1, YorubaHymnPack.parse(sample).size)
+        val duplicate = sample.replace(
+            "\"number\": 25, \"title_yo\"",
+            "\"number\": 25, \"title_yo\""
+        ).replace(
+            "\"verses_yo\": [[\"Ìyìn\"]]}",
+            "\"verses_yo\": [[\"Ìyìn\"]]}, {\"number\": 25, \"title_yo\": \"Ògo\", \"verses_yo\": [[\"Ìyìn\"]]}"
+        )
+        assertThrowsInvalid { YorubaHymnPack.parse(duplicate) }
+        assertThrowsInvalid {
+            YorubaHymnPack.parse(sample.replace("\"number\": 25", "\"number\": 801"))
+        }
+        assertThrowsInvalid {
+            YorubaHymnPack.parse(sample.replace("[[\"Ìyìn\"]]", "[]"))
+        }
+        assertThrowsInvalid {
+            YorubaHymnPack.parse(sample.replace("\"collection\": \"main\"", "\"collection\": \"akokun\""))
+        }
+    }
+
+    private fun assertThrowsInvalid(action: () -> Unit) {
+        try {
+            action()
+            fail("Bad hymn import should have been rejected")
+        } catch (expected: IllegalArgumentException) {
+            // IllegalArgumentException is thrown by input-validation require(...).
+        }
+    }
+
 }
