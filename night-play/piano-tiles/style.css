@@ -1,0 +1,31 @@
+:root{font-family:Inter,system-ui,-apple-system,Arial,sans-serif;color:#18242b;background:#f8f9f6}
+*{box-sizing:border-box}html,body{min-height:100%;margin:0}body{background:#f8f9f6}
+button{font:inherit;cursor:pointer}button:focus-visible,a:focus-visible,canvas:focus-visible{outline:3px solid #256b72;outline-offset:3px}
+[hidden]{display:none!important}
+main{max-width:760px;margin:0 auto;padding:8px 12px 36px;text-align:center}
+.night-game-intro{padding:8px 0 7px}.night-game-intro .night-eyebrow{font-size:10px;font-weight:850;letter-spacing:2px;color:#6a777c}
+.night-game-intro h1{font-size:clamp(27px,5vw,37px);font-weight:900;letter-spacing:-1.3px;margin:2px 0 1px}
+.night-game-intro p{font-size:12px;color:#697578;margin:1px 0 7px}
+.night-play-hud{display:flex;justify-content:center;gap:0;max-width:420px;margin:0 auto 10px;background:white;border:1px solid #e1e6e4;border-radius:10px;overflow:hidden}
+.night-hud-value{display:grid;gap:0;min-width:0;flex:1;padding:8px 9px 7px}
+.night-hud-value+.night-hud-value{border-left:1px solid #e7eae8}
+.night-hud-value small{font-size:9px;letter-spacing:1.3px;font-weight:800;color:#748282}
+.night-hud-value strong{font-size:23px;line-height:1.15;letter-spacing:-.5px}
+.board-area{display:flex;flex-direction:column;align-items:center}
+.board-shell{position:relative;width:min(100%,420px,calc((100dvh - 208px)*20/33));min-width:min(100%,220px);aspect-ratio:20/33;border:1px solid #253344;border-radius:12px;overflow:hidden;box-shadow:0 12px 28px #22384b24;background:#eff3fa}
+#board{display:block;width:100%;height:100%;touch-action:none;cursor:pointer}
+.cover{position:absolute;inset:0;background:linear-gradient(165deg,#132744e8,#14192fe9);display:flex;align-items:center;justify-content:center;color:white}
+.cover-content{padding:18px 28px;display:flex;align-items:center;flex-direction:column;gap:13px;max-width:350px}
+.cover-kicker{font-size:11px;letter-spacing:2.5px;font-weight:800;color:#a5c6dc}
+.cover h2{font-size:clamp(27px,7vw,39px);line-height:1.1;letter-spacing:-1.1px;margin:2px 0 0;color:#fff}
+.cover p{font-size:13px;line-height:1.55;max-width:290px;margin:0;color:#d8e7ee}
+.cover-action{border:0;border-radius:8px;color:#132637;background:#f0d38e;min-height:49px;padding:12px 24px;font-size:14px;font-weight:900;margin-top:12px}
+.cover-action:active{transform:translateY(1px)}
+.game-tools{width:min(100%,420px);display:flex;align-items:center;justify-content:space-between;padding-top:9px;gap:10px}
+.game-tools button{display:flex;align-items:center;gap:8px;background:transparent;border:1px solid #d1dcd9;color:#29453d;border-radius:9px;font-size:12px;font-weight:850;padding:10px 12px;min-height:39px}
+.game-tools .night-ico{height:16px;width:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+#status{font-size:12px;font-weight:750;color:#657a74;margin:0;text-align:right}
+#pause:disabled{opacity:.35;cursor:default}
+@media(max-width:380px){main{padding:4px 5px 24px}.night-game-intro{padding-top:3px}.night-game-intro h1{font-size:25px}.night-game-intro p{font-size:11px}.night-play-hud{margin-bottom:7px}.night-hud-value{padding:6px}.night-hud-value strong{font-size:20px}}
+@media(max-height:670px){.night-game-intro p{display:none}.night-game-intro{padding:2px 0 4px}main{padding-top:3px}.night-play-hud{margin-bottom:5px}}
+@media(prefers-reduced-motion:reduce){.cover-action:active{transform:none}}
