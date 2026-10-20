@@ -8,10 +8,10 @@ Owner: Agent 8, isolated files under search/ and matching tests. Shared MainActi
 
 1. A **real** OpenAI chat-completions provider transport over HTTPS, with JSON-only response validation. It sends a model inference request; the existing simple Google omnibar fallback is NOT mislabelled AI.
 2. Manual opt-in per question and individual page source. Source selection is initially empty; nothing is sent until the user ticks pages, provides a temporary API key and explicitly confirms the single outbound request.
-3. The provider receives only typed question, approved titles, and site hostnames. Original full URLs stay on device for clickable results. No content extraction, bookmarks dump, cookies, tokens or full history transmission. Titles and hosts from authentication, payment, health and other obvious sensitive routes are excluded; this is a conservative heuristic, not perfect DLP.
-4. Private browsing is blocked at the preparation layer *and* in the UI. Caller must pass a real private-tab flag (no default). When the browser gains incognito, its state must be wired through.
+3. The provider receives only typed question, approved titles, site hostnames and per-request sequential source aliases. Original full URLs and their stable local SHA-derived selection identifiers stay on device for clickable results. No content extraction, bookmarks dump, cookies, tokens or full history transmission. Titles and hosts from authentication, payment, health and other obvious sensitive routes are excluded, including URL-encoded sensitive paths; this is a conservative heuristic, not perfect DLP.
+4. Private browsing is blocked at the preparation layer *and* in the UI. Caller must pass a real private-tab flag (no default). Agent 3's `BrowserTab.isPrivate` is the expected integration source. Switching into private browsing locally revokes selection/key/result and stops surfacing an in-flight answer.
 5. API keys are session-only Compose state; not written to SharedPreferences, logs, files or saved instances. Clear revokes locally; the provider may still retain a request already sent per its terms. Currently fixed to api.openai.com. No silent redirects.
-6. Source IDs returned by the model are checked against the approved request. Without an answer referencing approved sources, UI reports a grounded-format failure rather than inventing citations. This is a navigation tool based on titles and domains; it cannot answer questions requiring actual page bodies.
+6. Source IDs returned by the model are checked against the approved request. Without an answer referencing approved sources, UI reports a grounded-format failure rather than inventing citations. The confirmation dialog previews the actual question and selected titles/hosts. Catalog mutations revoke old selections and invalidate running responses. This is a navigation tool based on titles and domains; it cannot answer questions requiring actual page bodies.
 7. Client caps: at most 60 eligible local candidates, 12 approved pages per request, 500 query characters, 160 title characters per record, 64 KiB maximum response. Network read/connect timeouts and provider HTTP error classification.
 8. Custom Compose input fields and scrollable source chooser; temporary-key field is obscured.
 
@@ -22,7 +22,7 @@ At app-shell integration, expose an "AI Search" navigation action (not a second 
     UniversalSearchPanel(
         bookmarks = browser.store.bookmarks,
         journeys = browser.store.journeys,
-        privateTab = currentTabIsReallyPrivate,
+        privateTab = browser.active.isPrivate, // available after Agent 3's tabs PR
         onBack = { /* restore prior browser screen */ },
         onOpenSource = { url -> browser.navigate(url); /* open web screen */ },
     )
@@ -43,7 +43,7 @@ Agent 6 should replace history source inputs with the eventual unified History/L
 ## Test matrix / release gate
 
 - Unit tests: private flag blocks even confirmed requests, lack of confirmation blocks, per-page selection allows only selected IDs, sensitive URL/query/fragment and local hosts suppressed, forged citations removed, source cap enforced.
-- CI: :app:testDebugUnitTest and :app:assembleDebug on Java 17, Android API 37.1, GitHub Actions artifact for Agent 10.
+- CI: :app:testDebugUnitTest and :app:assembleDebug on Java 17, Android API 37.1, GitHub Actions artifact for Agent 10. Prior head `8b75ebd` passed [GitHub workflow 39358253476](https://github.com/Tomex777/Build/actions/runs/39358253476). The subsequent privacy hardening commits, added tests and UI changes require a **fresh green workflow**; do not reuse the older PASS as their evidence.
 - Manual emulator: normal tab => choose two benign bookmarks, invoke once, inspect real provider response and cited links. Repeat with bad API key, offline, HTTP 401 and 429, opt-out, Clear, cancelled confirmation, zero selections and no provider configuration. Verify no request in logcat until explicit consent.
 - Incognito: open private tab and ensure no controls offer an AI request; call policy with privateTab=true and confirm fail-closed.
 - Sensitive URLs: bookmark /login, query token, health result and network private domain and ensure none are offered/shared.
