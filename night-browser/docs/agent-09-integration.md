@@ -54,3 +54,29 @@ Rules are stored in app-private storage; the app manifest disables backup. A tem
 - Native bridge requires an explicit `isPrivate` argument to `attach`, refuses private access, and synchronizes weak session containers across Gecko callbacks/editor requests.
 - Peek rejects unsupported initial URLs before creating a Gecko session, does not leave a perpetual spinner on ultra-fast pages that beat delegate assignment, offers retry on load errors, and prevents promoting stale/in-flight URLs.
 - Remaining work: A4 Peek pre-load delegate hook, A1 editor/menu wiring, A3 private/lifecycle and memory hook, A10 API26/API36 live screenshots + web interactions. The source code cannot be called integrated or released until those pass.
+
+### Wave-2 single-route shell hookup (preferred)
+
+Agent 1 should render **one** `SiteStudioRoute` rather than manually duplicating four handlers:
+
+```kotlin
+SiteStudioRoute(
+    session = current.session,
+    pageUrl = current.url,
+    store = browser.siteStudioStore,
+    bridge = browser.siteStudio,
+    onClose = { siteStudioOpen = false },
+    onNotice = { browser.notice = it }
+)
+```
+
+The route rejects **unattached/private** sessions even if a shell menu is
+accidentally exposed, handles preview/save/reset/undo feedback, and reloads
+when discarding an active preview so temporary JavaScript effects cannot be
+left running in a tab. A4 must expose the `siteStudioStore` and `siteStudio`
+instances on the controller with the explicit `attach(session, isPrivate)`
+lifecycle hook. A1 must hide the menu for private tabs as a UX safeguard
+*in addition to* the bridge guard.
+
+The first-wave manual handler list above is historical; prefer this single
+integration surface to reduce duplicated code and missing rollback.
