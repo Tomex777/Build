@@ -75,6 +75,12 @@ class SiteStudioBridge(
     fun isReady(): Boolean = ready
 
     /**
+     * Private or unregistered sessions cannot access saved regular-profile
+     * rules through either the message bridge OR the editor.
+     */
+    fun isSessionAllowed(session: GeckoSession): Boolean = attached.contains(session)
+
+    /**
      * The caller MUST explicitly disclose whether this GeckoSession is private.
      * Deny-by-default: a private tab can never inherit saved normal-profile
      * rules even if another agent accidentally calls attach during creation.
