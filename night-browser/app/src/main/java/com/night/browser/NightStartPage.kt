@@ -7,6 +7,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -36,6 +37,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
@@ -92,10 +95,13 @@ fun NightStartPage(
     val keyboard = LocalSoftwareKeyboardController.current
     val focus = LocalFocusManager.current
     val clipboard = LocalClipboardManager.current
+    val homeFocus = remember { FocusRequester() }
     // Home should not summon Gboard or a keyboard onboarding overlay at cold launch.
     // Typing still opens the IME normally when the user taps the search field.
     LaunchedEffect(Unit) {
-        focus.clearFocus(force = true)
+        // Keep a non-editable Home container focused until the user explicitly
+        // touches the search field; otherwise some IMEs grab first-input focus.
+        homeFocus.requestFocus()
         keyboard?.hide()
     }
     var search by rememberSaveable { mutableStateOf("") }
@@ -145,7 +151,8 @@ fun NightStartPage(
     }
 
     Box(
-        modifier = Modifier.fillMaxSize().background(HomeBg),
+        modifier = Modifier.fillMaxSize().background(HomeBg)
+            .focusRequester(homeFocus).focusable(),
         contentAlignment = Alignment.TopCenter
     ) {
         Column(
