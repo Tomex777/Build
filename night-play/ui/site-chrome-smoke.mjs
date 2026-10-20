@@ -88,6 +88,8 @@ try {
         siteTabs: getComputedStyle(mobileBar).visibility,
         gameHeaderTop: gameHeader.getBoundingClientRect().top,
         backVisible: visible(back),
+        backHeight: back.getBoundingClientRect().height,
+        redundantExitVisible: visible(document.querySelector('#gameDialog .modal-actions [data-close-game]')),
         settingsVisible: visible(settings)
       }
     })
@@ -95,6 +97,8 @@ try {
     assert.equal(game.siteTabs, 'hidden', 'Site tabs must not sit over immersive gameplay at ' + width)
     assert.ok(game.gameHeaderTop >= 0 && game.gameHeaderTop < 80, 'Game header is at top of screen at ' + width)
     assert.ok(game.backVisible && game.settingsVisible, 'Game navigation controls remain available at ' + width)
+    assert.equal(game.redundantExitVisible, false, 'Keep one back/exit control rather than a duplicate at ' + width)
+    if (width <= 360) assert.ok(game.backHeight <= 42, 'Narrow-phone back label must not wrap at ' + width)
     await page.screenshot({ path: join(output, 'game-2048-' + width + '.png') })
     await page.locator('#gameDialog .game-topline [data-close-game]').click()
     assert.equal(await page.locator('body').evaluate(el => el.classList.contains('in-game')), false)
