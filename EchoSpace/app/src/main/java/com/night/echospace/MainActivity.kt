@@ -126,6 +126,9 @@ private fun ImmersiveModalBars() {
     SideEffect {
         val dialogWindow = (view.parent as? DialogWindowProvider)?.window
         if (dialogWindow != null) {
+            // The sheet lives in its own Window. Extend its Canvas to the
+            // immersive edges rather than reserving black system-bar strips.
+            WindowCompat.setDecorFitsSystemWindows(dialogWindow, false)
             val controller = WindowCompat.getInsetsController(
                 dialogWindow, dialogWindow.decorView
             )
