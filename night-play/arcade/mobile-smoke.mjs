@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import {createServer} from "node:http";
-import {readFileSync} from "node:fs";
+import {readFileSync,mkdirSync,writeFileSync} from "node:fs";
 import path from "node:path";
 import {fileURLToPath} from "node:url";
 import {chromium} from "playwright";
@@ -362,6 +362,8 @@ const ghostBefore=await page.evaluate(()=>window.__nightArcadeTest.snapshot().gh
 await page.waitForTimeout(1000);
 const ghostAfter=await page.evaluate(()=>window.__nightArcadeTest.snapshot().ghosts.map(g=>[g.x,g.y]));
 assert.notDeepEqual(ghostAfter,ghostBefore,"Chasing ghosts really move during play");
+mkdirSync(path.join(root,"visual-output"),{recursive:true});
+writeFileSync(path.join(root,"visual-output","maze-chase-power.png"),await page.screenshot({fullPage:true,type:"png"}));
 console.log('NIGHT_MAZE_CHASE_POWER_PELLET_JPEG_BASE64='+
  (await page.screenshot({type:'jpeg',quality:55,fullPage:true})).toString('base64'));
 await page.locator('[data-control="down"]').click();
