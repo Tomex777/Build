@@ -115,6 +115,10 @@ class DownloadLibrary private constructor(private val context: Context) {
         private set
 
     init {
+        // Re-serialize legacy DownloadManager rows at startup, permanently removing
+        // old URL query strings/userinfo from our SharedPreferences (not just in RAM).
+        // OS DownloadManager retains the original network request for its own lifecycle.
+        persist()
         // A process-killed Gecko stream cannot be resumed; remove orphaned temp fragments.
         Thread({
             localDirectory.listFiles()?.filter { it.isFile && it.name.endsWith(".part") }
