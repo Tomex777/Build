@@ -140,6 +140,7 @@ import studio.artistscene.core.EnvironmentPreset
 import studio.artistscene.core.GroundSurface
 import studio.artistscene.core.SunOrbit
 import studio.artistscene.core.TerrainShape
+import studio.artistscene.core.TerrainStroke
 import studio.artistscene.core.Interpolation
 import studio.artistscene.core.actorKeyTimes
 import studio.artistscene.core.previousActorKeyTime
@@ -398,6 +399,71 @@ internal fun StudioScreen(
         PrototypeScene.starterAssets()
     }
     val terrainFactory = remember(context) { TerrainAssets(context) }
+    // This panel reads the ACTUAL saved GLB revision, never a fake cached terrain silhouette.
+    val selectedTerrain = editor.selectedActor?.takeIf { actor ->
+        actor.asset?.assetId?.startsWith("terrain.generated.") == true
+    }
+    var editableTerrainHeights by remember(initialProject.id) { mutableStateOf<FloatArray?>(null) }
+    var terrainEditBusy by remember(initialProject.id) { mutableStateOf(false) }
+    var terrainEditError by remember(initialProject.id) { mutableStateOf<String?>(null) }
+    LaunchedEffect(activeSheet, selectedTerrain?.id, selectedTerrain?.asset?.relativePath) {
+        editableTerrainHeights = null
+        terrainEditError = null
+        if (activeSheet != "light" || selectedTerrain == null) return@LaunchedEffect
+        try {
+            editableTerrainHeights = withContext(Dispatchers.IO) {
+                terrainFactory.heights(selectedTerrain)
+            }
+        } catch (error: Exception) {
+            if (error is kotlinx.coroutines.CancellationException) throw error
+            terrainEditError = error.message ?: "Unable to read the 3D terrain mesh"
+            Log.w(RUNTIME_LOG_TAG, "terrain-read-failed", error)
+        }
+    }
+
+    fun commitTerrainRevision(
+        original: Actor,
+        reason: String,
+        transform: suspend () -> Actor,
+    ) {
+        if (terrainEditBusy || original.locked) return
+        terrainEditBusy = true
+        terrainEditError = null
+        scope.launch {
+            try {
+                val revised = withContext(Dispatchers.IO) { transform() }
+                // A gesture may finish after an undo, selection change or project switch.
+                // Never apply a stale GLB to some other actor or undo a concurrent edit.
+                val current = editor.selectedActor
+                if (current?.id == original.id && current.asset == original.asset &&
+                    current.metadata == original.metadata && !current.locked
+                ) {
+                    applyEditor(editor.commitSelectedAssetRevision(revised), reason)
+                    if (revised != original) importStatus = "Terrain updated"
+                }
+            } catch (error: Exception) {
+                if (error is kotlinx.coroutines.CancellationException) throw error
+                terrainEditError = error.message ?: "Terrain edit failed"
+                Log.w(RUNTIME_LOG_TAG, "terrain-commit-failed", error)
+            } finally {
+                terrainEditBusy = false
+            }
+        }
+    }
+
+    fun sculptTerrain(strokes: List<TerrainStroke>) {
+        val original = selectedTerrain ?: return
+        commitTerrainRevision(original, "terrain-sculpt") {
+            terrainFactory.sculpt(original, strokes)
+        }
+    }
+
+    fun retextureTerrain(surface: GroundSurface) {
+        val original = selectedTerrain ?: return
+        commitTerrainRevision(original, "terrain-retexture") {
+            terrainFactory.retexture(original, surface)
+        }
+    }
 
     fun insertTerrain(actor: Actor) {
         // One durable undo action: a true 36m mesh replaces the infinite flat
@@ -1068,6 +1134,11 @@ internal fun StudioScreen(
                 }
             },
             onHeightmapImport = { heightmapLauncher.launch(arrayOf("image/*")) },
+            selectedTerrainHeights = editableTerrainHeights,
+            terrainBusy = terrainEditBusy,
+            terrainError = terrainEditError,
+            onTerrainSculpt = ::sculptTerrain,
+            onTerrainRetexture = ::retextureTerrain,
             onClose = { activeSheet = null },
             saveStatus = saveStatus,
             onFrameSelected = {
@@ -1775,6 +1846,11 @@ private fun EditorContextSheet(
     onEditor: (SceneEditorState, String) -> Unit,
     onAddTerrain: (TerrainShape) -> Unit,
     onHeightmapImport: () -> Unit,
+    selectedTerrainHeights: FloatArray?,
+    terrainBusy: Boolean,
+    terrainError: String?,
+    onTerrainSculpt: (List<TerrainStroke>) -> Unit,
+    onTerrainRetexture: (GroundSurface) -> Unit,
     onClose: () -> Unit,
     saveStatus: String,
     onFrameSelected: () -> Unit,
@@ -2886,6 +2962,7 @@ private fun EditorContextSheet(
                         },
                         modifier = Modifier.testTag("environment-grid-toggle"),
                     )
+                    if (editor.selectedActor?.asset?.assetId?.startsWith("terrain.generated.") != true) {
                     Text("Ground material", color = PrimaryText, fontSize = 13.sp,
                         fontWeight = FontWeight.SemiBold)
                     GroundSurface.entries.chunked(3).forEach { row ->
@@ -2927,6 +3004,7 @@ private fun EditorContextSheet(
                                 modifier = Modifier.weight(1f).testTag("ground-rougher")) { Text("More matte") }
                         }
                     }
+                    }
                     Text("Terrain · actual 3D geometry", color = PrimaryText,
                         fontWeight = FontWeight.SemiBold, fontSize = 14.sp,
                         modifier = Modifier.testTag("terrain-controls"))
@@ -2951,6 +3029,47 @@ private fun EditorContextSheet(
                         onClick = onHeightmapImport,
                         modifier = Modifier.fillMaxWidth().testTag("terrain-import-heightmap"),
                     ) { Text("Import my heightmap") }
+                    val terrain = editor.selectedActor?.takeIf {
+                        it.asset?.assetId?.startsWith("terrain.generated.") == true
+                    }
+                    if (terrain != null) {
+                        Text("Selected mesh: ${terrain.name}", color = PrimaryText,
+                            fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+                            modifier = Modifier.testTag("terrain-selected-name"))
+                        terrainError?.let { message ->
+                            Text(message, color = MaterialTheme.colorScheme.error, fontSize = 12.sp,
+                                modifier = Modifier.testTag("terrain-edit-error"))
+                        }
+                        val heights = selectedTerrainHeights
+                        if (heights == null) {
+                            Text(if (terrainError == null) "Reading 3D mesh…" else "Mesh unavailable",
+                                color = MutedText, fontSize = 12.sp)
+                        } else {
+                            TerrainBrushControls(
+                                heights = heights,
+                                busy = terrainBusy || terrain.locked,
+                                onCommit = onTerrainSculpt,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            Text("Terrain material", color = PrimaryText, fontSize = 13.sp)
+                            GroundSurface.entries.filter { it.photoAsset != null }
+                                .chunked(3).forEach { row ->
+                                    Row(modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        row.forEach { surface ->
+                                            FilterChip(
+                                                selected = terrain.metadata["terrainSurface"] == surface.name,
+                                                onClick = { onTerrainRetexture(surface) },
+                                                enabled = !terrainBusy && !terrain.locked,
+                                                label = { Text(surface.title, maxLines = 1, fontSize = 10.sp) },
+                                                modifier = Modifier.weight(1f)
+                                                    .testTag("terrain-material-${surface.name.lowercase()}"),
+                                            )
+                                        }
+                                    }
+                                }
+                        }
+                    }
                     Text(
                         "Real offline CC0 photography · PBR shadow receiver · saved with the scene.",
                         color = MutedText, fontSize = 10.sp,
