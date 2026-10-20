@@ -77,6 +77,9 @@ try{
  }
  assert.equal((await page.evaluate(()=>JSON.parse(localStorage.getItem('night-play-memory-v2')))).done,true);
  assert.match(await page.locator('#message').innerText(),/All 15 pairs found/);
+ // Wait for the actual 3D flips before documenting the final visual state.
+ await page.waitForTimeout(420);
+ assert.equal(await page.locator('.memory-card.matched .memory-flip-body').count(),30);
  await page.screenshot({path:path.join(output,'agent5-memory-finished-390.jpg'),quality:73,type:'jpeg'});
  console.log('AGENT5_MEMORY_PLAYED '+JSON.stringify({size:'6x5',pairs:15,wrongTurns:1,voiceLabels:true,restored:true,victory:true}));
 
@@ -103,6 +106,9 @@ try{
  assert.equal(await tiles.locator('#board2048 .tile[data-v="2048"]').count(),1);
  assert.match(await tiles.locator('#gameHelp').textContent(),/you won/);
  assert.equal(await tiles.locator('#score').textContent(),'2048','1024 + 1024 has an exact 2048 score consequence');
+ // The board intentionally animates for 185ms. Do not capture a half-moving
+ // 1024 ghost and misrepresent the completed 2048 tile in visual evidence.
+ await tiles.locator('#board2048:not(.tile-sliding)').waitFor();
  await tiles.screenshot({path:path.join(output,'agent5-2048-win-390.jpg'),quality:74,type:'jpeg'});
  await tiles.locator('#undo2048').click();
  assert.equal(await tiles.locator('#board2048[data-outcome="playing"]').count(),1,'undo correctly reverts the winning merge');
