@@ -12,6 +12,10 @@ on:
       - 'night-browser/**'
       - '.github/workflows/night-browser-agent09-ci.yml'
 
+concurrency:
+  group: night-browser-agent09-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   compile-and-test:
     runs-on: ubuntu-latest
