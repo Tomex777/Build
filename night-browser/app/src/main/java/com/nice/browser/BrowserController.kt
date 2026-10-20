@@ -1,6 +1,7 @@
-package com.night.browser
+package com.nice.browser
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.os.Handler
 import android.os.Looper
 import androidx.compose.runtime.getValue
@@ -10,6 +11,7 @@ import androidx.compose.runtime.setValue
 import org.mozilla.geckoview.GeckoResult
 import org.mozilla.geckoview.GeckoRuntime
 import org.mozilla.geckoview.GeckoSession
+import org.mozilla.geckoview.GeckoView
 import java.io.File
 import java.util.UUID
 
@@ -25,6 +27,7 @@ class BrowserTab(
     var canGoBack by mutableStateOf(false)
     var canGoForward by mutableStateOf(false)
     var lastNode by mutableStateOf<String?>(null)
+    var thumbnail by mutableStateOf<Bitmap?>(null)
 }
 
 class BrowserController(private val appContext: Context) {
@@ -35,6 +38,7 @@ class BrowserController(private val appContext: Context) {
         private set
     var contextLink by mutableStateOf<String?>(null)
     var notice by mutableStateOf<String?>(null)
+    var attachedView: GeckoView? = null
 
     val active: BrowserTab get() = tabs.first { it.id == activeId }
 
@@ -42,9 +46,14 @@ class BrowserController(private val appContext: Context) {
         newTab()
     }
 
-    fun newTab(url: String? = null, journeyId: String = store.journeys.first().id): BrowserTab {
+    fun newTab(
+        url: String? = null,
+        journeyId: String = store.journeys.first().id,
+        parentNodeId: String? = null,
+    ): BrowserTab {
         val session = GeckoSession()
         val tab = BrowserTab(UUID.randomUUID().toString(), session, journeyId)
+        tab.lastNode = parentNodeId
         session.navigationDelegate = object : GeckoSession.NavigationDelegate {
             override fun onLocationChange(
                 session: GeckoSession,
@@ -112,6 +121,29 @@ class BrowserController(private val appContext: Context) {
         return tab
     }
 
+    /** Capture actual rendered pixels, never a fabricated webpage preview. */
+    fun captureActiveTab(onFinished: () -> Unit) {
+        val tab = tabs.firstOrNull { it.id == activeId }
+        val surface = attachedView
+        if (tab == null || surface?.session !== tab.session || !tab.url.startsWith("http")) {
+            onFinished()
+            return
+        }
+        runCatching {
+            surface.capturePixels().accept({ bitmap ->
+                if (bitmap != null && bitmap.width > 0 && bitmap.height > 0) {
+                    val width = 360
+                    val height = (bitmap.height.toFloat() * width / bitmap.width)
+                        .toInt().coerceIn(1, 800)
+                    tab.thumbnail = Bitmap.createScaledBitmap(bitmap, width, height, true)
+                }
+                onFinished()
+            }, {
+                onFinished()
+            })
+        }.onFailure { onFinished() }
+    }
+
     fun select(tabId: String) {
         if (tabs.none { it.id == tabId }) return
         activeId = tabId
@@ -123,6 +155,7 @@ class BrowserController(private val appContext: Context) {
         if (tabs.size == 1) newTab(journeyId = tab.journeyId)
         else if (tabId == activeId) select(tabs.first { it.id != tabId }.id)
         tabs.remove(tab)
+        tab.thumbnail = null
         tab.session.close()
     }
 

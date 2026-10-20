@@ -1,4 +1,4 @@
-package com.night.browser
+package com.nice.browser
 
 import android.content.Intent
 import android.os.Bundle
@@ -73,7 +73,7 @@ class MainActivity : ComponentActivity() {
                         browser.notice = "The saved copy is missing."
                     } else {
                         val uri = FileProvider.getUriForFile(
-                            this, "com.night.browser.files", file)
+                            this, "com.nice.browser.files", file)
                         val intent = Intent(Intent.ACTION_VIEW)
                             .setDataAndType(uri, "application/pdf")
                             .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
@@ -105,7 +105,7 @@ private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> U
     val snack = remember { SnackbarHostState() }
 
     LaunchedEffect(current.url, current.id) {
-        if (!addressFocused) address = current.url
+        if (!addressFocused) address = current.url.takeUnless { it == "about:blank" }.orEmpty()
     }
     LaunchedEffect(browser.notice) {
         val message = browser.notice
@@ -123,7 +123,7 @@ private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> U
     }
     fun openTab(tab: BrowserTab) {
         browser.select(tab.id)
-        page = if (tab.url.isBlank()) Page.HOME else Page.WEB
+        page = if (tab.url.isBlank() || tab.url == "about:blank") Page.HOME else Page.WEB
     }
     BackHandler(enabled = page != Page.HOME || peekUrl != null) {
         when {
@@ -142,18 +142,22 @@ private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> U
         Column(Modifier.fillMaxSize().padding(padding)) {
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 when (page) {
-                    Page.HOME -> HomePanel(browser,
-                        onJourney = { page = Page.JOURNEYS },
-                        onOpen = { url -> browser.navigate(url); page = Page.WEB })
-                    Page.WEB -> WebSurface(current)
-                    Page.TABS -> TabPanel(browser,
+                    Page.HOME -> NightHomePanel(
+                        browser,
+                        onSubmit = { browser.navigate(it); page = Page.WEB },
+                        onOpen = { browser.navigate(it); page = Page.WEB },
+                        onJourneys = { page = Page.JOURNEYS },
+                        onLibrary = { page = Page.LIBRARY }
+                    )
+                    Page.WEB -> WebSurface(browser, current)
+                    Page.TABS -> NightTabGrid(browser,
                         onOpen = { openTab(it) },
                         onClose = { browser.closeTab(it.id) },
                         onNew = { browser.newTab(); page = Page.HOME })
-                    Page.JOURNEYS -> JourneyPanel(browser,
+                    Page.JOURNEYS -> NightJourneysPanel(browser,
                         onNew = { newJourneyDialog = true },
-                        onOpen = { j, url ->
-                            browser.newTab(url, j.id)
+                        onOpen = { j, node ->
+                            browser.newTab(node.url, j.id, node.id)
                             page = Page.WEB
                         },
                         onSelect = { j ->
@@ -174,6 +178,7 @@ private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> U
                 )
             }
 
+            if (page == Page.WEB) {
             Row(
                 Modifier.fillMaxWidth().background(Ink)
                     .padding(horizontal = 14.dp, vertical = 8.dp),
@@ -203,9 +208,10 @@ private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> U
                         }
                     )
                 }
-                ChromeIcon(Icons.Rounded.ArrowUpward, "Go", enabled = address.isNotBlank()) {
-                    openAddress()
+                if (addressFocused && address.isNotBlank()) {
+                    ChromeIcon(Icons.Rounded.ArrowUpward, "Go") { openAddress() }
                 }
+            }
             }
             HorizontalDivider(color = Border, thickness = 1.dp)
             Row(
@@ -221,50 +227,30 @@ private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> U
                     browser.goForward(); page = Page.WEB
                 }
                 ChromeIcon(Icons.Rounded.Home, "Home") { page = Page.HOME }
-                ChromeIcon(Icons.Rounded.Tab, "Tabs") { page = Page.TABS }
-                Box {
-                    ChromeIcon(Icons.Rounded.MoreHoriz, "More") { menuExpanded = true }
-                    DropdownMenu(
-                        expanded = menuExpanded,
-                        onDismissRequest = { menuExpanded = false },
-                        containerColor = Raised
-                    ) {
-                        fun dismiss(action: () -> Unit) { menuExpanded = false; action() }
-                        DropdownMenuItem(
-                            text = { Text("New tab") },
-                            leadingIcon = { Icon(Icons.Rounded.Add, null) },
-                            onClick = { dismiss { browser.newTab(); page = Page.HOME } })
-                        DropdownMenuItem(
-                            text = { Text("Journeys") },
-                            leadingIcon = { Icon(Icons.Rounded.AccountTree, null) },
-                            onClick = { dismiss { page = Page.JOURNEYS } })
-                        DropdownMenuItem(
-                            text = { Text("Library") },
-                            leadingIcon = { Icon(Icons.Rounded.Bookmarks, null) },
-                            onClick = { dismiss { page = Page.LIBRARY } })
-                        DropdownMenuItem(
-                            text = { Text("Time Machine") },
-                            leadingIcon = { Icon(Icons.Rounded.History, null) },
-                            onClick = { dismiss { page = Page.TIME_MACHINE } })
-                        DropdownMenuItem(
-                            text = { Text("Bookmark page") },
-                            leadingIcon = { Icon(Icons.Rounded.BookmarkAdd, null) },
-                            enabled = current.url.startsWith("http"),
-                            onClick = { dismiss { browser.bookmark() } })
-                        DropdownMenuItem(
-                            text = { Text("Save PDF copy") },
-                            leadingIcon = { Icon(Icons.Rounded.SaveAlt, null) },
-                            enabled = current.url.startsWith("http"),
-                            onClick = { dismiss { browser.savePdfSnapshot() } })
-                        DropdownMenuItem(
-                            text = { Text("Reload") },
-                            leadingIcon = { Icon(Icons.Rounded.Refresh, null) },
-                            enabled = current.url.isNotBlank(),
-                            onClick = { dismiss { browser.reload(); page = Page.WEB } })
+                NightTabCountIcon(browser.tabs.size) {
+                    if (page == Page.WEB) {
+                        browser.captureActiveTab { page = Page.TABS }
+                    } else {
+                        page = Page.TABS
                     }
                 }
+                ChromeIcon(Icons.Rounded.MoreHoriz, "More") { menuExpanded = true }
             }
         }
+    }
+
+    if (menuExpanded) {
+        NightMenuSheet(
+            canSave = current.url.startsWith("http"),
+            onDismiss = { menuExpanded = false },
+            onNew = { browser.newTab(); page = Page.HOME },
+            onJourneys = { page = Page.JOURNEYS },
+            onLibrary = { page = Page.LIBRARY },
+            onTimeMachine = { page = Page.TIME_MACHINE },
+            onBookmark = { browser.bookmark() },
+            onSave = { browser.savePdfSnapshot() },
+            onReload = { browser.reload(); page = Page.WEB }
+        )
     }
 
     browser.contextLink?.let { link ->
@@ -336,11 +322,15 @@ private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> U
 }
 
 @Composable
-private fun WebSurface(tab: BrowserTab) {
+private fun WebSurface(browser: BrowserController, tab: BrowserTab) {
     val context = LocalContext.current
-    val view = remember { GeckoView(context) }
+    val view = remember(tab.id) { GeckoView(context) }
     DisposableEffect(view) {
-        onDispose { view.releaseSession() }
+        browser.attachedView = view
+        onDispose {
+            if (browser.attachedView === view) browser.attachedView = null
+            view.releaseSession()
+        }
     }
     AndroidView(
         factory = { view },
@@ -392,144 +382,6 @@ private fun PeekDialog(
                 factory = { view.apply { setSession(peek) } },
                 modifier = Modifier.fillMaxSize().background(Color.White)
             )
-        }
-    }
-}
-
-@Composable
-private fun HomePanel(browser: BrowserController, onJourney: () -> Unit, onOpen: (String) -> Unit) {
-    Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState())
-            .padding(horizontal = 22.dp)
-    ) {
-        Spacer(Modifier.height(46.dp))
-        Text("NIGHT", fontSize = 37.sp, letterSpacing = 6.sp,
-            fontWeight = FontWeight.SemiBold, color = Bright)
-        Text("BROWSER", fontSize = 11.sp, letterSpacing = 4.sp, color = Accent)
-        Spacer(Modifier.height(50.dp))
-        PanelCaption("JOURNEYS")
-        browser.store.journeys.take(3).forEach { journey ->
-            RowCard(
-                title = journey.name,
-                subtitle = if (journey.nodes.isEmpty()) "No pages yet"
-                    else "${journey.nodes.size} visits · Last: ${journey.nodes.last().title}",
-                icon = { Icon(Icons.Rounded.AccountTree, null, tint = Accent) },
-                onClick = onJourney
-            )
-        }
-        Spacer(Modifier.height(28.dp))
-        PanelCaption("LIBRARY")
-        if (browser.store.bookmarks.isEmpty()) {
-            Text("Pages you bookmark appear here.", color = Muted, fontSize = 13.sp)
-        } else {
-            browser.store.bookmarks.take(4).forEach { mark ->
-                RowCard(mark.title, mark.url,
-                    { Icon(Icons.Rounded.BookmarkBorder, null, tint = Accent) },
-                    { onOpen(mark.url) })
-            }
-        }
-    }
-}
-
-@Composable
-private fun TabPanel(
-    browser: BrowserController,
-    onOpen: (BrowserTab) -> Unit,
-    onClose: (BrowserTab) -> Unit,
-    onNew: () -> Unit
-) {
-    Column(Modifier.fillMaxSize()) {
-        PanelHeader("Tabs", action = {
-            ChromeIcon(Icons.Rounded.Add, "New tab", onClick = onNew)
-        })
-        LazyColumn(contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            items(browser.tabs.toList(), key = { it.id }) { tab ->
-                Surface(
-                    color = if (tab.id == browser.activeId) Color(0xFF20293A) else Raised,
-                    shape = RoundedCornerShape(15.dp),
-                    border = BorderStroke(1.dp, Border)
-                ) {
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Column(
-                            Modifier.weight(1f).clickable { onOpen(tab) }.padding(17.dp)
-                        ) {
-                            Text(tab.title, color = Bright, maxLines = 1,
-                                overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.Medium)
-                            Spacer(Modifier.height(4.dp))
-                            Text(tab.url.ifBlank { "New tab" }, color = Muted,
-                                fontSize = 12.sp, maxLines = 1,
-                                overflow = TextOverflow.Ellipsis)
-                        }
-                        ChromeIcon(Icons.Rounded.Close, "Close tab") { onClose(tab) }
-                        Spacer(Modifier.width(6.dp))
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun JourneyPanel(
-    browser: BrowserController,
-    onNew: () -> Unit,
-    onOpen: (Journey, String) -> Unit,
-    onSelect: (Journey) -> Unit
-) {
-    Column(Modifier.fillMaxSize()) {
-        PanelHeader("Journeys", action = {
-            ChromeIcon(Icons.Rounded.Add, "New Journey", onClick = onNew)
-        })
-        LazyColumn(
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(18.dp)
-        ) {
-            items(browser.store.journeys, key = { it.id }) { journey ->
-                Column {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(journey.name, color = Bright, fontSize = 19.sp,
-                            fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                        TextButton(onClick = { onSelect(journey) }) { Text("Use") }
-                    }
-                    if (journey.nodes.isEmpty()) {
-                        Text("Open a page in this Journey to grow its tree.",
-                            color = Muted, fontSize = 13.sp,
-                            modifier = Modifier.padding(vertical = 14.dp))
-                    } else {
-                        val map = journey.nodes.associateBy { it.id }
-                        journey.nodes.takeLast(50).forEach { node ->
-                            var depth = 0
-                            var parent = node.parent
-                            val seen = mutableSetOf<String>()
-                            while (parent != null && depth < 5 && seen.add(parent)) {
-                                depth++
-                                parent = map[parent]?.parent
-                            }
-                            Row(
-                                Modifier.fillMaxWidth().clickable { onOpen(journey, node.url) }
-                                    .padding(start = (depth * 12).dp, top = 7.dp, bottom = 7.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(if (depth == 0) "●" else "↳",
-                                    color = if (depth == 0) Accent else Muted,
-                                    modifier = Modifier.width(24.dp))
-                                Column {
-                                    Text(node.title.ifBlank { node.url }, color = Bright,
-                                        fontSize = 14.sp, maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis)
-                                    Text(node.url, color = Muted, fontSize = 11.sp,
-                                        maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                }
-                            }
-                        }
-                    }
-                    HorizontalDivider(color = Border, modifier = Modifier.padding(top = 14.dp))
-                }
-            }
         }
     }
 }
@@ -587,13 +439,6 @@ private fun PanelHeader(title: String, action: @Composable (() -> Unit)? = null)
             modifier = Modifier.weight(1f))
         action?.invoke()
     }
-}
-
-@Composable
-private fun PanelCaption(text: String) {
-    Text(text, fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
-        letterSpacing = 2.sp, color = Muted,
-        modifier = Modifier.padding(bottom = 12.dp))
 }
 
 @Composable

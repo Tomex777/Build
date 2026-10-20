@@ -1,6 +1,6 @@
 # NIGHT Browser — Android prototype 0.1
 
-Native Android browser experiment built on GeckoView. Package: `com.night.browser`. Minimum: Android 8 (API 26).
+Native Android browser experiment built on GeckoView. Package: `com.nice.browser`. Minimum: Android 8 (API 26).
 
 ## Functioning scope
 
@@ -18,7 +18,7 @@ AI Universal Search (needs explicit opt-in model/backend and clear privacy polic
 
 ## Build
 
-`gradle -p night-browser :app:testDebugUnitTest :app:assembleDebug` using Java 17, Android SDK 36, and Gradle 9.7.1.
+`gradle -p night-browser :app:testDebugUnitTest :app:assembleDebug` using Java 17, Android SDK 37.1, and Gradle 9.7.1.
 
 GitHub Actions uploads the **debug APK** as an artifact for this development branch. Debug APK is not a production-signed release. Test on a real Android phone before making production claims.
 

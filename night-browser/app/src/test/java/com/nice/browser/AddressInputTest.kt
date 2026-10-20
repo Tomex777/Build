@@ -1,4 +1,4 @@
-package com.night.browser
+package com.nice.browser
 
 import org.junit.Assert.*
 import org.junit.Test

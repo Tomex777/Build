@@ -1,10 +1,14 @@
-name: NIGHT Browser — Emulator Screenshots
+name: NIGHT Browser — Omni UI visual verification
 
 on:
   workflow_dispatch:
   push:
-    branches: [feature/night-browser-prototype-20261019]
-    paths: ['.github/workflows/night-browser-visuals.yml', 'night-browser/ci/**']
+    branches: [feature/night-browser-omni-inspired-ui-20261020]
+    paths: ['.github/workflows/night-browser-visuals.yml', 'night-browser/ci/**', 'night-browser/app/**']
+
+concurrency:
+  group: night-omni-visual-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: write
@@ -29,6 +33,12 @@ jobs:
           gradle-version: '9.7.1'
       - name: Build x86_64 emulator APK
         run: gradle --no-daemon -p night-browser :app:assembleDebug
+      - name: Upload installable ARM64 prototype
+        uses: actions/upload-artifact@v4
+        with:
+          name: night-browser-omni-ui-arm64-debug
+          path: night-browser/app/build/outputs/apk/debug/app-arm64-v8a-debug.apk
+          if-no-files-found: error
       - name: Enable emulator KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -49,9 +59,9 @@ jobs:
         with:
           name: night-browser-real-emulator-screenshots
           path: |
-            night-browser/screenshots/*.png
-            night-browser/screenshots/*.txt
-            night-browser/screenshots/*.xml
+            night-browser/screenshots/omni-ui/*.png
+            night-browser/screenshots/omni-ui/*.txt
+            night-browser/screenshots/omni-ui/*.xml
           if-no-files-found: warn
       - name: Publish real screenshots for viewing
         if: success()
@@ -62,4 +72,5 @@ jobs:
           git add night-browser/screenshots
           if git diff --cached --quiet; then exit 0; fi
           git commit -m "test(browser): real Android emulator UI screenshots"
-          git push origin HEAD:feature/night-browser-prototype-20261019
+          git pull --rebase origin feature/night-browser-omni-inspired-ui-20261020
+          git push origin HEAD:feature/night-browser-omni-inspired-ui-20261020
