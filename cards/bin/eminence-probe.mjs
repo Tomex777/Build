@@ -1,5 +1,5 @@
-import sharp from 'sharp';
 #!/usr/bin/env node
+import sharp from 'sharp';
 const base='https://www.shadow-garden-mog.jp/wp-content/themes/officialsite/partials/page/dmg/assets/images/';
 const art=['img_shadow-adult.png','img_sid-adult.png','img_alpha-adult.png','img_beta-adult.png','img_gamma-adult.png','img_delta-adult.png','img_epsilon-adult.png','img_zeta-adult.png','img_eta-adult.png','img_aurora.png','img_beatrix.png'];
 const more=[
