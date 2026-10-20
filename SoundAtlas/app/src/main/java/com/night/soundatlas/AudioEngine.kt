@@ -124,7 +124,9 @@ class AudioEngine(private val assets: AssetManager, private val onFatalError:(St
             SoundKind.CRICKETS to "night", SoundKind.BELL to "chimes",
             SoundKind.TRAFFIC to "traffic", SoundKind.CROWD to "cafe",
             SoundKind.OCEAN to "ocean", SoundKind.FIRE to "fire",
-            SoundKind.OWL to "owl", SoundKind.TRAIN to "train"
+            SoundKind.OWL to "owl", SoundKind.TRAIN to "train",
+            SoundKind.WATERFALL to "waterfall", SoundKind.FROGS to "frogs",
+            SoundKind.DRIZZLE to "drizzle", SoundKind.SLEET to "sleet"
         )
         val result=mutableMapOf<SoundKind,ShortArray>()
         files.forEach { (type,filename) ->
@@ -482,6 +484,17 @@ class AudioEngine(private val assets: AssetManager, private val onFatalError:(St
                     (low*.86+mid*.24+osc(70.0+6.0*sin(t*.43))*.10)*
                         (.19+.85*approach)*active
                 }
+                // Synth fallback also works in a test-only APK without WAV/PCM assets.
+                SoundKind.WATERFALL -> (low*.97+mid*.44+white*.12)*
+                    (.87+.13*sin(t*.12))
+                SoundKind.FROGS -> {
+                    val chorus=if(sin(t*2.2+eventFreq)>.35)1.0 else .3
+                    osc(270.0+eventFreq*.26)*active*chorus*.19
+                }
+                SoundKind.DRIZZLE -> (white*.16+mid*.33+low*.24)*
+                    (.91+.09*sin(t*.37))
+                SoundKind.SLEET -> (white*.22+mid*.29+low*.35)*
+                    (.82+.18*sin(t*.51))
             }
             // Variable-length recordings + irregular synthesized events sound richer
             // while the procedural layer covers every sound without a bundled asset.
