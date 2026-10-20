@@ -68,10 +68,12 @@ class MainActivity : ComponentActivity() {
     private lateinit var browser: BrowserController
     private lateinit var downloadPrompt: WebDownloadConsent
     private lateinit var memoryPolicy: AdaptiveBrowserMemory
+    private lateinit var platformHost: BrowserPlatformHost
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        browser = BrowserController(applicationContext, BrowserPlatformHost(this))
+        platformHost = BrowserPlatformHost(this)
+        browser = BrowserController(applicationContext, platformHost)
         memoryPolicy = AdaptiveBrowserMemory(
             tabs = { browser.tabs.toList() },
             activeId = { browser.activeId }
@@ -121,6 +123,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        platformHost.cancelPending()
         downloadPrompt.dismiss()
         browser.close()
         super.onDestroy()

@@ -9,6 +9,9 @@ internal object ExternalNavigation {
 
     /**
      * Never dispatch redirects or script-driven navigations to external apps.
+     * Gecko directNavigation is not evidence of a user gesture: a script can
+     * navigate top-level windows without activation, so require gesture.
+     *
      * Android intent://, file:// and unsafe schemes are rejected instead of
      * parsing attacker-controlled Intent extras/components.
      */
@@ -24,7 +27,7 @@ internal object ExternalNavigation {
         return when (scheme) {
             "http", "https", "about", "blob", "data" -> Decision.ENGINE
             "mailto", "tel", "sms", "smsto", "geo", "market" ->
-                if ((hasUserGesture || directNavigation) && !isRedirect)
+                if (hasUserGesture && !isRedirect)
                     Decision.CONFIRM_EXTERNAL else Decision.BLOCK
             else -> Decision.BLOCK
         }

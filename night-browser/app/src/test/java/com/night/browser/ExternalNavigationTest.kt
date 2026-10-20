@@ -16,7 +16,16 @@ class ExternalNavigationTest {
         assertEquals(ExternalNavigation.Decision.CONFIRM_EXTERNAL,
             ExternalNavigation.decide("mailto:team@example.org", true, false, false))
         assertEquals(ExternalNavigation.Decision.CONFIRM_EXTERNAL,
-            ExternalNavigation.decide("tel:+1234567", false, true, false))
+            ExternalNavigation.decide("tel:+1234567", true, true, false))
+    }
+
+    @Test fun topLevelExternalNavigationWithoutGestureIsBlocked() {
+        // Gecko's isDirectNavigation flag is not equivalent to user activation.
+        // A page may change window.location or redirect at the top level.
+        for (scheme in listOf("tel:+123", "mailto:test@example.org", "market://details?id=app")) {
+            assertEquals(ExternalNavigation.Decision.BLOCK,
+                ExternalNavigation.decide(scheme, false, true, false))
+        }
     }
 
     @Test fun scriptRedirectsAndUnknownSchemesAreBlocked() {

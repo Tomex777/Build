@@ -37,6 +37,18 @@ class BrowserPlatformHost(private val activity: ComponentActivity) :
     )
     private var pendingMedia: PendingMedia? = null
 
+    /** Deny unresolved Gecko callbacks before the Android Activity is destroyed. */
+    fun cancelPending() {
+        pendingFile?.let { (prompt, result) ->
+            runCatching { result.complete(prompt.dismiss()) }
+        }
+        pendingFile = null
+        pendingAndroid?.let { runCatching { it.reject() } }
+        pendingAndroid = null
+        pendingMedia?.let { runCatching { it.callback.reject() } }
+        pendingMedia = null
+    }
+
     private val documents = activity.registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) { reply ->
