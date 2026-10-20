@@ -91,6 +91,15 @@ class Device:
         return None
 
     def click(self, label, partial=False, timeout=12, long=False):
+        # Gboard can occlude the bottom browser chrome while UIAutomator still
+        # exposes those hidden controls. Dismiss the visible IME before touching
+        # Home/Tabs/More, otherwise an ADB tap lands on a keyboard key instead.
+        # Only use mInputShown (not stale mShowRequested), and only for chrome.
+        if label in ("Home", "Tabs", "More", "Back", "Forward"):
+            ime = shell("dumpsys", "input_method", check=False)
+            if re.search(r"\bmInputShown=true\b", ime):
+                shell("input", "keyevent", "4")
+                time.sleep(.8)
         deadline = time.monotonic() + timeout
         node = None
         while time.monotonic() < deadline:
