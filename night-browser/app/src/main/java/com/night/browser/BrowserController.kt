@@ -56,7 +56,9 @@ class BrowserController(private val appContext: Context) {
         val session = GeckoSession()
         val tracker = JourneyVisitTracker(
             lookup = { nodeId ->
-                if (recordJourney) store.getNode(journeyId, nodeId) else null
+                if (recordJourney && store.journeyRecordingEnabled) {
+                    store.getNode(journeyId, nodeId)
+                } else null
             },
             saveVisit = { visitedUrl, title, parentId ->
                 if (recordJourney) store.record(journeyId, visitedUrl, title, parentId)
@@ -80,7 +82,7 @@ class BrowserController(private val appContext: Context) {
                     // During normal loads this is only a candidate. Saving at
                     // onPageStop avoids creating nodes for HTTP redirect hops.
                     if (!tab.isLoading) {
-                        tracker.visited(url, tab.title)?.let { tab.lastNode = it }
+                        tab.lastNode = tracker.visited(url, tab.title)
                     }
                 }
             }
@@ -103,7 +105,8 @@ class BrowserController(private val appContext: Context) {
             override fun onTitleChange(session: GeckoSession, title: String?) {
                 if (!title.isNullOrBlank()) {
                     tab.title = title
-                    if (store.getNode(tab.journeyId, tab.lastNode)?.url ==
+                    if (store.journeyRecordingEnabled &&
+                        store.getNode(tab.journeyId, tab.lastNode)?.url ==
                         JourneyGraph.safeUrl(tab.url)
                     ) {
                         store.updatePageTitle(tab.journeyId, tab.lastNode, title)
@@ -131,7 +134,7 @@ class BrowserController(private val appContext: Context) {
             override fun onPageStop(session: GeckoSession, success: Boolean) {
                 tab.isLoading = false
                 if (success) {
-                    tracker.visited(tab.url, tab.title)?.let { tab.lastNode = it }
+                    tab.lastNode = tracker.visited(tab.url, tab.title)
                 } else {
                     notice = "This page could not finish loading."
                 }
