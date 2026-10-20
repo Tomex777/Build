@@ -77,6 +77,18 @@ object JourneyGraph {
         }
     }
 
+    /**
+     * Remove one history visit without taking its descendants with it.
+     * Attach its immediate children to the removed node's parent (or roots).
+     * Unlike deleting a whole branch, this is safe for Library's single-item delete.
+     */
+    fun removeVisit(nodes: List<JourneyNode>, nodeId: String): List<JourneyNode> {
+        val removed = nodes.firstOrNull { it.id == nodeId } ?: return nodes
+        return nodes.filterNot { it.id == nodeId }.map { node ->
+            if (node.parent == nodeId) node.copy(parent = removed.parent) else node
+        }
+    }
+
     /** A deletion always removes the selected subtree; survivors never become orphans. */
     fun subtreeIds(nodes: List<JourneyNode>, rootId: String): Set<String> {
         val children = nodes.groupBy { it.parent }
