@@ -82,8 +82,13 @@ sleep 12
 ui has "Quick access"
 ui has "Search or enter address"
 ui editors "1"
-ui has "Add"
+# Shortcuts intentionally hide their Add and Remove controls until Edit is tapped.
+# Validate the actual Home first, then enable editing through the user-facing control.
+ui not "Add"
 capture "01-home-320dp"
+touch "Edit"
+ui has "Done"
+ui has "Add"
 
 # Exercise the actual user-editable shortcuts: tap Add, fill both custom
 # Compose fields, save, then verify they persist after process restart.
