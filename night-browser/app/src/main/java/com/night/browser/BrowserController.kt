@@ -36,6 +36,29 @@ class BrowserController(private val appContext: Context) {
     val store = JourneyStore(appContext)
     private val runtime: GeckoRuntime = GeckoRuntime.create(appContext)
     val tabs = mutableStateListOf<BrowserTab>()
+    private val journeyHandler = Handler(Looper.getMainLooper())
+    private val pendingJourneyUpdates = mutableMapOf<String, Runnable>()
+
+    private fun cancelJourneyUpdate(tabId: String) {
+        pendingJourneyUpdates.remove(tabId)?.let(journeyHandler::removeCallbacks)
+    }
+
+    private fun queueJourneyUpdate(tab: BrowserTab, url: String) {
+        cancelJourneyUpdate(tab.id)
+        val callback = object : Runnable {
+            override fun run() {
+                pendingJourneyUpdates.remove(tab.id)
+                if (tabs.any { it.id == tab.id } && tab.session.isOpen &&
+                    !tab.isLoading && tab.url == url
+                ) {
+                    tab.lastNode = tab.journeyTracker.visited(url, tab.title)
+                }
+            }
+        }
+        pendingJourneyUpdates[tab.id] = callback
+        journeyHandler.postDelayed(callback, 400L)
+    }
+
     var activeId by mutableStateOf("")
         private set
     var contextLink by mutableStateOf<String?>(null)
@@ -79,11 +102,11 @@ class BrowserController(private val appContext: Context) {
                 if (url.isNullOrBlank()) return
                 if (tab.url != url) {
                     tab.url = url
-                    // During normal loads this is only a candidate. Saving at
-                    // onPageStop avoids creating nodes for HTTP redirect hops.
-                    if (!tab.isLoading) {
-                        tab.lastNode = tracker.visited(url, tab.title)
-                    }
+                    // Give Gecko time to report a real page load before storing.
+                    // A same-document history.pushState() has no onPageStop, so
+                    // it is committed after a short debounce. Redirect hops
+                    // cancel/restart the pending update and never become nodes.
+                    if (!tab.isLoading) queueJourneyUpdate(tab, url)
                 }
             }
 
@@ -129,9 +152,11 @@ class BrowserController(private val appContext: Context) {
         }
         session.progressDelegate = object : GeckoSession.ProgressDelegate {
             override fun onPageStart(session: GeckoSession, url: String) {
+                cancelJourneyUpdate(tab.id)
                 tab.isLoading = true
             }
             override fun onPageStop(session: GeckoSession, success: Boolean) {
+                cancelJourneyUpdate(tab.id)
                 tab.isLoading = false
                 if (success) {
                     tab.lastNode = tracker.visited(tab.url, tab.title)
@@ -162,6 +187,7 @@ class BrowserController(private val appContext: Context) {
 
     fun closeTab(tabId: String) {
         val tab = tabs.firstOrNull { it.id == tabId } ?: return
+        cancelJourneyUpdate(tab.id)
         if (tabs.size == 1) newTab(journeyId = tab.journeyId)
         else if (tabId == activeId) select(tabs.first { it.id != tabId }.id)
         tabs.remove(tab)
