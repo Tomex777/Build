@@ -68,6 +68,19 @@ class BrowserController(
         return tab
     }
 
+    /**
+     * Gecko MUST receive an unopened session for onNewSession. Gecko opens it
+     * using the parent runtime and loads the requested popup URI itself.
+     * Sharing newTab() here caused Gecko to reject window.open/target=_blank.
+     */
+    private fun newPopupTab(parent: BrowserTab): BrowserTab {
+        val popup = BrowserTab(UUID.randomUUID().toString(), GeckoSession(), parent.journeyId)
+        installDelegates(popup, popup.session)
+        tabs.add(popup)
+        select(popup.id)
+        return popup
+    }
+
     private fun installDelegates(tab: BrowserTab, session: GeckoSession) {
         session.permissionDelegate = platform
         session.promptDelegate = platform
@@ -118,7 +131,7 @@ class BrowserController(
             }
 
             override fun onNewSession(session: GeckoSession, uri: String): GeckoResult<GeckoSession> {
-                val popup = newTab(journeyId = tab.journeyId)
+                val popup = newPopupTab(tab)
                 return GeckoResult.fromValue(popup.session)
             }
         }
