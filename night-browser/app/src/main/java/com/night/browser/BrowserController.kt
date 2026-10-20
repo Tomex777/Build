@@ -56,7 +56,8 @@ class BrowserController(private val appContext: Context) {
         if (saved == null || saved.tabs.isEmpty()) {
             newTab()
         } else {
-            saved.tabs.take(40).forEach { entry ->
+            // Restore every accepted manifest entry; never silently discard older tabs.
+            saved.tabs.forEach { entry ->
                 val validJourney = store.journeys.find { it.id == entry.journeyId }?.id
                     ?: store.journeys.first().id
                 createTab(journeyId = validJourney, restored = entry)
