@@ -749,9 +749,7 @@ internal fun AnnieGeckoStandaloneBrowser(
             model.tabs.forEach { item ->
                 TextButton(onClick = { model.select(item); panel = null },
                     modifier = Modifier.testTag("annie_browser_tab_" + item.id)) {
-                    Text((if (item.privateMode) "◈ " else "") +
-                            (if (item.id == tab.id) "● " else "") +
-                            item.title.take(15),
+                    Text((if (item.privateMode) "Private · " else "") + item.title.take(15),
                         maxLines = 1, overflow = TextOverflow.Ellipsis,
                         color = if (item.id == tab.id) BrowserTeal else BrowserSoftText)
                 }
@@ -830,8 +828,10 @@ internal fun AnnieGeckoStandaloneBrowser(
             IconButton(onClick = { model.reload(tab) }) {
                 Icon(AnnieIcons.Refresh, contentDescription = "Reload page", tint = BrowserBrightText)
             }
-            TextButton(onClick = { model.toggleBookmark(tab) }, enabled = !tab.privateMode) {
-                Text(if (model.isBookmarked(tab)) "★" else "☆", color = BrowserTeal)
+            IconButton(onClick = { model.toggleBookmark(tab) }, enabled = !tab.privateMode) {
+                Icon(AnnieIcons.Bookmark,
+                    contentDescription = if (model.isBookmarked(tab)) "Remove bookmark" else "Bookmark page",
+                    tint = if (model.isBookmarked(tab)) BrowserTeal else BrowserSoftText)
             }
             IconButton(onClick = { menuOpen = true }) {
                 Icon(AnnieIcons.More, contentDescription = "Browser menu", tint = BrowserBrightText)
