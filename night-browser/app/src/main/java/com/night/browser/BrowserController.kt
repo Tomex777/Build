@@ -37,6 +37,19 @@ class BrowserTab(
 class BrowserController(private val appContext: Context) {
     val store = JourneyStore(appContext)
     private val runtime: GeckoRuntime = GeckoRuntime.create(appContext)
+    // Never persist the private browsing identity. All concurrent private tabs share this
+    // temporary storage partition; closing the last tab destroys that partition.
+    private var privateContextId = "night-private-" + UUID.randomUUID()
+    private fun sessionSettings(privateMode: Boolean): GeckoSessionSettings =
+        GeckoSessionSettings.Builder().usePrivateMode(privateMode).apply {
+            if (privateMode) contextId(privateContextId)
+        }.build()
+
+    private fun clearPrivateContext() {
+        val stale = privateContextId
+        privateContextId = "night-private-" + UUID.randomUUID()
+        runtime.storageController.clearDataForSessionContext(stale)
+    }
     private val tabStore = TabSessionStore(appContext)
     private val writes = Executors.newSingleThreadExecutor()
     private val handler = Handler(Looper.getMainLooper())
@@ -79,9 +92,7 @@ class BrowserController(private val appContext: Context) {
         privateMode: Boolean = false,
         restored: TabSessionStore.Entry? = null
     ): BrowserTab {
-        val session = GeckoSession(
-            GeckoSessionSettings.Builder().usePrivateMode(privateMode).build()
-        )
+        val session = GeckoSession(sessionSettings(privateMode))
         val tab = BrowserTab(restored?.id ?: UUID.randomUUID().toString(),
             session, journeyId, privateMode)
         if (restored != null) {
@@ -197,6 +208,7 @@ class BrowserController(private val appContext: Context) {
         tabs.remove(tab)
         tab.thumbnail = null
         tab.session.close()
+        if (tab.isPrivate && tabs.none { it.isPrivate }) clearPrivateContext()
         schedulePersist()
     }
 
@@ -238,7 +250,9 @@ class BrowserController(private val appContext: Context) {
         persistNow()
         isClosed = true
         handler.removeCallbacks(pendingSave)
+        val hadPrivateSessions = tabs.any { it.isPrivate }
         tabs.forEach { if (it.session.isOpen) it.session.close() }
+        if (hadPrivateSessions) clearPrivateContext()
         writes.shutdown()
     }
 
@@ -261,8 +275,7 @@ class BrowserController(private val appContext: Context) {
     }
 
     fun newPeekSession(url: String): GeckoSession =
-        GeckoSession(GeckoSessionSettings.Builder()
-            .usePrivateMode(active.isPrivate).build())
+        GeckoSession(sessionSettings(active.isPrivate))
             .also { it.open(runtime); it.loadUri(url) }
 
     fun savePdfSnapshot() {
