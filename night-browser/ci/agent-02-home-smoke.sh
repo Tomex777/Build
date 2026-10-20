@@ -74,6 +74,13 @@ scroll_to_label() {
   done
   ui has "$label"
 }
+# Header controls are in the same scrolling Home column, not a sticky bar.
+scroll_to_top() {
+  for _ in 1 2 3 4; do
+    adb shell input swipe 540 580 540 1450 380
+    sleep 1
+  done
+}
 shutdown_diagnostics() {
   local status="$?"
   adb logcat -d -t 4000 | grep -E 'FATAL EXCEPTION|AndroidRuntime|com.night.browser' | tail -250 > "$OUT/logcat.txt" || true
@@ -135,7 +142,9 @@ capture "04-relaunched-persisted"
 
 # Exercise shortcut editing, then deletion (no second independent delete
 # action is exposed on the normal non-editing tile).
+scroll_to_top
 touch "Edit"
+scroll_to_label "AgentQA"
 touch "AgentQA"
 ui has "Edit shortcut"
 tap_editor 0
@@ -146,10 +155,11 @@ adb shell input keyevent 4
 sleep 2
 ui has "Edit shortcut"
 touch "Save"
-ui has "AgentEdited"
+scroll_to_label "AgentEdited"
 capture "05-shortcut-edited"
 touch "Remove AgentEdited"
 ui not "AgentEdited"
+scroll_to_top
 touch "Done"
 capture "06-shortcut-removed"
 
