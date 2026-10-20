@@ -765,7 +765,10 @@ start_activity
 require_process_alive "initial app launch"
 
 dump_window_once || fail "Could not capture the project browser hierarchy"
-grep -Fq "Recent projects" "$XML" || fail "Project browser was not shown on launch"
+# The A2 browser now shows "Scenes" / "Recent", not the old "Recent projects" title.
+# Assert functioning Compose touch targets instead of coupling this renderer test
+# to a cosmetic heading; the starter row is also checked immediately below.
+tag_coords "create-project" >/dev/null || fail "New scene action was not shown on launch"
 PROJECT_OPEN_COORDS="$(tag_coords "project-open-feasibility-stage")" \
   || fail "Starter scene could not be opened from the project browser"
 capture_screen "$PROJECT_BROWSER_PNG" || fail "Could not capture the project browser screenshot"
