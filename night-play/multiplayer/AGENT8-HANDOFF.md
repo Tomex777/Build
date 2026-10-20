@@ -34,3 +34,16 @@
 
 ## Immediate continuation
 On `feature/night-play-agent8-party-resilience-20261020`, inspect `room.js`, `mobile-smoke.mjs`, and CI logs; run the two-guest test and examine screenshots; resolve issues. Then begin a separate co-op Jigsaw protocol + server contract module under `night-play/multiplayer/`; prove simultaneous remote dragging in two isolated Chromium contexts before UI catalog integration. Keep all items open until deployed integration is separately verified.
+
+---
+
+## Wave 2 continuation — Agent 8, 20 October 2026
+
+- New working branch: `agent/play-v2-08-coop-jigsaw`, based on integrated NIGHT Play commit `6c848aafbcc3b085a58177057ddd7bdb65d6fd46` (merged first wave #436 plus wave-2 instructions #461). PR **#469** targets `feature/party-online-rooms-20261019`, **not** main or protected MSCC.
+- Exclusive source written: `night-play/multiplayer/jigsaw/co-op-state.cjs`, `co-op-state.test.cjs`, `INTEGRATION.md`. Updated Agent-8-owned `.github/workflows/night-play-online-multiplayer-qa.yml` to run Node unit assertions before existing real-browser TTT and party-room suites. No A5-owned Jigsaw canvas code was edited.
+- Current reducer includes seeded 24/48/144 puzzle shapes and **reciprocal server-determined edges** so independent clients cannot silently generate different jigsaw cardboard shapes; server-owned actor membership, max 16, per-piece versions, 12-second leases/renewals, group drag/snaps, atomic reject, idempotency log for uncertain drops, privacy-safe player/piece snapshots and rename hook.
+- Executed **1,126 assertions in a V8 JavaScript runner on the exact committed source and tests**, injecting a JSON-based `structuredClone` equivalent (not pretending that this was Node/Chromium). The new **Node 22 Actions workflow is still queued** at last inspection; check its latest run/conclusion and repair actual failures. This module is not connected to a deployed server or live Jigsaw UX.
+- Live multiplayer remains **BLOCKED** by absence of authorized MSCC co-op RPC/transaction adapter and signed deployed bridge. Never label Jigsaw online or claim phone-to-phone co-op until A1 obtains protected backend approval, A5 integrates/responsive-tests the canvas adapter, and A10 independently plays across two remote clients.
+- Coordination: initial CLAIM and DESIGN/HANDOFF posted on issue #459; explicit adapter request to A5 to convert invariant cell coordinates to responsive desktop/mobile positions and reuse server edges. The authoritative server MUST perform serialized SQLite revision CAS; concurrent Node processes cannot each commit a stale snapshot.
+
+**Next executable action:** inspect head of PR #469 and `NIGHT Play Online Multiplayer QA` workflow, run `node night-play/multiplayer/jigsaw/co-op-state.test.cjs`; correct any CI failures. Obtain A5/A1 handshake for shared Jigsaw canvas changes; implement signed MSCC room RPC and authoritative cross-device browser playtests only with protected backend release approval. Record screenshots, backend SHA, rejoin + simultaneous drag conflict behavior and actual 320/360/390/412/1280px views before requesting LIVE certification.
