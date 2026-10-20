@@ -68,6 +68,19 @@ class FixtureTests(unittest.TestCase):
         self.assertEqual(Handler.state.snapshot()["upload_length"], len(content))
         self.assertNotIn("TEST-ONLY", json.dumps(Handler.state.snapshot()))
 
+    def test_authenticated_file_requires_test_cookie(self):
+        with self.assertRaises(HTTPError) as failure:
+            self.fetch("/secure/file.bin")
+        self.assertEqual(failure.exception.code, 403)
+        data, response = self.fetch(
+            "/secure/file.bin", {"Cookie": "nightQa=fixture"})
+        self.assertEqual(response.status, 200)
+        self.assertEqual(data, BIN)
+        stats = Handler.state.snapshot()
+        self.assertGreaterEqual(stats["secure_download_denied"], 1)
+        self.assertGreaterEqual(stats["secure_download_ok"], 1)
+        self.assertNotIn("nightQa", json.dumps(stats))
+
     def test_not_found_retains_http_error(self):
         with self.assertRaises(HTTPError) as err:
             self.fetch("/not-found")
