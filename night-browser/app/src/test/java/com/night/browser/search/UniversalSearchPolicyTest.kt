@@ -113,7 +113,7 @@ class UniversalSearchPolicyTest {
             SearchSource("u3", "Receipt for jane@example.com", "https://example.com/receipts", "Visit"),
             SearchSource("u4", "https%3A%2F%2Fexample.com%2Faccount%3Ftoken%3Dsecret",
                 "https://example.com/landing", "Visit"),
-            SearchSource("u5", "Documentation\\nAuthorization: secret", "https://example.com/wiki", "Visit"),
+            SearchSource("u5", "Documentation\nIndex", "https://example.com/wiki", "Visit"),
         )
         assertTrue(UniversalSearchPolicy.eligibleCandidates(pages).isEmpty())
     }
