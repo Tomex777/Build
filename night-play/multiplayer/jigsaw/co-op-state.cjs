@@ -18,13 +18,19 @@ function createPuzzle({photoId,count=24,hostId,hostName,seed=1},now=Date.now()){
  if(!Number.isInteger(count)||!has(SHAPES,count)||!validId(hostId)||!display(hostName)||
     typeof photoId!=='string'||!/^photo-[a-z0-9-]{1,40}$/.test(photoId)||
     !Number.isSafeInteger(seed)||seed<0||seed>0xffffffff)throw Error('Invalid puzzle configuration.');
- const [rows,cols]=SHAPES[count],rnd=random(seed),pieces=[];
+ const [rows,cols]=SHAPES[count],rnd=random(seed),edgeRnd=random(seed^0x9e3779b9),pieces=[];
+ // Server-owned, reciprocal jigsaw edges are identical on every device.
+ const hEdges=Array.from({length:rows-1},()=>Array.from({length:cols},()=>edgeRnd()<.5?1:-1));
+ const vEdges=Array.from({length:rows},()=>Array.from({length:cols-1},()=>edgeRnd()<.5?1:-1));
  for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){
   const id=r+'-'+c,side=(r*cols+c)%2===0;
   // Loose cardboard around the board: no extra bottom tray.
   const x=side?-2.1+rnd()*1.65:cols+.45+rnd()*1.65;
   const y=-.4+rnd()*(rows-.2);
-  pieces.push({id,row:r,col:c,group:id,x,y,placed:false,version:0});
+  pieces.push({id,row:r,col:c,group:id,x,y,placed:false,version:0,edges:{
+   top:r===0?0:-hEdges[r-1][c],right:c===cols-1?0:vEdges[r][c],
+   bottom:r===rows-1?0:hEdges[r][c],left:c===0?0:-vEdges[r][c-1]
+  }});
  }
  return {format:1,photoId,count,rows,cols,seed,revision:0,moves:0,
   startedAt:now,updatedAt:now,finishedAt:null,hostId,
@@ -42,7 +48,7 @@ function publicSnapshot(state,viewer,now=Date.now()){
   players:state.players.map(p=>({name:p.name,host:p.id===state.hostId,
    online:now-p.lastSeen<45000})),
   pieces:state.pieces.map(p=>({id:p.id,row:p.row,col:p.col,group:p.group,
-   x:p.x,y:p.y,placed:p.placed,version:p.version,
+   x:p.x,y:p.y,placed:p.placed,version:p.version,edges:{...p.edges},
    locked:Boolean(liveLease(state,p.group,now)),
    heldByMe:liveLease(state,p.group,now)?.actor===viewer}))};
 }
