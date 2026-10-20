@@ -93,6 +93,14 @@ fun JourneyScreen(
         ) {
             Text("Journeys", fontSize = 27.sp, fontWeight = FontWeight.SemiBold,
                 color = journeyText, modifier = Modifier.weight(1f))
+            TextButton(onClick = {
+                store.setJourneyRecordingEnabled(!store.journeyRecordingEnabled)
+            }) {
+                Text(
+                    if (store.journeyRecordingEnabled) "Pause" else "Resume",
+                    color = if (store.journeyRecordingEnabled) journeySubtle else journeyAccent
+                )
+            }
             IconButton(onClick = onNew) {
                 Icon(Icons.Rounded.Add, contentDescription = "Create Journey", tint = journeyText)
             }
@@ -125,7 +133,16 @@ fun JourneyScreen(
                 }
             }
         }
-        Spacer(Modifier.height(10.dp))
+        if (!store.journeyRecordingEnabled) {
+            Text(
+                "New visits are not being added to Journeys.",
+                color = journeySubtle,
+                fontSize = 12.sp,
+                modifier = Modifier.padding(horizontal = 19.dp, vertical = 11.dp)
+            )
+        } else {
+            Spacer(Modifier.height(10.dp))
+        }
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(start = 14.dp, end = 14.dp, bottom = 24.dp),
