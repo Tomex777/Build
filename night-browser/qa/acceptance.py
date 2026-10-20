@@ -89,6 +89,37 @@ class Acceptance:
         self.shell("input", "tap", str((x1+x2)//2), str((y1+y2)//2))
         time.sleep(.5)
 
+    def replace_omnibar(self, text):
+        # BasicTextField contains the actual current URL (e.g. about:blank).
+        # A placeholder lookup fails once Gecko emits about:blank on startup.
+        fields = [node for node in self.nodes()
+                  if node.get("class") == "android.widget.EditText"
+                  or node.get("editable") == "true"]
+        if not fields:
+            raise AssertionError("No editable address input exposed to Android accessibility")
+        def center_y(node):
+            bounds = list(map(int, re.findall(r"\d+", node.get("bounds", ""))))
+            return (bounds[1] + bounds[3]) / 2 if len(bounds) == 4 else -1
+        field = max(fields, key=center_y)
+        bounds = list(map(int, re.findall(r"\d+", field.get("bounds", ""))))
+        if len(bounds) != 4:
+            raise AssertionError("Address field exists but has no bounds")
+        self.shell("input", "tap", str((bounds[0] + bounds[2])//2),
+                   str((bounds[1] + bounds[3])//2))
+        time.sleep(.7)
+        # Move cursor to end and clear known visible characters in a single
+        # adb invocation; do not assume focus selects all existing URL text.
+        current = field.get("text", "")
+        self.shell("input", "keyevent", "123")
+        if current:
+            self.shell("input", "keyevent", *(["67"] * (min(len(current), 400) + 2)))
+        self.shell("input", "text", text)
+        time.sleep(.3)
+        candidate = [node.get("text", "") for node in self.nodes()
+                     if node.get("class") == "android.widget.EditText"]
+        if text not in candidate:
+            raise AssertionError(f"ADB text entry did not reach address field: {candidate!r}")
+
     def shot(self, name):
         path = self.output / (name + ".png")
         raw = self.adb("exec-out", "screencap", "-p", binary=True)
@@ -141,8 +172,7 @@ class Acceptance:
         return self.shot("01-home")
 
     def navigate(self):
-        self.tap("Search or enter address")
-        self.shell("input", "text", "example.com")
+        self.replace_omnibar("example.com")
         self.tap("Go")
         end = time.monotonic() + 30
         loaded = False
@@ -203,13 +233,22 @@ class Acceptance:
         self.shell("settings", "put", "system", "accelerometer_rotation", "0")
         try:
             self.shell("settings", "put", "system", "user_rotation", "1")
-            time.sleep(2)
-            self.wait_for("New tab")
-            result = self.shot("07-landscape-tabs")
+            time.sleep(3)
+            path = self.shot("07-landscape-tabs")
+            import struct
+            image_bytes = (self.output / path).read_bytes()
+            width, height = struct.unpack(">II", image_bytes[16:24])
+            if width <= height:
+                raise AssertionError(f"Android did not produce landscape screenshot: {width}x{height}")
+            try:
+                self.wait_for("New tab", timeout=7)
+            except AssertionError as exc:
+                pid = self.shell("pidof", PACKAGE, check=False).strip()
+                raise AssertionError(f"App no longer displays tabs after rotation (pid={pid or 'none'}): {exc}")
             self.shell("settings", "put", "system", "user_rotation", "0")
             time.sleep(2)
             self.wait_for("New tab")
-            return result
+            return f"{path}; screenshot={width}x{height}"
         finally:
             self.shell("settings", "put", "system", "user_rotation", "0", check=False)
             self.shell("settings", "put", "system", "accelerometer_rotation", "1", check=False)
@@ -248,11 +287,20 @@ class Acceptance:
             self.shell("svc", "data", "enable", check=False)
 
     def diagnostics(self):
-        raw = self.adb("logcat", "-d", "-t", "2000", check=False)
-        # Do not persist unfiltered logs that could include browsing content or tokens.
-        lines = [ln[:450] for ln in raw.splitlines()
-                 if ("FATAL EXCEPTION" in ln or
-                     ("AndroidRuntime" in ln and ("FATAL" in ln or "com.night.browser" in ln)))]
+        raw = self.adb("logcat", "-d", "-t", "4000", check=False)
+        # Attribute exceptions to this app's PROCESS, not unrelated emulator
+        # system processes. Keep only exception descriptors and our own frames;
+        # never persist arbitrary logcat URLs, cookies or account data.
+        all_lines = raw.splitlines()
+        context = []
+        for i, ln in enumerate(all_lines):
+            if "AndroidRuntime" in ln and "Process: com.night.browser" in ln:
+                context.extend(all_lines[max(0, i - 1):i + 14])
+        lines = list(dict.fromkeys(ln[:450] for ln in context
+                 if "AndroidRuntime" in ln and ("FATAL EXCEPTION" in ln
+                    or "Process: com.night.browser" in ln
+                    or "Exception:" in ln or "Error:" in ln
+                    or "at com.night.browser." in ln)))
         (self.output / "crashes.txt").write_text("\n".join(lines) + "\n")
         if lines:
             self.results.append({"case": "Crash diagnostics", "category": "smoke",
