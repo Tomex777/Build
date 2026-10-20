@@ -45,12 +45,12 @@
 
 **Active integrated baseline:** `6c848aafbcc3b085a58177057ddd7bdb65d6fd46` (PRs #436 and #461 already merged). First-wave PR #413's UI changes are included in merged PR #436; do not try to merge its old standalone branch over current gameplay.
 
-**Wave-2 A9 PR:** [#464](https://github.com/Tomex777/Build/pull/464), branch `agent/play-v2-09-ux`. This *first step* extends `site-chrome-smoke.mjs` with two reproducible journeys and responsive screenshots. It is test-only and does not claim that the remaining visual/accessibility work is finished.
+**Wave-2 A9 PR:** [#464](https://github.com/Tomex777/Build/pull/464), branch `agent/play-v2-09-ux`. Extends `site-chrome-smoke.mjs` with two reproducible journeys and responsive screenshots; subsequently, A1 granted a shared CSS edit window and A9 implemented a scoped site-shell fix. This does not claim that the remaining visual/accessibility work is finished.
 
-1. **Games discovery to keyboard/real-swipe play.** Puzzle filter must update `aria-pressed`, search `2048` must yield one visible board card, keyboard Enter must activate the semantic card, and touch CDP swipe must move a seeded tile. Capture `library-puzzles-*`, `library-search-*` and `game-after-move-*`.
-2. **Player name truly affects dashboard.** Profile guest rename must persist across full reload, and real bottom/desktop navigation back to Home must greet `NIGHT Tester`. Capture `profile-*` and `dashboard-renamed-*`. This checks the **guest local** path only; server-linked WhatsApp name authority remains Agent 8's independent acceptance gate.
+1. **Games discovery to keyboard/real-swipe play.** Puzzle filter must update `aria-pressed`, search `2048` must yield one visible board card, keyboard Enter must activate the semantic card, and touch CDP swipe must move a seeded tile. Capture `library-puzzles-*`, `library-search-*` and `game-after-move-*`; assert actual (not injected) filter/search control heights >=44px across viewports.
+2. **Player name truly affects dashboard.** Profile guest rename must persist across full reload, and real bottom/desktop navigation back to Home must greet `NIGHT Tester`. Capture `profile-*`, expanded `profile-edit-*` and `dashboard-renamed-*`; check expanded editor controls >=44px and no new overflow. This checks the **guest local** path only; server-linked WhatsApp name authority remains Agent 8's independent acceptance gate.
 
-**Ownership gate:** Agent 1 retains `index.html`, shared `site-shell.css`, route naming and Channel locks. A9 requested an exclusive shared-CSS window on issue #459. No website shell changes will be claimed until it is acknowledged and implemented.
+**Ownership gate:** Agent 1 acknowledged A9's exclusive `site-shell.css` focus/mobile edit window on issue #459 (comment 6285431662). A9 implemented scoped 44px library-filter and profile controls, 16px search/text inputs, keyboard focus rings, responsive mobile wrapping and reduced-motion support in `site-shell.css` on PR #464. `index.html` and frozen Channels are untouched. These changes remain **branch-only**, not integrated or deployed.
 
 **Additional source evidence:**
 - `index.html` deliberately rewrites `/updates` to `/dashboard` and has no distinct `#view-updates`. This is a product/navigation decision for Agent 1; A9 must not silently create a redundant Updates destination.
@@ -59,3 +59,5 @@
 - Contrary to an initial narrow source search, `index.html` **does have** delegated Enter/Space handling for `.library-card[role=button]` around lines 1574–1578. PR #464 tests this; no duplicated keyboard handler should be added.
 
 **Still missing (explicit NOT VERIFIED):** physical Android finger feel; 320px visual screenshot inspection for all routes (including party and stories); linked-WhatsApp guest→player name convergence; secure server multiplayer; green terminal CI for PR #464 and Agent 10 independent sign-off. Do not mark the website DONE on a source/CI-only check.
+
+**A9 CSS edit provenance:** A1's explicit `[PLAY A1][DESIGN / FILE LOCK ACK + QA]` issue #459 comment 6285431662 approved A9's exclusive shared stylesheet window. Changed selectors only target `#view-games` and `#view-profile`; site-wide Channels presentation and branding were not edited. The review-only duplicate CSS file was removed once the shared CSS patch was committed. Await actual browser terminal CI screenshots and independent A10/Agent 1 review before calling these changes visually certified.
