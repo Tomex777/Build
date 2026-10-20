@@ -53,6 +53,20 @@ Story cards must never imply the protagonist's in-universe power rankings exist 
 
 Published translations vary (Gong-ja / Confucius Kim, Sirone / Shirone, Gamin Yoon / Youn Ga-min). Catalogue IDs are stable, and editorial display names follow the webcomic-first convention. Wikipedia, Fandom, and community articles are **discovery evidence**, not sufficient to verify an SSS/EX feat or issue a commercial image license.
 
+## Research gallery (no fake art)
+
+Build the standalone, spoiler-aware research browser with:
+
+```sh
+cd cards
+npm ci
+node bin/manhwa.mjs audit
+node bin/manhwa-review.mjs
+# Open dist/manhwa-research/index.html
+```
+
+The page filters all 82 records by series, family, and translated aliases; plot-spoiler cards are hidden by default. **It is a list of candidate identities, not CSS copies of the actual collectible-card artwork.** The dedicated CI workflow uploads its HTML and machine-readable summary as `NIGHT-Manhwa-82-Candidate-Roster`. The preview is not the main NIGHT website and needs no art distribution permissions.
+
 ## Steps to actual cards
 
 1. Find legitimate rights-cleared/permissioned **manhwa** character cutouts for the depicted forms. Do not silently substitute an anime adaptation or novel-era image. Record the original source and its permission.
