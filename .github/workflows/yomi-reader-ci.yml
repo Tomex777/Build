@@ -238,6 +238,11 @@ jobs:
             adb shell am start -n app.yomi.reader.dev/app.yomi.reader.YomiCiFixtureActivity --es mode WEBTOON
             i=0; until adb logcat -d -v brief YomiStartup:I YomiReader:I '*:S' | grep -Fq 'reader-first-draw title=Yomi CI Book mode=WEBTOON'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'Timed out waiting for webtoon first draw' >&2; exit 1; }; sleep 2; done
             i=0; until adb logcat -d -v brief YomiStartup:I YomiReader:I '*:S' | grep -Fq 'position title=Yomi CI Book mode=WEBTOON label=page 2/3'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'Timed out waiting for webtoon restore' >&2; exit 1; }; sleep 2; done
+            # A successful first draw does not prove webtoon images occupy a
+            # measurable row: the old WRAP_CONTENT container could collapse
+            # after loading and leave a blank continuous reader.
+            i=0; until adb logcat -d -v brief YomiReader:I '*:S' | grep -Eq 'webtoon-page-sized name=.* height=[1-9][0-9]{2,}'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'API 36 Webtoon page never got its decoded aspect-ratio height' >&2; adb logcat -d -v threadtime > yomi-output/runtime/webtoon-size-failure-logcat.txt || true; exit 1; }; sleep 2; done
+            i=0; until adb logcat -d -v brief YomiReader:I '*:S' | grep -Eq 'page-image-ready name=.* mode=webtoon'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'API 36 Webtoon image was not decoded' >&2; exit 1; }; sleep 2; done
             bash yomi-reader/scripts/capture_clean_screen.sh yomi-output/runtime/yomi-reader-WEBTOON.png
             test "$(wc -c < yomi-output/runtime/yomi-reader-WEBTOON.png)" -gt 4096
             adb logcat -d -v threadtime >> yomi-output/runtime/logcat.txt
@@ -399,6 +404,10 @@ jobs:
 
             # Reopen the same archive in every reader mode and check the saved page.
             for mode in RTL_PAGED VERTICAL_PAGED WEBTOON; do i=0; until adb logcat -c; do i=$((i + 1)); [ "$i" -lt 6 ] || { echo "API 26 logcat clear failed before $mode" >&2; exit 1; }; sleep 3; done; adb shell am force-stop app.yomi.reader.dev; adb shell am start -n app.yomi.reader.dev/app.yomi.reader.YomiCiFixtureActivity --es mode "$mode"; i=0; until adb logcat -d -v brief YomiReader:I '*:S' | grep -Fq "reader-first-draw title=Yomi CI Book mode=$mode"; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo "API 26 $mode reader did not draw" >&2; adb logcat -d -v threadtime > yomi-output/runtime-api26/$mode-first-draw-failure-logcat.txt || true; exit 1; }; sleep 2; done; i=0; until adb logcat -d -v brief YomiReader:I '*:S' | grep -Fq "position title=Yomi CI Book mode=$mode label=page 2/3"; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo "API 26 $mode did not restore page 2" >&2; adb logcat -d -v threadtime > yomi-output/runtime-api26/$mode-restore-failure-logcat.txt || true; exit 1; }; sleep 2; done; done
+
+            # API 26 must also produce a genuinely decoded, nonzero-height
+            # webtoon page, not merely restore the saved page-number label.
+            i=0; until adb logcat -d -v brief YomiReader:I '*:S' | grep -Eq 'webtoon-page-sized name=.* height=[1-9][0-9]{2,}'; do i=$((i + 1)); [ "$i" -lt 60 ] || { echo 'API 26 Webtoon row collapsed after image decode' >&2; adb logcat -d -v threadtime > yomi-output/runtime-api26/webtoon-size-failure-logcat.txt || true; exit 1; }; sleep 2; done
 
             # The tree fixture supplies the same persistable read grant as the system picker.
             i=0; until adb logcat -c; do i=$((i + 1)); [ "$i" -lt 6 ] || { echo 'API 26 logcat clear failed before folder fixture' >&2; exit 1; }; sleep 3; done
