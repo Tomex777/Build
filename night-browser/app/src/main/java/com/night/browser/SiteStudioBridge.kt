@@ -15,15 +15,23 @@ import java.util.WeakHashMap
  * comes from Gecko's MessageSender.url, never from a script-supplied string.
  *
  * Integration point for Agent 4: instantiate once with the existing runtime,
- * then attach(session) for each normal/Peek session after creation, and
- * detach(session) on close. Agent 1 wires editor actions into MainActivity.
+ * then attach(session, isPrivate = false) for normal sessions BEFORE loading
+ * the URL; never attach private or disposable Peek sessions. detach(session)
+ * on close. Agent 1 wires editor actions into MainActivity.
  */
 class SiteStudioBridge(
     private val runtime: GeckoRuntime,
     private val store: SiteStudioStore
 ) {
-    private val attached = Collections.newSetFromMap(WeakHashMap<GeckoSession, Boolean>())
-    private val previews = WeakHashMap<GeckoSession, SiteRule>()
+    // Gecko callbacks and the Compose editor may reach the bridge from
+    // different threads. Weak keys avoid retaining closed preview sessions;
+    // synchronized containers prevent concurrent WeakHashMap corruption.
+    private val attached = Collections.synchronizedSet(
+        Collections.newSetFromMap(WeakHashMap<GeckoSession, Boolean>())
+    )
+    private val previews = Collections.synchronizedMap(
+        WeakHashMap<GeckoSession, SiteRule>()
+    )
     private var extension: WebExtension? = null
     private var ready = false
 
@@ -57,7 +65,7 @@ class SiteStudioBridge(
             .accept({ installed ->
                 extension = installed
                 ready = true
-                attached.toList().forEach { register(it) }
+                synchronized(attached) { attached.toList() }.forEach { register(it) }
             }, { _ ->
                 // No script injection if the extension cannot be installed.
                 Log.w(TAG, "Site Studio extension could not be enabled.")
@@ -66,7 +74,18 @@ class SiteStudioBridge(
 
     fun isReady(): Boolean = ready
 
-    fun attach(session: GeckoSession) {
+    /**
+     * The caller MUST explicitly disclose whether this GeckoSession is private.
+     * Deny-by-default: a private tab can never inherit saved normal-profile
+     * rules even if another agent accidentally calls attach during creation.
+     * Peek is also disposable; do not attach it unless the user explicitly
+     * enables a separate session-only rule model.
+     */
+    fun attach(session: GeckoSession, isPrivate: Boolean) {
+        if (isPrivate) {
+            detach(session)
+            return
+        }
         attached.add(session)
         register(session)
     }
