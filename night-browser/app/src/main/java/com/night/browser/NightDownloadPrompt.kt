@@ -154,9 +154,13 @@ fun NightDownloadPrompt(state: WebDownloadConsent) {
                 Text(origin, modifier = Modifier.padding(top = 8.dp),
                     color = Color(0xFF9BA6B7))
                 Text(
-                    if (state.privateMode)
-                        "Choose a location. This file will not appear in Library or history."
-                    else "Saved locally and listed in Library downloads.",
+                    when {
+                        state.privateMode ->
+                            "Choose a location. This file will not appear in Library or history."
+                        state.isRepeatDownload ->
+                            "This file was downloaded before. Download another copy?"
+                        else -> "Saved locally and listed in Library downloads."
+                    },
                     modifier = Modifier.padding(top = 12.dp), color = Color(0xFF9BA6B7)
                 )
             }
