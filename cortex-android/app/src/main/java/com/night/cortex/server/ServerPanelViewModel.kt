@@ -183,37 +183,64 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
         secretVault.put("hosting_AZURE", value)
     }
 
+    /**
+     * The Agent is a collection of independent endpoints. A failing log read
+     * or a protected Files directory must not discard healthy Pairing, ENV,
+     * Backups or the entire server snapshot.
+     */
     fun refreshAll() {
         if (!_state.value.configured) return
         viewModelScope.launch {
             busy {
                 val path = _state.value.currentPath
                 val result = withContext(Dispatchers.IO) {
-                    val api = api()
+                    val client = api()
+                    // Status remains the connection gate; optional sections
+                    // each report their own failure rather than poisoning it.
+                    val snapshot = client.snapshot()
+                    val failures = linkedMapOf<String, String>()
+                    fun <T> section(name: String, action: () -> T): T? = try {
+                        action()
+                    } catch (error: CancellationException) {
+                        throw error
+                    } catch (error: Exception) {
+                        failures[name] = when (error) {
+                            is CortexHttpException -> "HTTP ${error.statusCode}"
+                            is CortexTransportException -> "Connection unavailable"
+                            else -> "Unexpected response"
+                        }
+                        null
+                    }
                     Bundle(
-                        snapshot = api.snapshot(),
-                        logs = api.logs(),
-                        files = api.listFiles(path),
-                        startup = runCatching { api.startup() }.getOrNull(),
-                        activity = runCatching { api.activity() }.getOrDefault(emptyList()),
-                        backups = runCatching { api.backups() }.getOrDefault(emptyList()),
-                        commandSettings = runCatching { api.commandSettings() }.getOrDefault(emptyList()),
-                        runtimeRegistry = runCatching { api.runtimeRegistry() }.getOrNull(),
-                        pairing = runCatching { api.pairingState() }.getOrNull(),
-                        environment = runCatching { api.environment() }.getOrNull(),
+                        snapshot = snapshot,
+                        logs = section("Console") { client.logs() },
+                        files = section("Files") { client.listFiles(path) },
+                        startup = section("Startup") { client.startup() },
+                        activity = section("Activity") { client.activity() },
+                        backups = section("Backups") { client.backups() },
+                        commandSettings = section("Settings") { client.commandSettings() },
+                        runtimeRegistry = section("Runtime") { client.runtimeRegistry() },
+                        pairing = section("Pairing") { client.pairingState() },
+                        environment = section("ENV") { client.environment() },
+                        failures = failures,
                     )
                 }
                 _state.value = _state.value.copy(
                     snapshot = result.snapshot,
-                    logs = result.logs,
-                    files = result.files,
-                    startup = result.startup,
-                    activity = result.activity,
-                    backups = result.backups,
-                    commandSettings = result.commandSettings,
+                    logs = result.logs ?: _state.value.logs,
+                    files = result.files ?: _state.value.files,
+                    startup = result.startup ?: _state.value.startup,
+                    activity = result.activity ?: _state.value.activity,
+                    backups = result.backups ?: _state.value.backups,
+                    commandSettings = result.commandSettings ?: _state.value.commandSettings,
                     runtimeRegistry = result.runtimeRegistry ?: _state.value.runtimeRegistry,
-                    pairing = result.pairing,
+                    pairing = result.pairing ?: _state.value.pairing,
                     environment = result.environment ?: _state.value.environment,
+                    endpointFailures = result.failures,
+                    message = if (result.failures.isEmpty()) null
+                        else "Unavailable Cortex endpoints: " + result.failures.entries.joinToString {
+                            "${it.key} (${it.value})"
+                        },
                 )
                 result.pairing?.let(::resumePairingMonitorIfNeeded)
                 syncStartupRunnerPolling(result.startup)
@@ -504,16 +531,27 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
                     } else emptyList()
                     Triple(environment, cloud, mounts)
                 }
-                val issue = result.first.exceptionOrNull()?.let(::cloudEnvironmentIssue)
-                    ?: result.second.exceptionOrNull()?.let(::cloudDashboardIssue)
+                val environmentIssue = result.first.exceptionOrNull()?.let(::cloudEnvironmentIssue)
+                val serviceIssue = result.second.exceptionOrNull()?.let(::cloudDashboardIssue)
                 _state.value = _state.value.copy(
-                    environment = result.first.getOrNull(),
+                    environment = result.first.getOrNull() ?: _state.value.environment,
                     cloudDashboard = result.second.getOrNull(),
                     cloudConnectionFailed = result.second.isFailure,
-                    cloudSetupIssue = issue,
+                    cloudSetupIssue = environmentIssue,
+                    cloudServiceIssue = serviceIssue,
                     cloudMounts = result.third ?: emptyList(),
                     cloudMountsLoaded = result.third != null,
                 )
+                // A failed ENV+Cloud pair must not be reported as a successful
+                // Agent refresh: identify lost auth or transport explicitly.
+                if (result.first.isFailure && result.second.isFailure) {
+                    val failure = result.first.exceptionOrNull() ?: result.second.exceptionOrNull()
+                    if (failure is CortexTransportException ||
+                        failure is CortexHttpException && failure.statusCode in setOf(401, 403)
+                    ) {
+                        throw failure
+                    }
+                }
             }
         }
     }
@@ -1268,14 +1306,15 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
 
     private data class Bundle(
         val snapshot: com.night.cortex.hosting.HostingSnapshot,
-        val logs: List<String>,
-        val files: List<HostingFileEntry>,
+        val logs: List<String>?,
+        val files: List<HostingFileEntry>?,
         val startup: StartupInfo?,
-        val activity: List<ActivityEntry>,
-        val backups: List<BackupEntry>,
-        val commandSettings: List<CommandSetting>,
+        val activity: List<ActivityEntry>?,
+        val backups: List<BackupEntry>?,
+        val commandSettings: List<CommandSetting>?,
         val runtimeRegistry: RuntimeRegistry?,
         val pairing: PairingState?,
         val environment: EnvironmentState?,
+        val failures: Map<String, String>,
     )
 }

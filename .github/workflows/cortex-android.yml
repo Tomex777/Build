@@ -19,6 +19,9 @@ on:
     paths:
       - 'cortex-android/**'
       - '.github/workflows/cortex-android.yml'
+      - '.github/scripts/cortex-api36-emulator.sh'
+      - '.github/scripts/cortex-api26-emulator.sh'
+      - '.github/scripts/cortex-release-smoke.sh'
 
 jobs:
   build:

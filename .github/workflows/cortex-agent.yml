@@ -5,11 +5,13 @@ on:
     branches: [cortex-android-live]
     paths:
       - 'cortex-agent/**'
+      - 'cortex-android/**'
       - '.github/workflows/cortex-agent.yml'
   pull_request:
     branches: [cortex-android-live]
     paths:
       - 'cortex-agent/**'
+      - 'cortex-android/**'
       - '.github/workflows/cortex-agent.yml'
   workflow_dispatch:
 
@@ -26,6 +28,7 @@ jobs:
         run: |
           node --check cortex-agent/index.js
           node cortex-agent/redaction-selftest.js
+          node cortex-agent/client-contract-selftest.js
           grep -Fq 'entries.forEach(validateRestoreEntry);' cortex-agent/index.js
           bash -n cortex-agent/install.sh
           bash -n cortex-agent/cortex-agent-control

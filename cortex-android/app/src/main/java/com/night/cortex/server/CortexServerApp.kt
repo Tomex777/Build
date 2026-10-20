@@ -131,9 +131,9 @@ import kotlin.math.roundToInt
 
 private enum class ServerTab(val label: String) {
     CONSOLE("Console"),
-    PAIRING("Pairing"),
     CLOUD("Cloud"),
     ENVIRONMENT("ENV"),
+    PAIRING("Pairing"),
     FILES("Files"),
     BACKUPS("Backups"),
     STARTUP("Startup"),
@@ -231,6 +231,29 @@ fun CortexServerApp(vm: ServerPanelViewModel = viewModel()) {
                 }
             })
             HorizontalDivider(color = CortexLine)
+            // Surface the failing API in its own tab. Status may be healthy
+            // while Files, Pairing, ENV or other endpoints are not.
+            val endpointLabel = when (tab) {
+                ServerTab.CONSOLE -> "Console"
+                ServerTab.CLOUD -> null // Cloud shows separate ENV and service diagnostics.
+                ServerTab.ENVIRONMENT -> "ENV"
+                ServerTab.PAIRING -> "Pairing"
+                ServerTab.FILES -> "Files"
+                ServerTab.BACKUPS -> "Backups"
+                ServerTab.STARTUP -> "Startup"
+                ServerTab.SETTINGS -> "Settings"
+                ServerTab.ACTIVITY -> "Activity"
+            }
+            endpointLabel?.let { label ->
+                state.endpointFailures[label]?.let { failure ->
+                    Text(
+                        text = "$label endpoint unavailable: $failure",
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                        color = CortexDanger,
+                        fontSize = 13.sp,
+                    )
+                }
+            }
 
             if (!state.configured) {
                 NotConnected(onConnect = { sheet = SheetMode.CONNECTION })
