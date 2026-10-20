@@ -41,6 +41,32 @@ if missing_rules:
     )
 
 
+# R8 horizontal class merging can make Media3 Transformer resolve the
+# android.media.metrics.LogSessionId type (API 31) on Android 8–11.
+# Debug video export succeeds while optimized release export then fails.
+# Keep the affected factory/listener types rather than disabling all R8
+# optimizations or trying to bundle an unavailable framework class.
+# See: https://github.com/androidx/media/issues/2535
+media3_transformer_keep_rules = (
+    "-keep class androidx.media3.transformer.ExoPlayerAssetLoader$Factory { *; }",
+    "-keep class androidx.media3.transformer.DefaultAssetLoaderFactory { *; }",
+    "-keep class androidx.media3.transformer.TransformerInternal$SequenceAssetLoaderListener { *; }",
+)
+current_rules = rules.read_text()
+missing_transformer_rules = [
+    rule for rule in media3_transformer_keep_rules if rule not in current_rules
+]
+if missing_transformer_rules:
+    separator = "" if current_rules.endswith("\\n") else "\\n"
+    rules.write_text(
+        current_rules
+        + separator
+        + "# Protect Media3 Transformer release export on API <31 against R8 class merging.\\n"
+        + "\\n".join(missing_transformer_rules)
+        + "\\n"
+    )
+
+
 text = viewer.read_text()
 for imp in (
     "import androidx.media3.common.MediaItem\n",
