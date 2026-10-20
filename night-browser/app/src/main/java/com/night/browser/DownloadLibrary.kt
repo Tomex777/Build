@@ -119,11 +119,14 @@ class DownloadLibrary(private val context: Context) {
         }
     }
 
-    fun retry(record: LibraryDownload): Result<LibraryDownload> =
-        enqueue(record.url, record.fileName, record.mimeType)
+    fun retry(record: LibraryDownload): Result<LibraryDownload> {
+        val fresh = enqueue(record.url, record.fileName, record.mimeType)
+        if (fresh.isSuccess) remove(record)
+        return fresh
+    }
 
-    fun remove(record: LibraryDownload) {
-        runCatching { manager.remove(record.id) }
+    fun remove(record: LibraryDownload): Result<Unit> = runCatching {
+        manager.remove(record.id)
         items = items.filterNot { it.id == record.id }
         persist()
     }
