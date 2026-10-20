@@ -67,7 +67,13 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        browser = BrowserController(applicationContext)
+        browser = BrowserController(applicationContext, BrowserPlatformHost(this))
+        // Gecko's original response stream is kept for authenticated downloads.
+        browser.downloadHandler = { response ->
+            DownloadLibrary.shared(applicationContext).acceptGeckoResponse(response) { event ->
+                browser.notice = event
+            }
+        }
         setContent {
             MaterialTheme(colorScheme = darkColorScheme(
                 background = Ink, surface = Raised, primary = Accent,
