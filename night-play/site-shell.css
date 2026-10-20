@@ -124,3 +124,8 @@ body.in-game .mobile-nav {
   top:0;
   z-index:10;
 }
+/* The dashboard board illustration is decorative. On small phones its
+   strokes crossed the supporting sentence; keep the art but lift contrast. */
+@media (max-width:600px) {
+  .dash-hero-card .dash-illustration{opacity:.14}
+}
