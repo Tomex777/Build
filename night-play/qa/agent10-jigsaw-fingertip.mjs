@@ -1,19 +1,125 @@
-import {chromium} from 'playwright';import{createServer}from'node:http';import{readFileSync}from'node:fs';import path from'node:path';import{fileURLToPath}from'node:url';
-const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
-const types={'.html':'text/html','.js':'text/javascript','.mjs':'text/javascript','.css':'text/css','.svg':'image/svg+xml','.jpg':'image/jpeg','.png':'image/png','.webp':'image/webp','.json':'application/json'};
-const server=createServer((req,res)=>{let p=new URL(req.url,'http://localhost').pathname.replace(/^\//,'');if(p==='jigsaw'||p==='jigsaw/')p='jigsaw/index.html';try{const b=readFileSync(path.join(root,p));res.writeHead(200,{'content-type':types[path.extname(p)]||'application/octet-stream'});res.end(b)}catch{res.writeHead(404);res.end('not found')}});
-await new Promise(ok=>server.listen(0,'127.0.0.1',ok));const B='http://127.0.0.1:'+server.address().port;
-const b=await chromium.launch({headless:true,channel:'chrome',args:['--no-sandbox']});
-try{for(const width of [320,390]){const page=await b.newPage({viewport:{width,height:width===320?700:844},isMobile:true,hasTouch:true});const errors=[];page.on('pageerror',e=>errors.push(e.message));
-await page.goto(B+'/jigsaw/');await page.locator('[data-theme="photo-alpine-lake"]').click();await page.waitForFunction(()=>window.__nightJigsawTest?.snapshot().activeRound,{timeout:10000});
-await page.locator('#hudMenuButton').click();await page.locator('#hudSettingsButton').click();await page.locator('[data-pieces="144"]').click();await page.waitForTimeout(170);
-const start=await page.evaluate(()=>{const s=window.__nightJigsawTest.snapshot(),cv=document.querySelector('#puzzleCanvas'),r=cv.getBoundingClientRect(),sx=r.width/cv.width,sy=r.height/cv.height;
-return {pieces:s.pieces.filter(p=>!p.placed).map(p=>({id:p.id,cx:p.correctX,cy:p.correctY,x:r.left+(p.x+s.board.pieceWidth/2)*sx,y:r.top+(p.y+s.board.pieceHeight/2)*sy})).filter(p=>p.x>7&&p.x<innerWidth-7&&p.y>52&&p.y<innerHeight-55),board:s.board,rect:r.toJSON()};});
-const cdp=await page.context().newCDPSession(page);let selected=0,match=0,miss=0,selectionLog=[];
-for(const delta of [{dx:0,dy:0},{dx:10,dy:0},{dx:-10,dy:0},{dx:0,dy:10},{dx:0,dy:-10}]) for(let i=0;i<Math.min(26,start.pieces.length);i++){const p=start.pieces[Math.floor((i+0.5)*start.pieces.length/Math.min(26,start.pieces.length))];const x=p.x+delta.dx,y=p.y+delta.dy;if(x<4||x>width-4||y<42||y>(width===320?700:844)-10)continue;
-await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x,y,id:100+selectionLog.length}]});await page.waitForTimeout(38);
-let s=await page.evaluate(()=>window.__nightJigsawTest.snapshot().selected);await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
-const isMatch=!!s&&s.id===p.id;selected+=!!s;match+=isMatch;miss+=!isMatch;selectionLog.push({target:p.id,got:s?.id,exact:isMatch,x:Math.round(x),y:Math.round(y),dx:delta.dx,dy:delta.dy});
+/**
+ * Agent 10's independent, source-exact 144-piece Jigsaw acquisition audit.
+ *
+ * Run: npm i --no-save playwright@1.56.1
+ *      npx playwright install chrome
+ *      node night-play/qa/agent10-jigsaw-fingertip.mjs
+ *
+ * This probes genuine Chromium touch selection, not solved-piece fixtures.
+ * Selecting the wrong piece is a quality FAIL even if the page never crashes.
+ * It does NOT certify finger-drag accuracy, puzzle completion or real Android.
+ */
+import { chromium } from 'playwright';
+import { createServer } from 'node:http';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const siteRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const evidenceDir = path.join(siteRoot, 'visual-output', 'agent10-fingertip');
+mkdirSync(evidenceDir, { recursive: true });
+
+const mimes = {
+  '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript',
+  '.css': 'text/css', '.json': 'application/json', '.svg': 'image/svg+xml',
+  '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png',
+  '.webp': 'image/webp'
+};
+const server = createServer((request, response) => {
+  let relative = new URL(request.url || '/', 'http://localhost').pathname.replace(/^\//, '');
+  if (relative === 'jigsaw' || relative === 'jigsaw/') relative = 'jigsaw/index.html';
+  try {
+    const file = readFileSync(path.join(siteRoot, relative));
+    response.writeHead(200, { 'content-type': mimes[path.extname(relative)] || 'application/octet-stream' });
+    response.end(file);
+  } catch {
+    response.writeHead(404);
+    response.end('Not found');
+  }
+});
+await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+const siteURL = 'http://127.0.0.1:' + server.address().port;
+const offsets = [{dx:0,dy:0},{dx:10,dy:0},{dx:-10,dy:0},{dx:0,dy:10},{dx:0,dy:-10}];
+const sampleCount = 26;
+const results = [];
+let browser;
+try {
+  browser = await chromium.launch({ headless: true, channel: 'chrome', args: ['--no-sandbox'] });
+  for (const [width, height] of [[320,700],[390,844]]) {
+    const page = await browser.newPage({ viewport: {width,height}, hasTouch:true, isMobile:true });
+    const errors = [];
+    page.on('pageerror', error => errors.push(error.message));
+    try {
+      await page.goto(siteURL + '/jigsaw/');
+      await page.locator('[data-theme="photo-alpine-lake"]').click();
+      await page.waitForFunction(() => window.__nightJigsawTest?.snapshot().activeRound, null, {timeout:10000});
+      await page.locator('#hudMenuButton').click();
+      await page.locator('#hudSettingsButton').click();
+      await page.locator('[data-pieces="144"]').click();
+      await page.waitForTimeout(170);
+
+      const initial = await page.evaluate(() => {
+        const state = window.__nightJigsawTest.snapshot();
+        const canvas = document.querySelector('#puzzleCanvas');
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = rect.width / canvas.width;
+        const scaleY = rect.height / canvas.height;
+        const candidates = state.pieces.filter(piece => !piece.placed).map(piece => ({
+          id: piece.id,
+          x: rect.left + (piece.x + state.board.pieceWidth / 2) * scaleX,
+          y: rect.top + (piece.y + state.board.pieceHeight / 2) * scaleY
+        })).filter(piece => piece.x>7 && piece.x<innerWidth-7 && piece.y>52 && piece.y<innerHeight-55);
+        return { candidates, pieces:state.pieces.length,
+          pieceWidth:state.board.pieceWidth, pieceHeight:state.board.pieceHeight };
+      });
+
+      const cdp = await page.context().newCDPSession(page);
+      const attempts = [];
+      for (const offset of offsets) {
+        for (let i=0; i<Math.min(sampleCount, initial.candidates.length); i++) {
+          const target = initial.candidates[Math.floor(
+            (i + .5) * initial.candidates.length / Math.min(sampleCount, initial.candidates.length)
+          )];
+          const x = target.x + offset.dx;
+          const y = target.y + offset.dy;
+          if (x<4 || x>width-4 || y<42 || y>height-10) continue;
+          await cdp.send('Input.dispatchTouchEvent', {
+            type:'touchStart', touchPoints:[{x,y,id:100+attempts.length}]
+          });
+          await page.waitForTimeout(38);
+          const selected = await page.evaluate(() => window.__nightJigsawTest.snapshot().selected);
+          await cdp.send('Input.dispatchTouchEvent', { type:'touchEnd', touchPoints:[] });
+          attempts.push({ target:target.id, picked:selected?.id || null,
+            dx:offset.dx, dy:offset.dy, exact: selected?.id === target.id });
+        }
+      }
+
+      const correct = attempts.filter(attempt => attempt.exact).length;
+      const breakdown = offsets.map(({dx,dy}) => {
+        const group=attempts.filter(attempt=>attempt.dx===dx && attempt.dy===dy);
+        return {dx,dy,tries:group.length,correct:group.filter(attempt=>attempt.exact).length};
+      });
+      const result = {width,height,pieceCount:initial.pieces,pieceWidth:initial.pieceWidth,
+        pieceHeight:initial.pieceHeight,tries:attempts.length,correct,
+        accuracy:correct/attempts.length,breakdown,errors,
+        wrongExamples:attempts.filter(attempt=>!attempt.exact).slice(0,15)};
+      await page.screenshot({path:path.join(evidenceDir,'jigsaw-144-'+width+'.jpg'),type:'jpeg',quality:76});
+      console.log('A10_FINGER_ACQUISITION '+JSON.stringify(result));
+      results.push(result);
+    } finally {
+      await page.close();
+    }
+  }
+} finally {
+  await browser?.close();
+  await new Promise(resolve=>server.close(resolve));
 }
-const breakdown=[...new Set(selectionLog.map(v=>v.dx+','+v.dy))].map(k=>{const rows=selectionLog.filter(v=>v.dx+','+v.dy===k);return {offset:k,tries:rows.length,correct:rows.filter(v=>v.exact).length};});console.log('FINGER_PRECISION',JSON.stringify({width,total:start.pieces.length,tries:selectionLog.length,selected,correctPiece:match,wrongOrNone:miss,breakdown,wrongExamples:selectionLog.filter(v=>!v.exact).slice(0,12),errors}));await page.close();}
-}finally{await b.close();await new Promise(ok=>server.close(ok));}
+writeFileSync(path.join(evidenceDir,'results.json'), JSON.stringify({
+  testedSource:process.env.GITHUB_SHA || 'local checkout HEAD',
+  results, requiredAccuracy:.97
+},null,2));
+if (results.length!==2 || results.some(result=>result.pieceCount!==144
+  || result.tries<100 || result.errors.length>0 || result.accuracy<.97)) {
+  console.error('A10 QUALITY FAIL: 144-piece finger pickup is not reliably accurate at mobile size.');
+  process.exitCode=1;
+}
