@@ -1,0 +1,82 @@
+[
+  {
+    "id": "wordsearch",
+    "pass": true,
+    "message": "All six words found!"
+  },
+  {
+    "id": "mazerunner",
+    "pass": true,
+    "message": "Maze escaped in 56 steps!"
+  },
+  {
+    "id": "bomb",
+    "pass": true,
+    "message": "Circuit safely disarmed · 22 seconds remaining"
+  },
+  {
+    "id": "memory",
+    "pass": true,
+    "message": "All 12 pairs found in 12 moves!"
+  },
+  {
+    "id": "chess",
+    "pass": true,
+    "message": "Your turn · White"
+  },
+  {
+    "id": "checkers",
+    "pass": true,
+    "message": "Your turn · Dark pieces"
+  },
+  {
+    "id": "hanoi",
+    "pass": true,
+    "message": "Solved in 31 moves · Optimal: 31"
+  },
+  {
+    "id": "lights",
+    "pass": true,
+    "message": "All lights cleared in 6 moves!"
+  },
+  {
+    "id": "ttt",
+    "pass": true,
+    "message": "Computer wins"
+  },
+  {
+    "id": "swimming",
+    "pass": true,
+    "message": "You win in 8.1 seconds!"
+  },
+  {
+    "id": "higher",
+    "pass": true,
+    "message": "Deck complete · best streak 3"
+  },
+  {
+    "id": "snap",
+    "pass": true,
+    "message": "Deck complete · 0 points"
+  },
+  {
+    "id": "war",
+    "pass": true,
+    "message": "You win · 32 : 20"
+  },
+  {
+    "id": "reversi",
+    "pass": true,
+    "message": "Computer wins"
+  },
+  {
+    "id": "dots",
+    "pass": true,
+    "message": "Computer wins!"
+  },
+  {
+    "id": "mancala",
+    "pass": true,
+    "message": "Draw"
+  }
+]
