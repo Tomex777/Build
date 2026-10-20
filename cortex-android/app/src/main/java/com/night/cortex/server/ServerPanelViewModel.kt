@@ -542,6 +542,16 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
                     cloudMounts = result.third ?: emptyList(),
                     cloudMountsLoaded = result.third != null,
                 )
+                // A failed ENV+Cloud pair must not be reported as a successful
+                // Agent refresh: identify lost auth or transport explicitly.
+                if (result.first.isFailure && result.second.isFailure) {
+                    val failure = result.first.exceptionOrNull() ?: result.second.exceptionOrNull()
+                    if (failure is CortexTransportException ||
+                        failure is CortexHttpException && failure.statusCode in setOf(401, 403)
+                    ) {
+                        throw failure
+                    }
+                }
             }
         }
     }
