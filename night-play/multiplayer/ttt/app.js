@@ -2,7 +2,7 @@
  const $=id=>document.getElementById(id)
  let room=null,poll=null,transitionTimer=null,requesting=false,loadingRoom=false,listingVersion=0
  let suspended=false,connectionFailures=0,offlineNotified=false
- const setMessage=(text='',isError=false)=>{$('message').textContent=text;$('message').dataset.error=String(isError)}
+ const setMessage=(text='',isError=false)=>{const el=$('message');el.textContent=text;el.dataset.error=String(isError);el.dataset.network=String(text.startsWith('Connection '))}
  const show=key=>{for(const name of ['loading','connect','lobby','room'])$(name).hidden=name!==key}
  async function api(action='status',data={}){
   const request=action==='status'?{method:'GET'}:{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({action,...data})}
