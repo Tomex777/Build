@@ -13,6 +13,8 @@ import kotlin.math.min
 import kotlin.math.sin
 import kotlin.math.sqrt
 import studio.artistscene.core.EnvironmentPreset
+import studio.artistscene.core.Vec3
+import studio.artistscene.core.SkySunMath
 
 /**
  * Seamless view-independent procedural sky. The direction is sampled in 3D (not as
@@ -22,7 +24,14 @@ import studio.artistscene.core.EnvironmentPreset
  * a claim of physically accurate image-based lighting. Rendered figures still use
  * Filament's standard directional / indirect lighting and contact shadows.
  */
-internal fun createOutdoorSky(engine: Engine, preset: EnvironmentPreset = EnvironmentPreset.DAYLIGHT): Texture {
+internal fun createOutdoorSky(
+    engine: Engine,
+    preset: EnvironmentPreset = EnvironmentPreset.DAYLIGHT,
+    /** The SAME world-space light direction used by the Filament sun node. */
+    sunLightDirection: Vec3 = Vec3(-0.40f, -0.70f, 0.59f),
+): Texture {
+    val sunPosition = SkySunMath.toSunPosition(sunLightDirection)
+    val visibleSun = sunPosition.y > 0.01f && preset.sunStrength > 0f
     // A 128px cubemap is sufficient for low-end Android 8 devices; on modern
     // phones use 256px faces so subtle cloud/horizon gradients survive HD exports.
     val size = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) 256 else 128
@@ -61,10 +70,15 @@ internal fun createOutdoorSky(engine: Engine, preset: EnvironmentPreset = Enviro
             val cloudCover = smoothstep(0.53f, 0.76f, cloudSignal) *
                 smoothstep(-0.03f, 0.23f, dy) * preset.cloudAmount
 
-            // Warm directional sun scatter; only the outdoor presets emit it.
-            val sunDot = dx * 0.40f + dy * 0.70f + dz * (-0.59f)
-            val scatter = preset.sunStrength * exp((sunDot - 1f) * 44f) * 0.42f
-            val sunDisk = if (sunDot > 0.9989f) preset.sunStrength * 0.56f else 0f
+            // This is the actual authored sun vector, not a static painted
+            // dot unrelated to shadow direction. Interior presets have none.
+            val sunDot = SkySunMath.alignment(sunPosition, dx, dy, dz)
+            val scatter = if (visibleSun) {
+                preset.sunStrength * exp((sunDot - 1f) * 44f) * 0.42f
+            } else 0f
+            val sunDisk = if (visibleSun && sunDot > 0.9989f) {
+                preset.sunStrength * 0.56f
+            } else 0f
 
             for (channel in 0..2) {
                 val base = if (dy >= 0f) {
