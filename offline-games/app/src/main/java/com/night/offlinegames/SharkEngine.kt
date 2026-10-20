@@ -29,6 +29,35 @@ object SharkEngine {
         return SharkState(creatures = things, nextId = 25)
     }
 
+    /** Compact, versioned local resume snapshot. No network or account needed. */
+    fun encode(s: SharkState): String = listOf(
+        "1", s.x, s.y, s.health, s.points, s.eaten, s.sizeTier,
+        s.seconds, s.invulnerable, s.nextId, s.finished
+    ).joinToString(";") + ";" + s.creatures.joinToString("|") {
+        listOf(it.id, it.kind.ordinal, it.x, it.y, it.velocity, it.radius, it.value).joinToString(",")
+    }
+
+    fun decode(text: String?): SharkState? = try {
+        if (text == null) null else {
+            val t = text.split(";", limit = 12)
+            if (t.size != 12 || t[0] != "1") null else {
+                val c = if (t[11].isBlank()) emptyList() else t[11].split("|").map {
+                    val p = it.split(",")
+                    if (p.size != 7) throw IllegalArgumentException("bad creature")
+                    SeaCreature(p[0].toInt(), SeaKind.entries[p[1].toInt()],
+                        p[2].toFloat(), p[3].toFloat(), p[4].toFloat(), p[5].toFloat(), p[6].toInt())
+                }
+                val s = SharkState(t[1].toFloat(), t[2].toFloat(), t[3].toFloat(),
+                    t[4].toInt(), t[5].toInt(), t[6].toInt(), t[7].toFloat(),
+                    t[8].toFloat(), c, t[9].toInt(), t[10].toBoolean())
+                if (s.x !in 0f..worldWidth || s.y !in 0f..worldHeight ||
+                    s.health !in 0f..100f || s.points < 0 || s.eaten < 0 ||
+                    s.sizeTier !in 1..3 || c.size > 30 ||
+                    c.any { it.x !in -60f..460f || it.y !in 0f..worldHeight }) null else s
+            }
+        }
+    } catch (_: RuntimeException) { null }
+
     private fun spawn(id: Int, rng: Random, initial: Boolean = false): SeaCreature {
         val kind = when {
             id % 13 == 0 -> SeaKind.PREDATOR
