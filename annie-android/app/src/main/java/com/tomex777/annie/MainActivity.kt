@@ -1269,8 +1269,6 @@ private fun AnnieNavigationDrawer(
                     modifier = Modifier.padding(top = 10.dp).testTag("drawer_new_chat"), highlighted = true)
                 DrawerAction("Library", AnnieIcons.Library, { onOpen("Library") },
                     modifier = Modifier.testTag("drawer_library"))
-                DrawerAction("Downloads", AnnieIcons.Download, { onOpen("Downloads:All") },
-                    modifier = Modifier.testTag("drawer_downloads"))
                 DrawerAction("Extensions", AnnieIcons.Package, { onOpen("Extensions") },
                     modifier = Modifier.testTag("drawer_extensions"))
                 Row(Modifier.fillMaxWidth().padding(top = 7.dp), verticalAlignment = Alignment.CenterVertically) {
