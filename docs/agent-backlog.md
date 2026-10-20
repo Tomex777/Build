@@ -41,3 +41,23 @@ Statuses: `QUEUED` = no launched session observed; `ACTIVE` = running session ac
 Next integration sequence: (1) conclude PR #420 upper-half actual-apex QA and mobile screenshot inspection; (2) Runner/Sky + Brick challenge correction; (3) finish/independently verify #386/#387 and NOMI; (4) correct existing puzzles/card games; (5) introduce playable new games; (6) connect routes only after QA; (7) verify combined Vercel SHA, avoid production promotion without authorization.
 
 Each contributor must update: issue, owner, branch, last commit, tests with command and result, captured screenshots/artifacts, unresolved bugs, dependencies, precise next step. Never change status from merely observing a passing build.
+
+
+## WAVE 2 — status reset and product-completion priorities (2026-10-20)
+
+**This section supersedes first-wave QUEUED/ACTIVE interpretations above.** Ten-specialist combined PR #436 is **MERGED** into `feature/party-online-rooms-20261019`; see GitHub PR #436 and the successful integrated gameplay checks. Live preview deployment is ready, but verify its git SHA before making claims. PR #435 Snake Xenzia swipe-reliability remains open. Hosted multiplayer and protected MSCC server deployment cannot be assumed production-ready. User's mandate: **large improvements in real play quality**, not simply more feature names.
+
+**Wave 2 communication and work claims:** [Issue #459](https://github.com/Tomex777/Build/issues/459). Role briefs: `night-play/agents/agent-01.md` through `agent-10.md`. Agents take next unblocked quality items and keep integrated website working; each work item requires source PR, full-game playtest, screenshots/recording, responsive viewports, release gate, and merged SHA. Shared-file locks continue. The agent roster is task allocation, not evidence 10 sessions continue running after chats terminate.
+
+| Agent | Immediate next action | Release gate |
+| --- | --- | --- |
+| A1 | Coordinator and release integrity | Gameplay interaction + merged integration evidence, not build-only |
+| A2 | Fruit Slicing + Snake gesture reliability | Gameplay interaction + merged integration evidence, not build-only |
+| A3 | Runners, Sky Jumper and platform challenge | Gameplay interaction + merged integration evidence, not build-only |
+| A4 | Brick Breaker, Shooter and Wing Hop depth | Gameplay interaction + merged integration evidence, not build-only |
+| A5 | Jigsaw cooperative-ready puzzles and 2048 | Gameplay interaction + merged integration evidence, not build-only |
+| A6 | WHOT, Chess and Checkers: credible opponents | Gameplay interaction + merged integration evidence, not build-only |
+| A7 | Piano Tiles, Maze Chase and catalogue quality | Gameplay interaction + merged integration evidence, not build-only |
+| A8 | Real multiplayer, identity and co-op Jigsaw | Gameplay interaction + merged integration evidence, not build-only |
+| A9 | Product-wide visual overhaul and accessibility | Gameplay interaction + merged integration evidence, not build-only |
+| A10 | Independent full-catalog long-session gameplay QA | Gameplay interaction + merged integration evidence, not build-only |
