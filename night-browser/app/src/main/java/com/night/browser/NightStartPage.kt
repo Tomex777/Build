@@ -64,12 +64,13 @@ import java.nio.ByteOrder
 
 // New start page owns its own palette until Agent 1 centralizes shared design tokens.
 // All icons below are first-party Compose vectors; no Omni source or assets are copied.
-private val HomeBg = Color(0xFF101318)
-private val HomeTile = Color(0xFF1A1F26)
-private val HomeStroke = Color(0xFF303640)
-private val HomeText = Color(0xFFF1F2F5)
+// Match the browser chrome and tabs; reserve violet for focused/active controls.
+private val HomeBg = Color(0xFF0C1017)
+private val HomeTile = Color(0xFF171D27)
+private val HomeStroke = Color(0xFF2B3441)
+private val HomeText = Color(0xFFF3F5F9)
 private val HomeSubtle = Color(0xFFA6AFBD)
-private val HomeAccent = Color(0xFFD4D8FF)
+private val HomeAccent = Color(0xFFB9BEFF)
 
 /**
  * Standalone Home. Integration contract for Agent 1:
@@ -140,38 +141,47 @@ fun NightStartPage(
         contentAlignment = Alignment.TopCenter
     ) {
         Column(
-            modifier = Modifier.fillMaxHeight().widthIn(max = 800.dp)
+            modifier = Modifier.fillMaxHeight().widthIn(max = 720.dp)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp)
+                .padding(horizontal = if (LocalConfiguration.current.screenWidthDp < 360) 16.dp else 22.dp)
         ) {
-            Spacer(Modifier.height(if (compactHome) 12.dp else 22.dp))
+            Spacer(Modifier.height(if (compactHome) 16.dp else 27.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Image(
-                    painter = painterResource(id = R.drawable.ic_night),
-                    contentDescription = null,
-                    contentScale = ContentScale.Fit,
-                    modifier = Modifier.size(24.dp).clip(RoundedCornerShape(6.dp))
+                Surface(
+                    color = HomeTile,
+                    shape = RoundedCornerShape(13.dp),
+                    border = BorderStroke(1.dp, HomeStroke),
+                    modifier = Modifier.size(44.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Image(
+                            painter = painterResource(id = R.drawable.ic_night),
+                            contentDescription = null,
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier.size(27.dp)
+                        )
+                    }
+                }
+                Spacer(Modifier.width(13.dp))
+                Text(
+                    "NIGHT", fontSize = 27.sp, letterSpacing = 3.sp,
+                    fontWeight = FontWeight.Bold, color = HomeText
                 )
-                Spacer(Modifier.width(10.dp))
-                Text("NIGHT", fontSize = 15.sp, letterSpacing = 2.5.sp,
-                    fontWeight = FontWeight.Bold, color = HomeText)
-                Spacer(Modifier.width(7.dp))
-                Text("Browser", fontSize = 13.sp, color = HomeSubtle)
             }
-            Spacer(Modifier.height(if (compactHome) 18.dp else 30.dp))
+            Spacer(Modifier.height(if (compactHome) 22.dp else 32.dp))
             Surface(
-                modifier = Modifier.fillMaxWidth().height(56.dp),
-                shape = RoundedCornerShape(18.dp),
+                modifier = Modifier.fillMaxWidth().height(60.dp),
+                shape = RoundedCornerShape(20.dp),
                 color = HomeTile,
                 border = BorderStroke(1.dp, HomeStroke)
             ) {
                 Row(
-                    modifier = Modifier.fillMaxSize().padding(start = 16.dp, end = 5.dp),
+                    modifier = Modifier.fillMaxSize().padding(start = 18.dp, end = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(Icons.Rounded.Search, contentDescription = null,
-                        tint = HomeSubtle, modifier = Modifier.size(22.dp))
-                    Spacer(Modifier.width(12.dp))
+                        tint = HomeAccent, modifier = Modifier.size(22.dp))
+                    Spacer(Modifier.width(13.dp))
                     BasicTextField(
                         value = search,
                         onValueChange = { search = it; invalidAddress = false },
@@ -184,7 +194,7 @@ fun NightStartPage(
                         decorationBox = { inner ->
                             Box(contentAlignment = Alignment.CenterStart) {
                                 if (search.isBlank()) {
-                                    Text("Search or enter address", fontSize = 14.sp,
+                                    Text("Search or enter address", fontSize = 15.sp,
                                         color = HomeSubtle, maxLines = 1)
                                 }
                                 inner()
@@ -205,10 +215,14 @@ fun NightStartPage(
                                 tint = HomeSubtle, modifier = Modifier.size(19.dp))
                         }
                     } else {
-                        IconButton(onClick = { submit() }, modifier = Modifier.size(44.dp)) {
+                        IconButton(
+                            onClick = { submit() },
+                            modifier = Modifier.size(44.dp)
+                                .background(HomeAccent, RoundedCornerShape(14.dp))
+                        ) {
                             Icon(Icons.AutoMirrored.Rounded.ArrowForward,
                                 contentDescription = "Go to address or search",
-                                tint = HomeAccent, modifier = Modifier.size(22.dp))
+                                tint = HomeBg, modifier = Modifier.size(22.dp))
                         }
                     }
                 }
@@ -249,10 +263,10 @@ fun NightStartPage(
                     }
                 }
             }
-            Spacer(Modifier.height(if (compactHome || localSuggestions.isNotEmpty()) 17.dp else 33.dp))
+            Spacer(Modifier.height(if (compactHome || localSuggestions.isNotEmpty()) 19.dp else 35.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Quick access", color = HomeText, fontWeight = FontWeight.SemiBold,
-                    fontSize = 18.sp, modifier = Modifier.weight(1f))
+                Text("Shortcuts", color = HomeText, fontWeight = FontWeight.SemiBold,
+                    fontSize = 17.sp, modifier = Modifier.weight(1f))
                 TextButton(onClick = { editMode = !editMode }) {
                     Icon(if (editMode) Icons.Rounded.Done else Icons.Rounded.Edit,
                         contentDescription = null, modifier = Modifier.size(17.dp))
@@ -262,7 +276,11 @@ fun NightStartPage(
             }
             Spacer(Modifier.height(11.dp))
             BoxWithConstraints(Modifier.fillMaxWidth()) {
-                val columns = if (maxWidth >= 600.dp) 6 else 4
+                val columns = when {
+                    maxWidth >= 600.dp -> 6
+                    maxWidth < 330.dp -> 3
+                    else -> 4
+                }
                 val tiles: List<StartSite?> =
                     shortcuts.sites.map { it } + if (shortcuts.sites.size < 16) listOf(null) else emptyList()
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -295,10 +313,7 @@ fun NightStartPage(
                     }
                 }
             }
-            if (shortcuts.sites.isEmpty()) {
-                Text("Add your favorite websites using +", color = HomeSubtle, fontSize = 12.sp,
-                    modifier = Modifier.padding(top = 10.dp))
-            }
+            
 
             if (latestJourney != null) {
                 Spacer(Modifier.height(32.dp))
@@ -387,21 +402,23 @@ private fun StartSiteTile(
     onOpen: () -> Unit,
     onRemove: () -> Unit
 ) {
-    Box(Modifier.fillMaxWidth().height(103.dp)) {
+    Box(Modifier.fillMaxWidth().height(109.dp)) {
         Column(
-            modifier = Modifier.fillMaxWidth().clickable(onClick = onOpen)
-                .padding(vertical = 4.dp),
+            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp))
+                .clickable(onClick = onOpen)
+                .padding(vertical = 5.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Box(
-                modifier = Modifier.size(54.dp)
-                    .background(HomeTile, RoundedCornerShape(17.dp)),
+                modifier = Modifier.size(60.dp)
+                    .background(HomeTile, RoundedCornerShape(18.dp))
+                    .then(Modifier.clip(RoundedCornerShape(18.dp))),
                 contentAlignment = Alignment.Center
             ) {
                 SameOriginFavicon(site)
             }
-            Spacer(Modifier.height(9.dp))
-            Text(site.title, color = HomeSubtle, fontSize = 11.sp,
+            Spacer(Modifier.height(10.dp))
+            Text(site.title, color = HomeText, fontSize = 11.sp,
                 maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         if (editable) {
@@ -420,19 +437,20 @@ private fun StartSiteTile(
 @Composable
 private fun AddSiteTile(onClick: () -> Unit) {
     Column(
-        modifier = Modifier.fillMaxWidth().height(103.dp)
-            .clickable(onClick = onClick).padding(vertical = 4.dp),
+        modifier = Modifier.fillMaxWidth().height(109.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick).padding(vertical = 5.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Box(
-            Modifier.size(54.dp).background(HomeTile, RoundedCornerShape(17.dp)),
+            Modifier.size(60.dp).background(HomeTile, RoundedCornerShape(18.dp)),
             contentAlignment = Alignment.Center
         ) {
             Icon(Icons.Rounded.Add, contentDescription = "Add website shortcut",
                 tint = HomeAccent, modifier = Modifier.size(26.dp))
         }
-        Spacer(Modifier.height(9.dp))
-        Text("Add", color = HomeSubtle, fontSize = 11.sp)
+        Spacer(Modifier.height(10.dp))
+        Text("Add", color = HomeText, fontSize = 11.sp)
     }
 }
 
