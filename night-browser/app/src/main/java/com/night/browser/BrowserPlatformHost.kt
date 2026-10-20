@@ -129,7 +129,19 @@ class BrowserPlatformHost(private val activity: ComponentActivity) :
         session: GeckoSession,
         perm: GeckoSession.PermissionDelegate.ContentPermission
     ): GeckoResult<Int> {
-        if (perm.value != GeckoSession.PermissionDelegate.ContentPermission.VALUE_PROMPT) return GeckoResult.fromValue(perm.value)
+        if (perm.value != GeckoSession.PermissionDelegate.ContentPermission.VALUE_PROMPT) {
+            return GeckoResult.fromValue(perm.value)
+        }
+        // Silent autoplay doesn't expose data or play audio. It should not
+        // cause a confusing permission prompt on video-heavy websites.
+        if (perm.permission == GeckoSession.PermissionDelegate.PERMISSION_AUTOPLAY_INAUDIBLE) {
+            return GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_ALLOW)
+        }
+        // No native notification delivery implementation yet: do not display
+        // a meaningless "Allow notifications" choice to the user.
+        if (perm.permission == GeckoSession.PermissionDelegate.PERMISSION_DESKTOP_NOTIFICATION) {
+            return GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_DENY)
+        }
         // Enabling trackers is not a sensible response to a generic page
         // request, and persistent storage requires an explicit settings flow.
         if (perm.permission == GeckoSession.PermissionDelegate.PERMISSION_TRACKING ||
@@ -137,10 +149,11 @@ class BrowserPlatformHost(private val activity: ComponentActivity) :
         ) return GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_DENY)
         val reason = when (perm.permission) {
             GeckoSession.PermissionDelegate.PERMISSION_GEOLOCATION -> "your location"
-            GeckoSession.PermissionDelegate.PERMISSION_DESKTOP_NOTIFICATION -> "notifications"
             GeckoSession.PermissionDelegate.PERMISSION_AUTOPLAY_AUDIBLE -> "automatic sound playback"
-            GeckoSession.PermissionDelegate.PERMISSION_AUTOPLAY_INAUDIBLE -> "automatic silent playback"
             GeckoSession.PermissionDelegate.PERMISSION_STORAGE_ACCESS -> "third-party cookie access"
+            GeckoSession.PermissionDelegate.PERMISSION_MEDIA_KEY_SYSTEM_ACCESS -> "protected media playback"
+            GeckoSession.PermissionDelegate.PERMISSION_LOCAL_NETWORK_ACCESS -> "devices on your local network"
+            GeckoSession.PermissionDelegate.PERMISSION_LOCAL_DEVICE_ACCESS -> "this device's local services"
             else -> return GeckoResult.fromValue(GeckoSession.PermissionDelegate.ContentPermission.VALUE_DENY)
         }
         val result = GeckoResult<Int>()
@@ -177,7 +190,7 @@ class BrowserPlatformHost(private val activity: ComponentActivity) :
             else -> "microphone"
         }
         AlertDialog.Builder(activity)
-            .setTitle("Camera and microphone access")
+            .setTitle("Website device access")
             .setMessage("${safeHost(uri)} wants to use your ${reason}.")
             .setPositiveButton("Allow") { _, _ -> callback.grant(video?.firstOrNull(), audio?.firstOrNull()) }
             .setNegativeButton("Block") { _, _ -> callback.reject() }
