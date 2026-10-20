@@ -106,7 +106,7 @@ class BrowserController(private val appContext: Context) {
                     if (store.getNode(tab.journeyId, tab.lastNode)?.url ==
                         JourneyGraph.safeUrl(tab.url)
                     ) {
-                        store.renameNode(tab.journeyId, tab.lastNode, title)
+                        store.updatePageTitle(tab.journeyId, tab.lastNode, title)
                     }
                 }
             }
