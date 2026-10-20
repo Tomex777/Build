@@ -36,7 +36,18 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.draw.clip
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -732,7 +743,9 @@ internal fun AnnieGeckoStandaloneBrowser(
             Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 6.dp, vertical = 2.dp),
             horizontalArrangement = Arrangement.spacedBy(2.dp),
         ) {
-            TextButton(onClick = onExit, modifier = Modifier.semantics { contentDescription = "Close browser" }) { Text("✕", color = BrowserBrightText) }
+            IconButton(onClick = onExit, modifier = Modifier.semantics { contentDescription = "Close browser" }) {
+                Icon(AnnieIcons.Close, contentDescription = null, tint = BrowserBrightText)
+            }
             model.tabs.forEach { item ->
                 TextButton(onClick = { model.select(item); panel = null },
                     modifier = Modifier.testTag("annie_browser_tab_" + item.id)) {
@@ -742,22 +755,36 @@ internal fun AnnieGeckoStandaloneBrowser(
                         maxLines = 1, overflow = TextOverflow.Ellipsis,
                         color = if (item.id == tab.id) BrowserTeal else BrowserSoftText)
                 }
-                TextButton(onClick = { model.close(item) }) { Text("×", color = BrowserSoftText) }
+                IconButton(onClick = { model.close(item) }) {
+                    Icon(AnnieIcons.Close, contentDescription = "Close ${item.title}", tint = BrowserSoftText)
+                }
             }
-            TextButton(onClick = { model.newTab(); panel = null },
-                modifier = Modifier.testTag("annie_browser_new_tab")) { Text("+", color = BrowserTeal) }
+            IconButton(onClick = { model.newTab(); panel = null },
+                modifier = Modifier.testTag("annie_browser_new_tab")) {
+                Icon(AnnieIcons.Add, contentDescription = "New tab", tint = BrowserTeal)
+            }
         }
         Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            OutlinedTextField(
+            BasicTextField(
                 value = address,
                 onValueChange = { editing = true; address = it.take(4096) },
-                modifier = Modifier.weight(1f).testTag("annie_browser_tabs_address"),
+                modifier = Modifier.weight(1f).heightIn(min = 48.dp)
+                    .clip(RoundedCornerShape(14.dp)).background(Color(0xFF10243A))
+                    .border(1.dp, Color(0xFF294562), RoundedCornerShape(14.dp))
+                    .testTag("annie_browser_tabs_address")
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                textStyle = TextStyle(color = BrowserBrightText, fontSize = 15.sp),
+                cursorBrush = SolidColor(BrowserTeal),
                 singleLine = true,
-                shape = RoundedCornerShape(16.dp),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go),
                 keyboardActions = KeyboardActions(onGo = { submitAddress() }),
-                placeholder = { Text("Search or enter address") },
+                decorationBox = { inner ->
+                    Box(contentAlignment = Alignment.CenterStart) {
+                        if (address.isEmpty()) Text("Search or enter address", color = BrowserSoftText)
+                        inner()
+                    }
+                },
             )
             Button(onClick = { submitAddress() }, modifier = Modifier.testTag("annie_browser_go")) { Text("Go") }
         }
@@ -794,13 +821,21 @@ internal fun AnnieGeckoStandaloneBrowser(
         }
         Row(Modifier.fillMaxWidth().padding(horizontal = 6.dp),
             horizontalArrangement = Arrangement.SpaceBetween) {
-            TextButton(onClick = { tab.session.goBack() }, enabled = tab.canBack, modifier = Modifier.testTag("annie_browser_back").semantics { contentDescription = "Go back" }) { Text("‹", color = BrowserBrightText) }
-            TextButton(onClick = { tab.session.goForward() }, enabled = tab.canForward, modifier = Modifier.semantics { contentDescription = "Go forward" }) { Text("›", color = BrowserBrightText) }
-            TextButton(onClick = { model.reload(tab) }, modifier = Modifier.semantics { contentDescription = "Reload page" }) { Text("⟳", color = BrowserBrightText) }
+            IconButton(onClick = { tab.session.goBack() }, enabled = tab.canBack, modifier = Modifier.testTag("annie_browser_back")) {
+                Icon(AnnieIcons.ArrowBack, contentDescription = "Go back", tint = BrowserBrightText)
+            }
+            IconButton(onClick = { tab.session.goForward() }, enabled = tab.canForward) {
+                Icon(AnnieIcons.ArrowForward, contentDescription = "Go forward", tint = BrowserBrightText)
+            }
+            IconButton(onClick = { model.reload(tab) }) {
+                Icon(AnnieIcons.Refresh, contentDescription = "Reload page", tint = BrowserBrightText)
+            }
             TextButton(onClick = { model.toggleBookmark(tab) }, enabled = !tab.privateMode) {
                 Text(if (model.isBookmarked(tab)) "★" else "☆", color = BrowserTeal)
             }
-            TextButton(onClick = { menuOpen = true }, modifier = Modifier.semantics { contentDescription = "Browser menu" }) { Text("⋮", color = BrowserBrightText) }
+            IconButton(onClick = { menuOpen = true }) {
+                Icon(AnnieIcons.More, contentDescription = "Browser menu", tint = BrowserBrightText)
+            }
             DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                 DropdownMenuItem(text = { Text("New private tab") }, onClick = {
                     menuOpen = false; model.newTab(privateMode = true)
