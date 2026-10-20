@@ -60,6 +60,18 @@ class UniversalSearchPolicyTest {
         assertEquals(listOf("S1"), allowed.map { it.id })
     }
 
+    @Test fun localAndHiddenServiceHostsAreNeverOfferedToProvider() {
+        listOf(
+            "https://nas.home.arpa/status",
+            "https://printer.lan/status",
+            "https://myservice.onion/start",
+            "https://dev.corp/dashboard",
+            "https://portal.intranet/",
+        ).forEach { url ->
+            assertEquals(null, UniversalSearchPolicy.safeHost(url))
+        }
+    }
+
     @Test fun duplicatePagesAreNotRepeated() {
         val sameUrl = publicBookmark.copy(id = "S19", category = "Visit")
         assertEquals(1, UniversalSearchPolicy.eligibleCandidates(listOf(publicBookmark, sameUrl)).size)
