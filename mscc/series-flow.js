@@ -670,35 +670,197 @@ function deliveryLabel(details) {
   return 'the selected episodes'
 }
 
+function mediaTitleScore(candidate, targets) {
+  const candidateTokens = titleTokens(titleOf(candidate))
+  if (!candidateTokens.size) return 0
+  let best = 0
+  for (const target of targets) {
+    const targetTokens = titleTokens(target)
+    if (!targetTokens.size) continue
+    let common = 0
+    for (const word of candidateTokens) if (targetTokens.has(word)) common += 1
+    const union = new Set([...candidateTokens, ...targetTokens]).size
+    const jaccard = union ? common / union : 0
+    const targetCoverage = common / targetTokens.size
+    const candidateCoverage = common / candidateTokens.size
+    best = Math.max(best, jaccard, targetCoverage * 0.9, candidateCoverage * 0.65)
+  }
+  return best
+}
+
+function episodeWithNumber(episodes, wantedNumber) {
+  const wanted = Number(wantedNumber)
+  return episodes.find(row => {
+    const number = Number(row?.number ?? row?.episode)
+    return Number.isFinite(number) && number === wanted
+  }) || null
+}
+
+// Episode IDs are provider-specific. If the selected catalog can no longer
+// produce the media, search alternate providers, match the same title, then
+// resolve that episode number again before attempting the send.
+async function retryAnimeEpisodeDelivery(ctx, {
+  capability, sourceId, series, episode, quality, delivery,
+}) {
+  if (capability !== 'anime' || !Array.isArray(ctx.listSources)) return null
+
+  let identity = null
+  if (typeof ctx.resolveAniListTitles === 'function') {
+    try {
+      identity = await ctx.resolveAniListTitles(series.title, 'ANIME')
+    } catch {}
+  }
+
+  const targets = uniqueQueries([
+    series.title,
+    ...(Array.isArray(identity?.aliases) ? identity.aliases : []),
+  ]).slice(0, 3)
+  const sources = ctx.listSources('anime')
+    .filter(source => source?.id && source.id !== sourceId)
+    .slice(0, 3)
+
+  for (const alternative of sources) {
+    const candidatesById = new Map()
+    for (const query of targets) {
+      let searched
+      try {
+        searched = await ctx.executeSource({
+          capability:'anime',
+          explicitSource:alternative.id,
+          payload:{ action:'search', query, originalQuery:series.title },
+        })
+      } catch {
+        continue
+      }
+      if (searched?.status !== 'ok') continue
+      const result = searched.result || {}
+      const candidates = Array.isArray(result.items)
+        ? result.items
+        : result.item ? [result.item] : []
+      for (const candidate of candidates) {
+        const score = mediaTitleScore(candidate, targets)
+        const id = idOf(candidate)
+        if (!id) continue
+        const previous = candidatesById.get(id)
+        if (!previous || score > previous.score) candidatesById.set(id, { candidate, score })
+      }
+      if (candidatesById.size) break
+    }
+
+    const candidates = [...candidatesById.values()]
+      .filter(row => row.score >= 0.35)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 2)
+
+    for (const { candidate } of candidates) {
+      let episodeList
+      try {
+        episodeList = await ctx.executeSource({
+          capability:'anime',
+          explicitSource:alternative.id,
+          payload:{ action:'episodes', itemId:idOf(candidate), item:candidate },
+        })
+      } catch {
+        continue
+      }
+      if (episodeList?.status !== 'ok') continue
+      const result = episodeList.result || {}
+      const rows = (result.episodes || result.items || []).map(normalizeEpisode)
+      const matchedEpisode = episodeWithNumber(rows, episode.number)
+      if (!matchedEpisode) continue
+
+      let delivered
+      try {
+        delivered = await ctx.executeSource({
+          capability:'anime',
+          explicitSource:alternative.id,
+          payload:{
+            action:'download',
+            itemId:idOf(candidate),
+            episodeId:matchedEpisode.id,
+            item:candidate,
+            episode:matchedEpisode,
+            quality,
+            delivery,
+          },
+        })
+      } catch {
+        continue
+      }
+
+      if (delivered?.status === 'ok' && delivered.result?.delivered === true) {
+        return {
+          source:delivered.source || alternative,
+          result:delivered.result,
+          fallbackFrom:sourceName(sourceId, ctx),
+        }
+      }
+    }
+  }
+  return null
+}
+
+async function performSingleEpisodeDelivery(ctx, {
+  capability, sourceId, series, episode, quality, delivery,
+}) {
+  let outcome
+  try {
+    outcome = await ctx.executeSource({
+      capability,
+      explicitSource:sourceId,
+      payload:{
+        action:'download',
+        itemId:series.id,
+        episodeId:episode.id,
+        item:series,
+        episode,
+        quality,
+        delivery,
+      },
+    })
+  } catch (error) {
+    outcome = { status:'source-error', source:{ id:sourceId, name:sourceName(sourceId, ctx) }, error }
+  }
+
+  if (outcome.status === 'ok' && (outcome.result?.delivered === true || typeof outcome.result === 'string' || outcome.result?.text)) {
+    return { ok:true, source:outcome.source, message:outcome.result?.delivered === true ? '' : String(outcome.result?.text || outcome.result) }
+  }
+
+  const fallback = await retryAnimeEpisodeDelivery(ctx, {
+    capability, sourceId, series, episode, quality, delivery,
+  })
+  if (fallback) {
+    return {
+      ok:true,
+      source:fallback.source,
+      message:`✅ Fallback: ${fallback.fallbackFrom} could not deliver Episode ${episode.number}; ${fallback.source.name || fallback.source.id} was used. ✦`,
+    }
+  }
+
+  if (outcome.status !== 'ok') {
+    return { ok:false, message:deliveryOutcomeError(ctx, capability, outcome) }
+  }
+  return {
+    ok:false,
+    message:`⚠️ ${sourceName(sourceId, ctx)} finished the request for *${series.title}* but did not confirm media delivery. No file was confirmed as sent.`,
+  }
+}
+
 async function performMediaDelivery(ctx, details) {
   const { capability, sourceId, series, episode = null, range = null, quality, delivery } = details
 
   if (Array.isArray(details.selection)) {
     let completed = 0
     for (const selectedEpisode of details.selection) {
-      const outcome = await ctx.executeSource({
+      const episodeResult = await performSingleEpisodeDelivery(ctx, {
         capability,
-        explicitSource:sourceId,
-        payload:{
-          action:'download',
-          itemId:series.id,
-          episodeId:selectedEpisode.id,
-          item:series,
-          episode:selectedEpisode,
-          quality,
-          delivery,
-        },
+        sourceId,
+        series,
+        episode:selectedEpisode,
+        quality,
+        delivery,
       })
-      if (outcome.status !== 'ok') {
-        return { ok:false, message:deliveryOutcomeError(ctx, capability, outcome) }
-      }
-      const result = outcome.result
-      if (result?.delivered !== true && typeof result !== 'string' && !result?.text) {
-        return {
-          ok:false,
-          message:`⚠️ ${sourceName(sourceId, ctx)} completed Episode ${selectedEpisode.number} without confirming media delivery. No file was confirmed as sent.`,
-        }
-      }
+      if (!episodeResult.ok) return episodeResult
       completed += 1
     }
     return {
@@ -707,12 +869,27 @@ async function performMediaDelivery(ctx, details) {
     }
   }
 
+  if (episode) {
+    const episodeResult = await performSingleEpisodeDelivery(ctx, {
+      capability,
+      sourceId,
+      series,
+      episode,
+      quality,
+      delivery,
+    })
+    if (!episodeResult.ok) return episodeResult
+    if (episodeResult.message) return { ...episodeResult, message:episodeResult.message }
+    return {
+      ok:true,
+      message:`✅ *${series.title}* — Episode ${episode.number} was sent as ${delivery}. ✦`,
+    }
+  }
+
   const outcome = await ctx.executeSource({
     capability,
     explicitSource:sourceId,
-    payload:episode
-      ? { action:'download', itemId:series.id, episodeId:episode.id, item:series, episode, quality, delivery }
-      : { action:'downloadRange', itemId:series.id, item:series, range, quality, delivery },
+    payload:{ action:'downloadRange', itemId:series.id, item:series, range, quality, delivery },
   })
   if (outcome.status !== 'ok') {
     return { ok:false, message:deliveryOutcomeError(ctx, capability, outcome) }
