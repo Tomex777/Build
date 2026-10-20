@@ -495,21 +495,48 @@ class Device:
 
     def time_machine(self):
         self.go("/landing")
-        # An HTTP request hit is not proof Gecko finished committing the document.
-        # Capture only after the real tab title confirms its load, otherwise a
-        # blank/stale previous page PDF can be incorrectly attributed to /landing.
+        # Fixture HTTP requests may arrive before Gecko paints the committed page.
         self.verify_title("NIGHT QA REDIRECT LANDING")
         self.click("More")
         self.click("Save PDF copy")
         self.click("More")
         self.click("Time Machine")
-        # Saving and indexing Gecko's PDF bytes is asynchronous on real devices.
-        deadline = time.monotonic() + 24
-        while not self.find("NIGHT QA REDIRECT LANDING", partial=True):
-            if time.monotonic() >= deadline:
-                raise AssertionError("PDF version not present after 24s")
+        # A saved PDF must be real bytes plus durable archive metadata. Some
+        # Compose accessibility trees merge the title row with the parent card,
+        # so looking for only its text produced a false FAIL despite a visible
+        # 10 KB thumbnail and an actual indexed copy on API36.
+        deadline = time.monotonic() + 28
+        diagnostic = "archive metadata unavailable"
+        while time.monotonic() < deadline:
+            try:
+                xml = adb("exec-out", "run-as", PKG, "cat",
+                          "shared_prefs/night_time_machine_v2.xml",
+                          binary=True, check=False)
+                root = ElementTree.fromstring(xml)
+                entry = root.find(".//string[@name='versions']")
+                versions = json.loads(entry.text) if entry is not None and entry.text else []
+                for item in versions:
+                    name = item.get("file", "")
+                    if (item.get("url") != URL + "/landing" or
+                            item.get("title") != "NIGHT QA REDIRECT LANDING" or
+                            not re.fullmatch(r"page-[0-9]+-[0-9a-f]{8}\\.pdf", name)):
+                        continue
+                    data = adb("exec-out", "run-as", PKG, "cat",
+                               "files/saved-pages/" + name,
+                               binary=True, check=False)
+                    if (len(data) == item.get("bytes") and len(data) >= 1000 and
+                            data.startswith(b"%PDF-") and b"%%EOF" in data[-1024:]):
+                        return ("Verified indexed landing URL/title and "
+                                + str(len(data)) + " original saved PDF bytes on device")
+                    diagnostic = "indexed PDF size/header mismatch"
+                if not versions:
+                    diagnostic = "archive has no indexed versions yet"
+                elif diagnostic == "archive metadata unavailable":
+                    diagnostic = "indexed version differs from expected landing page"
+            except (ValueError, ElementTree.ParseError, TypeError):
+                diagnostic = "archive index not yet available"
             time.sleep(1)
-        return "Save PDF action then named page version displayed; offline open separately pending"
+        raise AssertionError("Real Time Machine PDF capture not verified: " + diagnostic)
 
     def peek(self):
         self.go("/links")
