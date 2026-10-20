@@ -86,6 +86,7 @@ private fun SavedPdfReader(uri: Uri?, onClose: () -> Unit) {
     val renderResult by produceState<Pair<Boolean, Bitmap?>>(
         initialValue = false to null, key1 = uri, key2 = safeIndex, key3 = displayWidth to pageCount
     ) {
+        value = false to null
         value = true to withContext(Dispatchers.IO) {
             if (uri == null || pageCount <= 0 ||
                 uri.authority != "com.night.browser.files") return@withContext null
@@ -94,9 +95,10 @@ private fun SavedPdfReader(uri: Uri?, onClose: () -> Unit) {
                     PdfRenderer(descriptor).use { renderer ->
                         if (safeIndex !in 0 until renderer.pageCount) return@use null
                         renderer.openPage(safeIndex).use { page ->
+                            require(page.width > 0 && page.height > 0)
                             val width = displayWidth
                             val height = (page.height.toLong() * width / page.width)
-                                .toInt().coerceIn(1, 2500)
+                                .coerceIn(1L, 2500L).toInt()
                             Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888).apply {
                                 eraseColor(AndroidColor.WHITE)
                                 page.render(this, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
