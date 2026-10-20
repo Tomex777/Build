@@ -577,6 +577,8 @@ body{background:var(--bg)}
 .board2048 .tile[data-v="1024"],.board2048 .tile[data-v="2048"]{background:#4f6d53;color:#fff}
 .board2048 .tile[data-high="true"]{background:#385842;color:#fff}
 .board2048 .tile[data-long="true"]{font-size:clamp(12px,2.6vw,21px)}
+.game-page[data-skin="2048"] #gameHelp.game-result{display:block;max-width:580px;margin:12px auto 0;padding:10px 14px;border-radius:11px;background:#e5f0e7;color:#274d34;font-weight:760;line-height:1.45}
+.game-page[data-skin="2048"] #gameHelp.game-result[data-outcome="lost"]{background:#f8e9e5;color:#8c392a}
 .tile-fresh{animation:tileAppear .2s cubic-bezier(.2,.9,.3,1.35)}
 @keyframes tileAppear{from{transform:scale(.82);opacity:.7}to{transform:scale(1);opacity:1}}
 .ttt-scorebar{justify-content:space-between!important;padding:12px 19px;min-height:76px}
@@ -1986,7 +1988,7 @@ function update2048Outcome(){
  if(!help||!board)return;
  const lost=!canMove2048(),won=grid.some(row=>row.some(v=>v>=2048));
  const outcome=lost?"lost":won?"won":"playing";
- board.dataset.outcome=outcome;
+ board.dataset.outcome=outcome;help.dataset.outcome=outcome;
  help.classList.toggle("game-result",outcome!=="playing");
  help.setAttribute("role","status");
  const message=lost?"No moves left — game over. Score: "+tileScore+".":
