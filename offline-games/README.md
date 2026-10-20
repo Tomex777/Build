@@ -4,7 +4,7 @@ Android app for an original offline game collection, converting the original 105
 
 - **Application ID:** `com.night.offlinegames`, following the required `com.night.<appname>` convention. Change the final segment consistently at renaming time.
 - **Platform:** native Android / Kotlin / Compose, `minSdk 26`.
-- **Current development catalog:** 106 registrations. **3 currently route to native Kotlin/Compose game screens** (2048, Water Sort Puzzle, Shark Survival); **103 still route to bundled WebView games and must be rewritten.** Do not mistake the registration count or prior browser QA for 106 quality-certified native games.
+- **Current development catalog:** 106 registrations. **4 currently route to native Kotlin/Compose game screens** (2048, Tic-Tac-Toe, Water Sort Puzzle, Shark Survival); **102 still route to bundled WebView games and must be rewritten.** Do not mistake the registration count or prior browser QA for 106 quality-certified native games.
 - **No INTERNET permission.** The embedded arcade loads under WebViewAssetLoader on the reserved `appassets.androidplatform.net` virtual host, with network loads blocked.
 - **Progress:** 2048 persists the board and best in device preferences; arcade game scores persist in the WebView's local storage; hub remembers recent games and favourites.
 - **Style:** no ad SDK, online account requirement, global volume slider, placeholder tiles, or duplicate back buttons.
@@ -54,9 +54,10 @@ CI can check compilation, native board logic and package contents. Real-device c
 The user elected a **fully native Android** app. WebView was a convenience shortcut in the original milestone; that decision is reversed. The APK is **not yet fully native**. Until conversions are complete, do not market the 106 entries as native.
 
 - **Native 2048:** Kotlin board logic, Compose board and swipe gestures.
+- **Native Tic-Tac-Toe:** Kotlin perfect-play CPU, 3×3 responsive Compose touch board, animated X/O marks, locally saved matches and stats.
 - **Native Water Sort Puzzle:** replaces the pre-existing `colorsort` screen (same ID, no duplicate catalogue tile); Kotlin rules with known-solvable puzzles, per-tube Compose Canvas rendering, fractional pour animation, undo, next level and offline save.
 - **Native Shark Survival:** *new 106th game* inspired by the general eat-to-grow survival genre. Original title, procedural Canvas artwork and mechanics; no proprietary Ubisoft game code, characters, names or artwork. Swipe/drag swimming, small prey and harmful ocean life, health/hunger, score, growth and saved dives.
-- **Remaining 103 browser-run games:** must be rewritten in native Kotlin with real device playtests before retiring WebView and its assets/dependencies.
+- **Remaining 102 browser-run games:** must be rewritten in native Kotlin with real device playtests before retiring WebView and its assets/dependencies.
 - **Android target:** minSdk 26, application ID `com.night.offlinegames`, no internet permission; keep native gameplay offline-only and avoid redundant controls.
 
 Native conversion must be per game, including accurate rules, real touch testing, lifecycle pause/resume, progress persistence, responsive layout and high quality original/rights-cleared art. Browser screenshots are reference QA evidence, not Android-native certification. Next migration batch: core input-focused games (Snake, Tic-Tac-Toe, Reversi and Checkers), followed by strategy/card engines, then heavy Canvas action/racing games and requested photographic Jigsaw/Nigerian Ludo. Prioritize art/control quality over counting tiles.
