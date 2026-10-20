@@ -25,6 +25,16 @@ internal object DownloadDuplicatePolicy {
                 proposedName.equals(priorName, ignoreCase = true))
     }
 
+    fun findCompleted(
+        sourceUrl: String,
+        proposedName: String,
+        items: List<LibraryDownload>,
+        isPresent: (LibraryDownload) -> Boolean
+    ): LibraryDownload? = items.firstOrNull {
+        it.complete && matches(sourceUrl, proposedName, it.url, it.fileName) &&
+            isPresent(it)
+    }
+
     /** [origin, path] with query, fragment and user credentials removed. */
     private fun identity(raw: String): Pair<String, String>? = runCatching {
         val safe = URI(GeckoDownloadNames.redactUrl(raw))
