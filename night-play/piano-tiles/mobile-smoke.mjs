@@ -56,6 +56,41 @@ try{
   'A touch on an actually visible tile must instantly register; it must not keep falling');
  assert.equal(await page.evaluate(()=>window.__nightPianoTest.snapshot().ended),false,
   'An early visual hit must not cause a wrong-tile loss');
+
+ // Actually play beyond the initial 32-note stream. The board must remain
+ // endless, keep producing notes, and honor real phone touches without a line.
+ for(let i=1;i<40;i++){
+  await page.waitForFunction(index=>{
+   const item=window.__nightPianoTest.snapshot().notes[index];
+   const geo=window.__nightPianoTest.geometry()[index];
+   return item&&geo&&geo.bottom>=530;
+  },i,{timeout:12000});
+  const next=await page.evaluate(index=>({
+   item:window.__nightPianoTest.snapshot().notes[index],
+   geo:window.__nightPianoTest.geometry()[index]
+  }),i);
+  const box=await page.locator('#board').boundingBox();
+  const px=box.x+(next.item.lane+.5)*box.width/4;
+  const py=box.y+Math.max(18,Math.min(640,next.geo.bottom-35))*box.height/660;
+  if(next.item.hold){
+   await page.mouse.move(px,py);
+   await page.mouse.down();
+   const heldBefore=await page.evaluate(index=>window.__nightPianoTest.geometry()[index].bottom,i);
+   await page.waitForTimeout(190);
+   const heldAfter=await page.evaluate(index=>window.__nightPianoTest.geometry()[index].bottom,i);
+   assert.ok(Math.abs(heldBefore-heldAfter)<.1,'A touched long tile must stop moving under the finger');
+   await page.waitForTimeout(540);
+   await page.mouse.up();
+  }else await page.touchscreen.tap(px,py);
+  const progress=await page.evaluate(()=>window.__nightPianoTest.snapshot());
+  assert.equal(progress.ended,false,'Endless visible tap should not unexpectedly end at tile '+i);
+ }
+ const endless=await page.evaluate(()=>window.__nightPianoTest.snapshot());
+ assert.ok(endless.complete>=40,'40 genuine visual notes earned in endless mode');
+ assert.ok(endless.endlessIndex>=40,'Endless mode generates new notes beyond the first chart');
+ assert.equal(endless.ended,false,'Endless mode never announces a finite song victory');
+ writeFileSync(path.join(output,'piano-endless-40-visible-touches.png'),
+  await page.screenshot({fullPage:true}));
  await page.locator('#pause').click();
  // Resume controls do not allow switching songs mid-run. End via an empty-lane tap.
  const empty=await page.locator('#board').boundingBox();
