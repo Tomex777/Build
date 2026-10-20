@@ -20,6 +20,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Verify authoritative co-op Jigsaw reducer and two-client conflicts
+        run: node night-play/multiplayer/jigsaw/co-op-state.test.cjs
       - name: Install browser automation dependency
         run: npm install --no-save playwright@1.56.1
       - name: Actually play Tic-Tac-Toe in two separate browser contexts
