@@ -47,7 +47,7 @@ function chart(){
  return result;
 }
 function cover(kicker,title,copy,button){
- $("coverKicker").textContent=kicker;$("coverTitle").textContent=title;
+ $("coverKicker").textContent=kicker;$("coverKicker").hidden=!kicker;$("coverTitle").textContent=title;
  $("coverCopy").textContent=copy;
  $("coverAction").hidden=!button;
  if(button)$("coverAction").textContent=button;
@@ -64,18 +64,18 @@ function clearRun(){
  if(raf)cancelAnimationFrame(raf);raf=0;closeSounds();notes=chart();
  held.clear();keyHeld.clear();ripples=[];score=0;streak=0;complete=0;
  elapsed=0;previous=0;running=false;paused=false;ended=false;
- updateHud();setPauseButton();$("status").textContent="Ready";render();
+ updateHud();setPauseButton();$("restart").hidden=true;$("status").textContent="Ready";render();
 }
 function begin(){
  clearRun();running=true;paused=false;ended=false;
- $("cover").hidden=true;setPauseButton();$("status").textContent="Play the next tile";
+ $("cover").hidden=true;$("restart").hidden=false;setPauseButton();$("status").textContent="Play the next tile";
  previous=0;raf=requestAnimationFrame(tick);
 }
 function lose(reason){
  if(ended)return;
  ended=true;running=false;paused=false;
  if(raf)cancelAnimationFrame(raf);raf=0;
- closeSounds();held.clear();keyHeld.clear();saveBest();updateHud();setPauseButton();
+ closeSounds();held.clear();keyHeld.clear();saveBest();updateHud();setPauseButton();$("restart").hidden=true;
  $("status").textContent=reason;
  cover("ROUND OVER",reason,"Score "+score+" · "+complete+" / "+notes.length+" notes","Play again");
  render();
@@ -134,7 +134,7 @@ function sound(frequency,hold){
 function noteGeometry(n){
  const speed=294+Math.min(65,complete*1.6);
  const bottom=HIT+(elapsed-n.at)*speed;
- const length=n.hold?(n.duration*speed+112):117;
+ const length=n.hold?(n.duration*speed+138):166;
  return {bottom,top:bottom-length,left:n.lane*100+4,right:n.lane*100+96,
   speed,length};
 }
