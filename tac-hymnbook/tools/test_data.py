@@ -89,7 +89,11 @@ class HymnDataTest(unittest.TestCase):
                 "not_yet_matched",
             })
         self.assertEqual(sum(e["lyrics_imported"] for e in entries), 18)
-        self.assertEqual(sum(e["english_title_status"] == "verified_from_RH2006_index" for e in entries), 234)
+        self.assertEqual(sum(e["english_title_status"] == "verified_from_RH2006_index" for e in entries), 354)
+        self.assertEqual(entries[234]["title_en"], "Tarry for the Spirit")
+        self.assertEqual(entries[267]["title_en"], "O Word of God incarnate")
+        self.assertEqual(entries[353]["title_en"], "Just as I am, without one plea")
+        self.assertEqual([e["number"] for e in entries[:354]], list(range(1,355)))
         for number in (178, 190, 200):
             self.assertEqual(entries[number - 1]["english_title_status"], "verified_from_RH2006_index")
         self.assertEqual(entries[176]["title_en"].lower(), "jesus was slain for me")
