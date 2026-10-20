@@ -74,6 +74,7 @@ jobs:
       - name: Stage preview-only phone proofs and 1000px images
         run: |
           mkdir -p naruto-preview
+          rm -f naruto-preview/*--view.jpg naruto-preview/*--phone.png
           cp dist/naruto/index.html naruto-preview/index.html
           find dist/naruto -maxdepth 1 -type f \( -name '*--phone.png' -o -name '*--view.jpg' \) -exec cp '{}' naruto-preview/ \;
           printf '%s\n' 'User review required; neither production site nor bot is updated.' > naruto-preview/STATUS.txt
