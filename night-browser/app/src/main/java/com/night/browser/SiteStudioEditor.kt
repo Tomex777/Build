@@ -32,6 +32,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -201,7 +203,8 @@ private fun StudioCodeField(
             textStyle = TextStyle(fontSize = 13.sp, lineHeight = 19.sp,
                 fontFamily = FontFamily.Monospace, color = StudioText),
             cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-            modifier = Modifier.fillMaxWidth().heightIn(min = (minHeight - 24).dp),
+            modifier = Modifier.fillMaxWidth().heightIn(min = (minHeight - 24).dp)
+                .semantics { this.contentDescription = contentDescription },
             decorationBox = { inner ->
                 if (value.isEmpty()) {
                     Text(hint, color = StudioMuted, fontSize = 12.sp,
