@@ -1,25 +1,40 @@
 package studio.artistscene.core
 
+import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
-import java.io.File
 import java.nio.file.Files
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AssetImportPolicyTest {
+    private fun glb(json: String, binary: ByteArray? = null): ByteArray {
+        val jsonBytes = json.encodeToByteArray()
+        val jsonPadding = (4 - jsonBytes.size % 4) % 4
+        val binaryPadding = binary?.let { (4 - it.size % 4) % 4 } ?: 0
+        val length = 12 + 8 + jsonBytes.size + jsonPadding +
+            (if (binary == null) 0 else 8 + binary.size + binaryPadding)
+        return ByteBuffer.allocate(length).order(ByteOrder.LITTLE_ENDIAN).apply {
+            putInt(0x46546C67) // glTF
+            putInt(2)
+            putInt(length)
+            putInt(jsonBytes.size + jsonPadding)
+            putInt(0x4E4F534A) // JSON
+            put(jsonBytes)
+            repeat(jsonPadding) { put(' '.code.toByte()) }
+            if (binary != null) {
+                putInt(binary.size + binaryPadding)
+                putInt(0x004E4942) // BIN
+                put(binary)
+                repeat(binaryPadding) { put(0) }
+            }
+        }.array()
+    }
+
     @Test
     fun validGlbVersionTwoIsAccepted() {
-        val bytes = ByteArray(12)
-        bytes[0] = 'g'.code.toByte()
-        bytes[1] = 'l'.code.toByte()
-        bytes[2] = 'T'.code.toByte()
-        bytes[3] = 'F'.code.toByte()
-        ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).apply {
-            putInt(4, 2)
-            putInt(8, bytes.size)
-        }
+        val bytes = glb("""{"asset":{"version":"2.0"}}""")
         assertEquals(
             AssetImportValidation.Accepted("glb"),
             AssetImportPolicy.validate("model.glb", bytes.size.toLong(), bytes),
@@ -28,15 +43,10 @@ class AssetImportPolicyTest {
 
     @Test
     fun vrmExtensionIsAcceptedWhenPayloadIsAValidGlbContainer() {
-        val bytes = ByteArray(12)
-        bytes[0] = 'g'.code.toByte()
-        bytes[1] = 'l'.code.toByte()
-        bytes[2] = 'T'.code.toByte()
-        bytes[3] = 'F'.code.toByte()
-        ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).apply {
-            putInt(4, 2)
-            putInt(8, bytes.size)
-        }
+        val bytes = glb(
+            """{"asset":{"version":"2.0"},"buffers":[{"byteLength":4}]}""",
+            byteArrayOf(1, 2, 3, 4),
+        )
         assertEquals(
             AssetImportValidation.Accepted("glb"),
             AssetImportPolicy.validate("character.vrm", bytes.size.toLong(), bytes),
@@ -45,17 +55,38 @@ class AssetImportPolicyTest {
 
     @Test
     fun truncatedGlbIsRejectedBeforeRenderer() {
-        val bytes = ByteArray(12)
-        bytes[0] = 'g'.code.toByte()
-        bytes[1] = 'l'.code.toByte()
-        bytes[2] = 'T'.code.toByte()
-        bytes[3] = 'F'.code.toByte()
-        ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).apply {
-            putInt(4, 2)
-            putInt(8, 200)
-        }
-        val result = AssetImportPolicy.validate("broken.glb", 12, bytes)
+        val bytes = glb("""{"asset":{"version":"2.0"}}""").copyOf()
+        ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).putInt(8, 200)
+        assertTrue(AssetImportPolicy.validate("broken.glb", bytes.size.toLong(), bytes) is AssetImportValidation.Rejected)
+    }
+
+    @Test
+    fun headerOnlyGlbIsRejectedRatherThanSentToFilament() {
+        val bytes = glb("""{"asset":{"version":"2.0"}}""").copyOfRange(0, 12)
+        ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).putInt(8, 12)
+        assertTrue(AssetImportPolicy.validate("empty.glb", null, bytes) is AssetImportValidation.Rejected)
+    }
+
+    @Test
+    fun glbWithChunkOverrunningContainerIsRejected() {
+        val bytes = glb("""{"asset":{"version":"2.0"}}""")
+        ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN).putInt(12, 2048)
+        assertTrue(AssetImportPolicy.validate("overrun.glb", null, bytes) is AssetImportValidation.Rejected)
+    }
+
+    @Test
+    fun glbWithoutRequiredBinaryChunkIsRejected() {
+        val bytes = glb("""{"asset":{"version":"2.0"},"buffers":[{"byteLength":20}]}""")
+        val result = AssetImportPolicy.validate("missing.glb", null, bytes)
         assertTrue(result is AssetImportValidation.Rejected)
+        assertTrue((result as AssetImportValidation.Rejected).reason.contains("missing binary buffer"))
+    }
+
+    @Test
+    fun invalidUtf8InGlbJsonChunkIsRejected() {
+        val bytes = glb("""{"asset":{"version":"2.0"}}""")
+        bytes[22] = 0xFF.toByte()
+        assertTrue(AssetImportPolicy.validate("badjson.glb", null, bytes) is AssetImportValidation.Rejected)
     }
 
     @Test
@@ -88,6 +119,18 @@ class AssetImportPolicyTest {
     }
 
     @Test
+    fun standaloneGltfWithImplicitExternalBufferIsRejected() {
+        val json = """{"asset":{"version":"2.0"},"buffers":[{"byteLength":5}]}""".encodeToByteArray()
+        assertTrue(AssetImportPolicy.validate("implicit.gltf", null, json) is AssetImportValidation.Rejected)
+    }
+
+    @Test
+    fun invalidGltfVersionIsRejected() {
+        val json = """{"asset":{"version":"20.0"}}""".encodeToByteArray()
+        assertTrue(AssetImportPolicy.validate("wrong.gltf", null, json) is AssetImportValidation.Rejected)
+    }
+
+    @Test
     fun oversizedReportedAssetIsRejectedWithoutParsing() {
         val result = AssetImportPolicy.validate(
             "huge.glb",
@@ -98,14 +141,28 @@ class AssetImportPolicyTest {
     }
 
     @Test
-    fun stagedGlbIsValidatedFromHeaderWithoutLoadingTheWholePayload() {
+    fun stagedGlbChecksChunkBoundariesWithoutLoading64MiBBinaryIntoHeap() {
         val file = Files.createTempFile("mise-large-glb", ".glb").toFile()
         try {
             val length = 64L * 1024 * 1024
+            val json = """{"asset":{"version":"2.0"},"buffers":[{"byteLength":1}]}"""
+            val jsonBytes = json.encodeToByteArray()
+            val jsonPadding = (4 - jsonBytes.size % 4) % 4
+            val paddedJson = jsonBytes.size + jsonPadding
+            val binaryChunkLength = (length - 12 - 8 - paddedJson - 8).toInt()
             file.outputStream().use { output ->
-                output.write(byteArrayOf('g'.code.toByte(), 'l'.code.toByte(), 'T'.code.toByte(), 'F'.code.toByte()))
-                output.write(ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN)
-                    .putInt(2).putInt(length.toInt()).array())
+                val header = ByteBuffer.allocate(20 + paddedJson + 8).order(ByteOrder.LITTLE_ENDIAN).apply {
+                    putInt(0x46546C67)
+                    putInt(2)
+                    putInt(length.toInt())
+                    putInt(paddedJson)
+                    putInt(0x4E4F534A)
+                    put(jsonBytes)
+                    repeat(jsonPadding) { put(' '.code.toByte()) }
+                    putInt(binaryChunkLength)
+                    putInt(0x004E4942)
+                }
+                output.write(header.array())
                 output.channel.position(length - 1)
                 output.write(0)
             }
