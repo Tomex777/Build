@@ -106,6 +106,20 @@ class JourneyGraphTest {
         assertFalse("D" in JourneyGraph.subtreeIds(journey.nodes, "B"))
     }
 
+    @Test fun legacyDuplicateIdsKeepLatestAndNeverRenderGhostVisits() {
+        val legacy = listOf(
+            a,
+            b,
+            b.copy(url = "https://a.test/new-b", timestamp = 200),
+            c,
+            JourneyNode("", "https://a.test/invalid", "Bad", "A", 201)
+        )
+        val repaired = JourneyGraph.repair(legacy)
+        assertEquals(listOf("A", "B", "C"), repaired.map { it.id })
+        assertEquals("https://a.test/new-b", repaired.first { it.id == "B" }.url)
+        assertEquals(3, JourneyGraph.rows(Journey("j", "Good", repaired)).size)
+    }
+
     @Test fun pruningReparentsOrphanAndKeepsValidDescendants() {
         val result = JourneyGraph.repair(journey.nodes, 2)
         assertEquals(listOf("C", "D"), result.map { it.id })

@@ -45,7 +45,8 @@ class JourneyVisitTracker(
             }
             return nodeId
         }
-        val match = when (expected) {
+        val navigation = expected
+        val match = when (navigation) {
             Expected.BACK -> (index - 1 downTo 0).firstOrNull {
                 lookup(trail[it])?.url == safe
             }
@@ -58,6 +59,26 @@ class JourneyVisitTracker(
         if (match != null) {
             index = match
             return nodeId
+        }
+
+        // A restored Gecko tab may have its complete web history but only a
+        // single saved Journey cursor (the current page). Reconstruct the
+        // missing backward trail from persisted parent edges, instead of
+        // wrongly recording Back as a *new child* of the page being left.
+        if (navigation == Expected.BACK && index >= 0) {
+            val ancestors = mutableListOf<String>()
+            val seen = mutableSetOf<String>()
+            var ancestorId = nodeId?.let(lookup)?.parent
+            while (ancestorId != null && seen.add(ancestorId)) {
+                val ancestor = lookup(ancestorId) ?: break
+                ancestors.add(ancestorId)
+                if (ancestor.url == safe) {
+                    trail.addAll(index, ancestors.asReversed())
+                    // The inserted first element is now the page reached by Back.
+                    return nodeId
+                }
+                ancestorId = ancestor.parent
+            }
         }
 
         val parent = nodeId

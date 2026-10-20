@@ -399,53 +399,13 @@ private fun NightBrowser(browser: BrowserController, openSaved: (File) -> Unit) 
              !editorTab.url.startsWith("https://"))) {
             LaunchedEffect(tabId) { studioTabId = null }
         } else {
-            fun closeEditor() { studioTabId = null }
-            val studio = browser.siteStudio
-            val store = browser.siteStudioStore
-            SiteStudioEditor(
+            SiteStudioRoute(
+                session = editorTab.session,
                 pageUrl = editorTab.url,
-                initial = studio.editorRule(editorTab.session, editorTab.url),
-                onPreview = { draft ->
-                    if (studio.preview(editorTab.session, draft)) {
-                        closeEditor()
-                        editorTab.session.reload()
-                    } else {
-                        browser.notice = "Site Studio preview could not be applied."
-                    }
-                },
-                onSave = { rule ->
-                    if (store.save(rule)) {
-                        studio.discardPreview(editorTab.session)
-                        closeEditor()
-                        editorTab.session.reload()
-                    } else {
-                        browser.notice = "Site Studio could not save these changes."
-                    }
-                },
-                onReset = {
-                    if (store.remove(editorTab.url)) {
-                        studio.discardPreview(editorTab.session)
-                        closeEditor()
-                        editorTab.session.reload()
-                    } else {
-                        browser.notice = "Site Studio couldn't reset this site."
-                    }
-                },
-                canUndo = store.canUndo(editorTab.url),
-                onUndo = {
-                    if (store.undo(editorTab.url)) {
-                        studio.discardPreview(editorTab.session)
-                        closeEditor()
-                        editorTab.session.reload()
-                    } else {
-                        browser.notice = "There is no Site Studio change to undo."
-                    }
-                },
-                onDismiss = {
-                    studio.discardPreview(editorTab.session)
-                    closeEditor()
-                    editorTab.session.reload()
-                }
+                store = browser.siteStudioStore,
+                bridge = browser.siteStudio,
+                onClose = { studioTabId = null },
+                onNotice = { browser.notice = it }
             )
         }
     }
@@ -529,50 +489,6 @@ private fun WebSurface(tab: BrowserTab) {
         }
     }
 }
-
-@Composable
-private fun PeekDialog(
-    browser: BrowserController, url: String, onDismiss: () -> Unit, onOpen: () -> Unit
-) {
-    val context = LocalContext.current
-    val peek = remember(url) { browser.newPeekSession(url) }
-    val view = remember(url) { GeckoView(context) }
-    DisposableEffect(peek) {
-        onDispose {
-            view.releaseSession()
-            if (peek.isOpen) peek.close()
-        }
-    }
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
-    ) {
-        Column(
-            Modifier.fillMaxWidth(.94f).fillMaxHeight(.84f)
-                .background(Raised, RoundedCornerShape(20.dp))
-        ) {
-            Row(
-                Modifier.fillMaxWidth().height(60.dp).padding(horizontal = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("PEEK", color = Accent, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.width(12.dp))
-                Text(url, color = Bright, fontSize = 13.sp,
-                    maxLines = 1, overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f))
-                ChromeIcon(Icons.Rounded.OpenInNew, "Open as tab") { onOpen() }
-                ChromeIcon(Icons.Rounded.Close, "Close preview") { onDismiss() }
-            }
-            HorizontalDivider(color = Border)
-            AndroidView(
-                factory = { view.apply { setSession(peek) } },
-                modifier = Modifier.fillMaxSize().background(Color.White)
-            )
-        }
-    }
-}
-
-private data class StartShortcut(val title: String, val url: String)
 
 @Composable
 private fun HomePanel(

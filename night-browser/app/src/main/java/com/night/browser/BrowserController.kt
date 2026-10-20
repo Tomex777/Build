@@ -17,7 +17,6 @@ import org.mozilla.geckoview.GeckoRuntime
 import org.mozilla.geckoview.GeckoSession
 import org.mozilla.geckoview.GeckoSessionSettings
 import java.util.concurrent.Executors
-import java.io.File
 import java.util.UUID
 
 class BrowserTab(
@@ -572,32 +571,4 @@ class BrowserController(
             }
         }
 
-    fun savePdfSnapshot() {
-        val tab = active
-        if (tab.isPrivate) { notice = "Unavailable in private tabs"; return }
-        if (!tab.url.startsWith("http")) {
-            notice = "Open a webpage before saving a copy."
-            return
-        }
-        val snapshotUrl = tab.url
-        val snapshotTitle = tab.title
-        tab.session.saveAsPdf().accept({ input ->
-            Thread {
-                try {
-                    val folder = File(appContext.filesDir, "saved-pages").apply { mkdirs() }
-                    val fileName = "page-" + System.currentTimeMillis() + "-" +
-                        UUID.randomUUID().toString().take(8) + ".pdf"
-                    requireNotNull(input) { "PDF stream was empty" }.use { stream ->
-                        File(folder, fileName).outputStream().use { stream.copyTo(it) }
-                    }
-                    Handler(Looper.getMainLooper()).post {
-                        store.savePage(fileName, snapshotUrl, snapshotTitle)
-                        notice = "PDF copy saved in Time Machine"
-                    }
-                } catch (error: Exception) {
-                    Handler(Looper.getMainLooper()).post { notice = "Couldn't save this page." }
-                }
-            }.start()
-        }, { error -> notice = "Couldn't save this page as PDF." })
-    }
 }

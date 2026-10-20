@@ -93,6 +93,59 @@ class JourneyVisitTrackerTest {
         assertFalse(saved.values.any { it.url.endsWith("/hidden") })
     }
 
+    @Test fun restoredGeckoHistoryReconstructsAncestorsAndPreservesForkParent() {
+        val saved = linkedMapOf(
+            "A" to JourneyNode("A", "https://night.test/a", "A", null, 1),
+            "B" to JourneyNode("B", "https://night.test/b", "B", "A", 2),
+            "C" to JourneyNode("C", "https://night.test/c", "C", "B", 3)
+        )
+        val restored = JourneyVisitTracker(
+            lookup = { saved[it] },
+            saveVisit = { url, title, parent ->
+                val id = "D"
+                saved[id] = JourneyNode(id, url, title, parent, 4)
+                id
+            },
+            seedNodeId = "C"
+        )
+        restored.expectBack()
+        assertEquals("B", restored.visited("https://night.test/b", "B"))
+        restored.expectBack()
+        assertEquals("A", restored.visited("https://night.test/a", "A"))
+        restored.expectForward()
+        assertEquals("B", restored.visited("https://night.test/b", "B"))
+        restored.expectForward()
+        assertEquals("C", restored.visited("https://night.test/c", "C"))
+        restored.expectBack()
+        assertEquals("B", restored.visited("https://night.test/b", "B"))
+        restored.expectBack()
+        assertEquals("A", restored.visited("https://night.test/a", "A"))
+        assertEquals("D", restored.visited("https://night.test/d", "D"))
+        assertEquals("A", saved.getValue("D").parent)
+        assertEquals(4, saved.size)
+    }
+
+    @Test fun restoredBackSkipsAncestralHopsWithoutCloningHistoryNodes() {
+        val nodes = mapOf(
+            "A" to JourneyNode("A", "https://night.test/a", "A", null, 1),
+            "B" to JourneyNode("B", "https://night.test/b", "B", "A", 2),
+            "C" to JourneyNode("C", "https://night.test/c", "C", "B", 3)
+        )
+        var unexpectedWrites = 0
+        val restored = JourneyVisitTracker(
+            lookup = { nodes[it] },
+            saveVisit = { _, _, _ -> unexpectedWrites++; null },
+            seedNodeId = "C"
+        )
+        restored.expectBack()
+        assertEquals("A", restored.visited("https://night.test/a", "A"))
+        restored.expectForward()
+        assertEquals("B", restored.visited("https://night.test/b", "B"))
+        restored.expectForward()
+        assertEquals("C", restored.visited("https://night.test/c", "C"))
+        assertEquals(0, unexpectedWrites)
+    }
+
     @Test fun nonHttpNavigationsNeverRecord() {
         val h = Harness()
         assertNull(h.tracker.visited("about:blank", "Private"))

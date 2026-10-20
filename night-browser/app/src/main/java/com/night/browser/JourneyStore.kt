@@ -50,17 +50,17 @@ class JourneyStore(context: Context) {
         val array = JSONArray(prefs.getString("journeys", "[]"))
         // An incomplete/malformed entry must not erase every saved Journey.
         // Read valid sibling Journeys and skip only the damaged node/record.
-        (0 until array.length()).mapNotNull { index ->
-            val obj = array.optJSONObject(index) ?: return@mapNotNull null
+        (0 until array.length()).mapNotNull journey@{ index ->
+            val obj = array.optJSONObject(index) ?: return@journey null
             val journeyId = obj.optString("id").takeIf { it.isNotBlank() }
-                ?: return@mapNotNull null
+                ?: return@journey null
             val raw = obj.optJSONArray("nodes") ?: JSONArray()
-            val nodes = (0 until raw.length()).mapNotNull { n ->
-                val x = raw.optJSONObject(n) ?: return@mapNotNull null
+            val nodes = (0 until raw.length()).mapNotNull visit@{ n ->
+                val x = raw.optJSONObject(n) ?: return@visit null
                 val nodeId = x.optString("id").takeIf { it.isNotBlank() }
-                    ?: return@mapNotNull null
+                    ?: return@visit null
                 val safe = JourneyGraph.safeUrl(x.optString("url"))
-                    ?: return@mapNotNull null
+                    ?: return@visit null
                 JourneyNode(
                     nodeId, safe, x.optString("title"),
                     x.optString("parent").ifBlank { null }, x.optLong("time"),
