@@ -284,7 +284,7 @@ private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> U
             dismissButton = {
                 TextButton(onClick = {
                     browser.contextLink = null
-                    browser.newTab(link)
+                    browser.newChildTab(link)
                     page = Page.WEB
                 }) { Text("New tab") }
             },
@@ -296,7 +296,7 @@ private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> U
         PeekDialog(browser, url,
             onDismiss = { peekUrl = null },
             onOpen = {
-                browser.newTab(url)
+                browser.newChildTab(url)
                 peekUrl = null
                 page = Page.WEB
             })
