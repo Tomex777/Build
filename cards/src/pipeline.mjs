@@ -15,7 +15,7 @@ export async function presentation(report,out) {
   report.boards=[];
   for(let start=0;start<entries.length;start+=10){
     const selected=entries.slice(start,start+10), layers=[];
-    const texts=[`<text x="32" y="47" font-size="25" fill="#f0e7d5">NIGHT / BLEACH</text><text x="1712" y="45" text-anchor="end" font-size="13" fill="#99a6af">${start+1}–${start+selected.length} / ${entries.length} · 320px phone proofs</text>`];
+    const texts=[`<text x="32" y="47" font-size="25" fill="#f0e7d5">NIGHT / ${xml(report.series.toUpperCase())}</text><text x="1712" y="45" text-anchor="end" font-size="13" fill="#99a6af">${start+1}–${start+selected.length} / ${entries.length} · 320px phone proofs</text>`];
     for(let i=0;i<selected.length;i++){
       const c=selected[i], x=32+(i%5)*340,y=78+Math.floor(i/5)*582;
       layers.push({input:await fs.readFile(path.join(out,c.phone)),left:x,top:y});
