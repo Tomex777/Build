@@ -76,21 +76,22 @@ internal class TerrainAssets(private val context: Context) {
      * This method deliberately does not delete prior files: they may still be
      * referenced by undo steps, a previously saved project, or duplicates.
      */
-    fun sculpt(existing: Actor, stroke: TerrainStroke): Actor {
-        val asset = requireNotNull(existing.asset) { "Choose a generated terrain actor" }
-        require(existing.kind == ActorKind.ENVIRONMENT &&
-            asset.assetId.startsWith("terrain.generated.") &&
-            asset.storage == AssetStorage.PROJECT_FILE) {
-            "Brushes can edit Mise-generated 3D terrain only"
+    /** Read the authored geometry for a brush panel; caller runs this off the UI thread. */
+    fun heights(existing: Actor): FloatArray = terrainFrom(existing).heights
+
+    fun sculpt(existing: Actor, stroke: TerrainStroke): Actor =
+        sculpt(existing, listOf(stroke))
+
+    /** One drag gesture = one immutable mesh revision and one eventual undo step. */
+    fun sculpt(existing: Actor, strokes: List<TerrainStroke>): Actor {
+        require(strokes.size <= 2048) { "Too many terrain brush samples" }
+        if (strokes.isEmpty()) return existing
+        val terrain = terrainFrom(existing)
+        val sculpted = strokes.fold(terrain.heights) { heights, stroke ->
+            TerrainSculpt.apply(heights, stroke)
         }
-        val folder = File(context.filesDir, "models").canonicalFile
-        val original = File(context.filesDir, asset.relativePath).canonicalFile
-        require(original.parentFile == folder && original.isFile) {
-            "Terrain asset is missing or outside the model library"
-        }
-        val terrain = GeneratedTerrainReader.decode(original.readBytes())
-        val sculpted = TerrainSculpt.apply(terrain.heights, stroke)
         if (terrain.heights.contentEquals(sculpted)) return existing
+        val asset = requireNotNull(existing.asset)
         val bytes = TerrainMesh.encodeGlb(sculpted, terrain.embeddedPng)
         val revisionPath = saveUniqueTerrain(bytes)
         val revision = (existing.metadata["terrainRevision"]?.toIntOrNull() ?: 0)
@@ -103,8 +104,23 @@ internal class TerrainAssets(private val context: Context) {
             ),
             metadata = existing.metadata +
                 ("terrainRevision" to revision.toString()) +
-                ("terrainLastBrush" to stroke.brush.name),
+                ("terrainLastBrush" to strokes.last().brush.name),
         )
+    }
+
+    private fun terrainFrom(existing: Actor): studio.artistscene.core.GeneratedTerrain {
+        val asset = requireNotNull(existing.asset) { "Choose a generated terrain actor" }
+        require(existing.kind == ActorKind.ENVIRONMENT &&
+            asset.assetId.startsWith("terrain.generated.") &&
+            asset.storage == AssetStorage.PROJECT_FILE) {
+            "Brushes can edit Mise-generated 3D terrain only"
+        }
+        val folder = File(context.filesDir, "models").canonicalFile
+        val original = File(context.filesDir, asset.relativePath).canonicalFile
+        require(original.parentFile == folder && original.isFile) {
+            "Terrain asset is missing or outside the model library"
+        }
+        return GeneratedTerrainReader.decode(original.readBytes())
     }
 
     private fun saveUniqueTerrain(bytes: ByteArray): String {
