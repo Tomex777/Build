@@ -11,7 +11,7 @@ const dir=path.dirname(fileURLToPath(import.meta.url));
 const root=path.resolve(dir,"..");
 const server=createServer((req,res)=>{
   const pathname=new URL(req.url,"http://localhost").pathname;
-  const files={"/club/":"club/index.html","/club":"club/index.html","/club/index.html":"club/index.html","/club/style.css":"club/style.css","/game-shell.css":"game-shell.css","/club/ludo-immersive.css":"club/ludo-immersive.css","/club/games.js":"club/games.js","/club/naija-ludo.js":"club/naija-ludo.js","/club/ludo-motion.js":"club/ludo-motion.js","/club/ludo-dice-3d.js":"club/ludo-dice-3d.js","/strategy/":"strategy/index.html","/strategy":"strategy/index.html","/strategy/index.html":"strategy/index.html","/strategy/style.css":"strategy/style.css","/strategy/game.js":"strategy/game.js","/strategy/chess-v0.10.3.js":"strategy/chess-v0.10.3.js","/games":"index.html","/index.html":"index.html"};
+  const files={"/club/":"club/index.html","/club":"club/index.html","/club/index.html":"club/index.html","/club/style.css":"club/style.css","/game-shell.css":"game-shell.css","/club/ludo-immersive.css":"club/ludo-immersive.css","/club/games.js":"club/games.js","/club/naija-ludo.js":"club/naija-ludo.js","/club/ludo-motion.js":"club/ludo-motion.js","/club/ludo-dice-3d.js":"club/ludo-dice-3d.js","/strategy/":"strategy/index.html","/strategy":"strategy/index.html","/strategy/index.html":"strategy/index.html","/strategy/style.css":"strategy/style.css","/strategy/game.js":"strategy/game.js","/strategy/ai.js":"strategy/ai.js","/strategy/ai-worker.js":"strategy/ai-worker.js","/strategy/chess-v0.10.3.js":"strategy/chess-v0.10.3.js","/games":"index.html","/index.html":"index.html"};
   const rel=files[pathname];
   if(!rel){res.writeHead(404);res.end("Not found");return;}
   const kind=rel.endsWith(".css")?"text/css":rel.endsWith(".js")?"text/javascript":"text/html";
@@ -587,6 +587,8 @@ try{
   }
 
   // Chess is a complete local game rather than the planned crossplay placeholder.
+  let chessWorkerStarts=0;
+  page.on('worker',worker=>{if(worker.url().includes('/strategy/ai-worker.js'))chessWorkerStarts++});
   await page.goto(base+'/strategy/');
   assert.equal(await page.locator('[data-square]').count(),64,'Chess draws all board squares');
   assert.equal(await page.locator('.piece').count(),32,'Chess starts with 32 original SVG pieces');
@@ -600,6 +602,24 @@ try{
    return s.moves.length===2&&!s.busy&&s.turn==='w';
   },null,{timeout:10000});
   assert.equal(await page.locator('.piece').count(),32,'CPU must make a legal response');
+  assert.ok(chessWorkerStarts>0,'computer search executes in a real Web Worker, not on the UI thread');
+  await page.locator('#cpuDifficulty').selectOption('hard');
+  assert.equal(await page.evaluate(()=>window.__nightChessQA().difficulty),'hard','difficulty selection changes CPU policy');
+  await page.reload();
+  assert.equal(await page.locator('#cpuDifficulty').inputValue(),'hard','chosen difficulty survives reload');
+  await page.locator('#newMatch').click();
+  await page.locator('[data-square="e2"]').click();
+  await page.locator('[data-square="e4"]').click();
+  await page.waitForFunction(()=>window.__nightChessQA().moves.length===1&&!window.__nightChessQA().busy);
+  await page.locator('#undo').click();
+  await page.waitForTimeout(450);
+  assert.equal(await page.evaluate(()=>window.__nightChessQA().moves.length),0,'undo cancels a pending computer move');
+  await page.locator('#cpuDifficulty').selectOption('normal');
+  await page.locator('#newMatch').click();
+  await page.locator('[data-square="e2"]').click();
+  await page.locator('[data-square="e4"]').click();
+  await page.waitForFunction(()=>window.__nightChessQA().moves.length===2&&!window.__nightChessQA().busy,null,{timeout:12000});
+
   const persistedFen=await page.evaluate(()=>window.__nightChessQA().fen);
   await page.reload();
   await page.locator('.piece').first().waitFor();
