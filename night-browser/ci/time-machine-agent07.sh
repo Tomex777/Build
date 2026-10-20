@@ -49,7 +49,7 @@ shot() {
 pdf_names() {
   # Nested Android 'sh -c ... | wc' pipelines can be parsed by adb incorrectly.
   # Count files on CI host after a direct run-as directory listing.
-  adb shell run-as "$PKG" ls files/saved-pages 2>/dev/null | tr -d '\\r' |
+  adb shell run-as "$PKG" ls files/saved-pages 2>/dev/null | tr -d '\r' |
     grep -E '^page-.*[.]pdf$' || true
 }
 pdf_count() {
