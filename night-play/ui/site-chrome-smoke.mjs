@@ -80,7 +80,24 @@ try {
     assert.equal(library.emojiThumbnails, 0, 'Library should retain original artwork at ' + width)
     await page.screenshot({ path: join(output, 'library-' + width + '.png') })
     console.log('NIGHT_UI_LIBRARY ' + JSON.stringify({ width, ...library }))
-    await page.locator('.library-card[data-game="2048"]').click()
+
+    // Wave 2 journey A: the actual category + search controls must work as
+    // accessible filters before a keyboard or touch user opens a game.
+    await page.locator('.filter-btn[data-filter="puzzle"]').click()
+    assert.equal(await page.locator('.filter-btn[data-filter="puzzle"]').getAttribute('aria-pressed'), 'true')
+    const puzzleCards = await page.locator('.library-card:visible').count()
+    assert.ok(puzzleCards >= 2 && puzzleCards < library.cards,
+      'Puzzle filter must show a strict non-empty subset of the catalogue at ' + width)
+    await page.screenshot({ path: join(output, 'library-puzzles-' + width + '.png') })
+    await page.locator('#gameSearch').fill('2048')
+    const matches = await page.locator('.library-card:visible').count()
+    assert.equal(matches, 1, 'Search within Puzzle category must find only 2048 at ' + width)
+    assert.match((await page.locator('#libraryCount').textContent()) || '', /1 game found/)
+    await page.screenshot({ path: join(output, 'library-search-' + width + '.png') })
+    // Programmatic focus + Enter exercises the existing role=button keyboard
+    // handler on the real non-anchor 2048 library card.
+    await page.locator('.library-card[data-game="2048"]').focus()
+    await page.keyboard.press('Enter')
     await page.locator('body.in-game').waitFor()
     await page.locator('#board2048').waitFor({ state: 'visible' })
     const game = await page.evaluate(() => {
@@ -149,6 +166,36 @@ try {
     const profileOverflow = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)
     assert.ok(profileOverflow <= 1, 'Profile does not overflow horizontally at ' + width)
     await page.screenshot({ path: join(output, 'profile-' + width + '.png') })
+    // Wave 2 journey B: guest-name change must affect actual saved profile
+    // state and the Home greeting, not simply a temporary text decoration.
+    await page.locator('#editPlayerName').click()
+    await page.locator('#playerNameInput').fill('NIGHT Tester')
+    await page.locator('#playerNameForm button[type="submit"]').click()
+    assert.equal((await page.locator('#playerDisplayName').textContent()).trim(), 'NIGHT Tester')
+    await page.reload()
+    await page.locator('#view-profile').waitFor({ state: 'visible' })
+    assert.equal((await page.locator('#playerDisplayName').textContent()).trim(), 'NIGHT Tester',
+      'Guest profile name must survive reloading this same device at ' + width)
+    const homeNav = mobile
+      ? '.mobile-nav a[href="/dashboard"]'
+      : '.site-header .links a[href="/dashboard"]'
+    await page.locator(homeNav).click()
+    await page.locator('#view-dashboard').waitFor({ state: 'visible' })
+    assert.match((await page.locator('#homeGreeting').textContent()) || '', /NIGHT Tester/,
+      'Home must use the saved name at ' + width)
+    await page.screenshot({ path: join(output, 'dashboard-renamed-' + width + '.png') })
+    // Keep measuring touch ergonomics; these are currently audit metrics,
+    // not passing claims. A9 will gate fixes once A1 grants the CSS lock.
+    const touchAudit = await page.evaluate(() => {
+      const metrics = selector => [...document.querySelectorAll(selector)]
+        .filter(el => getComputedStyle(el).display !== 'none')
+        .map(el => ({ name: el.textContent?.trim().slice(0,40),
+          width: Math.round(el.getBoundingClientRect().width),
+          height: Math.round(el.getBoundingClientRect().height) }))
+      return { header: metrics('.site-header a'), tabs: metrics('.mobile-nav a'),
+        dashboardLinks: metrics('#view-dashboard a') }
+    })
+    console.log('NIGHT_UI_WAVE2_TOUCH_AUDIT ' + JSON.stringify({ width, ...touchAudit }))
     console.log('NIGHT_UI_PROFILE ' + JSON.stringify({ width, overflow: profileOverflow }))
     assert.deepEqual(errors, [], 'Browser page errors at ' + width)
     console.log('NIGHT_UI_GAME ' + JSON.stringify({ width, ...game, errors }))
