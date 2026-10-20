@@ -56,7 +56,11 @@ try{
  }
  {
   const p=await browser.newPage({viewport:{width:390,height:844},hasTouch:true,isMobile:true});
-  p.on('pageerror',e=>errors.push(e.message));await p.goto(origin+'/arcade/?game=bird');await sizes(p);
+  p.on('pageerror',e=>errors.push(e.message));
+  // A fixed obstacle seed keeps the first actual successful crossing
+  // repeatable in CI while collisions and taps still run in real Chromium.
+  await p.addInitScript(()=>{Math.random=()=>.5;});
+  await p.goto(origin+'/arcade/?game=bird');await sizes(p);
   assert.equal(await p.locator('[data-control="flap"]').count(),0);await shot(p,'flappy-start');
   await p.locator('canvas').tap();
   for(let i=0;i<2;i++){await p.waitForTimeout(640);await p.locator('canvas').tap();}
@@ -91,7 +95,7 @@ try{
    await p.waitForTimeout(60);
   }
   if(passed)await shot(p,'flappy-scored');
-  console.log('AGENT4_FLAPPY_SCORE_PLAY='+JSON.stringify({passed,flaps,maxSpeed,position:lastPosition&&{y:lastPosition.y,vy:lastPosition.vy,distance:lastPosition.distance}}));
+  console.log('AGENT4_FLAPPY_SCORE_PLAY='+JSON.stringify({passed,flaps,maxSpeed,position:lastPosition&&{y:lastPosition.y,vy:lastPosition.vy,distance:lastPosition.distance,pipes:lastPosition.pipes}}));
   assert.equal(passed,true,'At least one pipe must be passed by real touch inputs');
   console.log('AGENT4_FLAPPY='+JSON.stringify({speed:flight.speed,gap:flight.pipes[0].gap,loss:true,restart:true,scored:true}));await p.close();
  }
