@@ -28,8 +28,7 @@ const outcomes=[];
 async function move(page,from,to){
  await page.locator('[data-square="'+from+'"]').click();
  await page.locator('[data-square="'+to+'"]').click();
- await page.waitForFunction(len=>window.__nightChessQA().moves.length>=len,
-  (await page.evaluate(()=>window.__nightChessQA().moves.length))+1,{timeout:2000}).catch(()=>{});
+
 }
 try{
  for(const width of [390,1280]){
@@ -45,7 +44,7 @@ try{
   for(const [from,to] of seq){
    const pre=await page.evaluate(()=>window.__nightChessQA().moves.length);
    await move(page,from,to);
-   await page.waitForFunction(k=>window.__nightChessQA().moves.length===k+1,pre,{timeout:2200});
+   await page.waitForFunction(k=>window.__nightChessQA().moves.length===k+1&&!window.__nightChessQA().busy,pre,{timeout:2200});
   }
   assert.equal((await page.evaluate(()=>window.__nightChessQA())).gameOver,true);
   const overlay=page.locator('#chessFinish');
@@ -62,7 +61,7 @@ try{
   for(let i=0;i<2;i++)for(const [from,to] of rep){
    const old=await page.evaluate(()=>window.__nightChessQA().moves.length);
    await move(page,from,to);
-   await page.waitForFunction(k=>window.__nightChessQA().moves.length>k,old,{timeout:2200});
+   await page.waitForFunction(k=>window.__nightChessQA().moves.length>k&&!window.__nightChessQA().busy,old,{timeout:2200});
   }
   await overlay.waitFor({state:'visible'});
   assert.equal(await page.locator('#chessFinishTitle').innerText(),'Draw');
