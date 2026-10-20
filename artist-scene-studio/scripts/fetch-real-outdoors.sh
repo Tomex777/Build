@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 # Pin upstream *CC0* photos from Poly Haven and bake offline, no runtime network.
+# Retry transient HTTP/CDN failures (including nonstandard 521) without ever
+# bypassing the independent SHA256 checks on each licensed source.
 set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
 world="$root/app/src/main/assets/world"
@@ -7,7 +9,7 @@ mkdir -p "$world"
 download_asset() {
     local url="$1" dest="$2" expected_sha="$3"
     if [ ! -s "$dest" ]; then
-        curl --fail --location --retry 3 --max-time 180 -o "$dest.tmp" "$url"
+        curl --fail --location --retry 8 --retry-all-errors --retry-delay 2 --connect-timeout 20 --max-time 180 -o "$dest.tmp" "$url"
         mv "$dest.tmp" "$dest"
     fi
     echo "Poly Haven CC0 source: $url"
@@ -34,7 +36,7 @@ for material in dirt rock_ground granular_concrete asphalt_floor; do
     target="$world/${material}_diff_1k.png"
     url="https://dl.polyhaven.org/file/ph-assets/Textures/png/1k/${material}/${material}_diff_1k.png"
     if [ ! -s "$target" ]; then
-        curl --fail --location --retry 3 --max-time 180 -o "$target.tmp" "$url"
+        curl --fail --location --retry 8 --retry-all-errors --retry-delay 2 --connect-timeout 20 --max-time 180 -o "$target.tmp" "$url"
         mv "$target.tmp" "$target"
     fi
     # Prevent success with HTML or truncated downloads.
@@ -72,7 +74,7 @@ rm "$world/original_kloofendal_sky.jpg"
 oak_file="$root/app/src/main/assets/models/mise_oak_tree.glb"
 oak_original="$world/source_original_oak.glb"
 oak_url="https://www.innerscene.com/api/library/oak-street-tree-detailed-leaves-a273fef9/download"
-curl --fail --location --retry 3 --max-time 180 -o "$oak_original.tmp" "$oak_url"
+curl --fail --location --retry 8 --retry-all-errors --retry-delay 2 --connect-timeout 20 --max-time 180 -o "$oak_original.tmp" "$oak_url"
 mv "$oak_original.tmp" "$oak_original"
 echo "a02698ef246d8005110c291c510b8f7f397ae26e69414aa538cc4993b06256dd  $oak_original" | sha256sum --check --status || {
     rm -f "$oak_original"
@@ -93,7 +95,7 @@ fetch_mise_model() {
     local target="$root/app/src/main/assets/models/$path"
     local url="https://www.innerscene.com/api/library/$slug/download"
     if [ ! -s "$target" ]; then
-        curl --fail --location --retry 3 --max-time 180 -o "$target.tmp" "$url"
+        curl --fail --location --retry 8 --retry-all-errors --retry-delay 2 --connect-timeout 20 --max-time 180 -o "$target.tmp" "$url"
         mv "$target.tmp" "$target"
     fi
     test "$(wc -c < "$target")" -gt 300000 || {
