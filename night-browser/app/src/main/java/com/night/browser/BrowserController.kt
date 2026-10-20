@@ -11,13 +11,16 @@ import androidx.compose.runtime.setValue
 import org.mozilla.geckoview.GeckoResult
 import org.mozilla.geckoview.GeckoRuntime
 import org.mozilla.geckoview.GeckoSession
+import org.mozilla.geckoview.GeckoSessionSettings
+import java.util.concurrent.Executors
 import java.io.File
 import java.util.UUID
 
 class BrowserTab(
     val id: String,
     val session: GeckoSession,
-    val journeyId: String
+    val journeyId: String,
+    val isPrivate: Boolean = false
 ) {
     var title by mutableStateOf("New tab")
     var url by mutableStateOf("")
@@ -28,11 +31,18 @@ class BrowserTab(
     var lastNode by mutableStateOf<String?>(null)
     // In-memory reduced page preview. Never written to the browsing-history store.
     var thumbnail by mutableStateOf<Bitmap?>(null)
+    var sessionState: String? = null
 }
 
 class BrowserController(private val appContext: Context) {
     val store = JourneyStore(appContext)
     private val runtime: GeckoRuntime = GeckoRuntime.create(appContext)
+    private val tabStore = TabSessionStore(appContext)
+    private val writes = Executors.newSingleThreadExecutor()
+    private val handler = Handler(Looper.getMainLooper())
+    private val pendingSave = Runnable { persistNow() }
+    private var isClosed = false
+    private val recentlyClosedNormal = mutableListOf<TabSessionStore.Entry>()
     val tabs = mutableStateListOf<BrowserTab>()
     var activeId by mutableStateOf("")
         private set
@@ -42,12 +52,44 @@ class BrowserController(private val appContext: Context) {
     val active: BrowserTab get() = tabs.first { it.id == activeId }
 
     init {
-        newTab()
+        val saved = tabStore.read()
+        if (saved == null || saved.tabs.isEmpty()) {
+            newTab()
+        } else {
+            // Restore every accepted manifest entry; never silently discard older tabs.
+            saved.tabs.forEach { entry ->
+                val validJourney = store.journeys.find { it.id == entry.journeyId }?.id
+                    ?: store.journeys.first().id
+                createTab(journeyId = validJourney, restored = entry)
+            }
+            select(saved.activeId?.takeIf { id -> tabs.any { it.id == id } }
+                ?: tabs.last().id)
+        }
     }
 
-    fun newTab(url: String? = null, journeyId: String = store.journeys.first().id): BrowserTab {
-        val session = GeckoSession()
-        val tab = BrowserTab(UUID.randomUUID().toString(), session, journeyId)
+    fun newTab(
+        url: String? = null,
+        journeyId: String = store.journeys.first().id,
+        privateMode: Boolean = false
+    ): BrowserTab = createTab(url, journeyId, privateMode, null)
+
+    private fun createTab(
+        url: String? = null,
+        journeyId: String = store.journeys.first().id,
+        privateMode: Boolean = false,
+        restored: TabSessionStore.Entry? = null
+    ): BrowserTab {
+        val session = GeckoSession(
+            GeckoSessionSettings.Builder().usePrivateMode(privateMode).build()
+        )
+        val tab = BrowserTab(restored?.id ?: UUID.randomUUID().toString(),
+            session, journeyId, privateMode)
+        if (restored != null) {
+            tab.title = restored.title.ifBlank { "New tab" }
+            tab.url = restored.url
+            tab.lastNode = restored.lastNode
+            tab.sessionState = restored.sessionState
+        }
         session.navigationDelegate = object : GeckoSession.NavigationDelegate {
             override fun onLocationChange(
                 session: GeckoSession,
@@ -55,10 +97,14 @@ class BrowserController(private val appContext: Context) {
                 perms: List<GeckoSession.PermissionDelegate.ContentPermission>,
                 hasUserGesture: Boolean
             ) {
-                if (url.isNullOrBlank()) return
+                // Do not show Gecko's internal blank document as a visited website.
+                if (url.isNullOrBlank() || url == "about:blank") return
                 if (tab.url != url) {
                     tab.url = url
-                    store.record(tab.journeyId, url, tab.title, tab.lastNode)?.let { tab.lastNode = it }
+                    if (!tab.isPrivate) {
+                        store.record(tab.journeyId, url, tab.title, tab.lastNode)?.let { tab.lastNode = it }
+                        schedulePersist()
+                    }
                 }
             }
 
@@ -71,7 +117,7 @@ class BrowserController(private val appContext: Context) {
             }
 
             override fun onNewSession(session: GeckoSession, uri: String): GeckoResult<GeckoSession> {
-                val popup = newTab(journeyId = tab.journeyId)
+                val popup = newTab(journeyId = tab.journeyId, privateMode = tab.isPrivate)
                 return GeckoResult.fromValue(popup.session)
             }
         }
@@ -79,7 +125,10 @@ class BrowserController(private val appContext: Context) {
             override fun onTitleChange(session: GeckoSession, title: String?) {
                 if (!title.isNullOrBlank()) {
                     tab.title = title
-                    store.renameNode(tab.journeyId, tab.lastNode, title)
+                    if (!tab.isPrivate) {
+                        store.renameNode(tab.journeyId, tab.lastNode, title)
+                        schedulePersist()
+                    }
                 }
             }
 
@@ -97,6 +146,12 @@ class BrowserController(private val appContext: Context) {
             }
         }
         session.progressDelegate = object : GeckoSession.ProgressDelegate {
+            override fun onSessionStateChange(session: GeckoSession, state: GeckoSession.SessionState) {
+                if (!tab.isPrivate) {
+                    tab.sessionState = state.toString()
+                    schedulePersist()
+                }
+            }
             override fun onPageStart(session: GeckoSession, url: String) {
                 tab.isLoading = true
             }
@@ -111,7 +166,15 @@ class BrowserController(private val appContext: Context) {
         session.open(runtime)
         tabs.add(tab)
         select(tab.id)
-        url?.takeIf { it.isNotBlank() }?.let(session::loadUri)
+        if (restored != null) {
+            val prior = restored.sessionState?.let { encoded ->
+                runCatching { GeckoSession.SessionState.fromString(encoded) }.getOrNull()
+            }
+            val didRestore = prior?.let { runCatching { session.restoreState(it) }.isSuccess } == true
+            if (!didRestore && restored.url.isNotBlank()) session.loadUri(restored.url)
+        } else {
+            url?.takeIf { it.isNotBlank() }?.let(session::loadUri)
+        }
         return tab
     }
 
@@ -119,14 +182,64 @@ class BrowserController(private val appContext: Context) {
         if (tabs.none { it.id == tabId }) return
         activeId = tabId
         tabs.forEach { it.session.setActive(it.id == activeId) }
+        schedulePersist()
     }
 
     fun closeTab(tabId: String) {
         val tab = tabs.firstOrNull { it.id == tabId } ?: return
+        // Private-tab closure is final: no private URLs, thumbnails or state in undo storage.
+        if (!tab.isPrivate) {
+            recentlyClosedNormal.add(toSavedTab(tab))
+            if (recentlyClosedNormal.size > 5) recentlyClosedNormal.removeAt(0)
+        }
         if (tabs.size == 1) newTab(journeyId = tab.journeyId)
         else if (tabId == activeId) select(tabs.first { it.id != tabId }.id)
         tabs.remove(tab)
+        tab.thumbnail = null
         tab.session.close()
+        schedulePersist()
+    }
+
+    fun undoCloseTab(tabId: String): Boolean {
+        val index = recentlyClosedNormal.indexOfLast { it.id == tabId }
+        if (index == -1) return false
+        val closed = recentlyClosedNormal.removeAt(index)
+        val journey = store.journeys.find { it.id == closed.journeyId }?.id
+            ?: store.journeys.first().id
+        createTab(journeyId = journey, restored = closed)
+        return true
+    }
+
+    private fun toSavedTab(tab: BrowserTab): TabSessionStore.Entry =
+        TabSessionStore.Entry(tab.id, tab.journeyId, tab.url, tab.title,
+            tab.lastNode, tab.sessionState)
+
+    private fun schedulePersist() {
+        if (isClosed) return
+        handler.removeCallbacks(pendingSave)
+        handler.postDelayed(pendingSave, 950L)
+    }
+
+    /** Persists only NORMAL tabs. Content/form state is encrypted before disk write. */
+    fun persistNow() {
+        if (isClosed) return
+        handler.removeCallbacks(pendingSave)
+        val normal = tabs.filterNot { it.isPrivate }.map(::toSavedTab)
+        val activeNormalId = activeId.takeIf { id -> normal.any { it.id == id } }
+            ?: normal.lastOrNull()?.id
+        val snapshot = TabSessionStore.Snapshot(activeNormalId, normal)
+        writes.execute { runCatching { tabStore.write(snapshot) } }
+    }
+
+    fun trimPreviews() { tabs.forEach { it.thumbnail = null } }
+
+    fun close() {
+        if (isClosed) return
+        persistNow()
+        isClosed = true
+        handler.removeCallbacks(pendingSave)
+        tabs.forEach { if (it.session.isOpen) it.session.close() }
+        writes.shutdown()
     }
 
     fun navigate(input: String) {
@@ -141,13 +254,20 @@ class BrowserController(private val appContext: Context) {
     fun goBack() { if (active.canGoBack) active.session.goBack() }
     fun goForward() { if (active.canGoForward) active.session.goForward() }
     fun reload() { active.session.reload() }
-    fun bookmark() { store.bookmark(active.url, active.title); notice = "Added to Library" }
+    fun bookmark() {
+        if (active.isPrivate) { notice = "Private tabs do not save bookmarks"; return }
+        store.bookmark(active.url, active.title)
+        notice = "Added to Library"
+    }
 
     fun newPeekSession(url: String): GeckoSession =
-        GeckoSession().also { it.open(runtime); it.loadUri(url) }
+        GeckoSession(GeckoSessionSettings.Builder()
+            .usePrivateMode(active.isPrivate).build())
+            .also { it.open(runtime); it.loadUri(url) }
 
     fun savePdfSnapshot() {
         val tab = active
+        if (tab.isPrivate) { notice = "Unavailable in private tabs"; return }
         if (!tab.url.startsWith("http")) {
             notice = "Open a webpage before saving a copy."
             return
