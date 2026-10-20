@@ -9,7 +9,7 @@ const board=$('chessBoard'),promotionLayer=$('promotionLayer'),PERSIST='night-ch
 const ICONS={p:'p',r:'r',n:'n',b:'b',q:'q',k:'k'};
 const files='abcdefgh';
 let match=new Chess(),mode='computer',selected=null,available=[],lastMove=null;
-let busy=false,epoch=0,cpuTimer=null,cpuWorker=null,promotionPending=null,difficulty='normal';
+let busy=false,epoch=0,cpuTimer=null,cpuWorker=null,cpuWatchdog=null,promotionPending=null,difficulty='normal';
 let cpuWorkerReplies=0,lastCpuNodes=0,lastCpuDepth=0;
 function pieceSVG(p){
  return '<svg class="piece '+p.color+'" viewBox="0 0 64 64" role="img" aria-label="'+(p.color==='w'?'White ':'Black ')+({p:'pawn',r:'rook',n:'knight',b:'bishop',q:'queen',k:'king'}[p.type])+'"><use href="#chess-'+ICONS[p.type]+'"></use></svg>';
@@ -87,6 +87,7 @@ function render(){
 function cancel(){
  epoch++;busy=false;selected=null;available=[];promotionPending=null;
  clearTimeout(cpuTimer);cpuTimer=null;
+ clearTimeout(cpuWatchdog);cpuWatchdog=null;
  if(cpuWorker){cpuWorker.terminate();cpuWorker=null}
  promotionLayer.hidden=true;
 }
@@ -168,6 +169,7 @@ function queueCPU(){
    worker.onmessage=event=>{
     if(cpuWorker!==worker)return;
     worker.terminate();cpuWorker=null;
+    clearTimeout(cpuWatchdog);cpuWatchdog=null;
     if(token!==epoch||mode!=='computer'||match.turn()!=='b')return;
     if(event.data?.error){fallback();return}
     const move=event.data?.move;
@@ -176,11 +178,14 @@ function queueCPU(){
     lastCpuNodes=Number(move.nodes)||0;lastCpuDepth=Number(move.depth)||0;
     commitMove(move);
    };
-   worker.onerror=()=>{if(cpuWorker===worker){worker.terminate();cpuWorker=null;fallback()}};
+   worker.onerror=()=>{if(cpuWorker===worker){worker.terminate();cpuWorker=null;clearTimeout(cpuWatchdog);cpuWatchdog=null;fallback()}};
+   // A suspended/crashed worker may never send an error event.
+   cpuWatchdog=setTimeout(()=>{if(cpuWorker===worker){worker.terminate();cpuWorker=null;cpuWatchdog=null;fallback()}},4000);
    worker.postMessage({job:token,moves,difficulty});
   }catch{
    if(worker)worker.terminate();
    cpuWorker=null;
+   clearTimeout(cpuWatchdog);cpuWatchdog=null;
    fallback();
   }
  },160);
