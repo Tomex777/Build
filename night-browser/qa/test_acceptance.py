@@ -12,6 +12,7 @@ class HarnessUnitTests(unittest.TestCase):
     def test_filled_omnibar_is_replaced_without_placeholder_assumption(self):
         qa = Acceptance.__new__(Acceptance)
         field = ElementTree.Element("node", {
+            "package": "com.night.browser",
             "class": "android.widget.EditText",
             "text": "about:blank",
             "bounds": "[60,1600][775,1700]",
