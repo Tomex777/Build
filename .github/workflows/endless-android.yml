@@ -125,6 +125,20 @@ jobs:
               assert im.size == (4096, 2048), "NASA Earth day map must be true 4K"
               assert im.format == "JPEG"
           PY_EARTH
+          # Replace the illustrative 2K Jupiter with observed Hubble WFC3
+          # 2015 global cloud imagery when NASA SVS is reachable. This
+          # upgrade is independent of the verified offline fallback.
+          python3 -m unittest discover -s endless_ci -p 'test_prepare_hubble_jupiter.py' -v
+          HUBBLE_SOURCE="$RUNNER_TEMP/hubble-jupiter-2015a.tif"
+          HUBBLE_RESULT="$RUNNER_TEMP/hubble-jupiter-3072.jpg"
+          if timeout 130 curl -fL --retry 2 --retry-delay 2 --connect-timeout 18 --max-time 115 "https://svs.gsfc.nasa.gov/vis/a010000/a012000/a012021/Hubble_Jupiter_color_global_map_2015a.tif" -o "$HUBBLE_SOURCE" &&
+              python3 endless_ci/prepare_hubble_jupiter.py --source "$HUBBLE_SOURCE" --output "$HUBBLE_RESULT"; then
+            cp "$HUBBLE_RESULT" "$OUT/planet_jupiter.jpg"
+            echo "NASA Hubble 3072x1536 observed Jupiter packaged; not real-time clouds."
+          else
+            echo "::warning::NASA Hubble map unavailable; verified 2K Jupiter fallback retained."
+          fi
+          rm -f "$HUBBLE_SOURCE" "$HUBBLE_RESULT"
           # Retain NASA mission DEM source only on the CI runner. The shipped APK
           # contains compact 161x161 elevation tiles, not 65MB raw archives.
           curl -fL --retry 4 --retry-delay 3 --max-time 360 \

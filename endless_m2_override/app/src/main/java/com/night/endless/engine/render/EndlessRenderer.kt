@@ -1,5 +1,6 @@
 package com.night.endless.engine.render
 
+import android.app.ActivityManager
 import android.content.Context
 import android.graphics.BitmapFactory
 import android.opengl.GLES30
@@ -1902,11 +1903,26 @@ class EndlessRenderer(
         )
         if (resId == 0) return 0
 
+        // GLES3 hardware need only support 2048px textures. Decode the
+        // required mip BEFORE uploading, and cap memory on low-RAM phones.
+        // No upscale: 3072px Hubble is retained on capable GPUs.
+        val bounds = BitmapFactory.Options().apply {
+            inScaled = false
+            inJustDecodeBounds = true
+        }
+        BitmapFactory.decodeResource(context.resources, resId, bounds)
+        val hardwareMaximum = IntArray(1)
+        GLES30.glGetIntegerv(GLES30.GL_MAX_TEXTURE_SIZE, hardwareMaximum, 0)
+        val lowRam = (context.getSystemService(Context.ACTIVITY_SERVICE)
+            as? ActivityManager)?.isLowRamDevice ?: false
+        val sample = PlanetTextureSizing.inSampleSize(
+            bounds.outWidth, bounds.outHeight, hardwareMaximum[0], lowRam
+        )
         val bitmap = BitmapFactory.decodeResource(
-            context.resources,
-            resId,
+            context.resources, resId,
             BitmapFactory.Options().apply {
                 inScaled = false
+                inSampleSize = sample
             }
         ) ?: return 0
 

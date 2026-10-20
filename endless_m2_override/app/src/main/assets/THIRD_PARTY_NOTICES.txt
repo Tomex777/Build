@@ -120,3 +120,15 @@ Optional NASA Olympus Mons local photographic detail:
   normals at distances where source image resolution supports them.
   It is NOT a measured topographic product; the independently measured
   MOLA elevation DEM is unchanged and authoritative for collision.
+
+NASA Hubble observed Jupiter clouds (optional):
+- NASA SVS 12021, Hubble WFC3 planetary cloud map from 2015:
+  Hubble_Jupiter_color_global_map_2015a.tif (3600 x 1800).
+  https://svs.gsfc.nasa.gov/12021/
+  Credits: NASA Goddard Space Flight Center, Space Telescope Science
+  Institute; Amy A. Simon, Michael H. Wong, Glenn Orton.
+- Converted offline in CI to 3072 x 1536 JPEG, downsampled without
+  artificial detail; this is a historical observation, NOT live Jupiter.
+- A failed optional NASA download preserves the verified Solar System
+  Scope CC BY 4.0 2K texture. GLES3 low-memory and 2048px-max GPUs
+  decode lower-resolution mipmaps rather than failing the GL upload.
