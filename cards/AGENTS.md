@@ -1,6 +1,9 @@
 # NIGHT cards
 
-This is the reusable card library on the dedicated `cards` branch. Preserve the existing renderer and Obsidian archive. Implement new integration in `src/` rather than rewriting old designs.
+This is NIGHT's **shared anime collectible-card library**, not a BLEACH-only card system. BLEACH was the pilot/test roster used to develop and review the universal frame, typography, depth, materials and tiers. Preserve the existing renderer and Obsidian archive. Implement new integration in `src/` rather than rewriting old designs.
+
+- **Global visual invariant:** Re:Zero, Naruto, Solo Leveling, BLEACH and every future anime use the SAME approved NIGHT card design families and core renderer. Do not invent a separate per-anime card frame, rank badge, typography system, layout or website mock-card. Franchise-specific art, ambience and accent treatments may adapt inside shared designs without replacing their geometry. Any new design variant must be approved as a new global NIGHT design, not quietly attached to one anime.
+- The public collectible gallery must show actual exports from the shared renderer. A standalone HTML/CSS simulation is only a temporary concept preview, not an approved NIGHT collectible card. Separate catalogues identify universes and forms, NOT separate visual systems.
 
 - Finished cards must be programmed SVG/raster exports. Do not use image generation.
 - Every card, design and tier must place the actual character silhouette across the inner frame. Aura stays behind the architecture; aura overlap alone does not count. Byakuya, Rukia and Ichigo are accepted depth references.
