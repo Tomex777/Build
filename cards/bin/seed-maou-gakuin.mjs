@@ -26,7 +26,7 @@ const power={version:1,series:'maou-gakuin',universe:'maou-gakuin',scope:'in-uni
 const seenIds=new Set(), seenNums=new Set(), seenImages=new Set(), seenSHA=new Set();
 async function getImage(url) {
   const target=new URL(url);
-  if(target.origin!==ROOT||!/^\\/assets\\/img\\/character\\/img_[a-z0-9]+\\.png$/.test(target.pathname))
+  if(target.origin!==ROOT||!(target.pathname.startsWith('/assets/img/character/img_') && target.pathname.endsWith('.png')))
     throw Error('Source URL is not a vetted official character cutout: '+url);
   const res=await fetch(url,{redirect:'follow',signal:AbortSignal.timeout(55000),headers:{'User-Agent':'NIGHT-CardResearch/1.0'}});
   if(!res.ok||new URL(res.url).origin!==ROOT)throw Error('Official image unavailable: '+url+' '+res.status);
