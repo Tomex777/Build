@@ -704,7 +704,10 @@ class CortexServerApi(
         401, 403 -> "Authentication failed. Check the saved access token."
         408, 504 -> "Server request timed out."
         429 -> "Too many requests. Try again shortly."
-        in 500..599 -> "Server is temporarily unavailable."
+        500 -> "Server operation failed (HTTP 500). The Agent may lack permission to change protected settings. No successful save was confirmed."
+        502 -> "NIGHT or a downstream service failed (HTTP 502). The Cortex access token was accepted, but the operation did not complete."
+        503 -> "Server service unavailable (HTTP 503). Try again after checking NIGHT status."
+        in 500..599 -> "Server operation failed (HTTP $code). Check the Azure service logs."
         else -> "Server request failed."
     }
 
