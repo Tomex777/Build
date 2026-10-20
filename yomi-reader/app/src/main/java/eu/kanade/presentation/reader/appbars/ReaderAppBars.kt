@@ -21,6 +21,8 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -61,6 +63,10 @@ fun ReaderAppBars(
     cropEnabled: Boolean,
     onClickCropBorder: () -> Unit,
     onClickSettings: () -> Unit,
+    // Geometry callbacks are host-only touch routing; upstream reader bars
+    // retain their exact Compose presentation and original gesture targets.
+    onTopBarBottom: (Float) -> Unit = {},
+    onBottomBarTop: (Float) -> Unit = {},
 ) {
     val backgroundColor = MaterialTheme.colorScheme
         .surfaceColorAtElevation(3.dp)
@@ -77,6 +83,7 @@ fun ReaderAppBars(
             ReaderTopBar(
                 modifier = Modifier
                     .background(backgroundColor)
+                    .onGloballyPositioned { onTopBarBottom(it.boundsInRoot().bottom) }
                     .clickable(onClick = onClickTopAppBar),
                 mangaTitle = mangaTitle,
                 chapterTitle = chapterTitle,
@@ -98,7 +105,10 @@ fun ReaderAppBars(
             exit = slideOutVertically(targetOffsetY = { it }, animationSpec = readerBarsSlideAnimationSpec) +
                 fadeOut(animationSpec = readerBarsFadeAnimationSpec),
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                modifier = Modifier.onGloballyPositioned { onBottomBarTop(it.boundsInRoot().top) },
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 ChapterNavigator(
                     isRtl = isRtl,
                     onNextChapter = onNextChapter,
