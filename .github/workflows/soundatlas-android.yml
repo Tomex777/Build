@@ -237,6 +237,16 @@ jobs:
           path: SoundAtlas/release/SoundAtlas-Android8-plus-test-signed.apk
           if-no-files-found: error
           retention-days: 90
+      - name: Enable KVM acceleration for reliable interactive UI QA
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Without this, the hosted AVD falls back to very slow software
+          # emulation and repeatedly reports "System UI isn't responding".
+          test -c /dev/kvm
+          sudo chmod 666 /dev/kvm
+          test -r /dev/kvm && test -w /dev/kvm
+          ls -l /dev/kvm
       - name: Android emulator install and real screenshot
         uses: reactivecircus/android-emulator-runner@v2
         with:
