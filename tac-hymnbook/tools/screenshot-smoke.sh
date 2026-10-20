@@ -14,7 +14,7 @@ if ! timeout 90s adb install --no-streaming -r "$APK"; then
   timeout 90s adb shell pm install -r /data/local/tmp/tac-hymns.apk
 fi
 
-echo "Installing and running real MediaPlayer instrumented device tests"
+echo "Installing and running real hymn-text and section-numbering instrumentation tests"
 test -f ./dist/app-debug-androidTest.apk
 timeout 90s adb install --no-streaming -r ./dist/app-debug-androidTest.apk
 timeout 180s adb shell am instrument -w -r com.night.tachymns.test/androidx.test.runner.AndroidJUnitRunner | tee tac-hymns-device-test-results.txt
@@ -56,24 +56,10 @@ sys.exit(1)
   sleep 2
 }
 
-echo "Switching the actual app to dark mode via More"
-tap_text "More"
+echo "Switching theme directly, without an audio or learning menu"
 tap_text "Dark mode"
 timeout 35s adb exec-out screencap -p > tac-hymns-dark-home.png
 file tac-hymns-dark-home.png
-
-echo "Opening offline audio storage management through More"
-tap_text "More"
-tap_text "Offline audio"
-timeout 35s adb exec-out screencap -p > tac-hymns-offline-audio.png
-file tac-hymns-offline-audio.png
-tap_text "Back to hymnbook"
-
-echo "Navigating through the separately accessible Learn Hymns screen"
-tap_text "More"
-tap_text "Learn hymns"
-timeout 35s adb exec-out screencap -p > tac-hymns-learn-home.png
-file tac-hymns-learn-home.png
 
 echo "Opening Yoruba hymn reader in persisted dark mode"
 timeout 20s adb shell am force-stop com.night.tachymns
@@ -83,7 +69,10 @@ timeout 15s adb shell pidof com.night.tachymns
 timeout 35s adb exec-out screencap -p > tac-hymns-reader.png
 file tac-hymns-reader.png
 cp tac-hymns-reader.png tac-hymns-dark-reader.png
-cp tac-hymns-reader.png tac-hymns-audio-reader.png
+echo "Verifying the real Yorùbá stanza is shown"
+timeout 25s adb shell uiautomator dump /sdcard/window.xml > /dev/null
+adb exec-out cat /sdcard/window.xml | grep -q 'Níwájú'
+
 
 echo "Opening the newly transcribed English Redemption hymn 190"
 timeout 20s adb shell am force-stop com.night.tachymns
