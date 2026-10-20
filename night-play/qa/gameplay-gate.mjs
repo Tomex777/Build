@@ -94,9 +94,14 @@ try{
   await (isMobile?actualTouchSwipe:actualMouseSwipe)(page,p(12,45),p(105,45));
   assert.equal((await snapshot(page)).score,0,'off-fruit real touch swipe cannot score');
   await evidence(page,'qa-fruit-before-'+width);
-  // Find fruit again because gravity continues during swipe and screenshot.
-  const current=(await snapshot(page)).fruits.find(f=>f.kind!=='bomb'&&f.y>35&&f.y<500);
-  assert.ok(current,'fruit still on screen before cut');
+  // Wait until a thrown fruit actually reaches the intended upper-half apex.
+  // This rejects the old shallow-arc physics even when basic slicing works.
+  await page.waitForFunction(()=>window.__nightActionTest.snapshot().fruits.some(f=>
+    f.kind!=='bomb'&&f.y>80&&f.y<270&&Math.abs(f.vy)<150),
+    null,{timeout:9000,polling:16});
+  const current=(await snapshot(page)).fruits.find(f=>
+    f.kind!=='bomb'&&f.y>80&&f.y<270&&Math.abs(f.vy)<150);
+  assert.ok(current,'fruit reaches accessible upper half before a cut at '+width);
   await (isMobile?actualTouchSwipe:actualMouseSwipe)(page,p(current.x-39,current.y),p(current.x+39,current.y));
   const cut=await snapshot(page);
   assert.equal(cut.score,10,'one real touch crossing earns exactly ten at '+width);
@@ -108,7 +113,7 @@ try{
   assert.ok(Math.hypot(apart.halves[0].x-apart.halves[1].x,apart.halves[0].y-apart.halves[1].y)>12,
    'fruit halves must visibly separate at '+width);
   await evidence(page,'qa-fruit-separated-'+width);
-  results.push({game:'slice',width,score:cut.score,halves:apart.halves.length,offTargetScore:0});
+  results.push({game:'slice',width,score:cut.score,halves:apart.halves.length,apexY:Math.round(current.y),offTargetScore:0});
   await page.close();
 
   const memory=await browser.newPage({viewport:{width,height},isMobile,hasTouch:true});
