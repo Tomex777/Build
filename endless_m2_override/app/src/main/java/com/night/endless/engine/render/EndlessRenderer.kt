@@ -326,13 +326,18 @@ class EndlessRenderer(
     @Synchronized
     override fun onDrawFrame(gl: GL10?) {
         val now = System.nanoTime()
-        val dt = ((now - lastNanos) / 1_000_000_000.0).coerceIn(0.0, .05)
+        // Three independent clocks: actual frame elapsed for the
+        // astronomical simulation, bounded smoothing for camera movement,
+        // and short physics steps for collisions. The old 50ms clamp
+        // slowed simulated calendar time by 10-20x on software/low-end GLES.
+        val realDt = RendererFrameTiming.elapsedSeconds(lastNanos, now)
+        val dt = realDt.coerceAtMost(.12)
         lastNanos = now
 
         applyControlDamping(dt)
         updateSurfaceMovement(now)
 
-        val simSeconds = clock.advance(dt)
+        val simSeconds = clock.advance(realDt)
         updateBodyPositions(simSeconds)
 
         cloudRotation += dt * .012
@@ -1060,7 +1065,7 @@ class EndlessRenderer(
 
     @Synchronized
     private fun applyControlDamping(dt: Double) {
-        val frameScale = (dt * 60.0).coerceIn(0.0, 3.0)
+        val frameScale = (dt * 60.0).coerceIn(0.0, 8.0)
         val apply = 1.0 - (1.0 - dampingFactor).pow(frameScale)
 
         if (kotlin.math.abs(pendingYaw) > 1e-7) {
@@ -1095,7 +1100,7 @@ class EndlessRenderer(
         val desiredTarget = selectedId?.let { byId[it]?.position } ?: Vec3d.ZERO
         val perFrameTargetDamping = if (selectedId != null) .16 else .11
         val targetAlpha =
-            1.0 - (1.0 - perFrameTargetDamping).pow((dt * 60.0).coerceIn(0.0, 3.0))
+            1.0 - (1.0 - perFrameTargetDamping).pow((dt * 60.0).coerceIn(0.0, 8.0))
 
         cameraTarget += (desiredTarget - cameraTarget) * targetAlpha
 

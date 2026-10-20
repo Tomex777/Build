@@ -20,7 +20,11 @@ class UniverseClock {
 
     @Synchronized
     fun advance(realSeconds: Double): Double {
-        if (!paused) simulationSeconds += realSeconds.coerceIn(0.0, 0.1) * speed
+        // Caller already bounds exceptional resume stalls. Do not silently
+        // clamp the observable astronomical clock to 100ms per GPU frame:
+        // 1-2 FPS devices must still move at the selected orbital rate.
+        if (!paused && realSeconds.isFinite() && realSeconds > 0.0)
+            simulationSeconds += realSeconds * speed
         return simulationSeconds
     }
 
