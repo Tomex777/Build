@@ -1,0 +1,33 @@
+name: NIGHT Play Agent 10 — 144-piece finger accuracy
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - agent/play-v2-10-fingertip-audit
+    paths:
+      - night-play/qa/agent10-jigsaw-fingertip.mjs
+      - .github/workflows/night-play-agent10-fingertip.yml
+jobs:
+  real-touch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install actual Chrome and Playwright
+        run: |
+          npm install --no-save playwright@1.56.1
+          npx playwright install chrome
+      - name: Real mobile CDP finger acquisition across 144 pieces
+        run: node night-play/qa/agent10-jigsaw-fingertip.mjs
+      - name: Preserve precise failure evidence for Agent 5 and Agent 10
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: night-play-a10-fingertip-${{ github.sha }}
+          if-no-files-found: warn
+          path: night-play/visual-output/agent10-fingertip/
