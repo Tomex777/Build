@@ -17,12 +17,19 @@ import kotlin.math.*
  * Source types are procedural: sounds never repeat a fixed 20- or 30-second recording.
  * Material attenuation, ITD/ILD and a feedback-tail model are approximations.
  */
+/** The same layer number can represent different sounds in separate worlds. */
+internal data class VoiceKey(val layerId:Int,val kind:SoundKind,val seed:Int)
+
 class AudioEngine(private val assets: AssetManager, private val onFatalError:(String)->Unit = {}) {
     companion object { const val SAMPLE_RATE = 44100; const val FRAMES = 768 }
     private val scene = AtomicReference<World?>(null)
     private val running = AtomicBoolean(false)
     private val generation = AtomicInteger(0)
-    private val voices = mutableMapOf<Int, Voice>()
+    // Emitter IDs are local to each world and reused across presets. Key the
+    // sampled voice by its sound identity as well as its numeric layer ID,
+    // otherwise switching from Cathedral to Forest can replay Cathedral's
+    // rain recording through a new Birdsong emitter.
+    private val voices = mutableMapOf<VoiceKey, Voice>()
     private var fieldRecordings: Map<SoundKind, ShortArray> = emptyMap()
     private var recordingsReady=false
     private var measuredHrir: MeasuredHrir? = null
@@ -157,10 +164,11 @@ class AudioEngine(private val assets: AssetManager, private val onFatalError:(St
             .filter { it.enabled && it.gain>0f }
             .sortedByDescending { it.gain/(1f+it.at.distance(world.listener)*.12f) }
             .take(WorldLimits.MAX_SOURCES).toList()
-        val valid = active.map { it.id }.toSet()
+        val valid = active.map { VoiceKey(it.id,it.kind,it.seed) }.toSet()
         voices.keys.retainAll(valid)
         val layers = active.mapIndexed { sourceIndex, emitter ->
-            val voice = voices.getOrPut(emitter.id) {
+            val key=VoiceKey(emitter.id,emitter.kind,emitter.seed)
+            val voice = voices.getOrPut(key) {
                 Voice(emitter.seed,fieldRecordings[emitter.kind])
             }
             val t=frameClock.toDouble()/SAMPLE_RATE
