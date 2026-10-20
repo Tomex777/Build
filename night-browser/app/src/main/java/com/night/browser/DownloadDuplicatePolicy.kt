@@ -20,9 +20,11 @@ internal object DownloadDuplicatePolicy {
         val next = identity(sourceUrl) ?: return false
         val previous = identity(priorUrl) ?: return false
         if (next.first != previous.first) return false
-        return next.second == previous.second ||
-            (proposedName.isNotBlank() &&
-                proposedName.equals(priorName, ignoreCase = true))
+        // A generic endpoint such as /download?id=1 and /download?id=2
+        // is not proof of the same bytes: signed query fields are intentionally
+        // scrubbed from our Library. Only a matching name at that site warns.
+        return proposedName.isNotBlank() &&
+            proposedName.equals(priorName, ignoreCase = true)
     }
 
     fun findCompleted(
