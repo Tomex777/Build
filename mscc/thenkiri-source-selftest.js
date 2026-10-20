@@ -3,6 +3,13 @@ import { readFile } from 'node:fs/promises'
 import { _test } from './providers/thenkiri.js'
 import movieSource, { _test as movieDeliveryTest } from './sources/movies/thenkiri.js'
 import tvSource, { _test as tvDeliveryTest } from './sources/tv/thenkiri.js'
+import { _test as streamCopyTest } from './providers/stream-copy.js'
+
+assert.equal(streamCopyTest.normalizeTimeoutMs(undefined), 45 * 60_000, 'default stream-copy timeout must be bounded to 45 minutes')
+assert.equal(streamCopyTest.normalizeTimeoutMs('not-a-number'), 45 * 60_000, 'invalid timeout settings must fall back to the safe default')
+assert.equal(streamCopyTest.normalizeTimeoutMs(1), 60_000, 'stream-copy timeout must not be configured below one minute')
+assert.equal(streamCopyTest.normalizeTimeoutMs(24 * 60 * 60_000), 60 * 60_000, 'stream-copy timeout must never exceed one hour')
+assert.equal(streamCopyTest.normalizeTimeoutMs(2 * 60_000), 2 * 60_000, 'valid timeout overrides should be preserved')
 
 const movie = _test.normalizePost({
   id:123,

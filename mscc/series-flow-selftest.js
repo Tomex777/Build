@@ -261,4 +261,168 @@ saved = null
   }
 }
 
+{
+  const progressRuns = []
+  let deliveryMode = 'held'
+  let releaseHeldSource
+  let signalHeldSourceStarted
+  const heldSourceStarted = new Promise(resolve => { signalHeldSourceStarted = resolve })
+  const heldSource = new Promise(resolve => { releaseHeldSource = resolve })
+
+  const progressCtx = {
+    publicPrefix:'.',
+    botProfile:{ id:'nami', displayName:'Nami' },
+    listSources:() => [
+      { id:'animepahe', name:'AnimePahe' },
+      { id:'animesogo', name:'AnimeSogo' },
+    ],
+    reply:async value => String(value),
+    progress:async initial => {
+      let finish
+      const finished = new Promise(resolve => { finish = resolve })
+      const row = { initial:String(initial), updates:[], finished }
+      const update = async value => {
+        row.updates.push(String(value))
+        finish(String(value))
+        return value
+      }
+      row.progress = { update, done:update, fail:update }
+      progressRuns.push(row)
+      return row.progress
+    },
+    executeSource:async ({ payload }) => {
+      if (payload.action !== 'download') throw new Error('Unexpected delivery test action: ' + payload.action)
+      if (deliveryMode === 'held') {
+        signalHeldSourceStarted()
+        return heldSource
+      }
+      return {
+        status:'source-error',
+        source:{ id:'animepahe', name:'AnimePahe' },
+        error:new Error('Media HTTP 403 for https://media.example/episode.m3u8?token=secret-value'),
+      }
+    },
+  }
+
+  const encode = value => Buffer.from(JSON.stringify(value), 'utf8').toString('base64url')
+  const args = [
+    '~download',
+    'animepahe',
+    encode({ id:'bleach', title:'Bleach' }),
+    encode({ id:'episode-1', number:1, title:'Episode 1' }),
+    '720',
+    'document',
+  ]
+
+  const returned = await Promise.race([
+    runSeriesCommand(progressCtx, { capability:'anime', commandName:'anime', args }).then(() => true),
+    new Promise(resolve => setTimeout(() => resolve(false), 1000)),
+  ])
+  if (!returned) throw new Error('Anime download command waited for the media source instead of acknowledging immediately')
+  await Promise.race([
+    heldSourceStarted,
+    new Promise((_, reject) => setTimeout(() => reject(new Error('Background anime download never reached the source')), 1000)),
+  ])
+  if (!progressRuns[0]?.initial.includes('Preparing') || !progressRuns[0]?.initial.includes('Bleach')) {
+    throw new Error('Anime media delivery did not acknowledge the selected episode')
+  }
+  if (progressRuns[0].updates.length) {
+    throw new Error('Anime media delivery reported completion while the source was still held')
+  }
+
+  releaseHeldSource({
+    status:'ok',
+    source:{ id:'animepahe', name:'AnimePahe' },
+    result:{ delivered:true },
+  })
+  const successful = await Promise.race([
+    progressRuns[0].finished,
+    new Promise((_, reject) => setTimeout(() => reject(new Error('Anime delivery completion was not reported')), 1500)),
+  ])
+  if (!successful.includes('Episode 1 was sent')) {
+    throw new Error('Anime delivery completion did not confirm that media was sent')
+  }
+
+  deliveryMode = 'failed'
+  const failedReturn = await runSeriesCommand(progressCtx, { capability:'anime', commandName:'anime', args })
+  if (failedReturn !== true) throw new Error('Failed anime delivery did not return after queuing')
+  const failed = await Promise.race([
+    progressRuns[1].finished,
+    new Promise((_, reject) => setTimeout(() => reject(new Error('Anime source failure was not reported')), 1500)),
+  ])
+  if (!failed.includes('HTTP 403') || failed.includes('secret-value')) {
+    throw new Error('Anime media failure details were not reported safely: ' + failed)
+  }
+}
+
+{
+  const sourceCalls = []
+  const mediaReplies = []
+  const sourceList = [
+    { id:'animepahe', name:'AnimePahe', fallbackOrder:20 },
+    { id:'animesogo', name:'AnimeSogo', fallbackOrder:30 },
+  ]
+  const mediaCtx = {
+    publicPrefix:'.',
+    botProfile:{ id:'nami', displayName:'Nami' },
+    listSources:() => sourceList,
+    reply:async value => { mediaReplies.push(String(value)); return value },
+    resolveAniListTitles:async title => ({ query:title, aliases:['Bleach'], matches:[] }),
+    executeSource:async ({ explicitSource, payload }) => {
+      sourceCalls.push({ explicitSource, payload })
+      if (explicitSource === 'animepahe' && payload.action === 'download') {
+        return {
+          status:'source-error',
+          source:{ id:'animepahe', name:'AnimePahe' },
+          error:new Error('AnimePahe request remained blocked after browser refresh.'),
+        }
+      }
+      if (explicitSource === 'animesogo' && payload.action === 'search') {
+        return {
+          status:'ok',
+          source:{ id:'animesogo', name:'AnimeSogo' },
+          result:{ items:[{ id:'sogo-bleach', title:'Bleach' }] },
+        }
+      }
+      if (explicitSource === 'animesogo' && payload.action === 'episodes') {
+        return {
+          status:'ok',
+          source:{ id:'animesogo', name:'AnimeSogo' },
+          result:{ title:'Bleach', episodes:[{ id:'sogo-episode-1', number:'1', title:'Episode 1' }] },
+        }
+      }
+      if (explicitSource === 'animesogo' && payload.action === 'download') {
+        if (payload.episode?.id !== 'sogo-episode-1') {
+          throw new Error('Alternate provider did not use its own provider-specific episode ID')
+        }
+        return {
+          status:'ok',
+          source:{ id:'animesogo', name:'AnimeSogo' },
+          result:{ delivered:true },
+        }
+      }
+      throw new Error('Unexpected media-fallback call: ' + explicitSource + '/' + payload.action)
+    },
+  }
+  const encode = value => Buffer.from(JSON.stringify(value), 'utf8').toString('base64url')
+  await runSeriesCommand(mediaCtx, {
+    capability:'anime',
+    commandName:'anime',
+    args:[
+      '~download',
+      'animepahe',
+      encode({ id:'pahe-bleach', title:'Bleach' }),
+      encode({ id:'pahe-episode-1', number:'1', title:'Episode 1' }),
+      '720',
+      'document',
+    ],
+  })
+  if (!sourceCalls.some(row => row.explicitSource === 'animesogo' && row.payload.action === 'download' && row.payload.episode?.id === 'sogo-episode-1')) {
+    throw new Error('Anime media failure did not retry the matching episode from an alternate provider')
+  }
+  if (!mediaReplies.some(value => value.includes('Fallback') && value.includes('AnimeSogo') && value.includes('sent'))) {
+    throw new Error('Anime alternate-provider success was not reported to the user')
+  }
+}
+
 console.log('PASS anime typed-number/range/alias flow')
