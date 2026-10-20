@@ -45,6 +45,26 @@ class SearchSourceCatalogTest {
         assertEquals(visit.url, sources.single().url)
     }
 
+    @Test fun sensitiveEarlyBookmarksDoNotHideLaterApprovedSources() {
+        val privateBookmarks = (1..90).map {
+            Bookmark("https://example.com/login/" + it, "Log in page " + it)
+        }
+        val safe = Bookmark("https://kotlinlang.org/docs/home", "Kotlin docs")
+        val sources = SearchSourceCatalog.collect(privateBookmarks + safe, emptyList())
+        assertEquals(listOf(safe.url), sources.map { it.url })
+    }
+
+    @Test fun sensitiveEarlyVisitsDoNotHideLaterApprovedSources() {
+        val sensitive = (1..280).map {
+            JourneyNode("private" + it, "https://example.com/account?session=" + it,
+                "My profile", null, it.toLong())
+        }
+        val safe = JourneyNode("public", "https://example.com/docs", "Documentation", null, 999L)
+        val journey = Journey("j", "Visited", listOf(safe) + sensitive)
+        val sources = SearchSourceCatalog.collect(emptyList(), listOf(journey))
+        assertEquals(listOf(safe.url), sources.map { it.url })
+    }
+
     @Test fun selectionIsFailClosedAfterSelectedUrlIsDeleted() {
         val old = Bookmark("https://example.com/old", "Old page")
         val replacement = Bookmark("https://example.com/new", "New page")
