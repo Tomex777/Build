@@ -53,5 +53,4 @@ body.is-playing .game-tools{width:min(100%,510px);padding-top:4px}
   body.is-playing .night-hud-value{padding:3px 8px 2px}
   body.is-playing .night-hud-value strong{font-size:18px}
 }
-
 @media(min-width:700px){body.is-playing .board-shell{height:clamp(250px,calc(100dvh - 184px),840px)}}
