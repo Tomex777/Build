@@ -94,8 +94,12 @@ sleep 2
 
 # Each selected game must render via the locally bundled assets, enter its
 # real Canvas/DOM interface, accept a physical tap, then return to Sora.
-while IFS='|' read -r id title; do
+tested_games=0
+# ADB can read standard input. Keep the game table on dedicated FD 3 so
+# no subprocess can consume the remaining rows of this acceptance suite.
+while IFS='|' read -r id title <&3; do
   [[ -z "$id" ]] && continue
+  tested_games=$((tested_games + 1))
   tap_text "$title"
   wait_web_title "$title"
   shot "$id-loaded"
@@ -113,7 +117,7 @@ while IFS='|' read -r id title; do
     echo "Android Back stayed inside embedded game instead of returning: $id" >&2
     exit 1
   fi
-done <<'GAMES'
+done 3<<'GAMES'
 last-call|The Last Call
 wing-hop|Wing Hop
 block-drop|Block Drop
@@ -137,6 +141,18 @@ jigsaw|Jigsaw Puzzle
 piano-tiles|Piano Tiles
 sling-siege|Sling Siege
 GAMES
+if (( tested_games != 22 )); then
+  echo "Only tested $tested_games of 22 NIGHT Play experiences!" >&2
+  exit 1
+fi
+
+# A selected game's native Back restores Sora's Games tab. Go to the first
+# part of the list before asserting the native Water Sort entry.
+dimensions=$(adb shell wm size | grep -Eo '[0-9]+x[0-9]+' | tail -n 1)
+width="${dimensions%x*}"; height="${dimensions#*x}"
+for _ in $(seq 1 12); do
+  adb shell input swipe "$((width/2))" "$((height*25/100))" "$((width/2))" "$((height*83/100))" 160 </dev/null
+done
 tap_text "Water Sort"
 dump_ui
 if ! find_point "LEVEL 1" >/dev/null 2>&1 || ! find_point "MOVES" >/dev/null 2>&1; then
