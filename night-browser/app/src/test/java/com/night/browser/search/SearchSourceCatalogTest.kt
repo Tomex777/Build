@@ -65,6 +65,40 @@ class SearchSourceCatalogTest {
         assertEquals(listOf(safe.url), sources.map { it.url })
     }
 
+    @Test fun localFilterFindsOldSourcesOutsideTheDefaultSixty() {
+        val first = (1..85).map {
+            Bookmark("https://example.com/topic/" + it, "General reference " + it)
+        }
+        val hidden = Bookmark("https://example.com/rare", "Rare astronomy study")
+        val index = SearchSourceCatalog.index(first + hidden, emptyList())
+        val default = SearchSourceCatalog.match(index, "")
+        assertEquals(60, default.size)
+        assertTrue(default.none { it.url == hidden.url })
+        val matched = SearchSourceCatalog.match(index, "astronomy")
+        assertEquals(listOf(hidden.url), matched.map { it.url })
+    }
+
+    @Test fun selectionsAcrossDifferentLocalFiltersAreBothExplicitlyApproved() {
+        val one = Bookmark("https://example.com/solar", "Solar astronomy notes")
+        val two = Bookmark("https://example.com/kotlin", "Kotlin tutorials")
+        val index = SearchSourceCatalog.index(listOf(one, two), emptyList())
+        val selectedIds = setOf(
+            SearchSourceCatalog.match(index, "astronomy").single().id,
+            SearchSourceCatalog.match(index, "kotlin").single().id
+        )
+        val request = UniversalSearchPolicy.prepare(
+            "Find my study notes", index, selectedIds, true, false
+        ) as SearchPreparation.Ready
+        assertEquals(setOf(one.url, two.url), request.sources.map { it.original.url }.toSet())
+    }
+
+    @Test fun onDeviceFilterPrefersTitleMatchOverHostMatch() {
+        val hostOnly = Bookmark("https://kotlin.example.com/support", "Support center")
+        val titleMatch = Bookmark("https://example.com/android", "Kotlin guide")
+        val index = SearchSourceCatalog.index(listOf(hostOnly, titleMatch), emptyList())
+        assertEquals(titleMatch.url, SearchSourceCatalog.match(index, "kotlin").first().url)
+    }
+
     @Test fun selectionIsFailClosedAfterSelectedUrlIsDeleted() {
         val old = Bookmark("https://example.com/old", "Old page")
         val replacement = Bookmark("https://example.com/new", "New page")
