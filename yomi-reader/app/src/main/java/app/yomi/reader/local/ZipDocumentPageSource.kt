@@ -13,18 +13,86 @@ import java.io.InputStream
 import java.io.File
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipFile
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 class ZipDocumentPageSource(
     private val resolver: ContentResolver,
     private val uri: Uri,
     private val limits: ArchiveLimits = ArchiveLimits(),
+    // When a SAF folder contains zipped chapters, make one bounded local
+    // indexed copy for this reader session rather than streaming all previous
+    // ZIP entries for every single page turn.
+    private val scratchDir: File? = null,
 ) : ReaderPageSource {
     private var catalog: List<ZipCatalogEntry>? = null
     private val pageTargets = mutableMapOf<ReaderPageId, String>()
+    private val copyMutex = Mutex()
+    @Volatile private var cachedChapterFile: File? = null
+    @Volatile private var closed = false
+
+    private suspend fun indexedFile(): File? {
+        if (uri.scheme == "file") {
+            return uri.path?.let(::File)?.takeIf { it.isFile }
+        }
+        val directory = scratchDir ?: return null
+        cachedChapterFile?.takeIf { it.isFile }?.let { return it }
+        return copyMutex.withLock {
+            cachedChapterFile?.takeIf { it.isFile }?.let { return@withLock it }
+            check(!closed) { "Reader archive source has closed" }
+            if (!directory.isDirectory && !directory.mkdirs()) return@withLock null
+            // Preserve storage headroom. Very large archives fall back to
+            // bounded streaming instead of duplicating gigabytes on disk.
+            val budget = minOf(MAX_INDEX_CACHE_BYTES, directory.usableSpace / 3)
+            if (budget < MIN_FREE_CACHE_BUDGET) return@withLock null
+            val temporary = File.createTempFile("yomi-chapter-", ".cbz", directory)
+            try {
+                val source = resolver.openInputStream(uri) ?: error("Unable to open chapter archive")
+                var copied = 0L
+                var tooLarge = false
+                source.use { input ->
+                    temporary.outputStream().buffered().use { out ->
+                        val bytes = ByteArray(64 * 1024)
+                        while (true) {
+                            if (!currentCoroutineContext().isActive || closed) {
+                                throw CancellationException("Chapter cache copy cancelled")
+                            }
+                            val length = input.read(bytes)
+                            if (length < 0) break
+                            if (length == 0) continue
+                            copied += length
+                            if (copied > budget) {
+                                tooLarge = true
+                                break
+                            }
+                            out.write(bytes, 0, length)
+                        }
+                    }
+                }
+                if (tooLarge) {
+                    Log.i("YomiReader", "saf-chapter-streaming-fallback compressedBytes>$budget")
+                    return@withLock null
+                }
+                check(!closed) { "Reader archive source has closed" }
+                cachedChapterFile = temporary
+                Log.i("YomiReader", "indexed-saf-chapter-ready bytes=$copied")
+                temporary
+            } finally {
+                if (cachedChapterFile != temporary) temporary.delete()
+            }
+        }
+    }
+    private companion object {
+        const val MAX_INDEX_CACHE_BYTES = 512L * 1024 * 1024
+        const val MIN_FREE_CACHE_BUDGET = 16L * 1024 * 1024
+    }
 
     override suspend fun pages(chapter: ReaderChapter): List<ReaderPage> {
         val entries = catalog ?: run {
-            val localFile = if (uri.scheme == "file") uri.path?.let(::File)?.takeIf { it.isFile } else null
+            val localFile = indexedFile()
             val scanned = if (localFile != null) {
                 val result = ZipArchiveCatalog.scanFile(localFile, limits)
                 Log.i("YomiReader", "indexed-cbz-catalog-ready pages=${result.size}")
@@ -58,11 +126,8 @@ class ZipDocumentPageSource(
         // first 399 entries decompresses hundreds of images repeatedly, which
         // made large offline CBZs appear blank or take ages to turn pages.
         // Privately retained file:// CBZs support direct ZipFile entry access.
-        if (uri.scheme == "file") {
-            val local = uri.path?.let(::File)
-            if (local != null && local.isFile) {
-                return openLocalZipEntry(local, target)
-            }
+        indexedFile()?.let { local ->
+            if (local.isFile) return openLocalZipEntry(local, target)
         }
 
         val source = resolver.openInputStream(uri) ?: error("Unable to open local archive")
@@ -149,8 +214,13 @@ class ZipDocumentPageSource(
     }
 
     override fun close() {
+        closed = true
         catalog = null
         pageTargets.clear()
+        cachedChapterFile?.let { file ->
+            cachedChapterFile = null
+            runCatching { file.delete() }
+        }
     }
 
     private class BoundedEntryInputStream(
