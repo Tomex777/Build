@@ -434,19 +434,19 @@
       }
     },
     {
-      "id": "madara-war",
+      "id": "obito-masked-persona",
       "number": 15,
-      "character": "madara",
-      "name": "Madara Uchiha",
-      "title": "Madara Uchiha",
-      "form": "Living / war-era",
-      "formId": "war",
+      "character": "obito",
+      "name": "Obito Uchiha",
+      "title": "Obito Uchiha",
+      "form": "Tobi / disguised as Madara",
+      "formId": "masked-madara-persona",
       "continuity": "naruto-storm4",
       "aliases": [
-        "Madara Uchiha",
-        "madara",
-        "madara",
-        "Living / war-era"
+        "Obito Uchiha",
+        "Tobi",
+        "Masked Obito",
+        "Madara impersonation"
       ],
       "source": {
         "provider": "bandai-storm4-official",
@@ -457,10 +457,10 @@
         "usage": "reference-only"
       },
       "rank": {
-        "letter": "S",
-        "scope": "Madara Uchiha — Living / war-era",
-        "basis": "Exceptional ocular and battlefield control capabilities.",
-        "limits": "Not automatically Juubi-jinchūriki form."
+        "letter": "A",
+        "scope": "Obito Uchiha — Tobi's masked 'Madara' persona",
+        "basis": "Kamui intangibility, spatial movement, planned deception and formidable battlefield tactics.",
+        "limits": "Despite the 'Madara' identity on the historical game roster, the masked figure is Obito impersonating Madara; not living Madara, the Edo reanimation or the Ten-Tails host."
       }
     },
     {
@@ -996,6 +996,13 @@
       "formId": "two-blue-vortex",
       "status": "pending-correct-form-art",
       "reason": "Requires independent verified official source cutout and form-specific feat assessment. Never relabel an existing portrait."
+    },
+    {
+      "id": "madara-living",
+      "character": "madara",
+      "formId": "living-real-madara",
+      "status": "pending-correct-form-art",
+      "reason": "The 08_08 official portrait is masked Obito impersonating Madara, not the real Madara Uchiha. Acquire distinct verified official art for living Madara."
     }
   ]
 }
