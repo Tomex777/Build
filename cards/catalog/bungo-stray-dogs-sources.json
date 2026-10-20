@@ -2,7 +2,7 @@
   "version": 1,
   "series": "bungo-stray-dogs",
   "provider": "official BSD anime character pages",
-  "status": "4-official-cutouts-matched",
+  "status": "9-official-cutouts-matched",
   "rules": [
     "Map an original image only after matching exact named anime character and costume.",
     "Do not auto-assign art by unverified HTML ordering or file number.",
@@ -17,7 +17,7 @@
       "page": "https://bungo-stray-dogs.jp/character/?character=nakajima-atsushi",
       "image": "https://bungo-stray-dogs.jp/images/character/nakajima-atsushi/body-4z8bqcvr2rrn.png",
       "reviewedBy": "Manual source-identity inspection of the official full-body portrait",
-      "formLabel": "Agency / Mafia anime appearance"
+      "formLabel": "Official anime appearance"
     },
     {
       "id": "osamu-dazai",
@@ -26,7 +26,7 @@
       "page": "https://bungo-stray-dogs.jp/character/?character=dazai-osamu",
       "image": "https://bungo-stray-dogs.jp/images/character/dazai-osamu/body-yp8iru9uiuzx.png",
       "reviewedBy": "Manual source-identity inspection of the official full-body portrait",
-      "formLabel": "Agency / Mafia anime appearance"
+      "formLabel": "Official anime appearance"
     },
     {
       "id": "ryunosuke-akutagawa",
@@ -35,7 +35,7 @@
       "page": "https://bungo-stray-dogs.jp/character/?character=akutagawa-ryunosuke",
       "image": "https://bungo-stray-dogs.jp/images/character/akutagawa-ryunosuke/body-h32bu5zhwzxw.png",
       "reviewedBy": "Manual source-identity inspection of the official full-body portrait",
-      "formLabel": "Agency / Mafia anime appearance"
+      "formLabel": "Official anime appearance"
     },
     {
       "id": "chuya-nakahara",
@@ -44,7 +44,52 @@
       "page": "https://bungo-stray-dogs.jp/character/?character=nakahara-chuya",
       "image": "https://bungo-stray-dogs.jp/images/character/nakahara-chuya/body-dpcsigw763qd.png",
       "reviewedBy": "Manual source-identity inspection of the official full-body portrait",
-      "formLabel": "Agency / Mafia anime appearance"
+      "formLabel": "Official anime appearance"
+    },
+    {
+      "id": "doppo-kunikida",
+      "verifiedCharacter": "Doppo Kunikida",
+      "verifiedForm": "standard",
+      "page": "https://bungo-stray-dogs.jp/character/?character=kunikida-doppo",
+      "image": "https://bungo-stray-dogs.jp/images/character/kunikida-doppo/body-26kyw3t44y8z.png",
+      "reviewedBy": "Manual source-identity inspection of the official full-body portrait",
+      "formLabel": "Official anime appearance"
+    },
+    {
+      "id": "kenji-miyazawa",
+      "verifiedCharacter": "Kenji Miyazawa",
+      "verifiedForm": "standard",
+      "page": "https://bungo-stray-dogs.jp/character/?character=miyazawa-kenji",
+      "image": "https://bungo-stray-dogs.jp/images/character/miyazawa-kenji/body-hmc6bkymdeqx.png",
+      "reviewedBy": "Manual source-identity inspection of the official full-body portrait",
+      "formLabel": "Official anime appearance"
+    },
+    {
+      "id": "akiko-yosano",
+      "verifiedCharacter": "Akiko Yosano",
+      "verifiedForm": "standard",
+      "page": "https://bungo-stray-dogs.jp/character/?character=yosano-akiko",
+      "image": "https://bungo-stray-dogs.jp/images/character/yosano-akiko/body-etcenc76evnz.png",
+      "reviewedBy": "Manual source-identity inspection of the official full-body portrait",
+      "formLabel": "Official anime appearance"
+    },
+    {
+      "id": "kyoka-izumi",
+      "verifiedCharacter": "Kyoka Izumi",
+      "verifiedForm": "standard",
+      "page": "https://bungo-stray-dogs.jp/character/?character=izumi-kyoka",
+      "image": "https://bungo-stray-dogs.jp/images/character/izumi-kyoka/body-er2nbdi5bb2f.png",
+      "reviewedBy": "Manual source-identity inspection of the official full-body portrait",
+      "formLabel": "Official anime appearance"
+    },
+    {
+      "id": "yukichi-fukuzawa",
+      "verifiedCharacter": "Yukichi Fukuzawa",
+      "verifiedForm": "standard",
+      "page": "https://bungo-stray-dogs.jp/character/?character=fukuzawa-yukichi",
+      "image": "https://bungo-stray-dogs.jp/images/character/fukuzawa-yukichi/body-4t7dyrdw7gh4.png",
+      "reviewedBy": "Manual source-identity inspection of the official full-body portrait",
+      "formLabel": "Official anime appearance"
     }
   ]
 }
