@@ -22,6 +22,31 @@ class JourneyGraphTest {
         assertEquals(listOf(false, false, true), rows.map { it.matchesSearch })
     }
 
+    @Test fun siblingConnectorsStayVisibleThroughDeeperBranches() {
+        val rows = JourneyGraph.rows(journey)
+        assertTrue("B needs a branch connector down to D", rows[1].hasNextSibling)
+        assertEquals(listOf(true), rows[2].ancestorContinues)
+        assertFalse(rows[3].hasNextSibling)
+        // Search should not draw connectors to siblings filtered out of the tree.
+        val filtered = JourneyGraph.rows(journey, "Third")
+        assertEquals(listOf(false), filtered[2].ancestorContinues)
+    }
+
+    @Test fun largeTreeRetainsValidParentsAndAvoidsRecursionOverflow() {
+        val input = (0 until 1000).map { index ->
+            JourneyNode(
+                "node$index", "https://night.test/$index", "$index",
+                if (index == 0) null else "node${index - 1}", index.toLong()
+            )
+        }
+        val kept = JourneyGraph.repair(input)
+        assertEquals(600, kept.size)
+        val ids = kept.mapTo(HashSet()) { it.id }
+        assertNull(kept.first().parent)
+        assertTrue(kept.all { it.parent == null || it.parent in ids })
+        assertEquals(600, JourneyGraph.rows(Journey("deep", "Deep", kept)).size)
+    }
+
     @Test fun deletingSubtreeDoesNotDeleteSibling() {
         assertEquals(setOf("B", "C"), JourneyGraph.subtreeIds(journey.nodes, "B"))
         assertFalse("D" in JourneyGraph.subtreeIds(journey.nodes, "B"))
