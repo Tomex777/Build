@@ -155,6 +155,7 @@ jobs:
           sudo visudo -cf /etc/sudoers.d/cortex-runner-ci >/dev/null
           cat >/tmp/mock-mscc.mjs <<'NODE'
           import http from 'node:http'
+          import {readFile, writeFile, rename} from 'node:fs/promises'
           let destination = 'account-1'
           let nextAccount = 5
           const accounts = [
@@ -182,6 +183,19 @@ jobs:
                 accounts,
                 system:{ uptime:'1m', rssMb:50, heapMb:20, port:8787 }
               }))
+            }
+            if (req.method === 'POST' && url.pathname === '/settings') {
+              res.setHeader('content-type','application/json')
+              if (!['autoCc','replyCc'].includes(body.key) || typeof body.value !== 'boolean') {
+                res.statusCode = 400
+                return res.end(JSON.stringify({error:'Unknown command setting'}))
+              }
+              const file = '/tmp/cortex-settings/settings.json'
+              const saved = JSON.parse(await readFile(file, 'utf8'))
+              const next = { ...saved, [body.key]:body.value, savedAt:Date.now() }
+              await writeFile(file+'.tmp', JSON.stringify(next, null, 2))
+              await rename(file+'.tmp', file)
+              return res.end(JSON.stringify({ok:true}))
             }
             if (req.method === 'GET' && url.pathname === '/activity') {
               res.setHeader('content-type','application/json')
@@ -598,6 +612,14 @@ jobs:
           echo "$SETTINGS" | grep -q '"command":"replycc","enabled":true'
           curl -fsS -H "$AUTH" -H 'Content-Type: application/json'             -d '{"key":"autoCc","enabled":true}'             http://127.0.0.1:47831/api/cortex/host/settings | grep -q '"enabled":true'
           grep -q '"autoCc": true' /tmp/cortex-settings/settings.json
+          # NIGHT is the only writer; schema validation and disk readback
+          # survive retries and ensure unknown keys are never persisted.
+          code=$(curl -sS -o /tmp/cortex-unknown-setting.json -w '%{http_code}' \
+            -H "$AUTH" -H 'Content-Type: application/json' \
+            -d '{"key":"ghost","enabled":true}' \
+            http://127.0.0.1:47831/api/cortex/host/settings)
+          test "$code" = 400
+          ! grep -q '"ghost"' /tmp/cortex-settings/settings.json
       - name: Merge MSCC runtime events into Cortex Activity
         shell: bash
         run: |
