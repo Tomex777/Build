@@ -1,0 +1,210 @@
+{
+  "version": 1,
+  "series": "maou-gakuin",
+  "note": "Backlog only. No artwork for these precise forms is pinned; they must not be rendered with someone else's pose or a falsely labeled academy cutout. Ranks from prior discussion are unverified proposals; verify exact novel feats and edition before treating as final.",
+  "pending": [
+    {
+      "number": 1,
+      "character": "Anos Voldigoad",
+      "form": "Late novel / full potential",
+      "suggestedTier": "EX",
+      "status": "needs-matching-licensed-art-and-feat-review"
+    },
+    {
+      "number": 2,
+      "character": "Amur Veewither",
+      "form": "Abyss Magic",
+      "suggestedTier": "EX",
+      "status": "needs-matching-licensed-art-and-feat-review"
+    },
+    {
+      "number": 3,
+      "character": "Zinnia Shivaheld",
+      "form": "Prime Great Demon King",
+      "suggestedTier": "EX",
+      "status": "needs-matching-licensed-art-and-feat-review"
+    },
+    {
+      "number": 4,
+      "character": "Noah",
+      "form": "Two-Laws Usurper",
+      "suggestedTier": "SSS",
+      "status": "needs-matching-licensed-art-and-feat-review"
+    },
+    {
+      "number": 5,
+      "character": "Duelniga",
+      "form": "Faint Shining Star",
+      "suggestedTier": "SSS",
+      "status": "needs-matching-licensed-art-and-feat-review"
+    },
+    {
+      "number": 6,
+      "character": "Aizel",
+      "form": "Embodiment of Justice",
+      "suggestedTier": "SSS",
+      "status": "needs-matching-licensed-art-and-feat-review"
+    },
+    {
+      "number": 7,
+      "character": "Aisha Necron",
+      "form": "Sasha + Misha fusion",
+      "suggestedTier": "SSS",
+      "status": "needs-matching-licensed-art-and-feat-review"
+    },
+    {
+      "number": 8,
+      "character": "Izark",
+      "form": "Abyss-empowered",
+      "suggestedTier": "SSS",
+      "status": "needs-matching-licensed-art-and-feat-review"
+    },
+    {
+      "number": 9,
+      "character": "Costoria Atzenon",
+      "form": "Perfected Lion of Ruin",
+      "suggestedTier": "SSS",
+      "status": "needs-matching-licensed-art-and-feat-review"
+    },
+    {
+      "number": 10,
+      "character": "Muto",
+      "form": "Second Demon King",
+      "suggestedTier": "SSS",
+      "status": "needs-matching-licensed-art-and-feat-review"
+    },
+    {
+      "number": 11,
+      "character": "Ordov Heinriel",
+      "form": "Prime",
+      "suggestedTier": "SSS",
+      "status": "needs-matching-licensed-art-and-feat-review"
+    },
+    {
+      "number": 12,
+      "character": "Lay Grandsley",
+      "form": "Late novel",
+      "suggestedTier": "SSS",
+      "status": "needs-matching-licensed-art-and-feat-review"
+    },
+    {
+      "number": 13,
+      "character": "Shin Reglia",
+      "form": "Late novel",
+      "suggestedTier": "SSS",
+      "status": "needs-matching-licensed-art-and-feat-review"
+    },
+    {
+      "number": 14,
+      "character": "Heath Tonia",
+      "form": "Third Demon King",
+      "suggestedTier": "SS",
+      "status": "needs-matching-licensed-art-and-feat-review"
+    },
+    {
+      "number": 15,
+      "character": "Holsefi",
+      "form": "Fifth Demon King",
+      "suggestedTier": "SS",
+      "status": "needs-matching-licensed-art-and-feat-review"
+    },
+    {
+      "number": 16,
+      "character": "Azemi Rizetsu",
+      "form": "Fourth Demon King",
+      "suggestedTier": "SS",
+      "status": "needs-matching-licensed-art-and-feat-review"
+    },
+    {
+      "number": 17,
+      "character": "Vlad",
+      "form": "Righteous Emperor",
+      "suggestedTier": "SS",
+      "status": "needs-matching-licensed-art-and-feat-review"
+    },
+    {
+      "number": 18,
+      "character": "Gigi Janes",
+      "form": "Muto-empowered",
+      "suggestedTier": "SS",
+      "status": "needs-matching-licensed-art-and-feat-review"
+    },
+    {
+      "number": 19,
+      "character": "Sasha Necron",
+      "form": "Awakened destruction",
+      "suggestedTier": "SS",
+      "status": "needs-matching-licensed-art-and-feat-review"
+    },
+    {
+      "number": 20,
+      "character": "Misha Necron",
+      "form": "Awakened creation",
+      "suggestedTier": "SS",
+      "status": "needs-matching-licensed-art-and-feat-review"
+    },
+    {
+      "number": 21,
+      "character": "Naga Atzenon",
+      "form": "Late novel",
+      "suggestedTier": "SS",
+      "status": "needs-matching-licensed-art-and-feat-review"
+    },
+    {
+      "number": 22,
+      "character": "Misa Ilioroagu",
+      "form": "Avos Dilhevia",
+      "suggestedTier": "SS",
+      "status": "needs-matching-licensed-art-and-feat-review"
+    },
+    {
+      "number": 23,
+      "character": "Graham",
+      "form": "Source of Nihility",
+      "suggestedTier": "S",
+      "status": "needs-matching-licensed-art-and-feat-review"
+    },
+    {
+      "number": 24,
+      "character": "Equis",
+      "form": "God of Cogs",
+      "suggestedTier": "S",
+      "status": "needs-matching-licensed-art-and-feat-review"
+    },
+    {
+      "number": 25,
+      "character": "Celis Voldigoad",
+      "form": "Mythical Age",
+      "suggestedTier": "S",
+      "status": "needs-matching-licensed-art-and-feat-review"
+    },
+    {
+      "number": 26,
+      "character": "Anos Voldigoad",
+      "form": "Venuzdonoa sword",
+      "suggestedTier": "SSS",
+      "status": "needs-matching-licensed-art-and-feat-review"
+    },
+    {
+      "number": 27,
+      "character": "Anos Voldigoad",
+      "form": "Silverwater Sea",
+      "suggestedTier": "SSS",
+      "status": "needs-matching-licensed-art-and-feat-review"
+    },
+    {
+      "number": 28,
+      "character": "Lay Glanzudlii",
+      "form": "Hero Kanon / past incarnation",
+      "suggestedTier": "S",
+      "status": "needs-matching-licensed-art-and-feat-review"
+    },
+    {
+      "number": 29,
+      "character": "Anosh Polticoal",
+      "form": "Reverse Growth",
+      "suggestedTier": "A",
+      "status": "needs-matching-licensed-art-and-feat-review"
+    }
+  ]
+}
