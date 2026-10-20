@@ -75,6 +75,7 @@ jobs:
       - name: Capture mobile board visual diagnostics
         run: node night-play/visual-inspect.mjs
       - name: Upload game screenshots
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: night-play-mobile-design-review
