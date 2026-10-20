@@ -1,6 +1,6 @@
 # NIGHT Naruto collectible cards — independent preview
 
-**Status:** 29 sourced portrait candidates, 16 unsourced transformations. No visual approvals, no production site changes.
+**Status:** 29 sourced portrait candidates, 17 unsourced transformations. No visual approvals, no production site changes.
 
 This Naruto expansion reuses the existing NIGHT/BLEACH/Re:Zero shared render library at `cards/src/`; it creates **no new Naruto-only frames**. Its official character portraits are real transparent PNG cutouts from Bandai Namco's Naruto Shippuden Ultimate Ninja STORM 4 character pages. Only the actual figure — not a glowing aura — may cross the inner frame. Each source carries its own exact matching form/page identity.
 
@@ -33,3 +33,7 @@ All portrait art is © its respective Naruto, Shueisha, TV Tokyo, Pierrot and Ba
 ## Feedback gate
 
 The preview is a candidate gallery only. Approval, trading/drop rates, NIGHT bot integration, broad distribution and the main NIGHT website remain blocked until the user authorizes those steps separately.
+
+## Visual identity correction from actual rendered proof
+
+The Storm 4 official character page `08_08` depicts **masked Obito portraying himself as Madara** (Tobi's Madara persona), not the real living Madara. A full-size rendered proof exposed this mistake. The former `madara-war` card was withdrawn and renamed `obito-masked-persona`, with a unique A-tier form appraisal; the historical page name is not reliable proof of the depicted person's identity. Genuine living Madara now has a separate, *pending* unsourced entry. No old mislabeled preview export may be retained. This must be reverified against regenerated PNGs, as all other art and breakout compositions must be.
