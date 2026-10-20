@@ -4,6 +4,7 @@ import sharp from 'sharp';
 import {atomic,digest} from './catalogue.mjs';
 import {POWER_SCALE,rankValue} from './power.mjs';
 
+export const seriesDisplayName = series => ({bleach:'BLEACH',rezero:'RE:ZERO','one-piece':'ONE PIECE','bungo-stray-dogs':'BUNGO STRAY DOGS'})[series] ?? String(series).toUpperCase();
 export const collectionOrder=(a,b)=>rankValue(b.power?.rank)-rankValue(a.power?.rank)||a.number-b.number||a.design.localeCompare(b.design);
 const xml=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]));
 const icon=(name)=>`<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${({search:'<circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 4 4"/>',chevron:'<path d="m7 10 5 5 5-5"/>',close:'<path d="m6 6 12 12M6 18 18 6"/>',previous:'<path d="m14 6-6 6 6 6"/>',next:'<path d="m10 6 6 6-6 6"/>'})[name]}</svg>`;
@@ -21,7 +22,7 @@ function filter(){const q=search.value.toLowerCase().trim();visible=[];tiles.for
 search.addEventListener('input',filter);rank.addEventListener('change',filter);
 function show(index){current=index;const c=cards[index],put=(id,value)=>document.getElementById(id).textContent=value;put('viewer-name',c.name);put('viewer-form',c.form);put('viewer-finish',c.design);put('viewer-grade','BLEACH · '+c.power.rank);put('viewer-count',(visible.indexOf(index)+1)+' / '+visible.length);put('scope',c.power.scope);put('basis',c.power.basis);put('limits',c.power.limits);const image=document.querySelector('#viewer-image');image.src=c.image;image.alt=c.name+' · '+c.form+' · '+c.design;const refs=document.querySelector('#references');refs.replaceChildren();for(const [i,url] of [...new Set(c.power.references||[c.source])].entries()){const a=document.createElement('a');a.href=url;a.target='_blank';a.rel='noopener noreferrer';a.textContent=(i+1)+'. '+new URL(url).hostname;refs.append(a)}document.querySelector('.details details').open=false;dialog.scrollTop=0;if(!dialog.open)dialog.showModal()}
 function move(step){const pos=visible.indexOf(current);show(visible[(pos+step+visible.length)%visible.length])}tiles.forEach((tile,i)=>tile.addEventListener('click',()=>show(i)));document.querySelector('#close').addEventListener('click',()=>dialog.close());document.querySelector('#previous').addEventListener('click',()=>move(-1));document.querySelector('#next').addEventListener('click',()=>move(1));dialog.addEventListener('click',e=>{if(e.target===dialog){const r=dialog.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)dialog.close()}});document.addEventListener('keydown',e=>{if(dialog.open&&e.key==='ArrowRight'){e.preventDefault();move(1)}if(dialog.open&&e.key==='ArrowLeft'){e.preventDefault();move(-1)}});
-</script></body></html>`;
+</script></body></html>`.replaceAll('BLEACH',xml(seriesDisplayName(report.series)));
 }
 
 export async function writeCollectionGallery(report,folder){
