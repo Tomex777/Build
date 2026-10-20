@@ -295,9 +295,32 @@ class SharedWebtoonViewer(
             image.minimumHeight = host.context.resources.displayMetrics.widthPixels
             val sideMargin = (host.context.resources.displayMetrics.widthPixels * (config.webtoonSidePaddingPercent / 100f)).toInt()
             (image.layoutParams as RecyclerView.LayoutParams).apply {
+                // Recycled holders must not keep the preceding page's height.
+                height = ViewGroup.LayoutParams.WRAP_CONTENT
                 marginStart = sideMargin
                 marginEnd = sideMargin
                 bottomMargin = if (isContinuous) 0 else (15 * host.context.resources.displayMetrics.density).toInt()
+            }
+            image.requestLayout()
+            image.onImageDimensionsAvailable = { decodedWidth, decodedHeight ->
+                // SSIV does not provide an intrinsic height to a WRAP_CONTENT
+                // FrameLayout in a RecyclerView. Use the real decoded ratio;
+                // clearing minimumHeight without this made long-strip pages
+                // collapse to zero height (an apparently blank webtoon reader).
+                val rowWidth = recycler.width.takeIf { it > 0 }
+                    ?: host.context.resources.displayMetrics.widthPixels
+                val visibleWidth = (rowWidth - sideMargin * 2).coerceAtLeast(1)
+                val pageHeight = (visibleWidth.toLong() * decodedHeight / decodedWidth)
+                    .coerceIn(1L, Int.MAX_VALUE.toLong()).toInt()
+                val params = image.layoutParams as? RecyclerView.LayoutParams
+                if (params != null && params.height != pageHeight) {
+                    params.height = pageHeight
+                    image.layoutParams = params
+                }
+                Log.i(
+                    "YomiReader",
+                    "webtoon-page-sized name=${page.displayName} width=$visibleWidth height=$pageHeight",
+                )
             }
             image.onImageLoaded = {
                 spinner.visibility = View.GONE
