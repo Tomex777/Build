@@ -4,27 +4,30 @@ These instructions apply to `night-play/` and all subdirectories. They are a wor
 
 ## Mission and entry point
 
-Develop the **actual NIGHT Play website** in `Tomex777/Build/night-play/`. Do not create a disconnected demo, a fake game directory, a separate Android app, or a mock site. Current reference integration branch is `feature/party-online-rooms-20261019` (PR #386), and combined preview is `https://night-play-combined-preview.vercel.app/`. Before work, inspect the current branch, site routes and open PRs because HEAD may change. `main` is **not** the up-to-date NIGHT Play site branch.
+Develop the **actual NIGHT Play website** in `Tomex777/Build/night-play/`. Do not create a disconnected demo, a fake game directory, a separate Android app, or a mock site. Last inspected integration branch is `feature/party-online-rooms-20261019` (PR #386), and combined preview is `https://night-play-combined-preview.vercel.app/`. Before work, inspect the current branch, site routes and open PRs because HEAD may change. `main` is **not** the up-to-date NIGHT Play site branch.
 
 Read `night-play/DESIGN.md`, relevant `night-play/*/DESIGN*.md`, existing engines, self-tests, and the issue assigned to you. The locked Channels design and NIGHT brand mark are not to be redesigned.
 
-## Agent assignments and exclusive paths
+## Current assignments: 10-role roster (20 October 2026)
 
-One agent/issue = one independent Codex task/worktree + feature branch + PR. **Creating issues does not itself launch Codex sessions.**
+**The root `AGENTS.md` and `docs/agent-backlog.md` are authoritative for the CURRENT ten-agent numbering.** The original nine-agent issues #391–#399 remain valid historical tickets; their **issue titles do not reflect this new roster**. A role is not RUNNING until an actual independent task starts. Creating a ticket is not an agent launch.
 
-| Agent | GitHub issue | Task | Files agent may own |
+| Agent | Specialty | Primary issue / owned path | Shared-file lock |
 | --- | --- | --- | --- |
-| 01 | #391 | Fruit Slice: genuinely visible cuts; Endless Runner obstacle consequences; Brick Breaker challenge | `action/` |
-| 02 | #392 | Long-tile Piano Tiles rhythm game | New `piano-tiles/` |
-| 03 | #393 | Pong, Frog Crossing, Asteroids | New `classics/` |
-| 04 | #394 | Word Search, Nonogram, Sokoban, Pipe Connect | New `brain/` |
-| 05 | #395 | Klondike Solitaire, Spider Solitaire, Mahjong Solitaire | New `solitaire/` |
-| 06 | #396 | Legal Chess, Reversi, Battleship | New `strategy/` |
-| 07 | #397 | Wing Hop/Flappy, Maze Chase/Pac-Man, Block Drop, WHOT, Draughts repairs | `arcade/`, `club/` |
-| 08 | #398 | Real online games and co-op Jigsaw | `multiplayer/`, `jigsaw/`, agreed backend adapters |
-| 09 | #399 | Coordinator / library integration / test gate / preview release | `index.html`, shared shells, website routing/CI |
+| **1** Lead Coordinator | Merge gate / catalog / release / backlog | #399; `night-play/index.html`, shared shell + CI, root instructions/ledger | Coordinates all shared files |
+| **2** Fruit Slicing | Higher arcs, actual swipe, two visible physics halves | #391 / PR #401; fruit section of `action/games.js` | Exclusive action monolith window |
+| **3** Runners | Sky Jumper, Endless Runner, distinct Doodle-style | #402; runner/jump section of `action/games.js` | Exclusive action monolith window |
+| **4** Arcade | Brick Breaker, shooter, Flappy | #403; brick/shooter action and Wing Hop arcade | Lock with Agents 2/3, 6/7 |
+| **5** Puzzles | Jigsaw, Memory Match, 2048 | #404; `puzzles/`, 2048; Jigsaw game model after agreement | Jigsaw lock with Agent 8 |
+| **6** Board & Card | WHOT, Checkers, Chess CPU/rules | #397/#396; `club/` / `strategy/` | Coordinate Chess transport with Agent 8 |
+| **7** Additional games | Piano Tiles, Pac-Man and unique casual games | #392–#395; `piano-tiles/`, `classics/`, `brain/`, `solitaire/` | Pac-Man edits coordinate with Agent 4 |
+| **8** NIGHT + NOMI | Real rooms, host links, identity, votes, reconnection, co-op | #405/#398; `party/room/`, `multiplayer/`, approved adapters | Backend protected; sync interface with Agents 5/6 |
+| **9** UI/UX | SVG, responsive site audit, consistency | #406; shared CSS / agreed shared components | Coordinator approval first |
+| **10** Independent QA | Real cross-viewport gameplay and 2-client verification | #407; `qa/`, test + screenshot scripts | Send defect to owner, don't overwrite engine |
 
-Specialists **must not** independently edit `night-play/index.html` or shared `game-shell.css` to add catalog tiles. Provide functioning game routes and thumbnail assets in your own directory and put the exact integration contract in your PR. Agent 09 wires the catalog after verification. Coordinate any unavoidable shared-file change before editing it. Do not concurrently overwrite other agents' files. For Chess, Agent 06 owns rules/UI; Agent 08 owns online transport and coordinates the move interface.
+**Action-engine concurrency:** Fruit, Jump, Runner, Bricks, and Shooter currently coexist in `night-play/action/games.js`. Agents 2–4 **must not edit this one file concurrently**. They can work in parallel on independent scripts/tests, unshared modules, rules, and reviews, then acquire the file lock one at a time. Keep real Git worktrees and separate branches; no ghost parallel agents.
+
+Specialists must not independently edit `night-play/index.html`, `night-play/game-shell.css`, or `night-play/vercel.json` merely to add catalog tiles. Provide working routes, tested modes and original SVG thumbnails; Agent 1 integrates only after gameplay/visual review. Follow existing approved Channels visuals and never reintroduce one-phone "online" modes.
 
 ## Continuous-work execution contract
 
@@ -34,7 +37,7 @@ Specialists **must not** independently edit `night-play/index.html` or shared `g
 - If you encounter a bug, reproduce it, trace its cause, repair it and test the correction. Do not replace a hard gameplay feature with a no-op, disabled collision, fake score, or simplified placeholder to make checks pass.
 - If a subtask passes, immediately begin the next scoped subtask until every assigned acceptance criterion is satisfied or a genuine execution/approval limit is reached.
 - Session limits are real: before terminating, commit working changes and leave an accurate state note on your issue: branch, commit, paths, tests, failed tests, blockers, and **the next command/action**. Never claim to continue running after the session actually ends.
-- Coordinator (Agent 09) reviews completed specialist PRs, assigns the next ready task, keeps issues accurate and checks preview deployments. **No automated delegation is presumed**: a human or configured runner must actually launch/resume each coding session.
+- Coordinator (Agent 1) reviews completed specialist PRs, assigns the next ready task, keeps issues accurate and checks preview deployments. **No automated delegation is presumed**: a human or configured runner must actually launch/resume each coding session.
 
 ## Mandatory website and visual rules
 
@@ -58,13 +61,13 @@ Do not merge unreviewed work to a protected or published branch and do not deplo
 
 ## Current Fruit Slice / runner / bricks caution (19 October 2026)
 
-The active combined-preview branch includes source claiming two moving fruit halves, juice particles, low-flying runner collision, and per-brick impact tests; Preview CI ran successfully for commit `57e0b09aa213b15b1ca83666d5cde0002c525364`. This establishes **test coverage**, not that the player's visual complaint has been resolved. Agent 01 must personally inspect real rendered gameplay rather than mark this issue completed from the existing tests alone.
+The active combined-preview branch includes source claiming two moving fruit halves, juice particles, low-flying runner collision, and per-brick impact tests; Preview CI ran successfully for commit `57e0b09aa213b15b1ca83666d5cde0002c525364`. This establishes **test coverage**, not that the player's visual complaint has been resolved. Agent 2 and independent Agent 10 must inspect real rendered gameplay rather than mark this issue completed from the existing tests alone.
 
 ## Coordination and status
 
-See `night-play/AGENT-BOARD.md` and GitHub issues #391–#399. Status language:
+See `docs/agent-backlog.md`, `night-play/AGENT-BOARD.md` and the current roster issues #402–#407 alongside historical #391–#399. Status language:
 - `QUEUED`: issue documented, no running agent proven.
-- `RUNNING`: a real Codex/agent session was launched and is executing.
+- `ACTIVE`: a real Codex/agent session was launched and is executing.
 - `BLOCKED`: exact external dependency/action needed is recorded.
 - `REVIEW`: implementation PR exists and evidence supplied.
 - `DONE`: verified/merged/tested and preview verified (if relevant).
