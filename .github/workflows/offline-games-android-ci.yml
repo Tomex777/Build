@@ -2,12 +2,12 @@ name: Offline Games Android CI
 
 on:
   push:
-    branches: [feature/offline-100-games-android-foundation]
+    branches: [feature/offline-100-games-android-foundation, feature/offline-native-first-games-20261020]
     paths:
       - "offline-games/**"
       - ".github/workflows/offline-games-android-ci.yml"
   pull_request:
-    branches: [main]
+    branches: [main, feature/offline-100-games-android-foundation]
     paths:
       - "offline-games/**"
       - ".github/workflows/offline-games-android-ci.yml"
