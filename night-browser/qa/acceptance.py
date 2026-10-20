@@ -306,7 +306,7 @@ class Acceptance:
             labels = [self.label(n) for n in self.nodes()
                       if n.get("package") == PACKAGE]
             regular = next((value for value in labels
-                            if re.fullmatch(r"Regular\\s+\\d+", value)), None)
+                            if re.fullmatch(r"Regular\s+\d+", value)), None)
             if regular is None:
                 raise AssertionError("Cannot select regular profile from private tabs")
             self.tap(regular)
