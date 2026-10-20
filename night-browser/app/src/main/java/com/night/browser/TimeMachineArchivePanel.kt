@@ -190,10 +190,13 @@ fun TimeMachineArchivePanel(
                                     overflow = TextOverflow.Ellipsis
                                 )
                                 Text(
-                                    latest.url + " · " + pages.size +
-                                        if (pages.size == 1) " version" else " versions",
+                                    latest.url,
                                     color = PageMuted, fontSize = 11.sp,
                                     maxLines = 1, overflow = TextOverflow.Ellipsis
+                                )
+                                Text(
+                                    "${pages.size} ${if (pages.size == 1) "version" else "versions"}",
+                                    color = PageAccent, fontSize = 11.sp
                                 )
                             }
                             Icon(
