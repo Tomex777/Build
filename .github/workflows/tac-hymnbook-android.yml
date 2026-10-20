@@ -9,6 +9,11 @@ on:
       - '.github/workflows/tac-hymnbook-android.yml'
   workflow_dispatch:
 
+# Keep only the newest TAC hymnbook build after multiple data/code commits.
+concurrency:
+  group: tac-hymnbook-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
