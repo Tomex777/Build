@@ -1,0 +1,472 @@
+{
+  "version": 1,
+  "series": "one-piece",
+  "name": "ONE PIECE / NIGHT collection",
+  "status": "reference-only-candidate",
+  "originalRights": "All original character images remain rights reserved; this is not a commercial art license.",
+  "imagePolicy": "No AI images, no image substitution, transparent-pixel isolation only; source sheets are not finished card cutouts.",
+  "sources": [
+    {
+      "id": "luffy-film-red",
+      "character": "luffy",
+      "name": "Monkey D. Luffy",
+      "title": "Luffy",
+      "form": "Film Red / pirate outfit",
+      "formId": "film-red-pirate",
+      "number": 1,
+      "aliases": [
+        "Monkey D. Luffy",
+        "Luffy"
+      ],
+      "continuity": "one-piece-film-red",
+      "original": {
+        "provider": "one-piece-film-red-official",
+        "page": "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara03_en.html",
+        "image": "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara03.png",
+        "rights": "© Eiichiro Oda / SHUEISHA, Fuji TV, Toei Animation and the ONE PIECE FILM RED committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official ONE PIECE FILM RED character visual",
+        "artist": "ONE PIECE FILM RED production"
+      },
+      "extraction": {
+        "normalizedRect": [
+          0.17,
+          0.02,
+          0.37,
+          0.96
+        ],
+        "mode": "crop-original-alpha-only",
+        "notes": "Candidate isolation from an official paired costume sheet; verify only the correct full character remains. Do not use any unrelated pose."
+      },
+      "power": {
+        "rank": "A",
+        "scope": "Monkey D. Luffy — Film Red illustrated costume",
+        "basis": "Rubber-body combat and Haki are known within the continuity; this illustrated outfit alone does not depict an active Gear.",
+        "limits": "Film Red pirate costume is not proof of Gear 4 or Gear 5.",
+        "references": [
+          "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara03_en.html"
+        ]
+      }
+    },
+    {
+      "id": "zoro-film-red",
+      "character": "zoro",
+      "name": "Roronoa Zoro",
+      "title": "Zoro",
+      "form": "Film Red / pirate outfit",
+      "formId": "film-red-pirate",
+      "number": 2,
+      "aliases": [
+        "Roronoa Zoro",
+        "Zoro"
+      ],
+      "continuity": "one-piece-film-red",
+      "original": {
+        "provider": "one-piece-film-red-official",
+        "page": "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara04_en.html",
+        "image": "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara04.png",
+        "rights": "© Eiichiro Oda / SHUEISHA, Fuji TV, Toei Animation and the ONE PIECE FILM RED committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official ONE PIECE FILM RED character visual",
+        "artist": "ONE PIECE FILM RED production"
+      },
+      "extraction": {
+        "normalizedRect": [
+          0.16,
+          0.01,
+          0.42,
+          0.97
+        ],
+        "mode": "crop-original-alpha-only",
+        "notes": "Candidate isolation from an official paired costume sheet; verify only the correct full character remains. Do not use any unrelated pose."
+      },
+      "power": {
+        "rank": "A",
+        "scope": "Roronoa Zoro — Film Red illustrated costume",
+        "basis": "Highly skilled three-sword combatant with Haki and hard-won battle experience.",
+        "limits": "Do not label this ordinary Film Red costume as King of Hell or Asura.",
+        "references": [
+          "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara04_en.html"
+        ]
+      }
+    },
+    {
+      "id": "nami-film-red",
+      "character": "nami",
+      "name": "Nami",
+      "title": "Nami",
+      "form": "Film Red / pirate outfit",
+      "formId": "film-red-pirate",
+      "number": 3,
+      "aliases": [
+        "Nami",
+        "Nami"
+      ],
+      "continuity": "one-piece-film-red",
+      "original": {
+        "provider": "one-piece-film-red-official",
+        "page": "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara05_en.html",
+        "image": "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara05.png",
+        "rights": "© Eiichiro Oda / SHUEISHA, Fuji TV, Toei Animation and the ONE PIECE FILM RED committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official ONE PIECE FILM RED character visual",
+        "artist": "ONE PIECE FILM RED production"
+      },
+      "extraction": {
+        "normalizedRect": [
+          0.25,
+          0.05,
+          0.28,
+          0.93
+        ],
+        "mode": "crop-original-alpha-only",
+        "notes": "Candidate isolation from an official paired costume sheet; verify only the correct full character remains. Do not use any unrelated pose."
+      },
+      "power": {
+        "rank": "C",
+        "scope": "Nami — Film Red illustrated costume",
+        "basis": "Weather-based staff techniques and sharp tactical thinking.",
+        "limits": "No Zeus-based finisher is visible in this pose; avoid treating outfit as activated ability.",
+        "references": [
+          "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara05_en.html"
+        ]
+      }
+    },
+    {
+      "id": "usopp-film-red",
+      "character": "usopp",
+      "name": "Usopp",
+      "title": "Usopp",
+      "form": "Film Red / pirate outfit",
+      "formId": "film-red-pirate",
+      "number": 4,
+      "aliases": [
+        "Usopp",
+        "Usopp"
+      ],
+      "continuity": "one-piece-film-red",
+      "original": {
+        "provider": "one-piece-film-red-official",
+        "page": "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara06_en.html",
+        "image": "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara06.png",
+        "rights": "© Eiichiro Oda / SHUEISHA, Fuji TV, Toei Animation and the ONE PIECE FILM RED committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official ONE PIECE FILM RED character visual",
+        "artist": "ONE PIECE FILM RED production"
+      },
+      "extraction": {
+        "normalizedRect": [
+          0.17,
+          0.21,
+          0.4,
+          0.76
+        ],
+        "mode": "crop-original-alpha-only",
+        "notes": "Candidate isolation from an official paired costume sheet; verify only the correct full character remains. Do not use any unrelated pose."
+      },
+      "power": {
+        "rank": "C",
+        "scope": "Usopp — Film Red illustrated costume",
+        "basis": "Expert ranged trick shots, utility ammunition and survival under pressure.",
+        "limits": "No unrestricted Haki mastery or giant-scale offence.",
+        "references": [
+          "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara06_en.html"
+        ]
+      }
+    },
+    {
+      "id": "sanji-film-red",
+      "character": "sanji",
+      "name": "Sanji",
+      "title": "Sanji",
+      "form": "Film Red / pirate outfit",
+      "formId": "film-red-pirate",
+      "number": 5,
+      "aliases": [
+        "Sanji",
+        "Sanji"
+      ],
+      "continuity": "one-piece-film-red",
+      "original": {
+        "provider": "one-piece-film-red-official",
+        "page": "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara07_en.html",
+        "image": "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara07.png",
+        "rights": "© Eiichiro Oda / SHUEISHA, Fuji TV, Toei Animation and the ONE PIECE FILM RED committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official ONE PIECE FILM RED character visual",
+        "artist": "ONE PIECE FILM RED production"
+      },
+      "extraction": {
+        "normalizedRect": [
+          0.3,
+          0.04,
+          0.24,
+          0.94
+        ],
+        "mode": "crop-original-alpha-only",
+        "notes": "Candidate isolation from an official paired costume sheet; verify only the correct full character remains. Do not use any unrelated pose."
+      },
+      "power": {
+        "rank": "A",
+        "scope": "Sanji — Film Red illustrated costume",
+        "basis": "Elite close-quarters kicks, mobility and fire-based techniques.",
+        "limits": "This costume is not an illustration of an active Ifrit Jambe strike.",
+        "references": [
+          "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara07_en.html"
+        ]
+      }
+    },
+    {
+      "id": "chopper-film-red",
+      "character": "chopper",
+      "name": "Tony Tony Chopper",
+      "title": "Chopper",
+      "form": "Film Red / pirate outfit",
+      "formId": "film-red-pirate",
+      "number": 6,
+      "aliases": [
+        "Tony Tony Chopper",
+        "Chopper"
+      ],
+      "continuity": "one-piece-film-red",
+      "original": {
+        "provider": "one-piece-film-red-official",
+        "page": "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara08_en.html",
+        "image": "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara08.png",
+        "rights": "© Eiichiro Oda / SHUEISHA, Fuji TV, Toei Animation and the ONE PIECE FILM RED committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official ONE PIECE FILM RED character visual",
+        "artist": "ONE PIECE FILM RED production"
+      },
+      "extraction": {
+        "normalizedRect": [
+          0.16,
+          0.2,
+          0.37,
+          0.66
+        ],
+        "mode": "crop-original-alpha-only",
+        "notes": "Candidate isolation from an official paired costume sheet; verify only the correct full character remains. Do not use any unrelated pose."
+      },
+      "power": {
+        "rank": "C",
+        "scope": "Tony Tony Chopper — Film Red illustrated costume",
+        "basis": "Zoan transformations and medical expertise underpin situational fighting.",
+        "limits": "Small base appearance does not depict Monster Point.",
+        "references": [
+          "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara08_en.html"
+        ]
+      }
+    },
+    {
+      "id": "robin-film-red",
+      "character": "robin",
+      "name": "Nico Robin",
+      "title": "Robin",
+      "form": "Film Red / pirate outfit",
+      "formId": "film-red-pirate",
+      "number": 7,
+      "aliases": [
+        "Nico Robin",
+        "Robin"
+      ],
+      "continuity": "one-piece-film-red",
+      "original": {
+        "provider": "one-piece-film-red-official",
+        "page": "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara09_en.html",
+        "image": "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara09.png",
+        "rights": "© Eiichiro Oda / SHUEISHA, Fuji TV, Toei Animation and the ONE PIECE FILM RED committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official ONE PIECE FILM RED character visual",
+        "artist": "ONE PIECE FILM RED production"
+      },
+      "extraction": {
+        "normalizedRect": [
+          0.1,
+          0.02,
+          0.43,
+          0.96
+        ],
+        "mode": "crop-original-alpha-only",
+        "notes": "Candidate isolation from an official paired costume sheet; verify only the correct full character remains. Do not use any unrelated pose."
+      },
+      "power": {
+        "rank": "B",
+        "scope": "Nico Robin — Film Red illustrated costume",
+        "basis": "Hana Hana no Mi limb projection and grappling provide effective close combat.",
+        "limits": "This image is not Demonio Fleur; no transformation is inferred.",
+        "references": [
+          "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara09_en.html"
+        ]
+      }
+    },
+    {
+      "id": "franky-film-red",
+      "character": "franky",
+      "name": "Franky",
+      "title": "Franky",
+      "form": "Film Red / pirate outfit",
+      "formId": "film-red-pirate",
+      "number": 8,
+      "aliases": [
+        "Franky",
+        "Franky"
+      ],
+      "continuity": "one-piece-film-red",
+      "original": {
+        "provider": "one-piece-film-red-official",
+        "page": "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara10_en.html",
+        "image": "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara10.png",
+        "rights": "© Eiichiro Oda / SHUEISHA, Fuji TV, Toei Animation and the ONE PIECE FILM RED committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official ONE PIECE FILM RED character visual",
+        "artist": "ONE PIECE FILM RED production"
+      },
+      "extraction": {
+        "normalizedRect": [
+          0.02,
+          0.02,
+          0.66,
+          0.96
+        ],
+        "mode": "crop-original-alpha-only",
+        "notes": "Candidate isolation from an official paired costume sheet; verify only the correct full character remains. Do not use any unrelated pose."
+      },
+      "power": {
+        "rank": "B",
+        "scope": "Franky — Film Red illustrated costume",
+        "basis": "Cyborg strength, built-in weaponry and resilience offer broad offence.",
+        "limits": "The outfit is not automatically General Franky or a special cannon deployment.",
+        "references": [
+          "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara10_en.html"
+        ]
+      }
+    },
+    {
+      "id": "brook-film-red",
+      "character": "brook",
+      "name": "Brook",
+      "title": "Brook",
+      "form": "Film Red / pirate outfit",
+      "formId": "film-red-pirate",
+      "number": 9,
+      "aliases": [
+        "Brook",
+        "Brook"
+      ],
+      "continuity": "one-piece-film-red",
+      "original": {
+        "provider": "one-piece-film-red-official",
+        "page": "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara11_en.html",
+        "image": "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara11.png",
+        "rights": "© Eiichiro Oda / SHUEISHA, Fuji TV, Toei Animation and the ONE PIECE FILM RED committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official ONE PIECE FILM RED character visual",
+        "artist": "ONE PIECE FILM RED production"
+      },
+      "extraction": {
+        "normalizedRect": [
+          0.14,
+          0.01,
+          0.42,
+          0.95
+        ],
+        "mode": "crop-original-alpha-only",
+        "notes": "Candidate isolation from an official paired costume sheet; verify only the correct full character remains. Do not use any unrelated pose."
+      },
+      "power": {
+        "rank": "B",
+        "scope": "Brook — Film Red illustrated costume",
+        "basis": "Fast swordplay, music and soul-based utility plus cold techniques.",
+        "limits": "Do not assume a special soul-projection transformation from the costume.",
+        "references": [
+          "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara11_en.html"
+        ]
+      }
+    },
+    {
+      "id": "jinbe-film-red",
+      "character": "jinbe",
+      "name": "Jinbe",
+      "title": "Jinbe",
+      "form": "Film Red / pirate outfit",
+      "formId": "film-red-pirate",
+      "number": 10,
+      "aliases": [
+        "Jinbe",
+        "Jinbe"
+      ],
+      "continuity": "one-piece-film-red",
+      "original": {
+        "provider": "one-piece-film-red-official",
+        "page": "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara12_en.html",
+        "image": "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara12.png",
+        "rights": "© Eiichiro Oda / SHUEISHA, Fuji TV, Toei Animation and the ONE PIECE FILM RED committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official ONE PIECE FILM RED character visual",
+        "artist": "ONE PIECE FILM RED production"
+      },
+      "extraction": {
+        "normalizedRect": [
+          0.03,
+          0.02,
+          0.52,
+          0.94
+        ],
+        "mode": "crop-original-alpha-only",
+        "notes": "Candidate isolation from an official paired costume sheet; verify only the correct full character remains. Do not use any unrelated pose."
+      },
+      "power": {
+        "rank": "A",
+        "scope": "Jinbe — Film Red illustrated costume",
+        "basis": "Mastery of Fish-Man Karate and Haki, with high durability.",
+        "limits": "Water availability and terrain can change his strongest tactics.",
+        "references": [
+          "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara12_en.html"
+        ]
+      }
+    },
+    {
+      "id": "shanks-film-red",
+      "character": "shanks",
+      "name": "Shanks",
+      "title": "Shanks",
+      "form": "Film Red / captain outfit",
+      "formId": "film-red-captain",
+      "number": 11,
+      "aliases": [
+        "Shanks",
+        "Shanks"
+      ],
+      "continuity": "one-piece-film-red",
+      "original": {
+        "provider": "one-piece-film-red-official",
+        "page": "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara13_en.html",
+        "image": "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara13.png",
+        "rights": "© Eiichiro Oda / SHUEISHA, Fuji TV, Toei Animation and the ONE PIECE FILM RED committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official ONE PIECE FILM RED character visual",
+        "artist": "ONE PIECE FILM RED production"
+      },
+      "extraction": {
+        "normalizedRect": [
+          0,
+          0,
+          0.56,
+          0.75
+        ],
+        "mode": "crop-original-alpha-only",
+        "notes": "Candidate isolation from an official paired costume sheet; verify only the correct full character remains. Do not use any unrelated pose."
+      },
+      "power": {
+        "rank": "S",
+        "scope": "Shanks — Film Red illustrated costume",
+        "basis": "An Emperor renowned for extreme Haki mastery and formidable sword combat.",
+        "limits": "Do not interpret status alone as evidence for SS, SSS, EX or limitless attacks.",
+        "references": [
+          "https://www.onepiece-film.jp/wordpress/wp-content/themes/onepiece-film-red/common/character/chara13_en.html"
+        ]
+      }
+    }
+  ]
+}
