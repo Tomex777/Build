@@ -33,7 +33,7 @@ On HOME, hide the existing bottom address row so there is **one** address/search
 ## Verification ledger
 
 - **Code written and committed:** yes.
-- **Unit tests / APK build:** CI requested by push / integration PR. Inspect the exact GitHub Actions run outcome before marking passed. Runtime Android SDK/Gradle not available in Agent 2's local shell.
+- **Unit tests / APK build:** PASS on GitHub Actions `NIGHT Browser Agent 2 — Home Compile Gate`, push run [39358298115](https://github.com/Tomex777/Build/actions/runs/39358298115), at commit `bbee892330cf68cf37ec39bd96bc32d9c2b6e2a7` (the Home favicon-decoder source revision). `:app:testDebugUnitTest` and `:app:assembleDebug` both succeeded. `night-browser-agent02-arm64` debug APK artifact uploaded successfully. The separate PR-event run may remain queued.
 - **Emulator installation:** not yet run.
 - **Physical-device installation:** not yet run.
 - **Real interactions / Android screenshots:** not yet run because coordinator must wire the new Home composable. Agent 10 / Agent 1 should test both 320 and 390 dp, tablet 840+ dp, rotations and keyboard/insets.
@@ -53,4 +53,4 @@ On HOME, hide the existing bottom address row so there is **one** address/search
 
 ## Next action
 
-Agent 1: review and integrate the small MainActivity hook above, then ask Agent 10 for actual installed Android UX verification. If agent CI fails, Agent 2 fixes the compile error on its isolated branch and reruns tests.
+Agent 1: review and integrate the small MainActivity hook above, then ask Agent 10 for actual installed Android UX verification. CI build/unit gate is green; Agent 1 now wires and reviews Home, Agent 10 installs/interaction-tests. Any UI or compilation regression found after merging must be fixed and retested.
