@@ -106,6 +106,8 @@ private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> U
     var peekUrl by remember { mutableStateOf<String?>(null) }
     var newJourneyDialog by remember { mutableStateOf(false) }
     val current = browser.active
+    val context = LocalContext.current
+    val archive = remember(browser) { TimeMachineArchive(context.applicationContext) }
     val keyboard = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
     val snack = remember { SnackbarHostState() }
@@ -168,7 +170,13 @@ private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> U
                         })
                     Page.LIBRARY -> LibraryPanel(browser,
                         onOpen = { browser.newTab(it); page = Page.WEB })
-                    Page.TIME_MACHINE -> TimeMachinePanel(browser, openSaved)
+                    Page.TIME_MACHINE -> TimeMachineArchivePanel(
+                        archive = archive,
+                        openSaved = { item ->
+                            openSaved(SavedPage(item.fileName, item.url, item.title, item.capturedAt))
+                        },
+                        onNotice = { browser.notice = it }
+                    )
                 }
             }
 
@@ -265,7 +273,11 @@ private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> U
                             text = { Text("Save PDF copy") },
                             leadingIcon = { Icon(Icons.Rounded.SaveAlt, null) },
                             enabled = current.url.startsWith("http"),
-                            onClick = { dismiss { browser.savePdfSnapshot() } })
+                            onClick = { dismiss {
+                                archive.savePdf(current.session, current.url, current.title) {
+                                    browser.notice = it
+                                }
+                            } })
                         DropdownMenuItem(
                             text = { Text("Reload") },
                             leadingIcon = { Icon(Icons.Rounded.Refresh, null) },
@@ -685,31 +697,6 @@ private fun LibraryPanel(browser: BrowserController, onOpen: (String) -> Unit) {
                     RowCard(it.title, it.url,
                         { Icon(Icons.Rounded.BookmarkBorder, null, tint = Accent) },
                         { onOpen(it.url) })
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun TimeMachinePanel(browser: BrowserController, openSaved: (SavedPage) -> Unit) {
-    Column(Modifier.fillMaxSize()) {
-        PanelHeader("Time Machine")
-        Text("Saved PDF copies · not interactive webpage archives",
-            modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
-            fontSize = 12.sp, color = Muted)
-        if (browser.store.savedPages.isEmpty()) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Save a PDF copy from the page menu.", color = Muted)
-            }
-        } else {
-            LazyColumn(contentPadding = PaddingValues(16.dp)) {
-                items(browser.store.savedPages, key = { it.fileName }) { item ->
-                    RowCard(
-                        item.title, DateFormat.getDateTimeInstance().format(Date(item.timestamp)),
-                        { Icon(Icons.Rounded.PictureAsPdf, null, tint = Accent) },
-                        { openSaved(item) }
-                    )
                 }
             }
         }
