@@ -2,6 +2,7 @@ package studio.artistscene.app
 
 import android.graphics.BitmapFactory
 import android.graphics.Color
+import android.view.WindowManager
 import java.io.File
 import androidx.test.core.app.ActivityScenario
 import androidx.test.platform.app.InstrumentationRegistry
@@ -21,11 +22,24 @@ class RendererLaunchTest {
         // having opened the starter scene or on an empty project store.
         SceneProjectStore(context).save(PrototypeScene.create())
 
-        ActivityScenario.launch(MainActivity::class.java).use {
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            scenario.onActivity { activity ->
+                assertTrue(
+                    "Project browser must display Android status bar",
+                    activity.window.attributes.flags and WindowManager.LayoutParams.FLAG_FULLSCREEN == 0,
+                )
+            }
             val openStarter = requireNotNull(
                 device.wait(Until.findObject(By.res("project-open-feasibility-stage")), 10_000),
             ) { "Starter scene was not available from the project browser" }
             openStarter.click()
+            assertTrue("Editor viewport was not displayed", device.wait(Until.hasObject(By.res("scene-viewport")), 45_000))
+            scenario.onActivity { activity ->
+                assertTrue(
+                    "Studio editor must hide Android status bar",
+                    activity.window.attributes.flags and WindowManager.LayoutParams.FLAG_FULLSCREEN != 0,
+                )
+            }
 
             val moveTool = requireNotNull(
                 device.wait(Until.findObject(By.res("tool-move")), 45_000),
@@ -47,6 +61,12 @@ class RendererLaunchTest {
                 device.wait(Until.findObject(By.res("inspector")), 10_000),
             ) { "Inspector was not available from the viewport tool strip" }
             inspector.click()
+            scenario.onActivity { activity ->
+                assertTrue(
+                    "Inspector must not restore Android status bar",
+                    activity.window.attributes.flags and WindowManager.LayoutParams.FLAG_FULLSCREEN != 0,
+                )
+            }
             val positionX = requireNotNull(
                 device.wait(Until.findObject(By.res("numeric-x")), 10_000),
             ) { "Position X value was not visible in the contextual inspector" }
@@ -87,6 +107,17 @@ class RendererLaunchTest {
             }
             bitmap.recycle()
             assertTrue("Rendering region is black even though editor controls are visible", visible > sampled / 10)
+
+            requireNotNull(device.wait(Until.findObject(By.res("back-to-projects")), 10_000)) {
+                "Return-to-projects control was unavailable"
+            }.click()
+            assertTrue("Project browser was not restored", device.wait(Until.hasObject(By.res("create-project")), 10_000))
+            scenario.onActivity { activity ->
+                assertTrue(
+                    "Leaving the editor must restore Android status bar",
+                    activity.window.attributes.flags and WindowManager.LayoutParams.FLAG_FULLSCREEN == 0,
+                )
+            }
         }
     }
 }
