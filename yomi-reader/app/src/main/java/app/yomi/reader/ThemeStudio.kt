@@ -87,7 +87,7 @@ internal object YomiAppearances {
     fun resolve(id: String, customHex: String): YomiAppearance {
         if (id != CUSTOM_ID) return presets.firstOrNull { it.id == id } ?: presets.first()
         val hex = normalizedHex(customHex) ?: DEFAULT_CUSTOM_HEX
-        val accent = Color(0xFF000000L or hex.toLong(16))
+        val accent = Color((0xFF000000L or hex.toLong(16)).toInt())
         val base = presets.first()
         return base.copy(id = CUSTOM_ID, name = "Custom", primary = accent)
     }
