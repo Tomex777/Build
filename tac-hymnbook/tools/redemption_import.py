@@ -91,6 +91,9 @@ def validate_batch(payload: dict, known_numbers: set[int] | None = None) -> list
             "source_pages": sorted(set(pages)),
             "source_url": source_url,
             "text_status": "licensed_bilingual_print_verified",
+            "rights_verified": True,
+            "printed_edition_verified": True,
+            "replaces_working_draft": entry.get("replaces_working_draft") is True,
             "permission_reference": permission,
             "reviewer": reviewer,
         })
