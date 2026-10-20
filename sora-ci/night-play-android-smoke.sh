@@ -103,13 +103,42 @@ while IFS='|' read -r id title <&3; do
   tap_text "$title"
   wait_web_title "$title"
   shot "$id-loaded"
-  # Exercise Android touch dispatch. The HTML engine itself responds to
-  # pointer input; animations/visuals are inspected from screenshots.
-  width=$(adb shell wm size | grep -Eo '[0-9]+x[0-9]+' | tail -n1 | cut -dx -f1)
-  height=$(adb shell wm size | grep -Eo '[0-9]+x[0-9]+' | tail -n1 | cut -dx -f2)
-  adb shell input tap "$((width/2))" "$((height*55/100))"
+  # These three newer engines must receive a REAL rule-valid move, not a
+  # screenshot-only center tap. Expose HTML buttons via accessibility names.
+  case "$id" in
+    lights-out)
+      tap_text "Light row 1 column 1"
+      ;;
+    sliding-puzzle)
+      tap_text "Slide tile"
+      ;;
+    simon-says)
+      tap_text "Start"
+      sleep 2
+      dump_ui
+      if ! find_point "Your turn" >/dev/null 2>&1; then
+        shot "failure-simon-start"
+        echo 'Simon Says never presented a sequence and accepted input.' >&2
+        exit 1
+      fi
+      tap_text "Teal colour pad"
+      ;;
+    *)
+      width=$(adb shell wm size | grep -Eo '[0-9]+x[0-9]+' | tail -n1 | cut -dx -f1)
+      height=$(adb shell wm size | grep -Eo '[0-9]+x[0-9]+' | tail -n1 | cut -dx -f2)
+      adb shell input tap "$((width/2))" "$((height*55/100))"
+      ;;
+  esac
   sleep .4
   shot "$id-after-touch"
+  case "$id" in
+    lights-out|sliding-puzzle|simon-says)
+      if cmp -s "$OUT/$id-loaded.png" "$OUT/$id-after-touch.png"; then
+        echo "Game accepted no visible input: $id" >&2
+        exit 1
+      fi
+      ;;
+  esac
   adb shell input keyevent KEYCODE_BACK
   sleep 1
   dump_ui
