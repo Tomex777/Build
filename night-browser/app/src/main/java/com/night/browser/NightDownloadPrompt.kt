@@ -177,7 +177,11 @@ fun NightDownloadPrompt(state: WebDownloadConsent) {
                             Toast.LENGTH_LONG).show()
                     }
                 } else state.accept()
-            }) { Text(if (state.privateMode) "Choose location" else "Save file") }
+            }) { Text(when {
+                state.privateMode -> "Choose location"
+                state.isRepeatDownload -> "Download again"
+                else -> "Save file"
+            }) }
         },
         dismissButton = {
             TextButton(onClick = state::dismiss) { Text("Cancel") }
