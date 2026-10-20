@@ -175,7 +175,7 @@ class JourneyStore(context: Context) {
         journey.nodes.forEach { node ->
             entries.put(JSONObject().put("id", node.id).put("url", node.url)
                 .put("title", node.title).put("parent", node.parent ?: JSONObject.NULL)
-                .put("time", node.timestamp))
+                .put("time", node.timestamp).put("custom", node.customTitle))
         }
         return JSONObject().put("format", "night-journey-v1")
             .put("name", journey.name).put("nodes", entries).toString(2)
