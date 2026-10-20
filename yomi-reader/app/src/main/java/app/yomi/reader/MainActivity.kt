@@ -238,7 +238,18 @@ class MainActivity : ComponentActivity() {
             .digest(uri.toString().toByteArray(Charsets.UTF_8))
             .joinToString("") { "%02x".format(it.toInt() and 0xff) }
         val directory = java.io.File(filesDir, "imported-books/$key").apply { mkdirs() }
-        val stored = java.io.File(directory, safeName)
+        // Display names are mutable even for an unchanged Android document URI.
+        // Reusing a prior private path preserves its book ID, bookmarks, and
+        // progress instead of importing a duplicate whenever a file is renamed.
+        val originalLocation = libraryStore.list().firstNotNullOfOrNull { book ->
+            val oldUri = Uri.parse(book.locationUri)
+            if (oldUri.scheme != "file") return@firstNotNullOfOrNull null
+            oldUri.path?.let(::File)?.takeIf { oldFile ->
+                oldFile.parentFile?.canonicalFile == directory.canonicalFile &&
+                    (oldFile.name.endsWith(".cbz", true) || oldFile.name.endsWith(".zip", true))
+            }
+        }
+        val stored = originalLocation ?: java.io.File(directory, safeName)
         // A picked document can keep the same content URI after its contents
         // are replaced or repaired. Always refresh the private mirror on an
         // explicit import/relink; a nonempty older copy may be stale or corrupt.
