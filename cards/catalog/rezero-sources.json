@@ -1,0 +1,1116 @@
+{
+  "version": 1,
+  "series": "rezero",
+  "name": "Re:Zero / NIGHT Collection",
+  "dimensions": [
+    3000,
+    4800
+  ],
+  "sourcePage": "https://re-zero-anime.jp/tv/character/",
+  "rights": "Reference-only official anime character cutouts. No rights to commercial redistribution are granted.",
+  "status": "artwork-acquisition-candidates",
+  "sources": [
+    {
+      "id": "subaru-traveller",
+      "number": 1,
+      "character": "subaru",
+      "name": "Subaru Natsuki",
+      "title": "Subaru",
+      "form": "Traveller / cloaked",
+      "formId": "travelling-cloak",
+      "source": {
+        "provider": "rezero-anime-tv",
+        "page": "https://re-zero-anime.jp/tv/character/",
+        "image": "https://re-zero-anime.jp/tv/assets/character/c/1c.webp",
+        "rights": "© Tappei Nagatsuki, KADOKAWA / Re:ZERO Production Committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Re:ZERO anime site"
+      },
+      "rank": {
+        "letter": "F",
+        "scope": "Subaru Natsuki — Traveller / cloaked",
+        "basis": "Ordinary human offence in the depicted travelling outfit; Return by Death is not direct attack power.",
+        "limits": "Does not gain direct supernatural strength from his looping ability."
+      },
+      "continuity": "rezero-anime",
+      "aliases": [
+        "Subaru Natsuki",
+        "Subaru",
+        "subaru"
+      ]
+    },
+    {
+      "id": "emilia-candidate",
+      "number": 2,
+      "character": "emilia",
+      "name": "Emilia",
+      "title": "Emilia",
+      "form": "Royal candidate / ice magic",
+      "formId": "royal-candidate",
+      "source": {
+        "provider": "rezero-anime-tv",
+        "page": "https://re-zero-anime.jp/tv/character/",
+        "image": "https://re-zero-anime.jp/tv/assets/character/c/2a.webp",
+        "rights": "© Tappei Nagatsuki, KADOKAWA / Re:ZERO Production Committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Re:ZERO anime site"
+      },
+      "rank": {
+        "letter": "B",
+        "scope": "Emilia — Royal candidate / ice magic",
+        "basis": "Powerful ice affinity and combat magic.",
+        "limits": "Pictured candidate form does not imply an unseen later power-up."
+      },
+      "continuity": "rezero-anime",
+      "aliases": [
+        "Emilia",
+        "Emilia",
+        "emilia"
+      ]
+    },
+    {
+      "id": "rem-maid",
+      "number": 3,
+      "character": "rem",
+      "name": "Rem",
+      "title": "Rem",
+      "form": "Roswaal manor / oni maid",
+      "formId": "oni-maid",
+      "source": {
+        "provider": "rezero-anime-tv",
+        "page": "https://re-zero-anime.jp/tv/character/",
+        "image": "https://re-zero-anime.jp/tv/assets/character/c/4b.webp",
+        "rights": "© Tappei Nagatsuki, KADOKAWA / Re:ZERO Production Committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Re:ZERO anime site"
+      },
+      "rank": {
+        "letter": "C",
+        "scope": "Rem — Roswaal manor / oni maid",
+        "basis": "Skilled flail fighter using oni strength and water magic.",
+        "limits": "No horn-amplified ultimate condition assumed from the portrait."
+      },
+      "continuity": "rezero-anime",
+      "aliases": [
+        "Rem",
+        "Rem",
+        "rem"
+      ]
+    },
+    {
+      "id": "rem-recovering",
+      "number": 4,
+      "character": "rem",
+      "name": "Rem",
+      "title": "Rem",
+      "form": "Recovering / wheelchair",
+      "formId": "recovering",
+      "source": {
+        "provider": "rezero-anime-tv",
+        "page": "https://re-zero-anime.jp/tv/character/",
+        "image": "https://re-zero-anime.jp/tv/assets/character/c/4c.webp",
+        "rights": "© Tappei Nagatsuki, KADOKAWA / Re:ZERO Production Committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Re:ZERO anime site"
+      },
+      "rank": {
+        "letter": "F",
+        "scope": "Rem — Recovering / wheelchair",
+        "basis": "No active combat capability in the pictured unconscious condition.",
+        "limits": "Do not conflate this source image with combat-ready Rem."
+      },
+      "continuity": "rezero-anime",
+      "aliases": [
+        "Rem",
+        "Rem",
+        "rem"
+      ]
+    },
+    {
+      "id": "ram-maid",
+      "number": 5,
+      "character": "ram",
+      "name": "Ram",
+      "title": "Ram",
+      "form": "Roswaal manor / maid",
+      "formId": "manor-maid",
+      "source": {
+        "provider": "rezero-anime-tv",
+        "page": "https://re-zero-anime.jp/tv/character/",
+        "image": "https://re-zero-anime.jp/tv/assets/character/c/5b.webp",
+        "rights": "© Tappei Nagatsuki, KADOKAWA / Re:ZERO Production Committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Re:ZERO anime site"
+      },
+      "rank": {
+        "letter": "C",
+        "scope": "Ram — Roswaal manor / maid",
+        "basis": "Competent wind magic despite loss of her oni horn.",
+        "limits": "No hypothetical intact-horn strength."
+      },
+      "continuity": "rezero-anime",
+      "aliases": [
+        "Ram",
+        "Ram",
+        "ram"
+      ]
+    },
+    {
+      "id": "ram-journey",
+      "number": 6,
+      "character": "ram",
+      "name": "Ram",
+      "title": "Ram",
+      "form": "Journey cloak / wind magic",
+      "formId": "journey-cloak",
+      "source": {
+        "provider": "rezero-anime-tv",
+        "page": "https://re-zero-anime.jp/tv/character/",
+        "image": "https://re-zero-anime.jp/tv/assets/character/c/5c.webp",
+        "rights": "© Tappei Nagatsuki, KADOKAWA / Re:ZERO Production Committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Re:ZERO anime site"
+      },
+      "rank": {
+        "letter": "C",
+        "scope": "Ram — Journey cloak / wind magic",
+        "basis": "Same hornless Ram with wind magic and capable combat.",
+        "limits": "Costume alone does not increase combat strength."
+      },
+      "continuity": "rezero-anime",
+      "aliases": [
+        "Ram",
+        "Ram",
+        "ram"
+      ]
+    },
+    {
+      "id": "beatrice-archive",
+      "number": 7,
+      "character": "beatrice",
+      "name": "Beatrice",
+      "title": "Beatrice",
+      "form": "Forbidden library / spirit",
+      "formId": "archive-spirit",
+      "source": {
+        "provider": "rezero-anime-tv",
+        "page": "https://re-zero-anime.jp/tv/character/",
+        "image": "https://re-zero-anime.jp/tv/assets/character/c/6a.webp",
+        "rights": "© Tappei Nagatsuki, KADOKAWA / Re:ZERO Production Committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Re:ZERO anime site"
+      },
+      "rank": {
+        "letter": "B",
+        "scope": "Beatrice — Forbidden library / spirit",
+        "basis": "Powerful spirit magic, protective and offensive spells.",
+        "limits": "Mana supply and contract conditions matter."
+      },
+      "continuity": "rezero-anime",
+      "aliases": [
+        "Beatrice",
+        "Beatrice",
+        "beatrice"
+      ]
+    },
+    {
+      "id": "roswaal-mage",
+      "number": 8,
+      "character": "roswaal",
+      "name": "Roswaal L. Mathers",
+      "title": "Roswaal",
+      "form": "Court magician",
+      "formId": "court-magician",
+      "source": {
+        "provider": "rezero-anime-tv",
+        "page": "https://re-zero-anime.jp/tv/character/",
+        "image": "https://re-zero-anime.jp/tv/assets/character/c/7b.webp",
+        "rights": "© Tappei Nagatsuki, KADOKAWA / Re:ZERO Production Committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Re:ZERO anime site"
+      },
+      "rank": {
+        "letter": "A",
+        "scope": "Roswaal L. Mathers — Court magician",
+        "basis": "Exceptionally accomplished six-element magician.",
+        "limits": "Preparation and matchup limitations remain."
+      },
+      "continuity": "rezero-anime",
+      "aliases": [
+        "Roswaal L. Mathers",
+        "Roswaal",
+        "roswaal"
+      ]
+    },
+    {
+      "id": "felt-candidate",
+      "number": 9,
+      "character": "felt",
+      "name": "Felt",
+      "title": "Felt",
+      "form": "Royal selection candidate",
+      "formId": "candidate",
+      "source": {
+        "provider": "rezero-anime-tv",
+        "page": "https://re-zero-anime.jp/tv/character/",
+        "image": "https://re-zero-anime.jp/tv/assets/character/c/8b.webp",
+        "rights": "© Tappei Nagatsuki, KADOKAWA / Re:ZERO Production Committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Re:ZERO anime site"
+      },
+      "rank": {
+        "letter": "E",
+        "scope": "Felt — Royal selection candidate",
+        "basis": "Exceptional agility and street survival.",
+        "limits": "No proven spellcasting or royal magic added."
+      },
+      "continuity": "rezero-anime",
+      "aliases": [
+        "Felt",
+        "Felt",
+        "felt"
+      ]
+    },
+    {
+      "id": "reinhard-saint",
+      "number": 10,
+      "character": "reinhard",
+      "name": "Reinhard van Astrea",
+      "title": "Reinhard",
+      "form": "Sword Saint",
+      "formId": "sword-saint",
+      "source": {
+        "provider": "rezero-anime-tv",
+        "page": "https://re-zero-anime.jp/tv/character/",
+        "image": "https://re-zero-anime.jp/tv/assets/character/c/9b.webp",
+        "rights": "© Tappei Nagatsuki, KADOKAWA / Re:ZERO Production Committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Re:ZERO anime site"
+      },
+      "rank": {
+        "letter": "SS",
+        "scope": "Reinhard van Astrea — Sword Saint",
+        "basis": "Overwhelming sword mastery and Divine Protections.",
+        "limits": "SSS/EX reserved for audited feats, not invincibility claims."
+      },
+      "continuity": "rezero-anime",
+      "aliases": [
+        "Reinhard van Astrea",
+        "Reinhard",
+        "reinhard"
+      ]
+    },
+    {
+      "id": "crusch-candidate",
+      "number": 11,
+      "character": "crusch",
+      "name": "Crusch Karsten",
+      "title": "Crusch",
+      "form": "Royal candidate / commander",
+      "formId": "commander",
+      "source": {
+        "provider": "rezero-anime-tv",
+        "page": "https://re-zero-anime.jp/tv/character/",
+        "image": "https://re-zero-anime.jp/tv/assets/character/c/10b.webp",
+        "rights": "© Tappei Nagatsuki, KADOKAWA / Re:ZERO Production Committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Re:ZERO anime site"
+      },
+      "rank": {
+        "letter": "C",
+        "scope": "Crusch Karsten — Royal candidate / commander",
+        "basis": "Disciplined combatant with powerful tactical judgment.",
+        "limits": "Political influence is not direct combat strength."
+      },
+      "continuity": "rezero-anime",
+      "aliases": [
+        "Crusch Karsten",
+        "Crusch",
+        "crusch"
+      ]
+    },
+    {
+      "id": "ferris-healer",
+      "number": 12,
+      "character": "ferris",
+      "name": "Felix Argyle",
+      "title": "Ferris",
+      "form": "Royal knight / healer",
+      "formId": "healer",
+      "source": {
+        "provider": "rezero-anime-tv",
+        "page": "https://re-zero-anime.jp/tv/character/",
+        "image": "https://re-zero-anime.jp/tv/assets/character/c/11c.webp",
+        "rights": "© Tappei Nagatsuki, KADOKAWA / Re:ZERO Production Committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Re:ZERO anime site"
+      },
+      "rank": {
+        "letter": "D",
+        "scope": "Felix Argyle — Royal knight / healer",
+        "basis": "Advanced restorative water magic and survival aid.",
+        "limits": "Offensive duelling ability is comparatively constrained."
+      },
+      "continuity": "rezero-anime",
+      "aliases": [
+        "Felix Argyle",
+        "Ferris",
+        "ferris"
+      ]
+    },
+    {
+      "id": "wilhelm-veteran",
+      "number": 13,
+      "character": "wilhelm",
+      "name": "Wilhelm van Astrea",
+      "title": "Wilhelm",
+      "form": "Demon Sword / veteran",
+      "formId": "veteran-swordsman",
+      "source": {
+        "provider": "rezero-anime-tv",
+        "page": "https://re-zero-anime.jp/tv/character/",
+        "image": "https://re-zero-anime.jp/tv/assets/character/c/12.webp",
+        "rights": "© Tappei Nagatsuki, KADOKAWA / Re:ZERO Production Committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Re:ZERO anime site"
+      },
+      "rank": {
+        "letter": "B",
+        "scope": "Wilhelm van Astrea — Demon Sword / veteran",
+        "basis": "Legendary technique and lethal close-quarter swordsmanship.",
+        "limits": "Assessment is of the pictured older Wilhelm, not peak youth."
+      },
+      "continuity": "rezero-anime",
+      "aliases": [
+        "Wilhelm van Astrea",
+        "Wilhelm",
+        "wilhelm"
+      ]
+    },
+    {
+      "id": "anastasia-candidate",
+      "number": 14,
+      "character": "anastasia",
+      "name": "Anastasia Hoshin",
+      "title": "Anastasia",
+      "form": "Royal candidate / merchant",
+      "formId": "royal-merchant",
+      "source": {
+        "provider": "rezero-anime-tv",
+        "page": "https://re-zero-anime.jp/tv/character/",
+        "image": "https://re-zero-anime.jp/tv/assets/character/c/13c.webp",
+        "rights": "© Tappei Nagatsuki, KADOKAWA / Re:ZERO Production Committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Re:ZERO anime site"
+      },
+      "rank": {
+        "letter": "F",
+        "scope": "Anastasia Hoshin — Royal candidate / merchant",
+        "basis": "Tactical commerce and leadership rather than active battle power.",
+        "limits": "No contracted spirit partner strength assumed."
+      },
+      "continuity": "rezero-anime",
+      "aliases": [
+        "Anastasia Hoshin",
+        "Anastasia",
+        "anastasia"
+      ]
+    },
+    {
+      "id": "julius-knight",
+      "number": 15,
+      "character": "julius",
+      "name": "Julius Juukulius",
+      "title": "Julius",
+      "form": "Spirit knight",
+      "formId": "spirit-knight",
+      "source": {
+        "provider": "rezero-anime-tv",
+        "page": "https://re-zero-anime.jp/tv/character/",
+        "image": "https://re-zero-anime.jp/tv/assets/character/c/14c.webp",
+        "rights": "© Tappei Nagatsuki, KADOKAWA / Re:ZERO Production Committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Re:ZERO anime site"
+      },
+      "rank": {
+        "letter": "A",
+        "scope": "Julius Juukulius — Spirit knight",
+        "basis": "Elite sword skill and coordinated spirit arts.",
+        "limits": "Spirit contracts and exact continuity constrain the assessment."
+      },
+      "continuity": "rezero-anime",
+      "aliases": [
+        "Julius Juukulius",
+        "Julius",
+        "julius"
+      ]
+    },
+    {
+      "id": "priscilla-candidate",
+      "number": 16,
+      "character": "priscilla",
+      "name": "Priscilla Barielle",
+      "title": "Priscilla",
+      "form": "Royal candidate / Yang sword",
+      "formId": "royal-candidate",
+      "source": {
+        "provider": "rezero-anime-tv",
+        "page": "https://re-zero-anime.jp/tv/character/",
+        "image": "https://re-zero-anime.jp/tv/assets/character/c/15c.webp",
+        "rights": "© Tappei Nagatsuki, KADOKAWA / Re:ZERO Production Committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Re:ZERO anime site"
+      },
+      "rank": {
+        "letter": "B",
+        "scope": "Priscilla Barielle — Royal candidate / Yang sword",
+        "basis": "Dangerous swordsmanship and magic-linked combat advantages.",
+        "limits": "Divine luck is not an all-matchups guarantee."
+      },
+      "continuity": "rezero-anime",
+      "aliases": [
+        "Priscilla Barielle",
+        "Priscilla",
+        "priscilla"
+      ]
+    },
+    {
+      "id": "al-armoured",
+      "number": 17,
+      "character": "aldebaran",
+      "name": "Aldebaran",
+      "title": "Al",
+      "form": "Armoured mercenary",
+      "formId": "armoured-mercenary",
+      "source": {
+        "provider": "rezero-anime-tv",
+        "page": "https://re-zero-anime.jp/tv/character/",
+        "image": "https://re-zero-anime.jp/tv/assets/character/c/16c.webp",
+        "rights": "© Tappei Nagatsuki, KADOKAWA / Re:ZERO Production Committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Re:ZERO anime site"
+      },
+      "rank": {
+        "letter": "C",
+        "scope": "Aldebaran — Armoured mercenary",
+        "basis": "Veteran survival ability and dangerous tactical experience.",
+        "limits": "Unexplained authority conditions not treated as unlimited offence."
+      },
+      "continuity": "rezero-anime",
+      "aliases": [
+        "Aldebaran",
+        "Al",
+        "aldebaran"
+      ]
+    },
+    {
+      "id": "elsa-assassin",
+      "number": 18,
+      "character": "elsa",
+      "name": "Elsa Granhiert",
+      "title": "Elsa",
+      "form": "Bowel Hunter / assassin",
+      "formId": "assassin",
+      "source": {
+        "provider": "rezero-anime-tv",
+        "page": "https://re-zero-anime.jp/tv/character/",
+        "image": "https://re-zero-anime.jp/tv/assets/character/c/17.webp",
+        "rights": "© Tappei Nagatsuki, KADOKAWA / Re:ZERO Production Committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Re:ZERO anime site"
+      },
+      "rank": {
+        "letter": "B",
+        "scope": "Elsa Granhiert — Bowel Hunter / assassin",
+        "basis": "Superhuman speed, regeneration and lethal melee precision.",
+        "limits": "Regeneration has counters and she can be beaten."
+      },
+      "continuity": "rezero-anime",
+      "aliases": [
+        "Elsa Granhiert",
+        "Elsa",
+        "elsa"
+      ]
+    },
+    {
+      "id": "petelgeuse-sloth",
+      "number": 19,
+      "character": "petelgeuse",
+      "name": "Petelgeuse Romanee-Conti",
+      "title": "Petelgeuse",
+      "form": "Sin Archbishop / Sloth",
+      "formId": "sloth-archbishop",
+      "source": {
+        "provider": "rezero-anime-tv",
+        "page": "https://re-zero-anime.jp/tv/character/",
+        "image": "https://re-zero-anime.jp/tv/assets/character/c/18.png",
+        "rights": "© Tappei Nagatsuki, KADOKAWA / Re:ZERO Production Committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Re:ZERO anime site"
+      },
+      "rank": {
+        "letter": "B",
+        "scope": "Petelgeuse Romanee-Conti — Sin Archbishop / Sloth",
+        "basis": "Unseen Hands and dangerous Authority-based offence.",
+        "limits": "Host bodies, positioning and unseen attacks have constraints."
+      },
+      "continuity": "rezero-anime",
+      "aliases": [
+        "Petelgeuse Romanee-Conti",
+        "Petelgeuse",
+        "petelgeuse"
+      ]
+    },
+    {
+      "id": "frederica-maid",
+      "number": 20,
+      "character": "frederica",
+      "name": "Frederica Baumann",
+      "title": "Frederica",
+      "form": "Sanctuary maid / human",
+      "formId": "maid-human",
+      "source": {
+        "provider": "rezero-anime-tv",
+        "page": "https://re-zero-anime.jp/tv/character/",
+        "image": "https://re-zero-anime.jp/tv/assets/character/c/19.webp",
+        "rights": "© Tappei Nagatsuki, KADOKAWA / Re:ZERO Production Committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Re:ZERO anime site"
+      },
+      "rank": {
+        "letter": "C",
+        "scope": "Frederica Baumann — Sanctuary maid / human",
+        "basis": "Capable fighter with demi-human heritage.",
+        "limits": "Do not assign the strength or appearance of her transformed beast form."
+      },
+      "continuity": "rezero-anime",
+      "aliases": [
+        "Frederica Baumann",
+        "Frederica",
+        "frederica"
+      ]
+    },
+    {
+      "id": "petra-maid",
+      "number": 21,
+      "character": "petra",
+      "name": "Petra Leyte",
+      "title": "Petra",
+      "form": "Roswaal manor / maid",
+      "formId": "manor-maid",
+      "source": {
+        "provider": "rezero-anime-tv",
+        "page": "https://re-zero-anime.jp/tv/character/",
+        "image": "https://re-zero-anime.jp/tv/assets/character/c/20.webp",
+        "rights": "© Tappei Nagatsuki, KADOKAWA / Re:ZERO Production Committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Re:ZERO anime site"
+      },
+      "rank": {
+        "letter": "F",
+        "scope": "Petra Leyte — Roswaal manor / maid",
+        "basis": "Young human servant without combat-specialist feats.",
+        "limits": "Support and courage are not direct attack power."
+      },
+      "continuity": "rezero-anime",
+      "aliases": [
+        "Petra Leyte",
+        "Petra",
+        "petra"
+      ]
+    },
+    {
+      "id": "otto-merchant",
+      "number": 22,
+      "character": "otto",
+      "name": "Otto Suwen",
+      "title": "Otto",
+      "form": "Merchant / Divine Protection",
+      "formId": "merchant",
+      "source": {
+        "provider": "rezero-anime-tv",
+        "page": "https://re-zero-anime.jp/tv/character/",
+        "image": "https://re-zero-anime.jp/tv/assets/character/c/21.webp",
+        "rights": "© Tappei Nagatsuki, KADOKAWA / Re:ZERO Production Committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Re:ZERO anime site"
+      },
+      "rank": {
+        "letter": "E",
+        "scope": "Otto Suwen — Merchant / Divine Protection",
+        "basis": "Useful soul-of-language communication and practical survival.",
+        "limits": "Animal communication is utility, not direct destructive power."
+      },
+      "continuity": "rezero-anime",
+      "aliases": [
+        "Otto Suwen",
+        "Otto",
+        "otto"
+      ]
+    },
+    {
+      "id": "meili-mabeast",
+      "number": 23,
+      "character": "meili",
+      "name": "Meili Portroute",
+      "title": "Meili",
+      "form": "Mabeast controller",
+      "formId": "mabeast-controller",
+      "source": {
+        "provider": "rezero-anime-tv",
+        "page": "https://re-zero-anime.jp/tv/character/",
+        "image": "https://re-zero-anime.jp/tv/assets/character/c/22b.webp",
+        "rights": "© Tappei Nagatsuki, KADOKAWA / Re:ZERO Production Committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Re:ZERO anime site"
+      },
+      "rank": {
+        "letter": "C",
+        "scope": "Meili Portroute — Mabeast controller",
+        "basis": "Mabeast manipulation offers dangerous indirect combat power.",
+        "limits": "Without controlled mabeasts, her personal combat is limited."
+      },
+      "continuity": "rezero-anime",
+      "aliases": [
+        "Meili Portroute",
+        "Meili",
+        "meili"
+      ]
+    },
+    {
+      "id": "garfiel-human",
+      "number": 24,
+      "character": "garfiel",
+      "name": "Garfiel Tinsel",
+      "title": "Garfiel",
+      "form": "Sanctuary guardian / human",
+      "formId": "sanctuary-human",
+      "source": {
+        "provider": "rezero-anime-tv",
+        "page": "https://re-zero-anime.jp/tv/character/",
+        "image": "https://re-zero-anime.jp/tv/assets/character/c/23.webp",
+        "rights": "© Tappei Nagatsuki, KADOKAWA / Re:ZERO Production Committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Re:ZERO anime site"
+      },
+      "rank": {
+        "letter": "B",
+        "scope": "Garfiel Tinsel — Sanctuary guardian / human",
+        "basis": "Powerful close combat and earth-associated techniques.",
+        "limits": "No tiger-beast transformation assumed from this human artwork."
+      },
+      "continuity": "rezero-anime",
+      "aliases": [
+        "Garfiel Tinsel",
+        "Garfiel",
+        "garfiel"
+      ]
+    },
+    {
+      "id": "ryuzu-sanctuary",
+      "number": 25,
+      "character": "ryuzu",
+      "name": "Ryuzu",
+      "title": "Ryuzu",
+      "form": "Sanctuary representative",
+      "formId": "sanctuary",
+      "source": {
+        "provider": "rezero-anime-tv",
+        "page": "https://re-zero-anime.jp/tv/character/",
+        "image": "https://re-zero-anime.jp/tv/assets/character/c/24.png",
+        "rights": "© Tappei Nagatsuki, KADOKAWA / Re:ZERO Production Committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Re:ZERO anime site"
+      },
+      "rank": {
+        "letter": "E",
+        "scope": "Ryuzu — Sanctuary representative",
+        "basis": "Unusual circumstances and support abilities in the Sanctuary.",
+        "limits": "No unpictured clone-army attacks counted."
+      },
+      "continuity": "rezero-anime",
+      "aliases": [
+        "Ryuzu",
+        "Ryuzu",
+        "ryuzu"
+      ]
+    },
+    {
+      "id": "echidna-tea",
+      "number": 26,
+      "character": "echidna",
+      "name": "Echidna",
+      "title": "Echidna",
+      "form": "Witch of Greed / tea party",
+      "formId": "tea-party",
+      "source": {
+        "provider": "rezero-anime-tv",
+        "page": "https://re-zero-anime.jp/tv/character/",
+        "image": "https://re-zero-anime.jp/tv/assets/character/c/25.png",
+        "rights": "© Tappei Nagatsuki, KADOKAWA / Re:ZERO Production Committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Re:ZERO anime site"
+      },
+      "rank": {
+        "letter": "A",
+        "scope": "Echidna — Witch of Greed / tea party",
+        "basis": "Extraordinary magical knowledge and influence.",
+        "limits": "Tea-party domain and historical witch feats are not raw arena attacks."
+      },
+      "continuity": "rezero-anime",
+      "aliases": [
+        "Echidna",
+        "Echidna",
+        "echidna"
+      ]
+    },
+    {
+      "id": "minerva-wrath",
+      "number": 27,
+      "character": "minerva",
+      "name": "Minerva",
+      "title": "Minerva",
+      "form": "Witch of Wrath",
+      "formId": "witch-of-wrath",
+      "source": {
+        "provider": "rezero-anime-tv",
+        "page": "https://re-zero-anime.jp/tv/character/",
+        "image": "https://re-zero-anime.jp/tv/assets/character/c/26.png",
+        "rights": "© Tappei Nagatsuki, KADOKAWA / Re:ZERO Production Committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Re:ZERO anime site"
+      },
+      "rank": {
+        "letter": "A",
+        "scope": "Minerva — Witch of Wrath",
+        "basis": "Exceptional healing-through-impact phenomenon.",
+        "limits": "Her power is primarily restorative, not ordinary lethal damage."
+      },
+      "continuity": "rezero-anime",
+      "aliases": [
+        "Minerva",
+        "Minerva",
+        "minerva"
+      ]
+    },
+    {
+      "id": "daphne-gluttony",
+      "number": 28,
+      "character": "daphne",
+      "name": "Daphne",
+      "title": "Daphne",
+      "form": "Witch of Gluttony",
+      "formId": "witch-of-gluttony",
+      "source": {
+        "provider": "rezero-anime-tv",
+        "page": "https://re-zero-anime.jp/tv/character/",
+        "image": "https://re-zero-anime.jp/tv/assets/character/c/27.png",
+        "rights": "© Tappei Nagatsuki, KADOKAWA / Re:ZERO Production Committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Re:ZERO anime site"
+      },
+      "rank": {
+        "letter": "A",
+        "scope": "Daphne — Witch of Gluttony",
+        "basis": "Mabeast-related authority creates immense indirect danger.",
+        "limits": "Creation potential does not mean equal direct solo attack power."
+      },
+      "continuity": "rezero-anime",
+      "aliases": [
+        "Daphne",
+        "Daphne",
+        "daphne"
+      ]
+    },
+    {
+      "id": "typhon-pride",
+      "number": 29,
+      "character": "typhon",
+      "name": "Typhon",
+      "title": "Typhon",
+      "form": "Witch of Pride",
+      "formId": "witch-of-pride",
+      "source": {
+        "provider": "rezero-anime-tv",
+        "page": "https://re-zero-anime.jp/tv/character/",
+        "image": "https://re-zero-anime.jp/tv/assets/character/c/28.png",
+        "rights": "© Tappei Nagatsuki, KADOKAWA / Re:ZERO Production Committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Re:ZERO anime site"
+      },
+      "rank": {
+        "letter": "A",
+        "scope": "Typhon — Witch of Pride",
+        "basis": "Conceptual judgment effects make direct confrontation perilous.",
+        "limits": "Power relies on its specific moral and target conditions."
+      },
+      "continuity": "rezero-anime",
+      "aliases": [
+        "Typhon",
+        "Typhon",
+        "typhon"
+      ]
+    },
+    {
+      "id": "sekhmet-sloth",
+      "number": 30,
+      "character": "sekhmet",
+      "name": "Sekhmet",
+      "title": "Sekhmet",
+      "form": "Witch of Sloth",
+      "formId": "witch-of-sloth",
+      "source": {
+        "provider": "rezero-anime-tv",
+        "page": "https://re-zero-anime.jp/tv/character/",
+        "image": "https://re-zero-anime.jp/tv/assets/character/c/29.png",
+        "rights": "© Tappei Nagatsuki, KADOKAWA / Re:ZERO Production Committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Re:ZERO anime site"
+      },
+      "rank": {
+        "letter": "SS",
+        "scope": "Sekhmet — Witch of Sloth",
+        "basis": "Extremely oppressive combat force among the Witches.",
+        "limits": "SSS and EX require source-located audited demonstrations."
+      },
+      "continuity": "rezero-anime",
+      "aliases": [
+        "Sekhmet",
+        "Sekhmet",
+        "sekhmet"
+      ]
+    },
+    {
+      "id": "carmilla-lust",
+      "number": 31,
+      "character": "carmilla",
+      "name": "Carmilla",
+      "title": "Carmilla",
+      "form": "Witch of Lust",
+      "formId": "witch-of-lust",
+      "source": {
+        "provider": "rezero-anime-tv",
+        "page": "https://re-zero-anime.jp/tv/character/",
+        "image": "https://re-zero-anime.jp/tv/assets/character/c/30.png",
+        "rights": "© Tappei Nagatsuki, KADOKAWA / Re:ZERO Production Committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Re:ZERO anime site"
+      },
+      "rank": {
+        "letter": "B",
+        "scope": "Carmilla — Witch of Lust",
+        "basis": "Powerful perception and desire-linked supernatural influence.",
+        "limits": "Not every opponent is automatically affected."
+      },
+      "continuity": "rezero-anime",
+      "aliases": [
+        "Carmilla",
+        "Carmilla",
+        "carmilla"
+      ]
+    },
+    {
+      "id": "regulus-greed",
+      "number": 32,
+      "character": "regulus",
+      "name": "Regulus Corneas",
+      "title": "Regulus",
+      "form": "Sin Archbishop / Greed",
+      "formId": "greed-archbishop",
+      "source": {
+        "provider": "rezero-anime-tv",
+        "page": "https://re-zero-anime.jp/tv/character/",
+        "image": "https://re-zero-anime.jp/tv/assets/character/c/32b.webp",
+        "rights": "© Tappei Nagatsuki, KADOKAWA / Re:ZERO Production Committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Re:ZERO anime site"
+      },
+      "rank": {
+        "letter": "SS",
+        "scope": "Regulus Corneas — Sin Archbishop / Greed",
+        "basis": "Time-stopped phenomena and extraordinary offensive/defensive Authority.",
+        "limits": "Critical conditions and counters prevent declaring limitless power."
+      },
+      "continuity": "rezero-anime",
+      "aliases": [
+        "Regulus Corneas",
+        "Regulus",
+        "regulus"
+      ]
+    },
+    {
+      "id": "liliana-bard",
+      "number": 33,
+      "character": "liliana",
+      "name": "Liliana Masquerade",
+      "title": "Liliana",
+      "form": "Bard of Priestella",
+      "formId": "bard",
+      "source": {
+        "provider": "rezero-anime-tv",
+        "page": "https://re-zero-anime.jp/tv/character/",
+        "image": "https://re-zero-anime.jp/tv/assets/character/c/35b.webp",
+        "rights": "© Tappei Nagatsuki, KADOKAWA / Re:ZERO Production Committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Re:ZERO anime site"
+      },
+      "rank": {
+        "letter": "F",
+        "scope": "Liliana Masquerade — Bard of Priestella",
+        "basis": "Inspirational singing, without notable personal combat offence.",
+        "limits": "Group morale and influence are not direct physical attacks."
+      },
+      "continuity": "rezero-anime",
+      "aliases": [
+        "Liliana Masquerade",
+        "Liliana",
+        "liliana"
+      ]
+    },
+    {
+      "id": "sirius-wrath",
+      "number": 34,
+      "character": "sirius",
+      "name": "Sirius Romanee-Conti",
+      "title": "Sirius",
+      "form": "Sin Archbishop / Wrath",
+      "formId": "wrath-archbishop",
+      "source": {
+        "provider": "rezero-anime-tv",
+        "page": "https://re-zero-anime.jp/tv/character/",
+        "image": "https://re-zero-anime.jp/tv/assets/character/c/36.webp",
+        "rights": "© Tappei Nagatsuki, KADOKAWA / Re:ZERO Production Committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Re:ZERO anime site"
+      },
+      "rank": {
+        "letter": "A",
+        "scope": "Sirius Romanee-Conti — Sin Archbishop / Wrath",
+        "basis": "Emotion-link Authority creates major area threat.",
+        "limits": "Linking and exposure conditions affect outcomes."
+      },
+      "continuity": "rezero-anime",
+      "aliases": [
+        "Sirius Romanee-Conti",
+        "Sirius",
+        "sirius"
+      ]
+    },
+    {
+      "id": "joshua-knight",
+      "number": 35,
+      "character": "joshua",
+      "name": "Joshua Juukulius",
+      "title": "Joshua",
+      "form": "Knight's younger brother",
+      "formId": "civilian",
+      "source": {
+        "provider": "rezero-anime-tv",
+        "page": "https://re-zero-anime.jp/tv/character/",
+        "image": "https://re-zero-anime.jp/tv/assets/character/c/37.webp",
+        "rights": "© Tappei Nagatsuki, KADOKAWA / Re:ZERO Production Committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Re:ZERO anime site"
+      },
+      "rank": {
+        "letter": "E",
+        "scope": "Joshua Juukulius — Knight's younger brother",
+        "basis": "Cultured, informed and physically capable without elite demonstrated offence.",
+        "limits": "Do not import Julius's spirit contracts."
+      },
+      "continuity": "rezero-anime",
+      "aliases": [
+        "Joshua Juukulius",
+        "Joshua",
+        "joshua"
+      ]
+    },
+    {
+      "id": "kiritaka-merchant",
+      "number": 36,
+      "character": "kiritaka",
+      "name": "Kiritaka Muse",
+      "title": "Kiritaka",
+      "form": "Priestella merchant",
+      "formId": "merchant",
+      "source": {
+        "provider": "rezero-anime-tv",
+        "page": "https://re-zero-anime.jp/tv/character/",
+        "image": "https://re-zero-anime.jp/tv/assets/character/c/38.webp",
+        "rights": "© Tappei Nagatsuki, KADOKAWA / Re:ZERO Production Committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Re:ZERO anime site"
+      },
+      "rank": {
+        "letter": "F",
+        "scope": "Kiritaka Muse — Priestella merchant",
+        "basis": "Civic influence and resources, not innate combat specialism.",
+        "limits": "Retainers or wealth do not establish personal combat rank."
+      },
+      "continuity": "rezero-anime",
+      "aliases": [
+        "Kiritaka Muse",
+        "Kiritaka",
+        "kiritaka"
+      ]
+    },
+    {
+      "id": "heinkel-astrea",
+      "number": 37,
+      "character": "heinkel",
+      "name": "Heinkel Astrea",
+      "title": "Heinkel",
+      "form": "Astrea swordsman",
+      "formId": "astrea-swordsman",
+      "source": {
+        "provider": "rezero-anime-tv",
+        "page": "https://re-zero-anime.jp/tv/character/",
+        "image": "https://re-zero-anime.jp/tv/assets/character/c/39.webp",
+        "rights": "© Tappei Nagatsuki, KADOKAWA / Re:ZERO Production Committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Re:ZERO anime site"
+      },
+      "rank": {
+        "letter": "C",
+        "scope": "Heinkel Astrea — Astrea swordsman",
+        "basis": "Trained swordsmanship from a renowned fighting family.",
+        "limits": "Not assumed equivalent to Reinhard or Wilhelm."
+      },
+      "continuity": "rezero-anime",
+      "aliases": [
+        "Heinkel Astrea",
+        "Heinkel",
+        "heinkel"
+      ]
+    },
+    {
+      "id": "capella-lust",
+      "number": 38,
+      "character": "capella",
+      "name": "Capella Emerada Lugunica",
+      "title": "Capella",
+      "form": "Sin Archbishop / Lust",
+      "formId": "lust-archbishop",
+      "source": {
+        "provider": "rezero-anime-tv",
+        "page": "https://re-zero-anime.jp/tv/character/",
+        "image": "https://re-zero-anime.jp/tv/assets/character/c/40b.webp",
+        "rights": "© Tappei Nagatsuki, KADOKAWA / Re:ZERO Production Committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Re:ZERO anime site"
+      },
+      "rank": {
+        "letter": "S",
+        "scope": "Capella Emerada Lugunica — Sin Archbishop / Lust",
+        "basis": "Deadly shapeshifting and flesh-transformation Authority.",
+        "limits": "Gimmicks and counterplay still constrain the assessment."
+      },
+      "continuity": "rezero-anime",
+      "aliases": [
+        "Capella Emerada Lugunica",
+        "Capella",
+        "capella"
+      ]
+    }
+  ]
+}
