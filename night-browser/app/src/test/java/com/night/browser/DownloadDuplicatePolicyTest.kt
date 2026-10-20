@@ -1,5 +1,8 @@
 package com.night.browser
 
+import android.app.DownloadManager
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -63,4 +66,21 @@ class DownloadDuplicatePolicyTest {
             "https://example.org:8002/a", "a"
         ))
     }
+    @Test fun onlyCompletedAndPresentFilesTriggerThePrompt() {
+        val previous = LibraryDownload(
+            id = 1L, url = "https://example.org/video.mp4",
+            fileName = "video.mp4", mimeType = "video/mp4",
+            createdAt = 0L, status = DownloadManager.STATUS_SUCCESSFUL
+        )
+        val pending = previous.copy(id = 2L, status = DownloadManager.STATUS_RUNNING)
+        val failed = previous.copy(id = 3L, status = DownloadManager.STATUS_FAILED)
+        val requested = "https://example.org/video.mp4?token=new"
+        assertEquals(previous, DownloadDuplicatePolicy.findCompleted(
+            requested, "video.mp4", listOf(pending, failed, previous)) { true })
+        assertNull(DownloadDuplicatePolicy.findCompleted(
+            requested, "video.mp4", listOf(previous)) { false })
+        assertNull(DownloadDuplicatePolicy.findCompleted(
+            requested, "video.mp4", listOf(pending, failed)) { true })
+    }
+
 }
