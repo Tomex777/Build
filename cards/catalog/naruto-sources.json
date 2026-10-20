@@ -824,19 +824,18 @@
       }
     },
     {
-      "id": "pain-deva",
+      "id": "pain-six-paths",
       "number": 28,
       "character": "pain",
       "name": "Pain",
       "title": "Pain",
-      "form": "Deva Path / Six Paths",
-      "formId": "deva-path",
+      "form": "Six Paths of Pain / ensemble",
+      "formId": "six-paths-ensemble",
       "continuity": "naruto-storm4",
       "aliases": [
         "Pain",
-        "pain",
-        "pain",
-        "Deva Path / Six Paths"
+        "Six Paths of Pain",
+        "Nagato's Six Paths"
       ],
       "source": {
         "provider": "bandai-storm4-official",
@@ -848,9 +847,9 @@
       },
       "rank": {
         "letter": "A",
-        "scope": "Pain — Deva Path / Six Paths",
-        "basis": "Gravity manipulation and remote coordinated Rinnegan powers.",
-        "limits": "Distance, timing and Nagato control limit techniques."
+        "scope": "Six Paths of Pain — six coordinated bodies",
+        "basis": "Shared Rinnegan vision and coordinated specialised paths, including Deva gravity, summons, and Naraka restoration.",
+        "limits": "This official artwork shows all six bodies, not only the Deva Path. Abilities depend on Nagato's chakra, distance and timing."
       }
     },
     {
