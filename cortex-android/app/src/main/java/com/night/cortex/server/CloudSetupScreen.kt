@@ -170,11 +170,12 @@ internal fun CloudSetupPage(
                 Text("2 · Cloud connection", fontWeight = FontWeight.SemiBold)
                 Text(
                     when {
-                        !configured -> "Save the primary account, then restart MSCC."
-                        state.cloudSetupIssue != null -> state.cloudSetupIssue
-                        state.cloudConnectionFailed -> "Cloud service unavailable. Your credentials may still be correct."
-                        dashboard == null -> "Status not loaded. Tap Refresh after restarting MSCC."
-                        dashboard.configured -> "MEGA is configured. Primary account quota can be verified."
+                        state.cloudServiceIssue != null -> state.cloudServiceIssue
+                        dashboard?.configured == true -> "MEGA is configured. Primary account quota can be verified."
+                        state.cloudConnectionFailed -> "Cloud service unavailable. Credentials were not checked."
+                        dashboard == null -> "Cloud status not loaded. Check the Agent connection."
+                        state.cloudSetupIssue != null -> "Cloud API responded, but ENV is unavailable: " + state.cloudSetupIssue
+                        !configured -> "Configure the primary account in Cloud, then restart MSCC."
                         else -> "MEGA is not yet connected in the running MSCC process. Restart MSCC."
                     },
                     fontSize = 12.sp,
