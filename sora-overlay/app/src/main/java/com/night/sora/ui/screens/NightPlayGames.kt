@@ -66,6 +66,13 @@ val soraNightGames = listOf(
     NightPlayGame("sudoku", "Sudoku", "Puzzle", "Solve complete number grids.", "/puzzles/index.html?game=sudoku", Icons.Rounded.Apps),
     NightPlayGame("connect-four", "Connect Four", "Strategy", "Four discs in a row.", "/puzzles/index.html?game=connect", Icons.Rounded.Filter4),
     NightPlayGame("chess", "Chess", "Strategy", "A full match against the computer.", "/strategy/index.html", Icons.Rounded.SportsEsports),
+    NightPlayGame("draughts", "Draughts", "Strategy", "Capture pieces and crown kings.", "/club/index.html?game=checkers", Icons.Rounded.CheckBoxOutlineBlank),
+    NightPlayGame("whot", "WHOT", "Cards", "Traditional Nigerian card battles.", "/club/index.html?game=whot", Icons.Rounded.Style),
+    NightPlayGame("colour-clash", "Colour Clash", "Cards", "Match colours and special cards.", "/club/index.html?game=colors", Icons.Rounded.Palette),
+    NightPlayGame("naija-ludo", "Nigerian Ludo", "Strategy", "Race four tokens home.", "/club/index.html?game=ludo", Icons.Rounded.Casino),
+    NightPlayGame("snakes-ladders", "Snakes & Ladders", "Board", "Roll your way to the finish.", "/club/index.html?game=snakes", Icons.Rounded.Stairs),
+    NightPlayGame("night-estates", "NIGHT Estates", "Board", "Buy properties and collect rent.", "/club/index.html?game=estate", Icons.Rounded.House),
+
     NightPlayGame("jigsaw", "Jigsaw Puzzle", "Puzzle", "Piece together a picture.", "/jigsaw/index.html", Icons.Rounded.Panorama),
     NightPlayGame("piano-tiles", "Piano Tiles", "Rhythm", "Play the falling notes.", "/piano-tiles/index.html", Icons.Rounded.Piano),
     NightPlayGame("sling-siege", "Sling Siege", "Action", "Bring down six fortresses.", "/sling-siege/index.html", Icons.Rounded.Adjust),
