@@ -60,7 +60,8 @@ def uploaded_part_sha256(body: bytes, content_type: str) -> str | None:
         if b"\r\n\r\n" not in part:
             continue
         header, payload = part.split(b"\r\n\r\n", 1)
-        if re.search(rb'(?i)content-disposition:\s*form-data;[^\r\n]*name="qa-file"', header) is None:
+        if (b"content-disposition: form-data" not in header.lower() or
+                re.search(rb'(?i)(?:^|;\s*)name="qa-file"(?:;|\s*$)', header) is None):
             continue
         if not payload.endswith(b"\r\n"):
             return None
