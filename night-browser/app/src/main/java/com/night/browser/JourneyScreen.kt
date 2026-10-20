@@ -50,7 +50,8 @@ private data class EditTarget(
     val journeyId: String, val nodeId: String?, val original: String
 )
 private data class DeleteTarget(
-    val journeyId: String, val nodeId: String?, val title: String
+    val journeyId: String, val nodeId: String?, val title: String,
+    val singleVisit: Boolean = false
 )
 
 /** Native, branching Journey view. No generated history, AI or network calls. */
@@ -249,9 +250,9 @@ fun JourneyScreen(
                                     edit = EditTarget(journey.id, row.node.id,
                                         row.node.title.ifBlank { row.node.url })
                                 },
-                                onDelete = {
+                                onDelete = { singleVisit ->
                                     delete = DeleteTarget(journey.id, row.node.id,
-                                        row.node.title.ifBlank { row.node.url })
+                                        row.node.title.ifBlank { row.node.url }, singleVisit)
                                 }
                             )
                         }
@@ -293,15 +294,26 @@ fun JourneyScreen(
     delete?.let { target ->
         AlertDialog(
             onDismissRequest = { delete = null },
-            title = { Text(if (target.nodeId == null) "Delete Journey?" else "Delete branch?") },
+            title = {
+                Text(when {
+                    target.nodeId == null -> "Delete Journey?"
+                    target.singleVisit -> "Delete visit?"
+                    else -> "Delete branch?"
+                })
+            },
             text = {
-                Text(if (target.nodeId == null)
-                    "Remove ${target.title} and all its saved visit nodes? This cannot be undone."
-                else "Remove this page and all branches below it? This cannot be undone.")
+                Text(when {
+                    target.nodeId == null ->
+                        "Remove ${target.title} and all its saved visit nodes? This cannot be undone."
+                    target.singleVisit ->
+                        "Remove only this visit? Descendants stay in the Journey and are linked to its parent."
+                    else -> "Remove this page and all branches below it? This cannot be undone."
+                })
             },
             confirmButton = {
                 TextButton(onClick = {
                     if (target.nodeId == null) store.deleteJourney(target.journeyId)
+                    else if (target.singleVisit) store.deleteVisit(target.journeyId, target.nodeId)
                     else store.deleteSubtree(target.journeyId, target.nodeId)
                     delete = null
                 }) { Text("Delete", color = Color(0xFFFFA7A7)) }
@@ -344,7 +356,7 @@ private fun JourneyNodeRow(
     row: JourneyRow,
     onClick: () -> Unit,
     onRename: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: (Boolean) -> Unit
 ) {
     var menu by remember(row.node.id) { mutableStateOf(false) }
     Row(
@@ -405,9 +417,13 @@ private fun JourneyNodeRow(
                     onClick = { menu = false; onRename() },
                     leadingIcon = { Icon(Icons.Rounded.Edit, null) })
                 DropdownMenuItem(
-                    text = { Text("Delete branch") },
-                    onClick = { menu = false; onDelete() },
+                    text = { Text("Delete visit only") },
+                    onClick = { menu = false; onDelete(true) },
                     leadingIcon = { Icon(Icons.Rounded.DeleteOutline, null) })
+                DropdownMenuItem(
+                    text = { Text("Delete entire branch") },
+                    onClick = { menu = false; onDelete(false) },
+                    leadingIcon = { Icon(Icons.Rounded.AccountTree, null) })
             }
         }
     }
