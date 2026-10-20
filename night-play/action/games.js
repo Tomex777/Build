@@ -111,11 +111,17 @@ function sliceMove(x1,y1,x2,y2){
  const dx=x2-x1,dy=y2-y1,length=Math.hypot(dx,dy);
  if(length<14)return;
  const nx=-dy/length,ny=dx/length;
+ // Resolve the whole swept segment before scoring: a bomb and fruit can
+ // overlap visually, but a lethal stroke must NEVER award incidental points
+ // merely because the fruit happened to be earlier in the array.
+ const crossed=state.fruits.filter(f=>!f.hit&&bladeCutsFruit(f,x1,y1,x2,y2));
+ const bomb=crossed.find(f=>f.kind==='bomb');
+ if(bomb){bomb.hit=true;end('Bomb hit!');return;}
+ const previousCombo=state.comboClock>0?state.combo:0;
  let sliced=0;
- for(const f of state.fruits){
-  if(f.hit||!bladeCutsFruit(f,x1,y1,x2,y2))continue;
-  if(f.kind==='bomb'){f.hit=true;end('Bomb hit!');return}
+ for(const f of crossed){
   f.hit=true;sliced++;
+  const points=10+5*Math.min(4,previousCombo+sliced-1);
   const angle=Math.atan2(dy,dx),juice=['#ffbf50','#e94750','#86ca64','#b0e38d','#f64e51'][f.kind];
   // Each clipped piece keeps its own original cut edge as it rotates.
   for(const side of [-1,1])state.halves.push({x:f.x+nx*side*7,y:f.y+ny*side*7,
@@ -127,10 +133,15 @@ function sliceMove(x1,y1,x2,y2){
    state.splashes.push({x:f.x,y:f.y,vx:Math.cos(a)*speed,vy:Math.sin(a)*speed-45,
     age:0,life:rand(.29,.63),r:rand(1.5,4),color:juice});
   }
-  state.popups.push({x:f.x,y:f.y-34,age:0,points:10});
-  state.score+=10;audio('point');
+  state.popups.push({x:f.x,y:f.y-34,age:0,points});
+  state.score+=points;audio('point');
  }
- if(sliced){state.combo=state.comboClock>0?state.combo+sliced:sliced;state.comboClock=.52;updateHud()}
+ if(sliced){
+  state.combo=previousCombo+sliced;state.comboClock=.52;
+  // Reward consecutive true cuts with one readable, short-lived callout.
+  if(state.combo>=2)state.popups.push({x:W*.5,y:78,age:0,label:state.combo+'× COMBO'});
+  updateHud();
+ }
 }
 
 const fruitColors=['#fcae39','#e84456','#66a34e','#89b05e','#ee4e4e'];
@@ -260,7 +271,7 @@ function paintSlice(){
  }
  for(const p of state.popups){
   ctx.save();ctx.globalAlpha=Math.max(0,1-p.age/.65);
-  text('+'+p.points,p.x,p.y,19,'#fffdf3',850);ctx.restore();
+  text(p.label||'+'+p.points,p.x,p.y,p.label?17:19,'#fffdf3',850);ctx.restore();
  }
  for(let i=0;i<5;i++)disk(30+i*21,30,7,i<5-state.misses?'#d87761':'#d7dcd3');
 }
@@ -893,11 +904,17 @@ function move(e){
  if(!inputs.drag||(game==='slice'&&e.pointerId!==inputs.slicePointerId))return;
  const p=point(e);
  if(game==='slice'){
-  // Accumulate tiny high-frequency touch deltas. Otherwise 120Hz devices
-  // never exceed the minimum stroke length in any individual pointer event.
-  if(Math.hypot(p.x-inputs.lastX,p.y-inputs.lastY)>=14){
-   sliceMove(inputs.lastX,inputs.lastY,p.x,p.y);
-   inputs.lastX=p.x;inputs.lastY=p.y;
+  // Coalesced pointer samples preserve the actual blade path on 120Hz+
+  // screens instead of jumping straight across a curved finger gesture.
+  // Keep sub-14px motion until enough distance forms a real stroke.
+  const coalesced=typeof e.getCoalescedEvents==='function'?e.getCoalescedEvents():[];
+  const samples=coalesced.length?[...coalesced,e]:[e];
+  for(const sample of samples){
+   const q=point(sample);
+   if(Math.hypot(q.x-inputs.lastX,q.y-inputs.lastY)>=14){
+    sliceMove(inputs.lastX,inputs.lastY,q.x,q.y);
+    inputs.lastX=q.x;inputs.lastY=q.y;
+   }
   }
  }else{
   if(game==='runner'&&started&&!paused&&!over){
@@ -912,6 +929,13 @@ function move(e){
 }
 function up(e){
  if(game==='slice'&&e.pointerId!==inputs.slicePointerId)return;
+ if(game==='slice'&&e.type==='pointerup'&&inputs.drag){
+  // Android/browser scheduling can coalesce the last touch movement into
+  // pointerup. Do not discard the final real blade segment on finger lift.
+  const p=point(e);
+  if(Math.hypot(p.x-inputs.lastX,p.y-inputs.lastY)>=14)
+   sliceMove(inputs.lastX,inputs.lastY,p.x,p.y);
+ }
  if(game==='runner'&&e.type!=='pointercancel'&&started&&!paused&&!over&&inputs.runnerGesture===null)jumpRunner();
  inputs.runnerGesture=null;inputs.drag=false;inputs.slicePointerId=null;
  try{canvas.releasePointerCapture(e.pointerId)}catch{}
