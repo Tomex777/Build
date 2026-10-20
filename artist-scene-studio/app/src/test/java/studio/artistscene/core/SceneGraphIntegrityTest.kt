@@ -165,7 +165,7 @@ class SceneGraphIntegrityTest {
             asset = AssetReference("terrain.generated.flat", "models/original.glb",
                 storage = AssetStorage.PROJECT_FILE),
         )
-        val start = SceneEditorState(SceneProject("safe-revisions", "Safe revisions",
+        val start = SceneEditorState(SceneProject(id = "safe-revisions", name = "Safe revisions",
             actors = listOf(original, prop))).selectActor(original.id)
         val revision = original.copy(asset = original.asset!!.copy(relativePath = "models/sculpted.glb"))
         assertEquals(start, start.commitSelectedAssetRevision(revision.copy(id = "new-actor")))
