@@ -538,9 +538,9 @@ class Device:
                   self._posted()), prerequisites=("C21",))
         self.test("C23", "File upload picker and bytes", self.upload,
                   prerequisites=("C01",))
-        self.test("C24", "PNG download saved/opened", lambda: self.download("/file.png"),
+        self.test("C24", "PNG response bytes and Library entry", lambda: self.download("/file.png"),
                   prerequisites=("C01",))
-        self.test("C25", "PDF download saved/opened", lambda: self.download("/file.pdf"),
+        self.test("C25", "PDF response bytes and Library entry", lambda: self.download("/file.pdf"),
                   prerequisites=("C01",))
         self.test("C26", "Time Machine PDF version saved", self.time_machine,
                   prerequisites=("C01",), screenshot=True)
