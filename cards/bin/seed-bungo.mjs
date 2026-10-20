@@ -76,7 +76,7 @@ for(const s of sources.sources){
   if(writeLock)locked.sources[s.id]={sha256:sha,width:meta.width,height:meta.height,image:s.image};
   const design=designForRank(r.proposedRank);
   cat.cards.push({
-    id:r.id,number:r.number,character:r.id,name:r.name,title:r.name,
+    id:r.id,number:r.number,character:r.id,name:r.name,title:s.displayTitle??r.name,
     form:s.formLabel??'Official anime portrait',formId:r.formId,
     aliases:[r.name,r.japaneseName,r.id],status:'candidate',designs:[design],
     source:{provider:'bungo-official-anime',page:s.page,image:s.image,
