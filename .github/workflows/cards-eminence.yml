@@ -1,0 +1,37 @@
+name: NIGHT Eminence Cards Research
+on:
+  push:
+    branches: [feature/cards-eminence-20261020]
+    paths:
+      - 'cards/catalog/eminence*'
+      - 'cards/bin/eminence-*'
+      - 'cards/tests/eminence*'
+      - '.github/workflows/cards-eminence.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source-inventory:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Validate rank candidate roster
+        working-directory: cards
+        run: node --test tests/eminence-roster.test.mjs
+      - name: Discover official original character artwork
+        working-directory: cards
+        run: node bin/eminence-discover.mjs
+      - name: Preserve public source inventory
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NIGHT-Eminence-Official-Source-Inventory
+          path: cards/dist/eminence-discovery.json
+          if-no-files-found: warn
+          retention-days: 7
