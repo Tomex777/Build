@@ -59,6 +59,29 @@ class JourneyVisitTrackerTest {
         assertEquals(1, h.nodes.size)
     }
 
+    @Test fun pausedVisitClearsParentBeforeNextRecordedPage() {
+        val saved = linkedMapOf<String, JourneyNode>()
+        var paused = false
+        var counter = 0
+        val tracker = JourneyVisitTracker(
+            lookup = { id -> if (paused) null else saved[id] },
+            saveVisit = { url, title, parent ->
+                if (paused) null else {
+                    val id = (++counter).toString()
+                    saved[id] = JourneyNode(id, url, title, parent, counter.toLong())
+                    id
+                }
+            }
+        )
+        assertEquals("1", tracker.visited("https://night.test/a", "A"))
+        paused = true
+        assertNull(tracker.visited("https://night.test/hidden", "Hidden"))
+        paused = false
+        val resumed = tracker.visited("https://night.test/c", "C")
+        assertNull(saved[resumed]?.parent)
+        assertFalse(saved.values.any { it.url.endsWith("/hidden") })
+    }
+
     @Test fun nonHttpNavigationsNeverRecord() {
         val h = Harness()
         assertNull(h.tracker.visited("about:blank", "Private"))
