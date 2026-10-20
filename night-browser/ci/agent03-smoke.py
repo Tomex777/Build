@@ -139,6 +139,15 @@ for index, domain in enumerate(sites):
 tap("Tabs")
 assert count_profile("Regular") >= len(sites), "Normal tabs are not independently created"
 screenshot("02-regular-tabs.png")
+
+# Closing one tab must decrement the visible count; undo restores that exact tab.
+tap("Close ", contains=True)
+assert count_profile("Regular") == len(sites) - 1, "Tab close did not update grid"
+tap("Undo")
+tap("Tabs")
+assert count_profile("Regular") == len(sites), "Undo failed to recover closed tab"
+screenshot("02-undo-restored.png")
+
 (OUT / "meminfo-ten-tabs.txt").write_text(
     adb("shell", "dumpsys", "meminfo", "com.night.browser")
 )
