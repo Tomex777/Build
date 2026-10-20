@@ -1110,9 +1110,15 @@ data class SceneEditorState(
     private fun wouldCreateCycle(actorId: String, proposedParentId: String?): Boolean {
         var current = proposedParentId
         val seen = mutableSetOf<String>()
-        while (current != null && seen.add(current)) {
-            if (current == actorId) return true
-            current = project.actors.firstOrNull { it.id == current }?.parentId
+        while (current != null) {
+            // Imported legacy scenes can already contain a parent cycle which does not
+            // include the selected actor. Attaching another actor to that chain would
+            // silently add more objects to an unrenderable hierarchy.
+            if (current == actorId || !seen.add(current)) return true
+            // An orphaned ancestor is equally unsafe to parent under. The user can still
+            // reparent the broken ancestor to the root to repair the scene undoably.
+            val parent = project.actors.firstOrNull { it.id == current } ?: return true
+            current = parent.parentId
         }
         return false
     }
