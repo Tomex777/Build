@@ -8,6 +8,7 @@ on:
       - 'sora-overlay/app/src/main/java/com/night/sora/ui/screens/NightPlayGames.kt'
       - 'sora-overlay/app/src/main/java/com/night/sora/ui/screens/SoraArcadePage.kt'
       - 'sora-overlay/app/src/main/java/com/night/sora/ui/screens/GamesScreen.kt'
+      - 'sora-overlay/app/src/main/java/com/night/sora/ui/screens/WaterSortArcade.kt'
       - 'sora-overlay/app/src/main/java/com/night/sora/ui/SoraApp.kt'
       - 'sora-ci/night-play-android-smoke.sh'
       - '.github/workflows/sora-night-play-android-acceptance.yml'
@@ -41,11 +42,19 @@ jobs:
             'stories/index.html','stories/engine.js','stories/player.js',
             'arcade/games.js','action/games.js','puzzles/games.js',
             'strategy/chess-v0.10.3.js','jigsaw/game.js',
-            'piano-tiles/game.js','sling-siege/index.html',
+            'piano-tiles/game.js','sling-siege/index.html','club/games.js','club/naija-ludo.js',
           ):
             assert (root/path).stat().st_size>1000, 'Missing real game engine: '+path
           print('Validated 38+ story chapters and actual offline game engines')
           PY
+      - name: Run existing game engines and complete story progression checks
+        run: |
+          set -euo pipefail
+          ROOT="$SORA_ROOT/app/src/main/assets/night-play"
+          node "$ROOT/stories/story-contract.cjs"
+          node "$ROOT/puzzles/logic-test.mjs"
+          node "$ROOT/club/logic-test.mjs"
+          node "$ROOT/jigsaw/board-logic-test.mjs"
       - uses: actions/setup-java@v5
         with:
           distribution: temurin

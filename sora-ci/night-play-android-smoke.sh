@@ -108,8 +108,23 @@ brick-breaker|Brick Breaker
 sudoku|Sudoku
 connect-four|Connect Four
 chess|Chess
+draughts|Draughts
+whot|WHOT
+colour-clash|Colour Clash
+naija-ludo|Nigerian Ludo
+snakes-ladders|Snakes & Ladders
+night-estates|NIGHT Estates
 jigsaw|Jigsaw Puzzle
 piano-tiles|Piano Tiles
 sling-siege|Sling Siege
 GAMES
-echo "16 bundled NIGHT Play experiences launched with native Android touch and Back."
+tap_text "Water Sort"
+dump_ui
+if ! find_point "LEVEL 1" >/dev/null 2>&1 || ! find_point "MOVES" >/dev/null 2>&1; then
+  shot "failure-water-sort"
+  echo 'Native Water Sort board did not load' >&2
+  exit 1
+fi
+shot native-water-sort
+adb shell input keyevent KEYCODE_BACK
+echo "22 bundled NIGHT Play experiences plus Water Sort launched with Android touch and Back."
