@@ -79,4 +79,16 @@ for(const count of [24,48,144]){
 }
 assert.throws(()=>createPuzzle({photoId:'https://evil.example/x',hostId:HOST,hostName:'Host'}));
 assert.throws(()=>createPuzzle({photoId:'photo-alpine-lake',count:12,hostId:HOST,hostName:'Host'}));
+assert.throws(()=>createPuzzle({photoId:'photo-alpine-lake',count:'24',hostId:HOST,hostName:'Host'}));
+const outsider=applyCommand(state,{type:'rename',actor:'unjoinedStranger001',name:'Impersonated'},22007);
+assert.equal(outsider.accepted,false,'unjoined actor must be denied');
+assert.equal(outsider.state,state,'unauthorized change must be atomic');
+const roomWithCap=createPuzzle({photoId:'photo-alpine-lake',hostId:HOST,hostName:'Host'});
+let full=roomWithCap;
+for(let i=0;i<15;i++){
+ const joined=applyCommand(full,{type:'join',actor:'guestForCapacity'+String(i).padStart(3,'0'),name:'Guest '+i});
+ assert.equal(joined.accepted,true);full=joined.state;
+}
+assert.equal(full.players.length,16);
+assert.equal(applyCommand(full,{type:'join',actor:'extraGuestBeyondCap001',name:'Extra'}).accepted,false);
 console.log('PASS: authoritative co-op Jigsaw 24/48/144, independent clients, grouping, stale claims, leases, replay, privacy, rename, and validation');
