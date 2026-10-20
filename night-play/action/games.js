@@ -82,7 +82,12 @@ function addFruit(){
  const bombChance=Math.min(.19,.075+level*.014);
  for(let i=0;i<count;i++){
   const kind=Math.random()<bombChance?'bomb':Math.floor(rand(0,5));
-  const x=rand(65,W-65),y=H+24+rand(0,26),apex=rand(137,233);
+  // Distinct launch lanes keep two/three fruit visible as separate targets.
+  // Independent random X used to stack fruit ON bombs, creating unavoidable
+  // deaths and invisible multi-fruit combos on high-density phone screens.
+  const lanes=count===2?[.28,.72]:count===3?[.22,.5,.78]:null;
+  const x=lanes?W*lanes[i]+rand(-17,17):rand(65,W-65);
+  const y=H+24+rand(0,26),apex=rand(137,233);
   const rise=Math.sqrt(2*SLICE_GRAVITY*(y-apex)),timeToApex=rise/SLICE_GRAVITY;
   // Prevent the apex from being outside the screen, even for edge launches.
   const vx=clamp(rand(-65,65)+(W*.5-x)*.16,
