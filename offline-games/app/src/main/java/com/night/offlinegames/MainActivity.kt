@@ -43,6 +43,8 @@ import androidx.compose.material.icons.outlined.Flight
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.SportsEsports
 import androidx.compose.material.icons.outlined.ViewModule
+import androidx.compose.material.icons.outlined.WaterDrop
+import androidx.compose.material.icons.outlined.Waves
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -339,6 +341,8 @@ private fun GameRow(entry: GameEntry, favourite: Boolean, onOpen: () -> Unit, on
                     Box(contentAlignment = Alignment.Center) {
                         val icon = when (entry.id) {
                             "2048" -> Icons.Outlined.ViewModule
+                            "colorsort" -> Icons.Outlined.WaterDrop
+                            "shark" -> Icons.Outlined.Waves
                             "mines" -> Icons.Outlined.BugReport
                             "blocks" -> Icons.Outlined.Apps
                             "bird" -> Icons.Outlined.Flight
