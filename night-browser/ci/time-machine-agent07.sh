@@ -119,12 +119,24 @@ shot "03-export-picker"
 adb shell input keyevent KEYCODE_BACK
 sleep 2
 
-# Simulate offline mode, and request opening a saved PDF (with or without a viewer).
+# Simulate offline mode and decode a saved PDF with the built-in reader.
 adb shell svc wifi disable || true
 adb shell svc data disable || true
 tap_ui 'Open PDF version'
+# Device is offline here; the built-in renderer must expose the actual decoded
+# first-page image. An opened activity or file count alone is insufficient.
+for _ in $(seq 1 20); do
+  dump_ui
+  if grep -q 'Saved PDF page 1' "$OUT/ui.xml"; then break; fi
+  sleep 1
+done
+if ! grep -q 'Saved PDF page 1' "$OUT/ui.xml"; then
+  shot "04-offline-pdf-not-rendered"
+  echo "Native offline PDF page did not render" >&2
+  exit 1
+fi
 shot "04-open-copy-offline"
-adb shell input keyevent KEYCODE_BACK || true
+tap_ui 'Close saved PDF'
 sleep 2
 adb shell am force-stop "$PKG"
 # Explicitly foreground NIGHT after the external PDF viewer was opened; an
