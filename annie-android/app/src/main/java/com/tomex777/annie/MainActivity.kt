@@ -1176,12 +1176,12 @@ private fun ChatHistoryContent(
             onDismissRequest = { renameTarget = null },
             title = { Text("Rename chat") },
             text = {
-                androidx.compose.material3.OutlinedTextField(
+                AnnieSettingsInput(
                     value = renameDraft,
                     onValueChange = { renameDraft = it.take(64) },
-                    singleLine = true,
-                    label = { Text("Chat name") },
-                    modifier = Modifier.testTag("rename_chat_input"),
+                    label = "Chat name",
+                    modifier = Modifier.fillMaxWidth(),
+                    tag = "rename_chat_input",
                 )
             },
             confirmButton = {
