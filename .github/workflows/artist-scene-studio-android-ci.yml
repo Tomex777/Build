@@ -2,12 +2,13 @@ name: Artist Scene Studio Android CI
 
 on:
   push:
-    branches: [artist-scene-studio-foundation, main]
+    branches: [artist-scene-studio-foundation, main, integrate/mise-studio-completion-20261020]
     paths:
       - "artist-scene-studio/**"
       - ".github/workflows/artist-scene-studio-android-ci.yml"
   pull_request:
-    branches: [artist-scene-studio-foundation, main]
+    branches: [artist-scene-studio-foundation, main, integrate/mise-studio-completion-20261020]
+    types: [opened, reopened, synchronize, ready_for_review]
     paths:
       - "artist-scene-studio/**"
       - ".github/workflows/artist-scene-studio-android-ci.yml"
@@ -22,10 +23,14 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  MISE_RELEASE_KEYSTORE_BASE64: ${{ secrets.MISE_RELEASE_KEYSTORE_BASE64 }}
-  MISE_RELEASE_STORE_PASSWORD: ${{ secrets.MISE_RELEASE_STORE_PASSWORD }}
-  MISE_RELEASE_KEY_ALIAS: ${{ secrets.MISE_RELEASE_KEY_ALIAS }}
-  MISE_RELEASE_KEY_PASSWORD: ${{ secrets.MISE_RELEASE_KEY_PASSWORD }}
+  # Only a manually dispatched main release may access production signing secrets.
+  MISE_RELEASE_KEYSTORE_BASE64: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && secrets.MISE_RELEASE_KEYSTORE_BASE64 || '' }}
+  # Only a manually dispatched main release may access production signing secrets.
+  MISE_RELEASE_STORE_PASSWORD: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && secrets.MISE_RELEASE_STORE_PASSWORD || '' }}
+  # Only a manually dispatched main release may access production signing secrets.
+  MISE_RELEASE_KEY_ALIAS: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && secrets.MISE_RELEASE_KEY_ALIAS || '' }}
+  # Only a manually dispatched main release may access production signing secrets.
+  MISE_RELEASE_KEY_PASSWORD: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && secrets.MISE_RELEASE_KEY_PASSWORD || '' }}
 
 jobs:
   unit-and-build:
@@ -44,6 +49,9 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.13"
+      - name: Verify performance evidence parser (host tests)
+        working-directory: artist-scene-studio
+        run: python3 -m unittest discover -s scripts -p 'test_mise_perf_probe.py'
       - name: Unit tests
         working-directory: artist-scene-studio
         run: gradle :app:testDebugUnitTest || { cat app/build/test-results/testDebugUnitTest/*.xml; exit 1; }
@@ -195,6 +203,8 @@ jobs:
           if-no-files-found: error
 
   release-install-smoke:
+    # Device QA is deferred only while a PR remains a draft.
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft != true }}
     strategy:
       fail-fast: false
       matrix:
@@ -223,7 +233,11 @@ jobs:
           arch: x86_64
           target: google_apis
           emulator-options: -no-window -gpu lavapipe -no-snapshot -noaudio -no-boot-anim -camera-back none
-          script: API_LEVEL=${{ matrix.api-level }} bash artist-scene-studio/scripts/api36-release-install-smoke.sh /tmp/mise-release/Mise-runtime-release.apk
+          script: |
+            API_LEVEL=${{ matrix.api-level }} bash artist-scene-studio/scripts/api36-release-install-smoke.sh /tmp/mise-release/Mise-runtime-release.apk
+            # Capture baseline scene memory and Android UI frame times while the live app remains open.
+            # These are diagnostics, NOT a claim of Filament FPS or real heavy-scene profiling.
+            python3 artist-scene-studio/scripts/mise_perf_probe.py --output-dir artist-scene-studio/mise-api${{ matrix.api-level }}-performance
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -232,9 +246,13 @@ jobs:
             artist-scene-studio/mise-api${{ matrix.api-level }}-release.png
             artist-scene-studio/mise-api${{ matrix.api-level }}-release-window.xml
             artist-scene-studio/mise-api${{ matrix.api-level }}-release-logcat.txt
+            artist-scene-studio/mise-api${{ matrix.api-level }}-performance/
           if-no-files-found: warn
 
   api-36-renderer-smoke:
+    # Draft agent PRs still compile, but expensive emulators run only when review-ready.
+    # Integration pushes and manually dispatched runs always execute full device QA.
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft != true }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -345,6 +363,9 @@ jobs:
           STATE: ${{ job.status == 'success' && 'success' || 'failure' }}
 
   api-26-renderer-smoke:
+    # Draft agent PRs still compile, but expensive emulators run only when review-ready.
+    # Integration pushes and manually dispatched runs always execute full device QA.
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft != true }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -422,6 +443,9 @@ jobs:
           if-no-files-found: warn
 
   fresh-editor-instrumentation:
+    # Draft agent PRs still compile, but expensive emulators run only when review-ready.
+    # Integration pushes and manually dispatched runs always execute full device QA.
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft != true }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     strategy:
