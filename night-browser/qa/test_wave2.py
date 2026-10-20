@@ -88,7 +88,7 @@ class FixtureTests(unittest.TestCase):
             self.fetch("/secure/file.bin", {"Cookie": "othernightQa=fixture"})
         self.assertEqual(fake.exception.code, 403)
         data, response = self.fetch(
-            "/secure/file.bin", {"Cookie": "nightQa=fixture"})
+            "/secure/file.bin", {"Cookie": "other=value; nightQa=fixture"})
         self.assertEqual(response.status, 200)
         self.assertEqual(data, BIN)
         stats = Handler.state.snapshot()
