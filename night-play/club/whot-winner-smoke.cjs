@@ -197,12 +197,12 @@ async function finish(page,winner){
      transformStyle:getComputedStyle(el).transformStyle,
      backface:getComputedStyle(el.querySelector('.whot-flip-front')).backfaceVisibility
    }));
-   assert.ok(flipStyle.effect.includes(290),'short 3D card reveal shares the market flight');
+   assert.ok(flipStyle.effect.includes(budget.drawFlip),'3D card reveal uses the configured short animation while sharing the market flight');
    assert.equal(flipStyle.transformStyle,'preserve-3d');
    assert.equal(flipStyle.backface,'hidden','reverse side must stay hidden while rotating');
       const motion=await drawPage.evaluate(()=>window.__nightWhotMotion());
    assert.equal(motion.lastFlightAction,'draw','market draw uses true flight animation');
-   assert.equal(motion.lastFlightDuration,245,'market draw lands without delaying the player');
+   assert.equal(motion.lastFlightDuration,budget.draw,'market draw lands using the configured fast flight duration');
    await drawPage.waitForFunction(()=>window.__nightWhotMotion().activeFlights===0,null,{timeout:1800});
    assert.notEqual(await newFace.evaluate(el=>el.style.visibility),'hidden','new face reveals when the drawn back reaches its real position');
    assert.equal(await drawPage.locator('.hand .whot-card').count(),6,'no extra second-card popup');
