@@ -123,6 +123,34 @@ jobs:
             :app:assembleRelease :live-extension:assembleRelease \
             :meme-extension:assembleRelease :youtube-music-extension:assembleRelease
 
+      - name: Verify shipped offline games and authored Last Call in APK
+        run: |
+          set -euo pipefail
+          python3 - "$SORA_RELEASE_ROOT/app/build/outputs/apk/release/app-release.apk" <<'PY'
+          import json,sys,zipfile
+          apk=sys.argv[1]
+          with zipfile.ZipFile(apk) as package:
+            names=set(package.namelist())
+            games=(
+              'arcade/games.js','action/games.js','puzzles/games.js',
+              'club/games.js','club/naija-ludo.js','strategy/game.js',
+              'strategy/chess-v0.10.3.js','jigsaw/game.js','piano-tiles/game.js',
+              'sling-siege/index.html','stories/index.html',
+              'stories/engine.js','stories/player.js','sora-game-theme.css',
+            )
+            base='assets/night-play/'
+            for path in games:
+              filename=base+path
+              assert filename in names, 'Missing real offline game in release APK: '+filename
+              assert package.getinfo(filename).file_size>200, 'Empty game: '+filename
+            story=json.loads(package.read(base+'stories/last-call.json'))
+            assert len(story['chapters'])>=38 and len(story['nodes'])>=318, (
+              'Release omitted the fully authored branching novel'
+            )
+            print('Release includes 21 NIGHT Play game entries, 12 native games, '
+                  '38 Last Call chapters and 318 authored passages.')
+          PY
+
       - name: Verify APK signatures and package files
         run: |
           set -euo pipefail
