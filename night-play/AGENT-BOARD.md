@@ -1,37 +1,42 @@
-# NIGHT Play — multi-agent game expansion board
-**Updated:** 2026-10-19 · **Repository:** [Tomex777/Build](https://github.com/Tomex777/Build) · **Actual site:** [combined preview](https://night-play-combined-preview.vercel.app/) · **Current website source:** `feature/party-online-rooms-20261019` (PR #386) · **Instruction file:** [AGENTS.md](AGENTS.md)
+# NIGHT Play — ten-agent development board
 
-**Important:** All entries below are **QUEUED**, not currently running. Creating this board/GitHub issues does not spawn persistent agents. Start a separate Codex cloud task/session for each issue, with one assigned scope/branch. Each agent updates its issue and opens an independent PR. Only Agent 09 updates this central board and common game catalog.
+**20 October 2026 · Owner: Agent 1 Lead Coordinator**
 
-| Agent | Status | Work item | GitHub issue | Exit condition |
-| --- | --- | --- | --- | --- |
-| 01 | QUEUED | Fruit Slice *visible* splitting, Runner obstacle consequences, Brick Breaker difficulty | [#391](https://github.com/Tomex777/Build/issues/391) | All three actually played and proven with before/after screenshots |
-| 02 | QUEUED | Piano Tiles (commercial long tile + holds) | [#392](https://github.com/Tomex777/Build/issues/392) | New playable routed module with sound/touch accuracy |
-| 03 | QUEUED | Pong, Frog Crossing, Asteroids | [#393](https://github.com/Tomex777/Build/issues/393) | 3 genuinely independent games and browser tests |
-| 04 | QUEUED | Word Search, Nonogram, Sokoban, Pipe Connect | [#394](https://github.com/Tomex777/Build/issues/394) | 4 puzzle engines with valid levels and touch tests |
-| 05 | QUEUED | Klondike Solitaire, Spider, Mahjong Solitaire | [#395](https://github.com/Tomex777/Build/issues/395) | 3 rule-complete games, win/undo, touch tests |
-| 06 | QUEUED | Chess, Reversi, Battleship | [#396](https://github.com/Tomex777/Build/issues/396) | 3 rule-complete games, true CPU play, no mislabeled online |
-| 07 | QUEUED | Polish Wing Hop/Flappy, Maze Chase/Pac-Man, Tetris-style Block Drop, WHOT, Draughts | [#397](https://github.com/Tomex777/Build/issues/397) | Multiple real playthroughs, corrected feel, no animation lag |
-| 08 | QUEUED | Actual online matches + cooperative Jigsaw | [#398](https://github.com/Tomex777/Build/issues/398) | 2 separate browsers see the same remotely synchronized match |
-| 09 | QUEUED | Coordinator, website integration, shared UI, Playwright/CI, verified previews | [#399](https://github.com/Tomex777/Build/issues/399) | Verified new routes visible in actual NIGHT Play game library |
+Source of truth: [Root engineering contract](../AGENTS.md) · [Durable task ledger](../docs/agent-backlog.md) · [NIGHT Play instructions](AGENTS.md) · [Approved design system](DESIGN.md). GitHub repo: `Tomex777/Build`. Website integration: `feature/party-online-rooms-20261019` / PR #386. Combined preview: `https://night-play-combined-preview.vercel.app/` (checked serving `57e0b09`, NOT the unmerged fruit fix).
 
-## Immediate priority / independent launch plan
+**Truthful execution state:** The only session we know is actively executing is Agent 1 coordinating this branch. Other rows are not active agents merely because a task issue exists. Start an **actual independent coding task/worktree** for each row; then update the ledger. Nothing here spawns persistent workers.
 
-1. **Agent 01 first:** verify/fix the exact Fruit Slice complaint; recent tests on commit `57e0b09` pass but user's expected visual slicing quality needs independent real visual assessment. In the same owned action engine, fix Runner and Brick Breaker after fruit.
-2. **Agents 02–06 in parallel:** build new self-contained modules; do not edit shared `night-play/index.html`. Ship one playable game, run tests, commit it, then progress to the next game in that issue.
-3. **Agent 07 in parallel:** owns existing `arcade/` and `club/` only. Keep user-approved animation constraints, original gameplay and proper mobile controls.
-4. **Agent 08 in parallel:** owns remote multiplayer and co-op Jigsaw. Coordinate with the Chess author before sharing game state.
-5. **Agent 09 starts alongside everybody:** protect the official NIGHT website look; integrate only games proven playable, run previews and record one definitive test/commit per deployed wave.
+| Agent | Current factual status | Assignment / tickets | Scope |
+| --- | --- | --- | --- |
+| **1 — Lead Coordinator** | ACTIVE (current session) | [#399](https://github.com/Tomex777/Build/issues/399) | Audit, root rules/backlog, ownership locks, integration review, preview SHA and release gate |
+| **2 — Fruit Slicing** | REVIEW, CI pass; **not merged** | [#391](https://github.com/Tomex777/Build/issues/391), [PR #401](https://github.com/Tomex777/Build/pull/401) | Fix trajectories and visually inspect real cutting; screenshots must be examined |
+| **3 — Runners** | QUEUED | [#402](https://github.com/Tomex777/Build/issues/402) | Sky Jumper and Endless Runner collision, physics and challenge |
+| **4 — Arcade** | QUEUED | [#403](https://github.com/Tomex777/Build/issues/403) | Brick Breaker difficulty, Space Shooter and Wing Hop/Flappy polish |
+| **5 — Puzzles** | QUEUED | [#404](https://github.com/Tomex777/Build/issues/404) | Jigsaw, Memory Match 6×5, 2048 |
+| **6 — Board & Cards** | QUEUED | [#397](https://github.com/Tomex777/Build/issues/397), [#396](https://github.com/Tomex777/Build/issues/396) | WHOT, Chess and Checkers (real CPU + separately transportable legal rules) |
+| **7 — Additional Games** | QUEUED | [#392](https://github.com/Tomex777/Build/issues/392)–[#395](https://github.com/Tomex777/Build/issues/395) | Piano Tiles, existing Pac-Man audit, new distinct arcade/puzzle/card games |
+| **8 — NIGHT + NOMI** | BLOCKED for live release; QUEUED for isolated tests | [#405](https://github.com/Tomex777/Build/issues/405), [#398](https://github.com/Tomex777/Build/issues/398), PRs [#386](https://github.com/Tomex777/Build/pull/386)/[#387](https://github.com/Tomex777/Build/pull/387) | Hosted invitation links, real server rooms, votes/results/reconnect and linked identity |
+| **9 — UI/UX** | QUEUED | [#406](https://github.com/Tomex777/Build/issues/406) | Full website polish, SVG icons, lock approved Channels page |
+| **10 — Independent QA** | QUEUED | [#407](https://github.com/Tomex777/Build/issues/407) | Actually play every game, inspect screenshots/recordings, reproduce/fix/replay cycle |
 
-## Shared acceptance criteria
+## Immediate concrete gate
 
-- No tiles for unfinished games. No demo UI described as complete.
-- Real gameplay interaction in Chrome/Chromium; inspect actual visual output and difficulty.
-- At minimum phone viewports 320, 360, 390, 412 + desktop.
-- Original/rights-cleared artwork and SVG thumbnails only; no redundant UI, no arrow clutter; SFX-only except Piano Tiles and optional quiet Jigsaw track.
-- Full relevant CI and game-specific tests, followed by actual replay to verify fixes.
-- One owner per source file. Base each agent branch on the latest integrated website head and open a PR for Agent 09. Update this board only after factual status changes.
+1. PR #401 / commit `7887b7360fddb8e93dbc830d5e5789ba2364b42b`: the `NIGHT Play Preview CI` run `39348384258` passed and produced [screenshot artifact #12232381826](https://github.com/Tomex777/Build/actions/runs/39348384258). **No Agent 10 visual sign-off yet; not in combined preview.** Do not falsely mark fruit done.
+2. The Runner flight and Brick Breaker impact tests already exist, but the complaints concern player-visible ease/animation. A new hand-controlled playthrough and difficulty assessment are necessary.
+3. PR #386's room client and PR #387's MSCC service are still separate unmerged layers. Server-backed NOMI flow requires protected release approval and isolated browser host/guest tests; pass-and-play is not online.
+4. Independent game agents may implement new `piano-tiles/`, `brain/`, `classics/`, `solitaire/` modules while the action monolith is locked. Never add catalog cards before each module is actually verified.
 
-## Next continuation instruction for each coding session
+## File conflict prevention
 
-> Read `night-play/AGENTS.md` and the exact GitHub issue assigned to you. Inspect the *current* NIGHT Play code, change the real website repository, actually play each game with touch and keyboard, inspect screenshots, fix issues, run tests and open a PR. Do not stop when a build starts or a single test passes. Continue through the scoped issue, and if a hard execution limit ends your session, commit work and leave a precise, honest resumable handoff on the issue. Do not call your issue DONE until every assigned acceptance criterion is verified.
+- The action engine is presently **one** file: `action/games.js`. Agents 2, 3 and 4 acquire that file one at a time; parallel new-game/test work is fine, concurrent writes are not.
+- Agent 5 and 8 coordinate Jigsaw piece-state/API contracts; Agent 6 and 8 coordinate chess move-validation contracts.
+- Agent 1 owns catalog and deployment integration; Agent 9 must agree CSS changes before editing shared files.
+- Keep each contributor's own branch/worktree and PR. No one can claim a detached task is running without a real runner/session.
+
+## Resume contract
+
+At entry read the root `AGENTS.md`, `docs/agent-backlog.md` and your GitHub issue. At exit provide branch/commit, tests **actually run**, artifact IDs, known blockers and next executable command. Do not stop on builds. The definition of DONE in the root file applies.
+
+### Archived allocation note
+
+The pre-20-October setup had nine old agent slots and [issues #391–#399](https://github.com/Tomex777/Build/issues?q=is%3Aissue+391..399). Their titles use **historical numbering**. This board supersedes that numbering without deleting the tickets or their approved feature specifications. The additional-game issues are re-grouped under Agent 7.
