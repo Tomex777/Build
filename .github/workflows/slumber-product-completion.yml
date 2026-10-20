@@ -35,6 +35,7 @@ on:
       - ".ci/slumber_115_hold_regression/**"
       - ".ci/slumber_116_long_hold_stability/**"
       - ".ci/slumber_117_web_criticism/**"
+      - ".ci/slumber_118_compact_hud/**"
   pull_request:
     branches: ["slumber-087-build"]
     paths:
@@ -69,6 +70,7 @@ on:
       - ".ci/slumber_115_hold_regression/**"
       - ".ci/slumber_116_long_hold_stability/**"
       - ".ci/slumber_117_web_criticism/**"
+      - ".ci/slumber_118_compact_hud/**"
 
 permissions:
   actions: read
@@ -411,6 +413,13 @@ jobs:
           grep -q 'BUNDLED_C5_ID' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt"
           ! grep -q 'pulseLane' "$OUT/app/src/main/java/com/night/pianohub/ui/components/SlumberTilesField.kt"
           grep -q 'pauseDoesNotAwardUnfinishedHeldTail' "$OUT/app/src/test/java/com/night/pianohub/music/EndlessTilesRunTest.kt"
+
+      - name: Preserve accessible gameplay header and compact song HUD
+        shell: bash
+        run: |
+          set -euo pipefail
+          patch --fuzz=0 -d /tmp/slumber-088 -p1 < .ci/slumber_118_compact_hud/restore-header.patch
+          grep -q 'Text("ENDLESS TILES"' /tmp/slumber-088/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt
 
       - uses: actions/setup-java@v4
         with:
