@@ -77,8 +77,9 @@ function addFruit(){
  const multi=Math.random()<.37?2:1;
  for(let i=0;i<multi;i++){
   const kind=Math.random()<.13?'bomb':Math.floor(rand(0,5));
+  // Give each throw an upper/mid-screen apex instead of keeping fruit near the bottom.
   state.fruits.push({x:rand(55,W-55),y:H+30+rand(0,35),vx:rand(-85,85),
-   vy:rand(-690,-555),r:kind==='bomb'?24:rand(24,28),kind,
+   vy:rand(-970,-880),r:kind==='bomb'?24:rand(24,28),kind,
    rotation:rand(-.34,.34),spin:rand(-1.4,1.4),hit:false});
  }
 }
