@@ -51,7 +51,9 @@ class BrowserController(
     var contextLink by mutableStateOf<String?>(null)
     var notice by mutableStateOf<String?>(null)
     /** Agent 6 can bind its download library here without replacing Gecko delegates. */
-    var downloadHandler: ((WebResponse) -> Unit)? = null
+    // The originating tab is required: private downloads must never be
+    // silently persisted in the normal Download Library.
+    var downloadHandler: ((BrowserTab, WebResponse) -> Unit)? = null
 
     val active: BrowserTab get() = tabs.first { it.id == activeId }
 
@@ -193,7 +195,7 @@ class BrowserController(
                 try {
                     // Contract with Agent 6: successful callback assumes ownership
                     // of response.body and MUST close it after copying/cancellation.
-                    sink(response)
+                    sink(tab, response)
                 } catch (_: Exception) {
                     runCatching { response.body?.close() }
                     notice = "Couldn't start this download."
