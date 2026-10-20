@@ -265,7 +265,19 @@ async function recordActivity(action, detail = {}) {
     action,
     detail: sanitizeActivityDetail(detail),
   });
-  await fs.appendFile(ACTIVITY_FILE, row + '\n', 'utf8');
+  try {
+    await fs.appendFile(ACTIVITY_FILE, row + '\n', 'utf8');
+  } catch (error) {
+    // Never report a completed Settings/ENV mutation as HTTP 500 solely
+    // because its secondary activity journal cannot be appended. The caller
+    // might retry the already-committed mutation or credentials. The protected
+    // deployment gate independently checks this journal and must reject an
+    // installation where auditing is unhealthy.
+    const code = ['EACCES', 'EPERM', 'EROFS', 'ENOSPC'].includes(error?.code)
+      ? error.code : 'IO';
+    console.warn('Cortex audit append unavailable: ' + code + ' (action result preserved)');
+    return false;
+  }
   try {
     const current = await fs.stat(ACTIVITY_FILE);
     if (current.size > 2 * 1024 * 1024) {
@@ -1217,17 +1229,7 @@ async function setCommandSetting(key, enabled) {
   } catch (error) {
     if (error?.code !== 'ENOENT') throw error;
   }
-  await fs.mkdir(path.dirname(COMMAND_SETTINGS_FILE), { recursive: true });
-  const temp = COMMAND_SETTINGS_FILE + '.cortex-' + crypto.randomUUID() + '.tmp';
-  values = { ...values, version: 1, [key]: enabled === true, savedAt: Date.now() };
-  try {
-    await fs.writeFile(temp, JSON.stringify(values, null, 2), 'utf8');
-    await fs.rename(temp, COMMAND_SETTINGS_FILE);
-  } catch (error) {
-    await fs.rm(temp, { force: true }).catch(() => {});
-    // NIGHT owns /var/lib/mscc/data, so the Agent must not be given broad
-    // write permissions just to toggle one allowlisted boolean setting.
-    if (!['EACCES', 'EPERM', 'EROFS'].includes(error?.code)) throw error;
+  async function protectedWrite() {
     await new Promise((resolve, reject) => {
       const child = spawn('/usr/bin/sudo',
         ['-n', SERVICE_CONTROL_HELPER, 'setting-set', key],
@@ -1241,8 +1243,30 @@ async function setCommandSetting(key, enabled) {
       child.stdin.end(enabled === true ? 'true' : 'false');
     });
   }
+  if (COMMAND_SETTINGS_FILE === '/var/lib/mscc/data/mscc-settings.json') {
+    // Production NIGHT settings are private MSCC state. Always use the
+    // allowlisted root helper, not a speculative direct write with EACCES.
+    await protectedWrite();
+  } else {
+    await fs.mkdir(path.dirname(COMMAND_SETTINGS_FILE), { recursive: true });
+    const temp = COMMAND_SETTINGS_FILE + '.cortex-' + crypto.randomUUID() + '.tmp';
+    values = { ...values, version: 1, [key]: enabled === true, savedAt: Date.now() };
+    try {
+      await fs.writeFile(temp, JSON.stringify(values, null, 2), 'utf8');
+      await fs.rename(temp, COMMAND_SETTINGS_FILE);
+    } catch (error) {
+      await fs.rm(temp, { force: true }).catch(() => {});
+      if (!['EACCES', 'EPERM', 'EROFS'].includes(error?.code)) throw error;
+      await protectedWrite();
+    }
+  }
+  const persisted = await commandSettings();
+  const confirmed = persisted.find(row => row.key === key);
+  if (confirmed?.enabled !== (enabled === true)) {
+    throw Object.assign(new Error('Protected setting readback mismatch'), { statusCode: 503 });
+  }
   await recordActivity('server:setting.update', { key, enabled: enabled === true });
-  return commandSettings();
+  return persisted;
 }
 
 

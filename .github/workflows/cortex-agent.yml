@@ -740,6 +740,47 @@ jobs:
           console.log('PASS account-5 displayed as Account 3 without mutating session IDs')
           NODE
 
+      - name: Verify committed Settings and ENV writes do not become HTTP 500 on audit failure
+        shell: bash
+        run: |
+          set -euo pipefail
+          AUTH='Authorization: Bearer test-token-12345678901234567890'
+          AUDIT=/tmp/cortex-state/activity.jsonl
+          test -f "$AUDIT"
+          chmod 0444 "$AUDIT"
+          trap 'chmod 0600 "$AUDIT"' EXIT
+
+          # Regression for Azure October 20: the protected write had already
+          # succeeded but a secondary activity append could return HTTP 500.
+          response="$(curl -sS --output /tmp/cortex-audit-setting.json -w '%{http_code}' \
+            -H "$AUTH" -H 'Content-Type: application/json' \
+            -d '{"key":"autoCc","enabled":false}' \
+            http://127.0.0.1:47831/api/cortex/host/settings)"
+          test "$response" = 200
+          node - <<'NODE'
+          const assert=require('node:assert/strict')
+          const fs=require('node:fs')
+          assert.equal(JSON.parse(fs.readFileSync('/tmp/cortex-settings/settings.json','utf8')).autoCc,false)
+          const result=JSON.parse(fs.readFileSync('/tmp/cortex-audit-setting.json','utf8'))
+          assert.equal(result.entries.find(x=>x.key==='autoCc').enabled,false)
+          NODE
+
+          response="$(curl -sS --output /tmp/cortex-audit-environment.json -w '%{http_code}' \
+            -H "$AUTH" -H 'Content-Type: application/json' \
+            -d '{"key":"LOG_LEVEL","value":"silent"}' \
+            http://127.0.0.1:47831/api/cortex/host/environment)"
+          test "$response" = 200
+          node - <<'NODE'
+          const assert=require('node:assert/strict')
+          const fs=require('node:fs')
+          assert.match(fs.readFileSync('/tmp/mscc.env','utf8'),/^LOG_LEVEL=silent$/m)
+          assert.equal(JSON.parse(fs.readFileSync('/tmp/cortex-audit-environment.json','utf8')).entries.find(x=>x.key==='LOG_LEVEL').value,'silent')
+          NODE
+          grep -Fq 'Cortex audit append unavailable: EACCES' /tmp/cortex-agent-restarted.log
+          chmod 0600 "$AUDIT"
+          trap - EXIT
+          echo 'PASS: both committed mutations return HTTP 200 despite a failed secondary activity append'
+
       - name: Reject unauthenticated requests
         shell: bash
         run: |
