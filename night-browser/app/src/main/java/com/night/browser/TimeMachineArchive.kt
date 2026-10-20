@@ -78,6 +78,37 @@ class TimeMachineArchive(context: Context) {
             versions = (versions + migrated).sortedByDescending { it.capturedAt }
             persist(migrated = true)
         }
+        recoverInterruptedCaptures()
+    }
+
+    /**
+     * A process can die after the atomic PDF rename and before metadata is
+     * committed. Expose such complete files instead of silently losing them.
+     * Incomplete .part files are never valid captures and may be discarded.
+     */
+    private fun recoverInterruptedCaptures() {
+        val entries = folder.listFiles() ?: return
+        val known = versions.mapTo(mutableSetOf()) { it.fileName }
+        val rescued = entries.asSequence()
+            .filter { it.isFile && it.name.startsWith("page-") &&
+                isSafeFileName(it.name) && known.add(it.name) &&
+                it.length() > 0L }
+            .map { file ->
+                TimeMachineVersion(
+                    id = UUID.randomUUID().toString(),
+                    url = "",
+                    title = "Recovered PDF copy",
+                    fileName = file.name,
+                    capturedAt = file.lastModified(),
+                    sizeBytes = file.length()
+                )
+            }.toList()
+        if (rescued.isNotEmpty()) {
+            versions = (versions + rescued).sortedByDescending { it.capturedAt }
+            persist()
+        }
+        entries.filter { it.isFile && it.name.startsWith("page-") &&
+            it.name.endsWith(".pdf.part") }.forEach { it.delete() }
     }
 
     val usedBytes: Long get() = versions.sumOf { item ->
