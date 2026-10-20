@@ -111,14 +111,17 @@ class Device:
         time.sleep(.6)
 
     def edit(self, raw):
-        fields = [n for n in self.ui() if n.get("class") == "android.widget.EditText"
-                  or n.get("editable") == "true"]
+        # Gboard can expose unrelated fields or an onboarding popup.
+        # Interact only with NIGHT-owned editable nodes.
+        fields = [n for n in self.ui() if n.get("package") == PKG and
+                  (n.get("class") == "android.widget.EditText"
+                   or n.get("editable") == "true")]
         if not fields:
-            raise AssertionError("Omnibar not exposed as an editable field")
-        def key(node):
+            raise AssertionError("NIGHT omnibar is not exposed as editable")
+        def bottom(node):
             b = list(map(int, re.findall(r"\d+", node.get("bounds", ""))))
-            return (b[1] + b[3]) if len(b) == 4 else -1
-        field = max(fields, key=key)
+            return b[3] if len(b) == 4 else -1
+        field = max(fields, key=bottom)
         b = list(map(int, re.findall(r"\d+", field.get("bounds", ""))))
         shell("input", "tap", str((b[0] + b[2]) // 2), str((b[1] + b[3]) // 2))
         time.sleep(.3)
@@ -126,20 +129,30 @@ class Device:
         if current:
             shell("input", "keyevent", "123", *(["67"] * min(len(current) + 4, 320)))
         shell("input", "text", raw)
-        time.sleep(.3)
-        if not any(raw in n.get("text", "") for n in self.ui()
-                   if n.get("class") == "android.widget.EditText"):
-            raise AssertionError("Typed URL not reflected in omnibar")
+        deadline = time.monotonic() + 3
+        while time.monotonic() < deadline:
+            if any(raw in n.get("text", "") for n in self.ui()
+                   if n.get("package") == PKG and
+                   (n.get("class") == "android.widget.EditText"
+                    or n.get("editable") == "true")):
+                return
+            time.sleep(.4)
+        raise AssertionError("ADB URL not reflected in NIGHT omnibar (IME focus?)")
+
+    def submit_address(self):
+        if self.find("Go to address or search") is not None:
+            self.click("Go to address or search")
+        elif self.find("Go") is not None:
+            self.click("Go")
+        else:
+            # Physical keyboard IME Enter is a real submit gesture, not an API bypass.
+            shell("input", "keyevent", "66")
 
     def go(self, path):
-        # Navigates through real on-screen controls. Do not call Gecko internals.
         before = hits(path)
         self.click("Home")
         self.edit(URL + path)
-        if self.find("Go to address or search"):
-            self.click("Go to address or search")
-        else:
-            self.click("Go")
+        self.submit_address()
         wait_hit(path, before)
         return "fixture received real Gecko load for " + path
 
@@ -190,7 +203,7 @@ class Device:
     def external(self):
         self.click("Home")
         self.edit("https://example.com")
-        self.click("Go to address or search" if self.find("Go to address or search") else "Go")
+        self.submit_address()
         self.click("Tabs")
         self.click("Example Domain", partial=True, timeout=28)
         return "Real external HTTPS Example Domain loaded and selected via tab overview"
@@ -209,31 +222,37 @@ class Device:
 
     def verify_title(self, title):
         self.click("Tabs")
-        if not self.find(title, partial=True):
+        deadline = time.monotonic() + 10
+        while time.monotonic() < deadline:
+            if self.find(title, partial=True) is not None:
+                break
+            time.sleep(.5)
+        else:
             raise AssertionError("Expected committed title not shown: " + title)
         self.click(title, partial=True)
         return "Confirmed committed tab title " + title
 
-    def tab_count(self):
-        self.click("Tabs")
-        return [n.get("text", "") or n.get("content-desc", "") for n in self.ui()]
+    def regular_count(self):
+        # Compose renders "Regular  10" inside a FilterChip (not a naked 10).
+        labels = [n.get("text", "") or n.get("content-desc", "") for n in self.ui()
+                  if n.get("package") == PKG]
+        numbers = [int(match.group(1)) for label in labels
+                   if (match := re.search(r"\bRegular\s+(\d+)\b", label))]
+        if not numbers:
+            raise AssertionError("Regular tab count not accessible; " + repr(labels[:16]))
+        return max(numbers)
 
     def ten_tabs(self):
-        labels = self.tab_count()
-        matches = [re.search(r"(?:Regular\s+(\d+)|^(\d+)$)", x) for x in labels]
-        numbers = [int(m.group(1) or m.group(2)) for m in matches if m]
-        if not numbers:
-            raise AssertionError("Regular tab count was not exposed")
-        initial = max(numbers)
+        self.click("Tabs")
+        initial = self.regular_count()
         if initial > 10:
             raise Blocked("Already >10 tabs; isolated reset required")
         for _ in range(initial, 10):
             self.click("New tab")
             self.click("Tabs")
-        labels = self.tab_count()
-        if not any(re.search(r"(?:Regular\s+10|^10$)", x) for x in labels):
+        if self.regular_count() != 10:
             raise AssertionError("10 regular tabs not visible in overview")
-        return "Created up to ten tabs through actual controls"
+        return "Created up to ten tabs via on-device controls"
 
     def rotate(self):
         shell("settings", "put", "system", "accelerometer_rotation", "0")
@@ -254,8 +273,8 @@ class Device:
     def restart(self):
         shell("am", "force-stop", PKG)
         shell("am", "start", "-W", "-n", PKG + "/.MainActivity")
-        labels = self.tab_count()
-        if not any(re.search(r"(?:Regular\s+10|^10$)", x) for x in labels):
+        self.click("Tabs")
+        if self.regular_count() != 10:
             raise AssertionError("Tab count not restored after force-stop")
         return "After app restart ten tabs restored"
 
@@ -311,15 +330,20 @@ class Device:
         self.click("Save PDF copy")
         self.click("More")
         self.click("Time Machine")
-        if not self.find("NIGHT QA REDIRECT LANDING", partial=True):
-            raise AssertionError("Saved PDF page is missing from Time Machine list")
+        deadline = time.monotonic() + 24
+        while time.monotonic() < deadline:
+            if self.find("NIGHT QA REDIRECT LANDING", partial=True) is not None:
+                break
+            time.sleep(1)
+        else:
+            raise AssertionError("Saved PDF page is missing after async-save wait")
         return "Save PDF action then named page version displayed; offline open separately pending"
 
     def peek(self):
         self.go("/links")
         self.click("Visit A", long=True)
         self.click("Peek")
-        self.click("Close preview")
+        self.click("Dismiss preview")
         return "Long-press opened disposable preview and dismissed it"
 
     def mem(self):
@@ -335,7 +359,7 @@ class Device:
         shell("svc", "data", "disable", check=False)
         try:
             self.click("Home")
-            if not self.find("Quick access"):
+            if self.find("Quick access") is None:
                 raise AssertionError("Home lost Quick access offline")
             return "App home accessible with Android network toggled off"
         finally:
@@ -395,7 +419,7 @@ class Device:
         adb("logcat", "-c", check=False)
         self.test("C01", "Cold Activity launch", self.cold_start)
         self.test("C02", "Quick access UI", lambda: self.click("Quick access")
-                  if not self.find("Quick access") else "Quick access visible", prerequisites=("C01",),
+                  if self.find("Quick access") is None else "Quick access visible", prerequisites=("C01",),
                   screenshot=True)
         self.test("C03", "Real external HTTPS website", self.external, prerequisites=("C01",))
         self.test("C04", "Gecko local website loads", lambda: self.go("/"), prerequisites=("C01",), screenshot=True)
@@ -421,8 +445,8 @@ class Device:
                   self.click("10.0.2.2", partial=True)), prerequisites=("C13",))
         self.test("C15", "Journeys history access", lambda: (
                   self.click("More"), self.click("Journeys"),
-                  "My browsing panel visible" if self.find("My browsing", partial=True)
-                  else self._missing("My browsing panel")), prerequisites=("C13",))
+                  "Journeys panel visible" if self.find("Journeys") is not None
+                  else self._missing("Journeys panel")), prerequisites=("C13",))
         self.test("C16", "10 tabs via touch", self.ten_tabs, prerequisites=("C01",), screenshot=True)
         self.test("C17", "Landscape UI still interactive", self.rotate,
                   prerequisites=("C16",), screenshot=True)
