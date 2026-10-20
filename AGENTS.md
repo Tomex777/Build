@@ -1,3 +1,9 @@
+# NIGHT Play Wave 2 — current routing (20 October 2026)
+
+If the current user message says **"You are NIGHT Play Agent N"**, **"You are Agent N"** in NIGHT Play context, or **"Continue"** to an existing NIGHT Play agent, immediately read `night-play/agents/README.md`, `night-play/agents/agent-NN.md`, `night-play/AGENTS.md`, `night-play/docs/wave2-quality-gate.md`, `docs/agent-backlog.md`, the latest `feature/party-online-rooms-20261019` source, and **GitHub issue #459 latest comments**. Source is already integrated via PR #436; work on improvements and real QA, not repeat the first wave. Shared source locks and truthful session limits still apply. Other projects' own AGENTS files remain separate.
+
+---
+
 # AGENTS.md — NIGHT Play coordination (20 October 2026)
 
 > Scope: NIGHT Play website in `night-play/` within this **multi-project** repository. These rules do not replace other applications' project-specific instructions. Read `night-play/AGENTS.md`, `night-play/DESIGN.md`, applicable component design locks, and `docs/agent-backlog.md` **before touching code**. The 10-role assignment below supersedes the historical 9-agent numbering in `night-play/AGENTS.md` and `night-play/AGENT-BOARD.md`; retain their valid engineering and design requirements.
