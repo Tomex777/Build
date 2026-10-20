@@ -78,4 +78,31 @@ class SceneGraphIntegrityTest {
         // Non-cyclic ancestry leaves unrelated scene nodes intact.
         assertEquals(scene.actors.last(), parented.project.actors.last())
     }
+    @Test
+    fun explicitlyClearedSelectionSurvivesEnvironmentChangesAndUndoRedo() {
+        val scene = SceneProject(
+            id = "deselection",
+            name = "Studio focus",
+            actors = listOf(character, prop),
+        )
+        val clear = SceneEditorState(scene).selectActor(null)
+        assertEquals(null, clear.selectedActorId)
+        val edited = clear.setGroundVisible(false)
+        assertFalse(edited.project.world.groundEnabled)
+        assertEquals(null, edited.selectedActorId)
+        val undone = edited.undo()
+        assertEquals(scene, undone.project)
+        assertEquals(null, undone.selectedActorId)
+        val redone = undone.redo()
+        assertEquals(edited.project, redone.project)
+        assertEquals(null, redone.selectedActorId)
+
+        val newScene = scene.copy(name = "New save slot")
+        assertEquals(null, clear.replaceProject(newScene).selectedActorId)
+        // A removed/nonexistent *non-null* focus still safely falls back to an existing actor.
+        val invalid = SceneEditorState(scene).selectActor("prop")
+            .replaceProject(scene.copy(actors = listOf(character)))
+        assertEquals("character", invalid.selectedActorId)
+    }
+
 }
