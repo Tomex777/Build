@@ -17,7 +17,7 @@ for(const [id,route,screen,engine] of native){
  assert(main.includes(route+'(onExit'),'Native route points to wrong Composable: '+id);
  for(const file of [screen,engine]){
    const source=fs.readFileSync(path.join(java,file),'utf8');
-   assert(!/android\.webkit|WebView|javaScriptEnabled/.test(source),
+   assert(!/import android\.webkit|\bWebView\s*\(|\bAndroidView\s*\(|javaScriptEnabled/.test(source),
      id+'/'+file+' must not be a browser wrapper');
  }
 }
