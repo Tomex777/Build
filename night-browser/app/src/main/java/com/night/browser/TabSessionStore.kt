@@ -45,7 +45,7 @@ internal class TabSessionStore(context: Context) {
         require(root.optInt("version") == 1)
         val list = root.optJSONArray("tabs") ?: JSONArray()
         val tabs = buildList {
-            for (i in 0 until minOf(list.length(), 80)) {
+            for (i in 0 until minOf(list.length(), TabPersistencePolicy.MAX_TABS)) {
                 val value = list.optJSONObject(i) ?: continue
                 val url = TabPersistencePolicy.sanitizeUrl(value.optString("url")) ?: continue
                 val id = value.optString("id")
