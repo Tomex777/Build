@@ -1,0 +1,207 @@
+{
+  "version": 1,
+  "series": "bungo-stray-dogs",
+  "provider": "official BSD anime character pages",
+  "status": "19-official-portrait-artworks-pinned-to-ability-editions",
+  "rules": [
+    "Map an original image only after matching exact named anime character and costume.",
+    "Do not auto-assign art by unverified HTML ordering or file number.",
+    "Official rights-reserved art is reference-only; permission is not assumed.",
+    "Never reuse one artwork for different character forms.",
+    "Card form captions are actual named gifts or explicitly identified powers; 'official anime appearance' is never a power name."
+  ],
+  "sources": [
+    {
+      "id": "atsushi-nakajima",
+      "verifiedCharacter": "Atsushi Nakajima",
+      "verifiedForm": "standard",
+      "page": "https://bungo-stray-dogs.jp/character/?character=nakajima-atsushi",
+      "image": "https://bungo-stray-dogs.jp/images/character/nakajima-atsushi/body-4z8bqcvr2rrn.png",
+      "reviewedBy": "Manual source-identity inspection of the official full-body portrait",
+      "formLabel": "Beast Beneath the Moonlight",
+      "abilityName": "Beast Beneath the Moonlight"
+    },
+    {
+      "id": "osamu-dazai",
+      "verifiedCharacter": "Osamu Dazai",
+      "verifiedForm": "standard",
+      "page": "https://bungo-stray-dogs.jp/character/?character=dazai-osamu",
+      "image": "https://bungo-stray-dogs.jp/images/character/dazai-osamu/body-yp8iru9uiuzx.png",
+      "reviewedBy": "Manual source-identity inspection of the official full-body portrait",
+      "formLabel": "No Longer Human",
+      "abilityName": "No Longer Human"
+    },
+    {
+      "id": "ryunosuke-akutagawa",
+      "verifiedCharacter": "Ryunosuke Akutagawa",
+      "verifiedForm": "standard",
+      "page": "https://bungo-stray-dogs.jp/character/?character=akutagawa-ryunosuke",
+      "image": "https://bungo-stray-dogs.jp/images/character/akutagawa-ryunosuke/body-h32bu5zhwzxw.png",
+      "reviewedBy": "Manual source-identity inspection of the official full-body portrait",
+      "formLabel": "Rashomon",
+      "abilityName": "Rashomon"
+    },
+    {
+      "id": "chuya-nakahara",
+      "verifiedCharacter": "Chuya Nakahara",
+      "verifiedForm": "standard",
+      "page": "https://bungo-stray-dogs.jp/character/?character=nakahara-chuya",
+      "image": "https://bungo-stray-dogs.jp/images/character/nakahara-chuya/body-dpcsigw763qd.png",
+      "reviewedBy": "Manual source-identity inspection of the official full-body portrait",
+      "formLabel": "Upon the Tainted Sorrow",
+      "abilityName": "Upon the Tainted Sorrow"
+    },
+    {
+      "id": "doppo-kunikida",
+      "verifiedCharacter": "Doppo Kunikida",
+      "verifiedForm": "standard",
+      "page": "https://bungo-stray-dogs.jp/character/?character=kunikida-doppo",
+      "image": "https://bungo-stray-dogs.jp/images/character/kunikida-doppo/body-26kyw3t44y8z.png",
+      "reviewedBy": "Manual source-identity inspection of the official full-body portrait",
+      "formLabel": "Doppo Poet",
+      "abilityName": "Doppo Poet"
+    },
+    {
+      "id": "kenji-miyazawa",
+      "verifiedCharacter": "Kenji Miyazawa",
+      "verifiedForm": "standard",
+      "page": "https://bungo-stray-dogs.jp/character/?character=miyazawa-kenji",
+      "image": "https://bungo-stray-dogs.jp/images/character/miyazawa-kenji/body-hmc6bkymdeqx.png",
+      "reviewedBy": "Manual source-identity inspection of the official full-body portrait",
+      "formLabel": "Undefeated by the Rain",
+      "abilityName": "Undefeated by the Rain"
+    },
+    {
+      "id": "akiko-yosano",
+      "verifiedCharacter": "Akiko Yosano",
+      "verifiedForm": "standard",
+      "page": "https://bungo-stray-dogs.jp/character/?character=yosano-akiko",
+      "image": "https://bungo-stray-dogs.jp/images/character/yosano-akiko/body-etcenc76evnz.png",
+      "reviewedBy": "Manual source-identity inspection of the official full-body portrait",
+      "formLabel": "Thou Shalt Not Die",
+      "abilityName": "Thou Shalt Not Die"
+    },
+    {
+      "id": "kyoka-izumi",
+      "verifiedCharacter": "Kyoka Izumi",
+      "verifiedForm": "standard",
+      "page": "https://bungo-stray-dogs.jp/character/?character=izumi-kyoka",
+      "image": "https://bungo-stray-dogs.jp/images/character/izumi-kyoka/body-er2nbdi5bb2f.png",
+      "reviewedBy": "Manual source-identity inspection of the official full-body portrait",
+      "formLabel": "Demon Snow",
+      "abilityName": "Demon Snow"
+    },
+    {
+      "id": "yukichi-fukuzawa",
+      "verifiedCharacter": "Yukichi Fukuzawa",
+      "verifiedForm": "standard",
+      "page": "https://bungo-stray-dogs.jp/character/?character=fukuzawa-yukichi",
+      "image": "https://bungo-stray-dogs.jp/images/character/fukuzawa-yukichi/body-4t7dyrdw7gh4.png",
+      "reviewedBy": "Manual source-identity inspection of the official full-body portrait",
+      "formLabel": "All Men Are Equal",
+      "abilityName": "All Men Are Equal"
+    },
+    {
+      "id": "ranpo-edogawa",
+      "verifiedCharacter": "Ranpo Edogawa",
+      "verifiedForm": "standard",
+      "page": "https://bungo-stray-dogs.jp/character/?character=edogawa-rampo",
+      "image": "https://bungo-stray-dogs.jp/images/character/edogawa-rampo/body-dfejkdxzrv2j.png",
+      "reviewedBy": "Manual source-identity inspection of the official full-body portrait",
+      "formLabel": "Super Deduction",
+      "abilityName": "Super Deduction"
+    },
+    {
+      "id": "junichiro-tanizaki",
+      "verifiedCharacter": "Junichiro Tanizaki",
+      "verifiedForm": "standard",
+      "page": "https://bungo-stray-dogs.jp/character/?character=tanizaki-jun-ichiro",
+      "image": "https://bungo-stray-dogs.jp/images/character/tanizaki-jun-ichiro/body-vnxizspvvi4w.png",
+      "reviewedBy": "Manual source-identity inspection of the official full-body portrait",
+      "formLabel": "Light Snow",
+      "abilityName": "Light Snow"
+    },
+    {
+      "id": "motojiro-kajii",
+      "verifiedCharacter": "Motojiro Kajii",
+      "verifiedForm": "standard",
+      "page": "https://bungo-stray-dogs.jp/character/?character=kajii-motojiro",
+      "image": "https://bungo-stray-dogs.jp/images/character/kajii-motojiro/body-h3qkyscrdi7z.png",
+      "reviewedBy": "Manual identity matching on official named anime character page, full-body illustration",
+      "formLabel": "Lemonade",
+      "abilityName": "Lemonade"
+    },
+    {
+      "id": "koyo-ozaki",
+      "verifiedCharacter": "Koyo Ozaki",
+      "verifiedForm": "standard",
+      "page": "https://bungo-stray-dogs.jp/character/?character=ozaki-kouyou",
+      "image": "https://bungo-stray-dogs.jp/images/character/ozaki-kouyou/body-8ghr41hj155s.png",
+      "reviewedBy": "Manual identity matching on official named anime character page, full-body illustration",
+      "formLabel": "Golden Demon",
+      "abilityName": "Golden Demon"
+    },
+    {
+      "id": "ichiyo-higuchi",
+      "verifiedCharacter": "Ichiyo Higuchi",
+      "verifiedForm": "standard",
+      "page": "https://bungo-stray-dogs.jp/character/?character=higuchi-ichiyou",
+      "image": "https://bungo-stray-dogs.jp/images/character/higuchi-ichiyou/body-332wtcvtumga.png",
+      "reviewedBy": "Manual identity matching on official named anime character page, full-body illustration",
+      "formLabel": "No confirmed supernatural gift",
+      "abilityName": "No confirmed combat gift"
+    },
+    {
+      "id": "ogai-mori",
+      "verifiedCharacter": "Ogai Mori",
+      "verifiedForm": "standard",
+      "page": "https://bungo-stray-dogs.jp/character/?character=mori-ougai",
+      "image": "https://bungo-stray-dogs.jp/images/character/mori-ougai/body-so9yNhRWVL3M.png",
+      "reviewedBy": "Manual identity matching on official named anime character page, full-body illustration",
+      "formLabel": "Vita Sexualis",
+      "abilityName": "Vita Sexualis"
+    },
+    {
+      "id": "francis-fitzgerald",
+      "verifiedCharacter": "Francis Scott Key Fitzgerald",
+      "verifiedForm": "standard",
+      "page": "https://bungo-stray-dogs.jp/character/?character=francis-f",
+      "image": "https://bungo-stray-dogs.jp/images/character/francis-f/body-sRR8pj9JixQV.png",
+      "reviewedBy": "Manual identity matching on official named anime character page, full-body illustration",
+      "formLabel": "The Great Fitzgerald",
+      "displayTitle": "Fitzgerald",
+      "abilityName": "The Great Fitzgerald"
+    },
+    {
+      "id": "lucy-montgomery",
+      "verifiedCharacter": "Lucy Maud Montgomery",
+      "verifiedForm": "standard",
+      "page": "https://bungo-stray-dogs.jp/character/?character=lucy-m",
+      "image": "https://bungo-stray-dogs.jp/images/character/lucy-m/body-p9BWAKhudw4R.png",
+      "reviewedBy": "Manual identity matching on official named anime character page, full-body illustration",
+      "formLabel": "Anne of Abyssal Red",
+      "abilityName": "Anne of Abyssal Red"
+    },
+    {
+      "id": "edgar-allan-poe",
+      "verifiedCharacter": "Edgar Allan Poe",
+      "verifiedForm": "standard",
+      "page": "https://bungo-stray-dogs.jp/character/?character=poe",
+      "image": "https://bungo-stray-dogs.jp/images/character/poe/body-posdahtuee.png",
+      "reviewedBy": "Manual identity matching on official named anime character page, full-body illustration",
+      "formLabel": "Black Cat in the Rue Morgue",
+      "abilityName": "Black Cat in the Rue Morgue"
+    },
+    {
+      "id": "fyodor-dostoevsky",
+      "verifiedCharacter": "Fyodor Dostoevsky",
+      "verifiedForm": "standard",
+      "page": "https://bungo-stray-dogs.jp/character/?character=fyodor",
+      "image": "https://bungo-stray-dogs.jp/images/character/fyodor/body-heuhgj.png",
+      "reviewedBy": "Manual identity matching on official named anime character page, full-body illustration",
+      "formLabel": "Crime and Punishment",
+      "abilityName": "Crime and Punishment",
+      "powerContinuity": "bsd-mainline-manga"
+    }
+  ]
+}
