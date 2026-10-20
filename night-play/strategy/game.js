@@ -78,7 +78,7 @@ function render(){
  $('vsCpu').setAttribute('aria-pressed',String(mode==='computer'));
  $('vsLocal').setAttribute('aria-pressed',String(mode==='local'));
  $('undo').disabled=busy||!match.history().length;
- $('localNote').textContent=mode==='computer'?'Computer plays black. Online matches are separate live-room games, not this local session.':'Two people take turns on this device. This is not an online room.';
+ $('localNote').textContent=mode==='computer'?'Computer plays black.':'Two players on one device.';
  renderMoves();save();
 }
 function cancel(){
