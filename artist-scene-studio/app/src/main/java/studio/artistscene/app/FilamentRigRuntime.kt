@@ -10,6 +10,7 @@ import studio.artistscene.core.RigBone
 import studio.artistscene.core.RigDefinition
 import studio.artistscene.core.RigMorphTarget
 import studio.artistscene.core.RigPose
+import studio.artistscene.core.RigPoseRenderSafety
 import studio.artistscene.core.uniqueRigIds
 import studio.artistscene.core.Vec3
 
@@ -31,6 +32,10 @@ internal class FilamentRigRuntime private constructor(
         val targetIndex: Int,
     )
 
+    // Rig/morph metadata is immutable for the lifetime of this loaded ModelInstance.
+    // Cache the bindings rather than allocate a new grouped map on each timeline frame.
+    private val morphTargetsByEntity = morphTargets.groupBy { it.entity }
+
     val definition = RigDefinition(
         name = model.skinNames.firstOrNull()?.takeUnless { it.isNullOrBlank() }
             ?: if (joints.isNotEmpty()) "Imported skeleton" else "Imported shapes",
@@ -44,7 +49,7 @@ internal class FilamentRigRuntime private constructor(
         val rotations = pose?.joints.orEmpty()
         joints.forEach { joint ->
             val transform = joint.restLocalTransform.copyOf()
-            val rotation = rotations[joint.bone.id] ?: Vec3()
+            val rotation = RigPoseRenderSafety.jointOffset(rotations[joint.bone.id])
             Matrix.rotateM(transform, 0, rotation.x, 1f, 0f, 0f)
             Matrix.rotateM(transform, 0, rotation.y, 0f, 1f, 0f)
             Matrix.rotateM(transform, 0, rotation.z, 0f, 0f, 1f)
@@ -53,7 +58,7 @@ internal class FilamentRigRuntime private constructor(
 
         val renderableManager = model.engine.renderableManager
         val authoredMorphs = pose?.morphWeights.orEmpty()
-        morphTargets.groupBy { it.entity }.forEach { (entity, bindings) ->
+        morphTargetsByEntity.forEach { (entity, bindings) ->
             if (!renderableManager.hasComponent(entity)) return@forEach
             val instance = renderableManager.getInstance(entity)
             val targetCount = renderableManager.getMorphTargetCount(instance)
@@ -62,7 +67,7 @@ internal class FilamentRigRuntime private constructor(
             bindings.forEach { binding ->
                 if (binding.targetIndex in weights.indices) {
                     weights[binding.targetIndex] =
-                        authoredMorphs[binding.definition.id].orZero().coerceIn(0f, 1f)
+                        RigPoseRenderSafety.morphWeight(authoredMorphs[binding.definition.id])
                 }
             }
             renderableManager.setMorphWeights(instance, weights, 0)
@@ -229,4 +234,3 @@ internal class FilamentRigRuntime private constructor(
     }
 }
 
-private fun Float?.orZero(): Float = this ?: 0f
