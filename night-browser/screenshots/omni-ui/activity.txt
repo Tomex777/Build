@@ -1,23 +1,23 @@
 ACTIVITY MANAGER ACTIVITIES (dumpsys activity activities)
 Display #0 (activities from top to bottom):
-  * Task{74f5128 #8 type=standard A=10216:com.nice.browser U=0 visible=true visibleRequested=true mode=fullscreen translucent=false sz=1}
+  * Task{85764dd #8 type=standard A=10216:com.nice.browser U=0 visible=true visibleRequested=true mode=fullscreen translucent=false sz=1}
     mLastNonFullscreenBounds=Rect(215, 420 - 865, 1500)
     isSleeping=false
-    topResumedActivity=ActivityRecord{162631696 u0 com.nice.browser/.MainActivity t8}
-    * Hist  #0: ActivityRecord{162631696 u0 com.nice.browser/.MainActivity t8}
+    topResumedActivity=ActivityRecord{5133386 u0 com.nice.browser/.MainActivity t8}
+    * Hist  #0: ActivityRecord{5133386 u0 com.nice.browser/.MainActivity t8}
       packageName=com.nice.browser processName=com.nice.browser
       launchedFromUid=2000 launchedFromPackage=com.android.shell launchedFromFeature=null userId=0
-      app=ProcessRecord{60354cc 2974:com.nice.browser/u0a216}
+      app=ProcessRecord{e7f8767 2654:com.nice.browser/u0a216}
       Intent { flg=0x10000000 xflg=0x5 cmp=com.nice.browser/.MainActivity }
-      rootOfTask=true task=Task{74f5128 #8 type=standard A=10216:com.nice.browser}
+      rootOfTask=true task=Task{85764dd #8 type=standard A=10216:com.nice.browser}
       taskAffinity=10216:com.nice.browser
       mActivityComponent=com.nice.browser/.MainActivity
-      baseDir=/data/app/~~IAhWif1PdMnIDzj7y6DndA==/com.nice.browser-G_VJZgymtd9BgAer0-C1AA==/base.apk
+      baseDir=/data/app/~~Bq8XuGDlPz8JdQ3F-9pTyA==/com.nice.browser-fPhFLro2LraxQNZ-qsRrtQ==/base.apk
       dataDir=/data/user/0/com.nice.browser
       stateNotNeeded=false componentSpecified=true mActivityType=standard
       compat={420dpi} theme=0x7f09000a
       mLastReportedConfigurations:
-        mGlobalConfig={1.0 310mcc260mnc [en_US] ldltr sw411dp w411dp h731dp 420dpi nrml long port finger qwerty/v/v -nav/h winConfig={ mBounds=Rect(0, 0 - 1080, 1920) mAppBounds=Rect(0, 0 - 1080, 1920) mMaxBounds=Rect(0, 0 - 1080, 1920) mDisplayRotation=ROTATION_0 mWindowingMode=fullscreen mActivityType=undefined mAlwaysOnTop=undefined mRotation=ROTATION_0} as.2 s.49 fontWeightAdjustment=0}
+        mGlobalConfig={1.0 310mcc260mnc [en_US] ldltr sw411dp w411dp h731dp 420dpi nrml long port finger qwerty/v/v -nav/h winConfig={ mBounds=Rect(0, 0 - 1080, 1920) mAppBounds=Rect(0, 0 - 1080, 1920) mMaxBounds=Rect(0, 0 - 1080, 1920) mDisplayRotation=ROTATION_0 mWindowingMode=fullscreen mActivityType=undefined mAlwaysOnTop=undefined mRotation=ROTATION_0} as.2 s.45 fontWeightAdjustment=0}
         mOverrideConfig={1.0 310mcc260mnc [en_US] ldltr sw411dp w411dp h731dp 420dpi nrml long port finger qwerty/v/v -nav/h winConfig={ mBounds=Rect(0, 0 - 1080, 1920) mAppBounds=Rect(0, 0 - 1080, 1920) mMaxBounds=Rect(0, 0 - 1080, 1920) mDisplayRotation=ROTATION_0 mWindowingMode=fullscreen mActivityType=standard mAlwaysOnTop=undefined mRotation=ROTATION_0} as.2 s.2 fontWeightAdjustment=0}
       mLastReportedActivityWindowInfo=ActivityWindowInfo{isEmbedded=false, taskBounds=Rect(0, 0 - 1080, 1920), taskFragmentBounds=Rect(0, 0 - 1080, 1920)}
       CurrentConfiguration={1.0 310mcc260mnc [en_US] ldltr sw411dp w411dp h731dp 420dpi nrml long port finger qwerty/v/v -nav/h winConfig={ mBounds=Rect(0, 0 - 1080, 1920) mAppBounds=Rect(0, 0 - 1080, 1920) mMaxBounds=Rect(0, 0 - 1080, 1920) mDisplayRotation=ROTATION_0 mWindowingMode=fullscreen mActivityType=standard mAlwaysOnTop=undefined mRotation=ROTATION_0} as.2 s.2 fontWeightAdjustment=0}
@@ -26,13 +26,13 @@ Display #0 (activities from top to bottom):
       taskDescription: label="null" icon=null iconResource=/0 iconFilename=null primaryColor=ff212121
         backgroundColor=ff303030 statusBarColor=ff0c1017 navigationBarColor=ff0c1017
        backgroundColorFloating=ff424242
-      launchFailed=false launchCount=1 lastLaunchTime=-1m42s553ms
+      launchFailed=false launchCount=1 lastLaunchTime=-1m48s411ms
       mHaveState=false mIcicle=null
       state=RESUMED delayedResume=false finishing=false
       keysPaused=false inHistory=true idle=true
       occludesParent=true mNoDisplay=false immersive=false launchMode=0
       mActivityType=standard
-      windows=[Window{43135cd u0 com.nice.browser/com.nice.browser.MainActivity}]
+      windows=[Window{2f9cdfd u0 com.nice.browser/com.nice.browser.MainActivity}]
       windowType=2
       mOccludesParent=true
       overrideOrientation=SCREEN_ORIENTATION_UNSPECIFIED
@@ -40,7 +40,7 @@ Display #0 (activities from top to bottom):
       mVisibleRequested=true mVisible=true mClientVisible=true reportedDrawn=true reportedVisible=true
       mNumInterestingWindows=2 mNumDrawnWindows=2 allDrawn=true)
       startingData=null firstWindowDrawn=true
-      nowVisible=true lastVisibleTime=-1m38s584ms
+      nowVisible=true lastVisibleTime=-1m44s452ms
       resizeMode=RESIZE_MODE_RESIZEABLE_VIA_SDK_VERSION
       mLastReportedMultiWindowMode=false mLastReportedPictureInPictureMode=false
       supportsSizeChanges=SIZE_CHANGES_UNSUPPORTED_METADATA
@@ -51,17 +51,17 @@ Display #0 (activities from top to bottom):
       areBoundsLetterboxed=false
       isLetterboxRunning=false
 
-  * Task{ceaa733 #1 type=home U=0 visible=false visibleRequested=false mode=fullscreen translucent=true sz=1}
-    * Task{5b3ce08 #6 type=home I=com.google.android.apps.nexuslauncher/.NexusLauncherActivity U=0 rootTaskId=1 visible=false visibleRequested=false mode=fullscreen translucent=true sz=2}
-      mLastPausedActivity: ActivityRecord{240207787 u0 com.google.android.apps.nexuslauncher/.NexusLauncherActivity t6}
+  * Task{92ce523 #1 type=home U=0 visible=false visibleRequested=false mode=fullscreen translucent=true sz=1}
+    * Task{b18045e #6 type=home I=com.google.android.apps.nexuslauncher/.NexusLauncherActivity U=0 rootTaskId=1 visible=false visibleRequested=false mode=fullscreen translucent=true sz=2}
+      mLastPausedActivity: ActivityRecord{81897881 u0 com.google.android.apps.nexuslauncher/.NexusLauncherActivity t6}
       mLastNonFullscreenBounds=Rect(237, 420 - 844, 1500)
       isSleeping=false
-      * Hist  #1: ActivityRecord{240207787 u0 com.google.android.apps.nexuslauncher/.NexusLauncherActivity t6}
+      * Hist  #1: ActivityRecord{81897881 u0 com.google.android.apps.nexuslauncher/.NexusLauncherActivity t6}
         packageName=com.google.android.apps.nexuslauncher processName=com.google.android.apps.nexuslauncher
         launchedFromUid=0 launchedFromPackage=null launchedFromFeature=null userId=0
-        app=ProcessRecord{67ceedd 1253:com.google.android.apps.nexuslauncher/u0a181}
+        app=ProcessRecord{551313c 1316:com.google.android.apps.nexuslauncher/u0a183}
         Intent { act=android.intent.action.MAIN cat=[android.intent.category.HOME] flg=0x10000100 cmp=com.google.android.apps.nexuslauncher/.NexusLauncherActivity (has extras) }
-        rootOfTask=true task=Task{5b3ce08 #6 type=home I=com.google.android.apps.nexuslauncher/.NexusLauncherActivity}
+        rootOfTask=true task=Task{b18045e #6 type=home I=com.google.android.apps.nexuslauncher/.NexusLauncherActivity}
         taskAffinity=null
         mActivityComponent=com.google.android.apps.nexuslauncher/.NexusLauncherActivity
         baseDir=/system_ext/priv-app/NexusLauncherRelease/NexusLauncherRelease.apk
@@ -69,7 +69,7 @@ Display #0 (activities from top to bottom):
         stateNotNeeded=true componentSpecified=true mActivityType=home
         compat={420dpi} theme=0x7f14001c
         mLastReportedConfigurations:
-          mGlobalConfig={1.0 310mcc260mnc [en_US] ldltr sw411dp w411dp h731dp 420dpi nrml long port finger qwerty/v/v -nav/h winConfig={ mBounds=Rect(0, 0 - 1080, 1920) mAppBounds=Rect(0, 0 - 1080, 1920) mMaxBounds=Rect(0, 0 - 1080, 1920) mDisplayRotation=ROTATION_0 mWindowingMode=fullscreen mActivityType=undefined mAlwaysOnTop=undefined mRotation=ROTATION_0} as.2 s.37 fontWeightAdjustment=0}
+          mGlobalConfig={1.0 310mcc260mnc [en_US] ldltr sw411dp w411dp h731dp 420dpi nrml long port finger qwerty/v/v -nav/h winConfig={ mBounds=Rect(0, 0 - 1080, 1920) mAppBounds=Rect(0, 0 - 1080, 1920) mMaxBounds=Rect(0, 0 - 1080, 1920) mDisplayRotation=ROTATION_0 mWindowingMode=fullscreen mActivityType=undefined mAlwaysOnTop=undefined mRotation=ROTATION_0} as.2 s.33 fontWeightAdjustment=0}
           mOverrideConfig={1.0 310mcc260mnc [en_US] ldltr sw411dp w411dp h731dp 420dpi nrml long port finger qwerty/v/v -nav/h winConfig={ mBounds=Rect(0, 0 - 1080, 1920) mAppBounds=Rect(0, 0 - 1080, 1920) mMaxBounds=Rect(0, 0 - 1080, 1920) mDisplayRotation=ROTATION_0 mWindowingMode=fullscreen mActivityType=home mAlwaysOnTop=undefined mRotation=ROTATION_0} as.2 s.6 fontWeightAdjustment=0}
         mLastReportedActivityWindowInfo=ActivityWindowInfo{isEmbedded=false, taskBounds=Rect(0, 0 - 1080, 1920), taskFragmentBounds=Rect(0, 0 - 1080, 1920)}
         CurrentConfiguration={1.0 310mcc260mnc [en_US] ldltr sw411dp w411dp h731dp 420dpi nrml long port finger qwerty/v/v -nav/h winConfig={ mBounds=Rect(0, 0 - 1080, 1920) mAppBounds=Rect(0, 0 - 1080, 1920) mMaxBounds=Rect(0, 0 - 1080, 1920) mDisplayRotation=ROTATION_0 mWindowingMode=fullscreen mActivityType=home mAlwaysOnTop=undefined mRotation=ROTATION_0} as.2 s.6 fontWeightAdjustment=0}
@@ -77,13 +77,13 @@ Display #0 (activities from top to bottom):
         taskDescription: label="null" icon=null iconResource=/0 iconFilename=null primaryColor=fff1f0f7
           backgroundColor=ffeeedf4 statusBarColor=0 navigationBarColor=0
          backgroundColorFloating=fff1f0f7
-        launchFailed=false launchCount=0 lastLaunchTime=-2m20s184ms
+        launchFailed=false launchCount=0 lastLaunchTime=-2m20s861ms
         mHaveState=true mIcicle=Bundle[mParcelledData.dataSize=7108]
         state=STOPPED delayedResume=false finishing=false
         keysPaused=false inHistory=true idle=true
         occludesParent=true mNoDisplay=false immersive=false launchMode=2
         mActivityType=home
-        windows=[Window{45f6e43 u0 com.google.android.apps.nexuslauncher/com.google.android.apps.nexuslauncher.NexusLauncherActivity}]
+        windows=[Window{4b013dd u0 com.google.android.apps.nexuslauncher/com.google.android.apps.nexuslauncher.NexusLauncherActivity}]
         windowType=2
         mOccludesParent=true
         overrideOrientation=SCREEN_ORIENTATION_NOSENSOR
@@ -91,8 +91,8 @@ Display #0 (activities from top to bottom):
         mVisibleRequested=false mVisible=false mClientVisible=false reportedDrawn=false reportedVisible=false
         mAppStopped=true
         mNumInterestingWindows=2 mNumDrawnWindows=2 allDrawn=false)
-        nowVisible=false lastVisibleTime=-2m19s898ms
-        connections={ConnectionRecord{165f636 u0 com.google.android.apps.nexuslauncher/com.android.quickstep.TouchInteractionService:@3bb5bd1 flags=0x0}}
+        nowVisible=false lastVisibleTime=-2m14s810ms
+        connections={ConnectionRecord{516e237 u0 com.google.android.apps.nexuslauncher/com.android.quickstep.TouchInteractionService:@be66336 flags=0x0}}
         resizeMode=RESIZE_MODE_RESIZEABLE
         mLastReportedMultiWindowMode=false mLastReportedPictureInPictureMode=false
         supportsSizeChanges=SIZE_CHANGES_UNSUPPORTED_METADATA
@@ -102,35 +102,35 @@ Display #0 (activities from top to bottom):
         isTransparentPolicyRunning=false
         areBoundsLetterboxed=false
         isLetterboxRunning=false
-      * TaskFragment{a3a6d73 mode=multi-window organizerUid=10181 organizerProc=com.google.android.apps.nexuslauncher}
+      * TaskFragment{96db0eb mode=multi-window organizerUid=10183 organizerProc=com.google.android.apps.nexuslauncher}
 
-  * Task{4e71450 #3 type=undefined U=0 visible=false visibleRequested=false mode=fullscreen translucent=true sz=2}
+  * Task{63ee734 #2 type=undefined U=0 visible=false visibleRequested=false mode=fullscreen translucent=true sz=2}
     mCreatedByOrganizer=true
-    * Task{9181a13 #5 type=undefined U=0 rootTaskId=3 visible=false visibleRequested=false mode=multi-window translucent=true sz=0}
+    * Task{1a632d2 #4 type=undefined U=0 rootTaskId=2 visible=false visibleRequested=false mode=multi-window translucent=true sz=0}
       mBounds=Rect(0, 1920 - 1080, 2880)
       mCreatedByOrganizer=true
       isSleeping=false
-    * Task{4743649 #4 type=undefined U=0 rootTaskId=3 visible=false visibleRequested=false mode=multi-window translucent=true sz=0}
+    * Task{972795d #3 type=undefined U=0 rootTaskId=2 visible=false visibleRequested=false mode=multi-window translucent=true sz=0}
       mCreatedByOrganizer=true
       isSleeping=false
 
   Resumed activities in task display areas (from top to bottom):
-    Resumed: ActivityRecord{162631696 u0 com.nice.browser/.MainActivity t8}
+    Resumed: ActivityRecord{5133386 u0 com.nice.browser/.MainActivity t8}
 
-  ResumedActivity: ActivityRecord{162631696 u0 com.nice.browser/.MainActivity t8}
+  ResumedActivity: ActivityRecord{5133386 u0 com.nice.browser/.MainActivity t8}
 
 ActivityTaskSupervisor state:
-  topDisplayFocusedRootTask=Task{74f5128 #8 type=standard A=10216:com.nice.browser}
+  topDisplayFocusedRootTask=Task{85764dd #8 type=standard A=10216:com.nice.browser}
   Display: mDisplayId=0 (organized)
     init=1080x1920 420dpi mMinSizeOfResizeableTaskDp=220 cur=1080x1920 app=1080x1920 rng=1080x1080-1920x1920
     deferred=false mLayoutNeeded=false
-  mLastOrientationSource=WindowedMagnification:0:31@103420013
-  deepestLastOrientationSource=ActivityRecord{162631696 u0 com.nice.browser/.MainActivity t8}
-  overrideConfig={1.0 310mcc260mnc [en_US] ldltr sw411dp w411dp h731dp 420dpi nrml long port finger qwerty/v/v -nav/h winConfig={ mBounds=Rect(0, 0 - 1080, 1920) mAppBounds=Rect(0, 0 - 1080, 1920) mMaxBounds=Rect(0, 0 - 1080, 1920) mDisplayRotation=ROTATION_0 mWindowingMode=fullscreen mActivityType=undefined mAlwaysOnTop=undefined mRotation=ROTATION_0} as.2 s.24 fontWeightAdjustment=0}
+  mLastOrientationSource=WindowedMagnification:0:31@59883776
+  deepestLastOrientationSource=ActivityRecord{5133386 u0 com.nice.browser/.MainActivity t8}
+  overrideConfig={1.0 310mcc260mnc [en_US] ldltr sw411dp w411dp h731dp 420dpi nrml long port finger qwerty/v/v -nav/h winConfig={ mBounds=Rect(0, 0 - 1080, 1920) mAppBounds=Rect(0, 0 - 1080, 1920) mMaxBounds=Rect(0, 0 - 1080, 1920) mDisplayRotation=ROTATION_0 mWindowingMode=fullscreen mActivityType=undefined mAlwaysOnTop=undefined mRotation=ROTATION_0} as.2 s.23 fontWeightAdjustment=0}
   ignoreOrientationRequest=false
-  mLayoutSeq=101
-  mCurrentFocus=Window{43135cd u0 com.nice.browser/com.nice.browser.MainActivity}
-  mFocusedApp=ActivityRecord{162631696 u0 com.nice.browser/.MainActivity t8}
+  mLayoutSeq=110
+  mCurrentFocus=Window{2f9cdfd u0 com.nice.browser/com.nice.browser.MainActivity}
+  mFocusedApp=ActivityRecord{5133386 u0 com.nice.browser/.MainActivity t8}
 
   mHoldScreenWindow=null
   mObscuringWindow=null
@@ -140,7 +140,7 @@ ActivityTaskSupervisor state:
   displayId=0
   mWallpaperTarget=null
   mLastWallpaperZoomOut=0.0
-  token WallpaperWindowToken{23e5 showWhenLocked=true}:
+  token WallpaperWindowToken{7cb1067 showWhenLocked=true}:
     mWallpaperX=0.0
     mWallpaperY=0.5
     mWallpaperXStep=0.33333334
@@ -199,24 +199,24 @@ ActivityTaskSupervisor state:
   Task display areas in top down Z order:
     TaskDisplayArea DefaultTaskDisplayArea
       overrideConfig={0.0 ?mcc0mnc ?localeList ?layoutDir ?swdp ?wdp ?hdp ?density ?lsize ?long ?ldr ?wideColorGamut ?orien ?uimode ?night ?touch ?keyb/?/? ?nav/? winConfig={ mBounds=Rect(0, 0 - 0, 0) mAppBounds=null mMaxBounds=Rect(0, 0 - 0, 0) mDisplayRotation=undefined mWindowingMode=fullscreen mActivityType=undefined mAlwaysOnTop=undefined mRotation=undefined} ?fontWeightAdjustment}
-      mPreferredTopFocusableRootTask=Task{74f5128 #8 type=standard A=10216:com.nice.browser}
-      mLastFocusedRootTask=Task{74f5128 #8 type=standard A=10216:com.nice.browser}
+      mPreferredTopFocusableRootTask=Task{85764dd #8 type=standard A=10216:com.nice.browser}
+      mLastFocusedRootTask=Task{85764dd #8 type=standard A=10216:com.nice.browser}
       Application tokens in top down Z order:
-      * Task{74f5128 #8 type=standard A=10216:com.nice.browser U=0 visible=true visibleRequested=true mode=fullscreen translucent=false sz=1}
+      * Task{85764dd #8 type=standard A=10216:com.nice.browser U=0 visible=true visibleRequested=true mode=fullscreen translucent=false sz=1}
         bounds=[0,0][1080,1920]
-        * ActivityRecord{162631696 u0 com.nice.browser/.MainActivity t8}
-      * Task{ceaa733 #1 type=home U=0 visible=false visibleRequested=false mode=fullscreen translucent=true sz=1}
+        * ActivityRecord{5133386 u0 com.nice.browser/.MainActivity t8}
+      * Task{92ce523 #1 type=home U=0 visible=false visibleRequested=false mode=fullscreen translucent=true sz=1}
         bounds=[0,0][1080,1920]
-        * Task{5b3ce08 #6 type=home I=com.google.android.apps.nexuslauncher/.NexusLauncherActivity U=0 rootTaskId=1 visible=false visibleRequested=false mode=fullscreen translucent=true sz=2}
+        * Task{b18045e #6 type=home I=com.google.android.apps.nexuslauncher/.NexusLauncherActivity U=0 rootTaskId=1 visible=false visibleRequested=false mode=fullscreen translucent=true sz=2}
           bounds=[0,0][1080,1920]
-          * ActivityRecord{240207787 u0 com.google.android.apps.nexuslauncher/.NexusLauncherActivity t6}
-          * TaskFragment{a3a6d73 mode=multi-window organizerUid=10181 organizerProc=com.google.android.apps.nexuslauncher}
+          * ActivityRecord{81897881 u0 com.google.android.apps.nexuslauncher/.NexusLauncherActivity t6}
+          * TaskFragment{96db0eb mode=multi-window organizerUid=10183 organizerProc=com.google.android.apps.nexuslauncher}
             bounds=[0,0][1080,1920]
-      * Task{4e71450 #3 type=undefined U=0 visible=false visibleRequested=false mode=fullscreen translucent=true sz=2}
+      * Task{63ee734 #2 type=undefined U=0 visible=false visibleRequested=false mode=fullscreen translucent=true sz=2}
         bounds=[0,0][1080,1920]
-        * Task{9181a13 #5 type=undefined U=0 rootTaskId=3 visible=false visibleRequested=false mode=multi-window translucent=true sz=0}
+        * Task{1a632d2 #4 type=undefined U=0 rootTaskId=2 visible=false visibleRequested=false mode=multi-window translucent=true sz=0}
           bounds=[0,1920][1080,2880]
-        * Task{4743649 #4 type=undefined U=0 rootTaskId=3 visible=false visibleRequested=false mode=multi-window translucent=true sz=0}
+        * Task{972795d #3 type=undefined U=0 rootTaskId=2 visible=false visibleRequested=false mode=multi-window translucent=true sz=0}
           bounds=[0,0][1080,1920]
 
   rootHomeTask=Task=1
@@ -237,27 +237,27 @@ ActivityTaskSupervisor state:
     mHdmiPlugged=false
     mLastBehavior=DEFAULT
     mShowingDream=false mDreamingLockscreen=false
-    mStatusBar=Window{28011f7 u0 StatusBar}
-    mExpandedPanel=Window{5c7352a u0 NotificationShade}
+    mStatusBar=Window{a727d9a u0 StatusBar}
+    mExpandedPanel=Window{57f1689 u0 NotificationShade}
     isKeyguardShowing=false
-    mNavigationBar=Window{e50dd5d u0 Taskbar}
+    mNavigationBar=Window{6c6a9a2 u0 Taskbar}
     mNavBarOpacityMode=2
     mNavigationBarCanMove=false
     mHasBottomNavigationBar=true
-    mLeftGestureHost=Window{e50dd5d u0 Taskbar}
-    mTopGestureHost=Window{28011f7 u0 StatusBar}
-    mRightGestureHost=Window{e50dd5d u0 Taskbar}
-    mBottomGestureHost=Window{e50dd5d u0 Taskbar}
-    mFocusedWindow=Window{43135cd u0 com.nice.browser/com.nice.browser.MainActivity}
-    mTopFullscreenOpaqueWindowState=Window{43135cd u0 com.nice.browser/com.nice.browser.MainActivity}
-    mSystemBarColorApps={ActivityRecord{162631696 u0 com.nice.browser/.MainActivity t8}}
-    mNavBarColorWindowCandidate=Window{43135cd u0 com.nice.browser/com.nice.browser.MainActivity}
-    mNavBarBackgroundWindowCandidate=Window{43135cd u0 com.nice.browser/com.nice.browser.MainActivity}
+    mLeftGestureHost=Window{6c6a9a2 u0 Taskbar}
+    mTopGestureHost=Window{a727d9a u0 StatusBar}
+    mRightGestureHost=Window{6c6a9a2 u0 Taskbar}
+    mBottomGestureHost=Window{6c6a9a2 u0 Taskbar}
+    mFocusedWindow=Window{2f9cdfd u0 com.nice.browser/com.nice.browser.MainActivity}
+    mTopFullscreenOpaqueWindowState=Window{2f9cdfd u0 com.nice.browser/com.nice.browser.MainActivity}
+    mSystemBarColorApps={ActivityRecord{5133386 u0 com.nice.browser/.MainActivity t8}}
+    mNavBarColorWindowCandidate=Window{2f9cdfd u0 com.nice.browser/com.nice.browser.MainActivity}
+    mNavBarBackgroundWindowCandidate=Window{2f9cdfd u0 com.nice.browser/com.nice.browser.MainActivity}
     mLastStatusBarAppearanceRegions=
       AppearanceRegion{ bounds=[0,0][1080,1920]}
     mLastLetterboxDetails=
     mStatusBarBackgroundWindows=
-      Window{43135cd u0 com.nice.browser/com.nice.browser.MainActivity}
+      Window{2f9cdfd u0 com.nice.browser/com.nice.browser.MainActivity}
     mTopIsFullscreen=false
     mImeInsetsConsumed=false
     mForceShowNavigationBarEnabled=false mAllowLockscreenWhenOn=false
@@ -291,7 +291,7 @@ ActivityTaskSupervisor state:
         mLastFilteredX=0.0
         mLastFilteredY=9.776321
         mLastFilteredZ=0.812345
-        mLastFilteredTimestampNanos=182944952317 (29.11424ms ago)
+        mLastFilteredTimestampNanos=185745703730 (6.623715ms ago)
         mTiltHistory={last: 5.0}
         mFlat=false
         mSwinging=false
@@ -314,17 +314,17 @@ ActivityTaskSupervisor state:
     mDeviceState=UNKNOWN
 
     RotationLockHistory
-      10-20 01:27:01.408: mode=USER_ROTATION_FREE, rotation=ROTATION_0, caller=UiAutomationConnection#restoreRotationStateLocked
-      10-20 01:27:07.296: mode=USER_ROTATION_FREE, rotation=ROTATION_0, caller=UiAutomationConnection#restoreRotationStateLocked
-      10-20 01:27:15.832: mode=USER_ROTATION_FREE, rotation=ROTATION_0, caller=UiAutomationConnection#restoreRotationStateLocked
-      10-20 01:27:23.715: mode=USER_ROTATION_FREE, rotation=ROTATION_0, caller=UiAutomationConnection#restoreRotationStateLocked
-      10-20 01:27:28.865: mode=USER_ROTATION_FREE, rotation=ROTATION_0, caller=UiAutomationConnection#restoreRotationStateLocked
-      10-20 01:27:34.100: mode=USER_ROTATION_FREE, rotation=ROTATION_0, caller=UiAutomationConnection#restoreRotationStateLocked
-      10-20 01:27:40.964: mode=USER_ROTATION_FREE, rotation=ROTATION_0, caller=UiAutomationConnection#restoreRotationStateLocked
-      10-20 01:27:45.091: mode=USER_ROTATION_FREE, rotation=ROTATION_0, caller=UiAutomationConnection#restoreRotationStateLocked
+      10-20 01:36:42.466: mode=USER_ROTATION_FREE, rotation=ROTATION_0, caller=UiAutomationConnection#restoreRotationStateLocked
+      10-20 01:36:47.932: mode=USER_ROTATION_FREE, rotation=ROTATION_0, caller=UiAutomationConnection#restoreRotationStateLocked
+      10-20 01:36:56.567: mode=USER_ROTATION_FREE, rotation=ROTATION_0, caller=UiAutomationConnection#restoreRotationStateLocked
+      10-20 01:37:04.229: mode=USER_ROTATION_FREE, rotation=ROTATION_0, caller=UiAutomationConnection#restoreRotationStateLocked
+      10-20 01:37:09.835: mode=USER_ROTATION_FREE, rotation=ROTATION_0, caller=UiAutomationConnection#restoreRotationStateLocked
+      10-20 01:37:14.769: mode=USER_ROTATION_FREE, rotation=ROTATION_0, caller=UiAutomationConnection#restoreRotationStateLocked
+      10-20 01:37:22.792: mode=USER_ROTATION_FREE, rotation=ROTATION_0, caller=UiAutomationConnection#restoreRotationStateLocked
+      10-20 01:37:27.707: mode=USER_ROTATION_FREE, rotation=ROTATION_0, caller=UiAutomationConnection#restoreRotationStateLocked
 
   InputConsumers:
-    name=recents_animation_input_consumer pid=1253 user=UserHandle{0}
+    name=recents_animation_input_consumer pid=1316 user=UserHandle{0}
 
   WindowInsetsStateController
     InsetsState
@@ -334,83 +334,83 @@ ActivityTaskSupervisor state:
       mRoundedCornerFrame=Rect(0, 0 - 0, 0)
       mPrivacyIndicatorBounds=PrivacyIndicatorBounds {static bounds=Rect(827, 0 - 1043, 63) rotation=0}
       mDisplayShape=DisplayShape{ spec=1673867177 displayWidth=1080 displayHeight=1920 physicalPixelDisplaySizeRatio=1.0 rotation=0 offsetX=0 offsetY=0 scale=1.0}
-        InsetsSource id=9b060001 type=navigationBars frame=[0,1857][1080,1920] visible=true flags=SUPPRESS_SCRIM|ANIMATE_RESIZING sideHint=BOTTOM boundingRects=null
-        InsetsSource id=9b060004 type=systemGestures frame=[0,0][78,1920] visible=true flags= sideHint=LEFT boundingRects=null
-        InsetsSource id=9b060005 type=mandatorySystemGestures frame=[0,1836][1080,1920] visible=true flags= sideHint=BOTTOM boundingRects=null
-        InsetsSource id=9b060006 type=tappableElement frame=[0,0][0,0] visible=true flags= sideHint=NONE boundingRects=null
-        InsetsSource id=9b060024 type=systemGestures frame=[1002,0][1080,1920] visible=true flags= sideHint=RIGHT boundingRects=null
+        InsetsSource id=9bc90000 type=statusBars frame=[0,0][1080,63] visible=true flags= sideHint=TOP boundingRects=null
+        InsetsSource id=9bc90005 type=mandatorySystemGestures frame=[0,0][1080,63] visible=true flags= sideHint=TOP boundingRects=null
+        InsetsSource id=9bc90006 type=tappableElement frame=[0,0][1080,63] visible=true flags= sideHint=TOP boundingRects=null
+        InsetsSource id=e1aa0001 type=navigationBars frame=[0,1857][1080,1920] visible=true flags=SUPPRESS_SCRIM|ANIMATE_RESIZING sideHint=BOTTOM boundingRects=null
+        InsetsSource id=e1aa0004 type=systemGestures frame=[0,0][78,1920] visible=true flags= sideHint=LEFT boundingRects=null
+        InsetsSource id=e1aa0005 type=mandatorySystemGestures frame=[0,1836][1080,1920] visible=true flags= sideHint=BOTTOM boundingRects=null
+        InsetsSource id=e1aa0006 type=tappableElement frame=[0,0][0,0] visible=true flags= sideHint=NONE boundingRects=null
+        InsetsSource id=e1aa0024 type=systemGestures frame=[1002,0][1080,1920] visible=true flags= sideHint=RIGHT boundingRects=null
         InsetsSource id=3 type=ime frame=[0,0][0,0] visibleFrame=[0,1794][1080,1920] visible=false flags= sideHint=NONE boundingRects=null
-        InsetsSource id=18740000 type=statusBars frame=[0,0][1080,63] visible=true flags= sideHint=TOP boundingRects=null
-        InsetsSource id=18740005 type=mandatorySystemGestures frame=[0,0][1080,63] visible=true flags= sideHint=TOP boundingRects=null
-        InsetsSource id=18740006 type=tappableElement frame=[0,0][1080,63] visible=true flags= sideHint=TOP boundingRects=null
     Control map:
-      Window{43135cd u0 com.nice.browser/com.nice.browser.MainActivity}:
+      Window{2f9cdfd u0 com.nice.browser/com.nice.browser.MainActivity}:
         InsetsSourceControl: {3 mType=ime mSurfacePosition=Point(0, 63) mInsetsHint=Insets{left=0, top=0, right=0, bottom=872}}
-        InsetsSourceControl: {9b060001 mType=navigationBars initiallyVisible mSurfacePosition=Point(0, 1857) mInsetsHint=Insets{left=0, top=0, right=0, bottom=63}}
-        InsetsSourceControl: {18740000 mType=statusBars initiallyVisible mSurfacePosition=Point(0, 0) mInsetsHint=Insets{left=0, top=63, right=0, bottom=0}}
+        InsetsSourceControl: {9bc90000 mType=statusBars initiallyVisible mSurfacePosition=Point(0, 0) mInsetsHint=Insets{left=0, top=63, right=0, bottom=0}}
+        InsetsSourceControl: {e1aa0001 mType=navigationBars initiallyVisible mSurfacePosition=Point(0, 1857) mInsetsHint=Insets{left=0, top=0, right=0, bottom=63}}
     InsetsSourceProviders:
-      InsetsSourceProvider
-        mSource=InsetsSource id=18740006 type=tappableElement frame=[0,0][1080,63] visible=true flags= sideHint=TOP boundingRects=null
-        mSourceFrame=Rect(0, 0 - 1080, 63)
-        mIsLeashInitialized=false mHasPendingPosition=false
-        mWindowContainer=Window{28011f7 u0 StatusBar}
-      InsetsSourceProvider
-        mSource=InsetsSource id=18740005 type=mandatorySystemGestures frame=[0,0][1080,63] visible=true flags= sideHint=TOP boundingRects=null
-        mSourceFrame=Rect(0, 0 - 1080, 63)
-        mIsLeashInitialized=false mHasPendingPosition=false
-        mWindowContainer=Window{28011f7 u0 StatusBar}
-      InsetsSourceProvider
-        mSource=InsetsSource id=18740000 type=statusBars frame=[0,0][1080,63] visible=true flags= sideHint=TOP boundingRects=null
-        mSourceFrame=Rect(0, 0 - 1080, 63)
-        mControl=InsetsSourceControl mId=18740000 mType=statusBars mLeash=Surface(name=Surface(name=28011f7 StatusBar)/@0xe00c685 - animation-leash of insets_animation)/@0xcfc5b86 mInitiallyVisible=true mSurfacePosition=Point(0, 0) mInsetsHint=Insets{left=0, top=63, right=0, bottom=0} mSkipAnimationOnce=false mImeStatsToken=null
-        mInsetsHint=Insets{left=0, top=63, right=0, bottom=0}
-        mIsLeashInitialized=true mHasPendingPosition=false
-        mWindowContainer=Window{28011f7 u0 StatusBar}
-        mAdapter=ControlAdapter mCapturedLeash=Surface(name=Surface(name=28011f7 StatusBar)/@0xe00c685 - animation-leash of insets_animation)/@0xcfc5b86
-        mControlTarget=Window{43135cd u0 com.nice.browser/com.nice.browser.MainActivity}
       ImeInsetsSourceProvider
         mSource=InsetsSource id=3 type=ime frame=[0,0][0,0] visibleFrame=[0,1794][1080,1920] visible=false flags= sideHint=NONE boundingRects=null
         mSourceFrame=Rect(0, 1794 - 1080, 1920)
-        mControl=InsetsSourceControl mId=3 mType=ime mLeash=Surface(name=Surface(name=58cd43b InputMethod)/@0x56a7917 - animation-leash of insets_animation)/@0xaf9fc47 mInitiallyVisible=false mSurfacePosition=Point(0, 63) mInsetsHint=Insets{left=0, top=0, right=0, bottom=872} mSkipAnimationOnce=false mImeStatsToken=null
+        mControl=InsetsSourceControl mId=3 mType=ime mLeash=Surface(name=Surface(name=b9458de InputMethod)/@0xc8924ea - animation-leash of insets_animation)/@0xb84c216 mInitiallyVisible=false mSurfacePosition=Point(0, 63) mInsetsHint=Insets{left=0, top=0, right=0, bottom=872} mSkipAnimationOnce=false mImeStatsToken=null
         mInsetsHint=Insets{left=0, top=0, right=0, bottom=872} stale
         mIsLeashInitialized=true mHasPendingPosition=false
-        mWindowContainer=Window{58cd43b u0 InputMethod}
-        mAdapter=ControlAdapter mCapturedLeash=Surface(name=Surface(name=58cd43b InputMethod)/@0x56a7917 - animation-leash of insets_animation)/@0xaf9fc47
-        mControlTarget=Window{43135cd u0 com.nice.browser/com.nice.browser.MainActivity}
+        mWindowContainer=Window{b9458de u0 InputMethod}
+        mAdapter=ControlAdapter mCapturedLeash=Surface(name=Surface(name=b9458de InputMethod)/@0xc8924ea - animation-leash of insets_animation)/@0xb84c216
+        mControlTarget=Window{2f9cdfd u0 com.nice.browser/com.nice.browser.MainActivity}
         mImeShowing=false mLastDrawn=false        showImePostLayout not scheduled, mImeRequester=null
 
       InsetsSourceProvider
-        mSource=InsetsSource id=9b060024 type=systemGestures frame=[1002,0][1080,1920] visible=true flags= sideHint=RIGHT boundingRects=null
+        mSource=InsetsSource id=e1aa0024 type=systemGestures frame=[1002,0][1080,1920] visible=true flags= sideHint=RIGHT boundingRects=null
         mSourceFrame=Rect(1002, 0 - 1080, 1920)
         mIsLeashInitialized=false mHasPendingPosition=false
-        mWindowContainer=Window{e50dd5d u0 Taskbar}
+        mWindowContainer=Window{6c6a9a2 u0 Taskbar}
       InsetsSourceProvider
-        mSource=InsetsSource id=9b060006 type=tappableElement frame=[0,0][0,0] visible=true flags= sideHint=NONE boundingRects=null
+        mSource=InsetsSource id=e1aa0006 type=tappableElement frame=[0,0][0,0] visible=true flags= sideHint=NONE boundingRects=null
         mSourceFrame=Rect(0, 0 - 0, 0)
         mOverrideFrames={2011=Rect(0, 1857 - 1080, 1920), 2031=Rect(0, 0 - 0, 0)}
         mIsLeashInitialized=false mHasPendingPosition=false
-        mWindowContainer=Window{e50dd5d u0 Taskbar}
+        mWindowContainer=Window{6c6a9a2 u0 Taskbar}
       InsetsSourceProvider
-        mSource=InsetsSource id=9b060005 type=mandatorySystemGestures frame=[0,1836][1080,1920] visible=true flags= sideHint=BOTTOM boundingRects=null
+        mSource=InsetsSource id=e1aa0005 type=mandatorySystemGestures frame=[0,1836][1080,1920] visible=true flags= sideHint=BOTTOM boundingRects=null
         mSourceFrame=Rect(0, 1836 - 1080, 1920)
         mOverrideFrames={2011=Rect(0, 1857 - 1080, 1920), 2031=Rect(0, 1836 - 1080, 1920)}
         mIsLeashInitialized=false mHasPendingPosition=false
-        mWindowContainer=Window{e50dd5d u0 Taskbar}
+        mWindowContainer=Window{6c6a9a2 u0 Taskbar}
       InsetsSourceProvider
-        mSource=InsetsSource id=9b060004 type=systemGestures frame=[0,0][78,1920] visible=true flags= sideHint=LEFT boundingRects=null
+        mSource=InsetsSource id=e1aa0004 type=systemGestures frame=[0,0][78,1920] visible=true flags= sideHint=LEFT boundingRects=null
         mSourceFrame=Rect(0, 0 - 78, 1920)
         mIsLeashInitialized=false mHasPendingPosition=false
-        mWindowContainer=Window{e50dd5d u0 Taskbar}
+        mWindowContainer=Window{6c6a9a2 u0 Taskbar}
       InsetsSourceProvider
-        mSource=InsetsSource id=9b060001 type=navigationBars frame=[0,1857][1080,1920] visible=true flags=SUPPRESS_SCRIM|ANIMATE_RESIZING sideHint=BOTTOM boundingRects=null
+        mSource=InsetsSource id=e1aa0001 type=navigationBars frame=[0,1857][1080,1920] visible=true flags=SUPPRESS_SCRIM|ANIMATE_RESIZING sideHint=BOTTOM boundingRects=null
         mSourceFrame=Rect(0, 1857 - 1080, 1920)
         mOverrideFrames={2011=Rect(0, 1857 - 1080, 1920), 2031=Rect(0, 1857 - 1080, 1920)}
-        mControl=InsetsSourceControl mId=9b060001 mType=navigationBars mLeash=Surface(name=Surface(name=e50dd5d Taskbar)/@0x8220441 - animation-leash of insets_animation)/@0xd383c74 mInitiallyVisible=true mSurfacePosition=Point(0, 1857) mInsetsHint=Insets{left=0, top=0, right=0, bottom=63} mSkipAnimationOnce=false mImeStatsToken=null
+        mControl=InsetsSourceControl mId=e1aa0001 mType=navigationBars mLeash=Surface(name=Surface(name=6c6a9a2 Taskbar)/@0x73842a1 - animation-leash of insets_animation)/@0xdad8797 mInitiallyVisible=true mSurfacePosition=Point(0, 1857) mInsetsHint=Insets{left=0, top=0, right=0, bottom=63} mSkipAnimationOnce=false mImeStatsToken=null
         mInsetsHint=Insets{left=0, top=0, right=0, bottom=63}
         mIsLeashInitialized=true mHasPendingPosition=false
-        mWindowContainer=Window{e50dd5d u0 Taskbar}
-        mAdapter=ControlAdapter mCapturedLeash=Surface(name=Surface(name=e50dd5d Taskbar)/@0x8220441 - animation-leash of insets_animation)/@0xd383c74
-        mControlTarget=Window{43135cd u0 com.nice.browser/com.nice.browser.MainActivity}
+        mWindowContainer=Window{6c6a9a2 u0 Taskbar}
+        mAdapter=ControlAdapter mCapturedLeash=Surface(name=Surface(name=6c6a9a2 Taskbar)/@0x73842a1 - animation-leash of insets_animation)/@0xdad8797
+        mControlTarget=Window{2f9cdfd u0 com.nice.browser/com.nice.browser.MainActivity}
+      InsetsSourceProvider
+        mSource=InsetsSource id=9bc90006 type=tappableElement frame=[0,0][1080,63] visible=true flags= sideHint=TOP boundingRects=null
+        mSourceFrame=Rect(0, 0 - 1080, 63)
+        mIsLeashInitialized=false mHasPendingPosition=false
+        mWindowContainer=Window{a727d9a u0 StatusBar}
+      InsetsSourceProvider
+        mSource=InsetsSource id=9bc90005 type=mandatorySystemGestures frame=[0,0][1080,63] visible=true flags= sideHint=TOP boundingRects=null
+        mSourceFrame=Rect(0, 0 - 1080, 63)
+        mIsLeashInitialized=false mHasPendingPosition=false
+        mWindowContainer=Window{a727d9a u0 StatusBar}
+      InsetsSourceProvider
+        mSource=InsetsSource id=9bc90000 type=statusBars frame=[0,0][1080,63] visible=true flags= sideHint=TOP boundingRects=null
+        mSourceFrame=Rect(0, 0 - 1080, 63)
+        mControl=InsetsSourceControl mId=9bc90000 mType=statusBars mLeash=Surface(name=Surface(name=a727d9a StatusBar)/@0x53b25f2 - animation-leash of insets_animation)/@0x7fced84 mInitiallyVisible=true mSurfacePosition=Point(0, 0) mInsetsHint=Insets{left=0, top=63, right=0, bottom=0} mSkipAnimationOnce=false mImeStatsToken=null
+        mInsetsHint=Insets{left=0, top=63, right=0, bottom=0}
+        mIsLeashInitialized=true mHasPendingPosition=false
+        mWindowContainer=Window{a727d9a u0 StatusBar}
+        mAdapter=ControlAdapter mCapturedLeash=Surface(name=Surface(name=a727d9a StatusBar)/@0x53b25f2 - animation-leash of insets_animation)/@0x7fced84
+        mControlTarget=Window{2f9cdfd u0 com.nice.browser/com.nice.browser.MainActivity}
   InsetsPolicy
     status: WINDOW_STATE_SHOWING
     nav: WINDOW_STATE_SHOWING
@@ -434,13 +434,13 @@ ActivityTaskSupervisor state:
   mNoHistoryActivities=[]
 
   TaskOrganizerController:
-      android.window.ITaskOrganizer$Stub$Proxy@915459d uid=10184 (active):
-        (fullscreen) Task{ceaa733 #1 type=home}
-        (fullscreen) Task{4e71450 #3 type=undefined}
-        (multi-window) Task{4743649 #4 type=undefined}
-        (multi-window) Task{9181a13 #5 type=undefined}
-        (fullscreen) Task{74f5128 #8 type=standard A=10216:com.nice.browser}
+      android.window.ITaskOrganizer$Stub$Proxy@f27896d uid=10186 (active):
+        (fullscreen) Task{92ce523 #1 type=home}
+        (fullscreen) Task{63ee734 #2 type=undefined}
+        (multi-window) Task{972795d #3 type=undefined}
+        (multi-window) Task{1a632d2 #4 type=undefined}
+        (fullscreen) Task{85764dd #8 type=standard A=10216:com.nice.browser}
 
-  VisibleActivityProcess:[ ProcessRecord{60354cc 2974:com.nice.browser/u0a216}]
-  NumNonAppVisibleWindowUidMap:[ 10184:1 10181:1]
+  VisibleActivityProcess:[ ProcessRecord{e7f8767 2654:com.nice.browser/u0a216}]
+  NumNonAppVisibleWindowUidMap:[ 10186:1 10183:1]
   SleepTokens={}
