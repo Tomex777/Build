@@ -6,6 +6,7 @@ on:
       - agent10/night-play-qa-20261020
     paths:
       - 'night-play/qa/agent10-deployed-gameplay.mjs'
+      - 'night-play/qa/agent10-arcade-gameplay.mjs'
       - '.github/workflows/night-play-agent10-deployed-qa.yml'
   workflow_dispatch:
     inputs:
@@ -37,6 +38,8 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Play deployed games with real touch and reviewable evidence
         run: node night-play/qa/agent10-deployed-gameplay.mjs
+      - name: Play Wing Hop, Block Drop, Mines and Maze in real Chromium
+        run: node night-play/qa/agent10-arcade-gameplay.mjs
       - name: Upload screenshots and structured QA results even on test failures
         if: always()
         uses: actions/upload-artifact@v4
