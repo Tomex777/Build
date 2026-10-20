@@ -148,9 +148,18 @@ private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> U
         Column(Modifier.fillMaxSize().padding(padding)) {
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 when (page) {
-                    Page.HOME -> HomePanel(browser,
-                        onJourney = { page = Page.JOURNEYS },
-                        onOpen = { url -> browser.navigate(url); page = Page.WEB })
+                    Page.HOME -> NightStartPage(
+                        browser = browser,
+                        onJourneys = { page = Page.JOURNEYS },
+                        onOpen = { input ->
+                            if (AddressInput.resolve(input) == null) {
+                                browser.notice = "Enter a valid website address or search query."
+                            } else {
+                                browser.navigate(input)
+                                page = Page.WEB
+                            }
+                        }
+                    )
                     Page.WEB -> WebSurface(current)
                     Page.TABS -> TabPanel(browser,
                         onOpen = { openTab(it) },
@@ -180,37 +189,41 @@ private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> U
                 )
             }
 
-            Row(
-                Modifier.fillMaxWidth().background(Ink)
-                    .padding(horizontal = 14.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    Modifier.weight(1f).height(48.dp)
-                        .background(Raised, RoundedCornerShape(15.dp))
-                        .padding(horizontal = 15.dp),
-                    contentAlignment = Alignment.CenterStart
+            // Home owns its own search input; keep the browser address field
+            // only on loaded web pages to prevent duplicate controls.
+            if (page == Page.WEB) {
+                Row(
+                    Modifier.fillMaxWidth().background(Ink)
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    BasicTextField(
-                        value = address,
-                        onValueChange = { address = it },
-                        modifier = Modifier.fillMaxWidth()
-                            .onFocusChanged { addressFocused = it.isFocused },
-                        singleLine = true,
-                        textStyle = TextStyle(color = Bright, fontSize = 15.sp),
-                        cursorBrush = SolidColor(Accent),
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
-                        keyboardActions = KeyboardActions(onGo = { openAddress() }),
-                        decorationBox = { inner ->
-                            if (address.isBlank()) {
-                                Text("Search or enter address", color = Muted, fontSize = 14.sp)
+                    Box(
+                        Modifier.weight(1f).height(48.dp)
+                            .background(Raised, RoundedCornerShape(15.dp))
+                            .padding(horizontal = 15.dp),
+                        contentAlignment = Alignment.CenterStart
+                    ) {
+                        BasicTextField(
+                            value = address,
+                            onValueChange = { address = it },
+                            modifier = Modifier.fillMaxWidth()
+                                .onFocusChanged { addressFocused = it.isFocused },
+                            singleLine = true,
+                            textStyle = TextStyle(color = Bright, fontSize = 15.sp),
+                            cursorBrush = SolidColor(Accent),
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
+                            keyboardActions = KeyboardActions(onGo = { openAddress() }),
+                            decorationBox = { inner ->
+                                if (address.isBlank()) {
+                                    Text("Search or enter address", color = Muted, fontSize = 14.sp)
+                                }
+                                inner()
                             }
-                            inner()
-                        }
-                    )
-                }
-                ChromeIcon(Icons.Rounded.ArrowUpward, "Go", enabled = address.isNotBlank()) {
-                    openAddress()
+                        )
+                    }
+                    ChromeIcon(Icons.Rounded.ArrowUpward, "Go", enabled = address.isNotBlank()) {
+                        openAddress()
+                    }
                 }
             }
             HorizontalDivider(color = Border, thickness = 1.dp)
