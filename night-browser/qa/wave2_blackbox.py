@@ -111,14 +111,17 @@ class Device:
         time.sleep(.6)
 
     def edit(self, raw):
-        fields = [n for n in self.ui() if n.get("class") == "android.widget.EditText"
-                  or n.get("editable") == "true"]
+        # Gboard can expose unrelated fields or an onboarding popup.
+        # Interact only with NIGHT-owned editable nodes.
+        fields = [n for n in self.ui() if n.get("package") == PKG and
+                  (n.get("class") == "android.widget.EditText"
+                   or n.get("editable") == "true")]
         if not fields:
-            raise AssertionError("Omnibar not exposed as an editable field")
-        def key(node):
+            raise AssertionError("NIGHT omnibar is not exposed as editable")
+        def bottom(node):
             b = list(map(int, re.findall(r"\d+", node.get("bounds", ""))))
-            return (b[1] + b[3]) if len(b) == 4 else -1
-        field = max(fields, key=key)
+            return b[3] if len(b) == 4 else -1
+        field = max(fields, key=bottom)
         b = list(map(int, re.findall(r"\d+", field.get("bounds", ""))))
         shell("input", "tap", str((b[0] + b[2]) // 2), str((b[1] + b[3]) // 2))
         time.sleep(.3)
@@ -126,20 +129,30 @@ class Device:
         if current:
             shell("input", "keyevent", "123", *(["67"] * min(len(current) + 4, 320)))
         shell("input", "text", raw)
-        time.sleep(.3)
-        if not any(raw in n.get("text", "") for n in self.ui()
-                   if n.get("class") == "android.widget.EditText"):
-            raise AssertionError("Typed URL not reflected in omnibar")
+        deadline = time.monotonic() + 3
+        while time.monotonic() < deadline:
+            if any(raw in n.get("text", "") for n in self.ui()
+                   if n.get("package") == PKG and
+                   (n.get("class") == "android.widget.EditText"
+                    or n.get("editable") == "true")):
+                return
+            time.sleep(.4)
+        raise AssertionError("ADB URL not reflected in NIGHT omnibar (IME focus?)")
+
+    def submit_address(self):
+        if self.find("Go to address or search") is not None:
+            self.click("Go to address or search")
+        elif self.find("Go") is not None:
+            self.click("Go")
+        else:
+            # Physical keyboard IME Enter is a real submit gesture, not an API bypass.
+            shell("input", "keyevent", "66")
 
     def go(self, path):
-        # Navigates through real on-screen controls. Do not call Gecko internals.
         before = hits(path)
         self.click("Home")
         self.edit(URL + path)
-        if self.find("Go to address or search"):
-            self.click("Go to address or search")
-        else:
-            self.click("Go")
+        self.submit_address()
         wait_hit(path, before)
         return "fixture received real Gecko load for " + path
 
@@ -190,7 +203,7 @@ class Device:
     def external(self):
         self.click("Home")
         self.edit("https://example.com")
-        self.click("Go to address or search" if self.find("Go to address or search") else "Go")
+        self.submit_address()
         self.click("Tabs")
         self.click("Example Domain", partial=True, timeout=28)
         return "Real external HTTPS Example Domain loaded and selected via tab overview"
@@ -218,26 +231,27 @@ class Device:
         self.click(title, partial=True)
         return "Confirmed committed tab title " + title
 
-    def tab_count(self):
-        self.click("Tabs")
-        return [n.get("text", "") or n.get("content-desc", "") for n in self.ui()]
+    def regular_count(self):
+        # Compose renders "Regular  10" inside a FilterChip (not a naked 10).
+        labels = [n.get("text", "") or n.get("content-desc", "") for n in self.ui()
+                  if n.get("package") == PKG]
+        numbers = [int(match.group(1)) for label in labels
+                   if (match := re.search(r"\bRegular\s+(\d+)\b", label))]
+        if not numbers:
+            raise AssertionError("Regular tab count not accessible; " + repr(labels[:16]))
+        return max(numbers)
 
     def ten_tabs(self):
-        labels = self.tab_count()
-        matches = [re.search(r"(?:Regular\s+(\d+)|^(\d+)$)", x) for x in labels]
-        numbers = [int(m.group(1) or m.group(2)) for m in matches if m]
-        if not numbers:
-            raise AssertionError("Regular tab count was not exposed")
-        initial = max(numbers)
+        self.click("Tabs")
+        initial = self.regular_count()
         if initial > 10:
             raise Blocked("Already >10 tabs; isolated reset required")
         for _ in range(initial, 10):
             self.click("New tab")
             self.click("Tabs")
-        labels = self.tab_count()
-        if not any(re.search(r"(?:Regular\s+10|^10$)", x) for x in labels):
+        if self.regular_count() != 10:
             raise AssertionError("10 regular tabs not visible in overview")
-        return "Created up to ten tabs through actual controls"
+        return "Created up to ten tabs via on-device controls"
 
     def rotate(self):
         shell("settings", "put", "system", "accelerometer_rotation", "0")
@@ -354,7 +368,7 @@ class Device:
         shell("svc", "data", "disable", check=False)
         try:
             self.click("Home")
-            if not self.find("Quick access"):
+            if self.find("Quick access") is None:
                 raise AssertionError("Home lost Quick access offline")
             return "App home accessible with Android network toggled off"
         finally:
