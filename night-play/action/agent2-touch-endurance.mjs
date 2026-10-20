@@ -90,11 +90,8 @@ try{
   await page.waitForTimeout(target?58:70);
  }
  const final=await snapshot();
- assert.equal(errors.length,0,'no browser errors after 3 minutes: '+errors.slice(0,3));
- assert.ok(touches>=12,'real touch test must actually drive slices throughout the long session: '+touches);
- assert.ok(successful>=5,'five or more TOUCH-REGISTERED cuts must score without duplicate swipes: '+JSON.stringify({touches,successful}));
- assert.ok(frameProgress>=1300,'animation must progress for 3 minutes: '+frameProgress);
- assert.equal(sizes.filter(s=>captures.includes('action-agent2-endurance-'+s.w+'.jpg')).length,4,'visual snapshots at four mobile widths');
+ // Always write the evidence, including when an acceptance assertion fails.
+ // CI uploads this JSON and four actual gameplay frames with if: always().
  const summary={durationSeconds:Math.round((Date.now()-start)/1000),sizes,touches,successful,
   firstAttemptRate:Number((successful/Math.max(1,touches)).toFixed(3)),
   deaths,restarts,maxRoundScore,comboEvents,skippedBombs,frameProgress,
@@ -102,6 +99,11 @@ try{
   captures,samples,errors,environment:{chromium:browser.version()}};
  writeFileSync(path.join(output,'action-agent2-endurance-results.json'),JSON.stringify(summary,null,2));
  console.log('NIGHT_A2_3MIN_TOUCH_ENDURANCE='+JSON.stringify(summary));
+ assert.equal(errors.length,0,'no browser errors after 3 minutes: '+errors.slice(0,3));
+ assert.ok(touches>=12,'real touch test must actually drive slices throughout the long session: '+touches);
+ assert.ok(successful>=5,'five or more TOUCH-REGISTERED cuts must score without duplicate swipes: '+JSON.stringify({touches,successful}));
+ assert.ok(frameProgress>=1300,'animation must progress for 3 minutes: '+frameProgress);
+ assert.equal(sizes.filter(s=>captures.includes('action-agent2-endurance-'+s.w+'.jpg')).length,4,'visual snapshots at four mobile widths');
 }finally{
  if(browser)await browser.close();
  await new Promise(resolve=>server.close(resolve));
