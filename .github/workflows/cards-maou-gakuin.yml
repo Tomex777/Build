@@ -51,7 +51,11 @@ jobs:
           chmod +x "$RUNNER_TEMP/night-browser/chrome-headless-shell-linux64/chrome-headless-shell"
           echo "NIGHT_BROWSER_PATH=$RUNNER_TEMP/night-browser/chrome-headless-shell-linux64/chrome-headless-shell" >> "$GITHUB_ENV"
       - name: Render 3000 x 4800 original NIGHT design masters
-        run: npm run build -- --series maou-gakuin --width 3000 --out dist/maou-gakuin
+        run: |
+          npm run build -- --series maou-gakuin --width 3000 --out dist/maou-gakuin || {
+            node -e "const fs=require('fs'); const report=JSON.parse(fs.readFileSync('dist/maou-gakuin/build.json')); console.error('Card acquisition/render failures:', JSON.stringify(report.failures,null,2))"
+            exit 1
+          }
       - name: Export embeddable standalone full-resolution gallery
         run: npm run gallery -- --series maou-gakuin --out dist/maou-gakuin --file dist/NIGHT-Maou-Gakuin-Collection.html
       - name: Label actual NIGHT-rendered previews with franchise
