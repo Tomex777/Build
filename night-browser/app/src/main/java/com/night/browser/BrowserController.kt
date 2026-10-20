@@ -17,6 +17,7 @@ import org.mozilla.geckoview.GeckoRuntime
 import org.mozilla.geckoview.GeckoSession
 import org.mozilla.geckoview.GeckoSessionSettings
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import java.util.UUID
 
 class BrowserTab(
@@ -419,7 +420,18 @@ class BrowserController(
         writes.execute { runCatching { tabStore.write(snapshot) } }
     }
 
-    fun trimPreviews() { tabs.forEach { it.thumbnail = null } }
+    /**
+     * Lifecycle-only bounded flush. Never writes private Gecko tab metadata.
+     * Normal event writes stay debounced to avoid redundant storage work.
+     * If disk/Keystore hangs, stop after 350ms rather than freezing Android.
+     */
+    fun flushTabsForLifecycle() {
+        if (isClosed) return
+        persistNow()
+        runCatching {
+            writes.submit {}.get(350, TimeUnit.MILLISECONDS)
+        }
+    }
 
     fun close() {
         if (isClosed) return

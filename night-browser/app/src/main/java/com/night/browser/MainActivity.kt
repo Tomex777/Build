@@ -67,10 +67,15 @@ private enum class Page { HOME, WEB, TABS, JOURNEYS, LIBRARY, TIME_MACHINE, AI_S
 class MainActivity : ComponentActivity() {
     private lateinit var browser: BrowserController
     private lateinit var downloadPrompt: WebDownloadConsent
+    private lateinit var memoryPolicy: AdaptiveBrowserMemory
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         browser = BrowserController(applicationContext, BrowserPlatformHost(this))
+        memoryPolicy = AdaptiveBrowserMemory(
+            tabs = { browser.tabs.toList() },
+            activeId = { browser.activeId }
+        )
         // All Gecko response downloads require affirmative user consent.
         // The prompt owns the original response stream and closes it on cancellation.
         downloadPrompt = WebDownloadConsent(DownloadLibrary.shared(applicationContext))
@@ -99,15 +104,20 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onStop() {
-        browser.persistNow()
+        // A queued 950ms debounce is too late for immediate force-stop/relaunch.
+        // The bounded barrier here commits the encrypted normal-tab snapshot.
+        browser.flushTabsForLifecycle()
         super.onStop()
+    }
+
+    override fun onLowMemory() {
+        super.onLowMemory()
+        if (::memoryPolicy.isInitialized) memoryPolicy.onLowMemory()
     }
 
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
-        if (level >= android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW) {
-            browser.trimPreviews()
-        }
+        if (::memoryPolicy.isInitialized) memoryPolicy.onTrimMemory(level)
     }
 
     override fun onDestroy() {
@@ -119,7 +129,9 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun NightBrowser(browser: BrowserController, openSaved: (File) -> Unit) {
-    var page by remember { mutableStateOf(Page.HOME) }
+    var page by remember {
+        mutableStateOf(if (browser.active.url.isBlank()) Page.HOME else Page.WEB)
+    }
     var address by remember { mutableStateOf("") }
     var addressFocused by remember { mutableStateOf(false) }
     var menuExpanded by remember { mutableStateOf(false) }
