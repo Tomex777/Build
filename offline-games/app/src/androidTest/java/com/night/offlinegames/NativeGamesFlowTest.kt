@@ -105,7 +105,10 @@ class NativeGamesFlowTest {
     }
 
     private fun snap(device: UiDevice, context: android.content.Context, name: String) {
-        val directory = context.getExternalFilesDir(null) ?: return
-        device.takeScreenshot(File(directory, name))
+        val directory = context.getExternalFilesDir(null)
+        assertNotNull("Android screenshot directory unavailable", directory)
+        val file = File(directory!!, name)
+        assertTrue("Real device capture failed for $name", device.takeScreenshot(file))
+        assertTrue("Screenshot was empty: $name", file.exists() && file.length() > 1000L)
     }
 }
