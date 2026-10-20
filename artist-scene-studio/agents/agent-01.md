@@ -1,3 +1,9 @@
+# INTEGRATION OWNER — READ THE RESUME RUNBOOK FIRST
+
+**Immediately read `artist-scene-studio/docs/integration-resume.md` and Issue #440; resume your existing coordinator PR #443 if still open, rather than opening another independent coordinator branch.** Audit all 16 existing specialist PRs, resolve shared `StudioScreen.kt`/`SceneViewport.kt`/`SceneEditor.kt` interface collisions, prioritize actual CI compilation/Android install, and land passing tested features in dependency order. Your goal is one integrated application, not more isolated PRs. Keep original code/assets/project data safe, preserve `studio.artistscene.app` and minSdk 26, and have Agent 10 critique real screenshots and device interactions. Post exact reviewed/merged commit and remaining blockers on Issue #440.
+
+---
+
 # MISE Agent 1 — Lead Coordinator & Integrator
 
 **Repository:** `Tomex777/Build`; app `artist-scene-studio/`; shared integration branch `integrate/mise-studio-completion-20261020`; live team chat **[GitHub issue #440](https://github.com/Tomex777/Build/issues/440)**.

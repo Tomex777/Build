@@ -1,3 +1,7 @@
+# MISE — RESUME EXISTING WORK, INTEGRATE AND COMPLETE
+
+When a user says **"Continue"**, **"Resume"**, or **"Keep going"** in an existing MISE agent chat, read `artist-scene-studio/docs/integration-resume.md`, the current agent role, canonical branch head and all latest **GitHub Issue #440** comments before anything else. Resume your existing open PR rather than create another detached development wave. Agent 1 is responsible for conflict-safe integration, making one compiled/running APK and coordinating independent Android QA; other agents unblock integration and fix existing PRs; Agent 10 is independent critical tester. A green CI badge or submission of ten PRs is not completion. Chats do not continue operating in the background after ending.
+
 # MISE — Operating Rules for Ten Cooperative Coding Agents
 
 **User intent:** Finish a genuinely polished native Android 3D creation/posing studio, not only get CI green or populate a demo scene. ABR applies: real UI, no redundant controls or filler, smooth touch UX, proper vectors/icons, no "AI vibe-coded" appearance, minSdk 26, verified on actual Android emulator/device.
