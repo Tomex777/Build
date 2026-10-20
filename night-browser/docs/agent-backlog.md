@@ -56,3 +56,5 @@ For each new implementation add: `Task ID | owner | worktree/branch | commit/PR 
 ### Latest activity
 
 - 2026-10-20: Inspected PR #384, existing `MainActivity.kt`, `BrowserController.kt`, JourneyStore, CI; created scoped `AGENTS.md` and ledger in isolated branch. No assertion that ten autonomous agents are now executing.
+
+- 2026-10-20: Added root `AGENTS.md`, short-chat launcher and ten role briefs under `night-browser/agents/`. **Documentation only:** user must launch the 10 separate agent chats; existence of role files does not mean the agents are actively coding.
