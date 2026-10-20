@@ -80,6 +80,25 @@ try {
     assert.equal(library.emojiThumbnails, 0, 'Library should retain original artwork at ' + width)
     await page.screenshot({ path: join(output, 'library-' + width + '.png') })
     console.log('NIGHT_UI_LIBRARY ' + JSON.stringify({ width, ...library }))
+    // A1 owns the shared shell CSS. Inject this scoped A9 proposal ONLY into
+    // the browser QA page to compare before/after without shipping it.
+    await page.addStyleTag({ path: join(here, 'wave2-discovery-profile.css') })
+    const discovery = await page.evaluate(() => {
+      const box = selector => {
+        const el = document.querySelector(selector)
+        const rect = el.getBoundingClientRect()
+        const style = getComputedStyle(el)
+        return { width: rect.width, height: rect.height, outline: style.outlineColor }
+      }
+      return { filter: box('#view-games [data-filter="puzzle"]'),
+        search: box('#view-games #gameSearch'),
+        overflow: document.documentElement.scrollWidth - innerWidth }
+    })
+    assert.ok(discovery.filter.height >= 44, 'A9 proposed puzzle filter has 44px touch target at ' + width)
+    assert.ok(discovery.search.height >= 44, 'A9 proposed search field has 44px touch target at ' + width)
+    assert.ok(discovery.overflow <= 1, 'A9 proposed discovery style must not overflow at ' + width)
+    await page.screenshot({ path: join(output, 'library-refined-' + width + '.png') })
+    console.log('NIGHT_UI_WAVE2_DISCOVERY ' + JSON.stringify({ width, ...discovery }))
 
     // Wave 2 journey A: the actual category + search controls must work as
     // accessible filters before a keyboard or touch user opens a game.
@@ -166,6 +185,10 @@ try {
     const profileOverflow = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)
     assert.ok(profileOverflow <= 1, 'Profile does not overflow horizontally at ' + width)
     await page.screenshot({ path: join(output, 'profile-' + width + '.png') })
+    await page.addStyleTag({ path: join(here, 'wave2-discovery-profile.css') })
+    const profileEditTarget = await page.locator('#editPlayerName').evaluate(el => el.getBoundingClientRect().height)
+    assert.ok(profileEditTarget >= 44, 'A9 proposed edit-name touch target at ' + width)
+    await page.screenshot({ path: join(output, 'profile-refined-' + width + '.png') })
     // Wave 2 journey B: guest-name change must affect actual saved profile
     // state and the Home greeting, not simply a temporary text decoration.
     await page.locator('#editPlayerName').click()
