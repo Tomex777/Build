@@ -16,7 +16,7 @@ internal fun cloudDashboardIssue(error: Throwable): String = when (error) {
     is CortexHttpException -> when (error.statusCode) {
         404 -> "The Cloud API is unavailable on this Agent. Update Cortex Agent."
         502, 503 -> "Cortex authentication succeeded, but NIGHT Cloud could not complete the MEGA check (HTTP ${error.statusCode}). Check whether the MEGA credentials were saved, restart NIGHT to apply them, and refresh. MEGA sign-in or the upstream service may have failed."
-        401 -> "Cortex authorization expired. Reconnect the server in Settings."
+        401 -> "The saved Cortex access token was rejected (HTTP 401). Update your server connection token; MEGA sign-in was not tested."
         403 -> "Cortex access was denied (HTTP 403). Check your server URL and access token; MEGA sign-in was not tested."
         else -> "Cloud service returned HTTP ${error.statusCode}; this does not establish invalid MEGA credentials."
     }
