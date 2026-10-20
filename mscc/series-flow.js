@@ -518,26 +518,15 @@ async function deliverEpisodeSelection(ctx, { capability, sourceId, series, sele
     })
   }
 
-  let completed = 0
-  for (const episode of selection) {
-    const outcome = await ctx.executeSource({
-      capability,
-      explicitSource:sourceId,
-      payload:{
-        action:'download',
-        itemId:series.id,
-        episodeId:episode.id,
-        item:series,
-        episode,
-        quality,
-        delivery,
-      },
-    })
-    if (outcome.status !== 'ok') return outcomeError(ctx, capability, outcome)
-    completed += 1
-  }
-
-  return ctx.reply(`Started ${completed} selected episodes from *${series.title}* (${spec}). ✦`)
+  return startMediaDelivery(ctx, {
+    capability,
+    sourceId,
+    series,
+    selection,
+    spec,
+    quality,
+    delivery,
+  })
 }
 
 async function handleNumberSelection(ctx, { capability, commandName }) {
@@ -632,7 +621,92 @@ async function chooseOptions(ctx, params) {
   })
 }
 
-async function deliver(ctx, { capability, sourceId, series, episode = null, range = null, quality, delivery }) {
+function safeMediaError(error) {
+  let message = String(error?.message || error || 'Unknown media delivery error')
+    .replace(/https?:\/\/[^\s"'<>]+/gi, value => {
+      try {
+        const url = new URL(value)
+        return url.origin + url.pathname
+      } catch {
+        return '[media URL]'
+      }
+    })
+    .replace(/\s+/g, ' ')
+    .trim()
+  if (message.length > 200) message = message.slice(0, 197) + '...'
+  return message
+}
+
+function deliveryOutcomeError(ctx, capability, outcome) {
+  if (outcome?.status === 'no-sources') {
+    return ctx.botProfile?.id === 'nami'
+      ? namiNoSources(capability)
+      : `No ${capability} sources are installed yet.`
+  }
+
+  if (outcome?.status === 'source-error') {
+    const base = ctx.botProfile?.id === 'nami'
+      ? namiSourceFailure(capability, outcome.source?.name || '')
+      : `${outcome.source?.name || 'The source'} could not retrieve or send that ${capability} media.`
+    const detail = safeMediaError(outcome.error)
+    return detail ? `${base}\nReason: ${detail}` : base
+  }
+
+  if (outcome?.status === 'all-failed') {
+    const base = ctx.botProfile?.id === 'nami'
+      ? namiSourceFailure(capability, '', true)
+      : `All configured ${capability} sources failed for that request.`
+    const detail = safeMediaError(outcome.error)
+    return detail ? `${base}\nReason: ${detail}` : base
+  }
+
+  return `Could not complete that ${capability} media request.`
+}
+
+function deliveryLabel(details) {
+  if (details.episode) return `Episode ${details.episode.number}`
+  if (details.range) return `Episodes ${details.range.start.number}–${details.range.end.number}`
+  if (Array.isArray(details.selection)) return `${details.selection.length} selected episodes`
+  return 'the selected episodes'
+}
+
+async function performMediaDelivery(ctx, details) {
+  const { capability, sourceId, series, episode = null, range = null, quality, delivery } = details
+
+  if (Array.isArray(details.selection)) {
+    let completed = 0
+    for (const selectedEpisode of details.selection) {
+      const outcome = await ctx.executeSource({
+        capability,
+        explicitSource:sourceId,
+        payload:{
+          action:'download',
+          itemId:series.id,
+          episodeId:selectedEpisode.id,
+          item:series,
+          episode:selectedEpisode,
+          quality,
+          delivery,
+        },
+      })
+      if (outcome.status !== 'ok') {
+        return { ok:false, message:deliveryOutcomeError(ctx, capability, outcome) }
+      }
+      const result = outcome.result
+      if (result?.delivered !== true && typeof result !== 'string' && !result?.text) {
+        return {
+          ok:false,
+          message:`⚠️ ${sourceName(sourceId, ctx)} completed Episode ${selectedEpisode.number} without confirming media delivery. No file was confirmed as sent.`,
+        }
+      }
+      completed += 1
+    }
+    return {
+      ok:true,
+      message:`✅ Sent ${completed} selected episodes from *${series.title}* (${details.spec || completed}). ✦`,
+    }
+  }
+
   const outcome = await ctx.executeSource({
     capability,
     explicitSource:sourceId,
@@ -640,23 +714,75 @@ async function deliver(ctx, { capability, sourceId, series, episode = null, rang
       ? { action:'download', itemId:series.id, episodeId:episode.id, item:series, episode, quality, delivery }
       : { action:'downloadRange', itemId:series.id, item:series, range, quality, delivery },
   })
-  if (outcome.status !== 'ok') return outcomeError(ctx, capability, outcome)
-  const result = outcome.result
-  if (result?.delivered === true) return true
-  if (typeof result === 'string') return ctx.reply(result)
-  if (result?.text) return ctx.reply(String(result.text))
-  if (ctx.botProfile?.id === 'nami') {
-    return ctx.reply(namiDownloadStarted({
-      title:series.title,
-      episode:episode?.number || '',
-      range:range ? `${range.start.number}–${range.end.number}` : '',
-      quality,
-      delivery,
-    }))
+  if (outcome.status !== 'ok') {
+    return { ok:false, message:deliveryOutcomeError(ctx, capability, outcome) }
   }
-  return ctx.reply(episode
-    ? `Download started: ${series.title} — Episode ${episode.number} (${quality}, ${delivery}).`
-    : `Range download started: ${series.title} — Episodes ${range.start.number}–${range.end.number} (${quality}, ${delivery}).`)
+
+  const result = outcome.result
+  if (result?.delivered === true) {
+    return {
+      ok:true,
+      message:episode
+        ? `✅ *${series.title}* — Episode ${episode.number} was sent as ${delivery}. ✦`
+        : `✅ *${series.title}* — Episodes ${range.start.number}–${range.end.number} were sent as ${delivery}. ✦`,
+    }
+  }
+  if (typeof result === 'string') return { ok:true, message:result }
+  if (result?.text) return { ok:true, message:String(result.text) }
+
+  return {
+    ok:false,
+    message:`⚠️ ${sourceName(sourceId, ctx)} finished the request for *${series.title}* but did not confirm media delivery. No file was confirmed as sent.`,
+  }
+}
+
+// Acknowledge first and run long episode retrieval outside the inbound command
+// handler. A file may take several minutes to resolve, remux and upload; the
+// progress message is updated only after Baileys confirms the send or an error.
+async function startMediaDelivery(ctx, details) {
+  const label = deliveryLabel(details)
+  const opening = `⏳ Preparing *${details.series.title}* — ${label}. I'll send the media here when it's ready. ✦`
+
+  // Keep the no-progress fallback for offline self-tests/alternate consumers.
+  if (typeof ctx.progress !== 'function') {
+    const result = await performMediaDelivery(ctx, details)
+    return ctx.reply(result.message)
+  }
+
+  let progress = null
+  try { progress = await ctx.progress(opening) } catch {}
+  if (!progress) {
+    try { await ctx.reply(opening) } catch {}
+  }
+
+  const report = async (message, failed = false) => {
+    const update = failed ? progress?.fail : progress?.done
+    if (typeof update === 'function') {
+      try { await update.call(progress, message); return } catch {}
+    }
+    if (typeof progress?.update === 'function') {
+      try { await progress.update(message); return } catch {}
+    }
+    try { await ctx.reply(message) } catch {}
+  }
+
+  setImmediate(() => {
+    void (async () => {
+      try {
+        const result = await performMediaDelivery(ctx, details)
+        await report(result.message, !result.ok)
+      } catch (error) {
+        const detail = safeMediaError(error)
+        const message = `❌ *${details.series.title}* media delivery failed${detail ? `: ${detail}` : '.'}`
+        await report(message, true)
+      }
+    })().catch(() => {})
+  })
+  return true
+}
+
+async function deliver(ctx, details) {
+  return startMediaDelivery(ctx, details)
 }
 
 async function episodeSelected(ctx, params) {
