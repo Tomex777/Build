@@ -41,6 +41,7 @@ on:
       - ".ci/slumber_121_library_polish/**"
       - ".ci/slumber_122_catalog_copy/**"
       - ".ci/slumber_123_api26_safe_json/**"
+      - ".ci/slumber_125_keyboard_transition/**"
   pull_request:
     branches: ["slumber-087-build"]
     paths:
@@ -81,6 +82,7 @@ on:
       - ".ci/slumber_121_library_polish/**"
       - ".ci/slumber_122_catalog_copy/**"
       - ".ci/slumber_123_api26_safe_json/**"
+      - ".ci/slumber_125_keyboard_transition/**"
 
 permissions:
   actions: read
@@ -482,6 +484,16 @@ jobs:
           base64 -d .ci/slumber_123_api26_safe_json/legacy-json.patch.gz.b64 | gzip -dc > "$OUT/legacy-json.patch"
           echo '4ba77ac382fab5dcac3989fd60dca6ba1a84ca2e2f54cbc38fbfb22e289ed14b  /tmp/slumber-088/legacy-json.patch' | sha256sum -c -
           patch --fuzz=0 -d "$OUT" -p1 < "$OUT/legacy-json.patch"
+
+      - name: Prevent stale Android 8 search keyboard during game navigation
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT=/tmp/slumber-088
+          base64 -d .ci/slumber_125_keyboard_transition/search-to-game.patch.gz.b64 | gzip -dc > "$OUT/search-to-game.patch"
+          echo '5f0604dda6fe8653868423206e1cae8f8d6469c75f99b296657231b84b36536d  /tmp/slumber-088/search-to-game.patch' | sha256sum -c -
+          patch --fuzz=0 -d "$OUT" -p1 < "$OUT/search-to-game.patch"
+          grep -q 'keyboard?.hide()' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/TilesLibraryScreen.kt"
 
       - uses: actions/setup-java@v4
         with:
