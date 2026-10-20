@@ -134,7 +134,11 @@ try{
   for(let j=otherHolds.length-1;j>=0;j--)if(otherHolds[j].until<=note.at-.05){
    await page.keyboard.up(otherHolds[j].key);otherHolds.splice(j,1);
   }
-  if(note.hold){
+  if(i===0){
+   touchBox=await page.locator('#board').boundingBox();
+   await page.touchscreen.tap(touchBox.x+(note.lane+.5)*touchBox.width/4,
+     touchBox.y+(660-93-40)*touchBox.height/660);
+  }else if(note.hold){
    await page.keyboard.down(key);
    otherHolds.push({key,until:note.at+note.duration+.09});
   }else await page.keyboard.press(key);
