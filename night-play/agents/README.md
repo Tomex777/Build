@@ -1,3 +1,7 @@
+## CRITICAL RESUME INSTRUCTION — integration before expansion (20 October 2026)
+
+**If the user says only "Continue", "Resume" or "Keep going" in an existing NIGHT Play Agent chat, treat it as authorization to resume the existing Wave 2 role and the existing unfinished PR**, not a request to start Wave 3 or just write a progress report. Immediately read `night-play/docs/integration-resume.md`, [Issue #459](https://github.com/Tomex777/Build/issues/459) latest comments, your current agent branch/PR and the canonical integration head. **Actions are required:** fix the next integration blocker, rerun genuine tests, deliver a reviewable PR, and hand off concrete evidence. Do not create a new branch when you already have unfinished code in an existing PR. Agent 1 actively merges and stabilizes; Agents 2–9 prioritize fixes to unblock merges; Agent 10 independently tests the combined website. Keep the core ABR and online/backend release restrictions. Separate chats may have stopped and will not restart until a user opens/sends a message in each one.
+
 # NIGHT Play: Wave 2 large-scale quality campaign — 20 October 2026
 
 **NOT a restart.** The first-wave ten-agent candidate was merged through [PR #436](https://github.com/Tomex777/Build/pull/436). All agents must start from the latest merged `feature/party-online-rooms-20261019`, inspect current game source and avoid recreating existing games. Long-session mobile touch quality, server-verified multiplayer and exceptional visuals are now more important than adding numerous low-quality titles.
