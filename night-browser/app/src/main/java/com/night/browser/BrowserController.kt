@@ -2,6 +2,7 @@ package com.night.browser
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import androidx.compose.runtime.getValue
@@ -31,6 +32,7 @@ class BrowserTab(
     var crashed by mutableStateOf(false)
     var secureConnection by mutableStateOf(false)
     var mixedContent by mutableStateOf(false)
+    var knownSitePermissions by mutableStateOf<List<GeckoSession.PermissionDelegate.ContentPermission>>(emptyList())
     // In-memory reduced page preview. Never written to the browsing-history store.
     var thumbnail by mutableStateOf<Bitmap?>(null)
 }
@@ -100,6 +102,7 @@ class BrowserController(
                 hasUserGesture: Boolean
             ) {
                 if (url.isNullOrBlank()) return
+                tab.knownSitePermissions = perms
                 if (tab.url != url) {
                     tab.url = url
                     store.record(tab.journeyId, url, tab.title, tab.lastNode)?.let { tab.lastNode = it }
@@ -227,6 +230,36 @@ class BrowserController(
             tab.crashed = true
             notice = "Couldn't restore this tab. Open a new tab instead."
         }
+    }
+
+    /**
+     * Clear only saved content permissions for the active first-party origin.
+     * Agent 2 can surface this in the site-information panel; this is not a
+     * history/cookie-clearing action and must not alter other origins.
+     */
+    fun resetSitePermissions() {
+        val tab = active
+        val current = runCatching { Uri.parse(tab.url) }.getOrNull()
+        val origin = current?.let { it.scheme + "://" + it.encodedAuthority }
+        if (origin.isNullOrBlank() || current?.host.isNullOrBlank()) {
+            notice = "Open a website to manage permissions."
+            return
+        }
+        val entries = tab.knownSitePermissions.filter { item ->
+            val uri = runCatching { Uri.parse(item.uri) }.getOrNull()
+            uri != null && (uri.scheme + "://" + uri.encodedAuthority).equals(origin, true)
+        }
+        if (entries.isEmpty()) {
+            notice = "No saved site permissions are available to reset."
+            return
+        }
+        entries.forEach { permission ->
+            runtime.storageController.setPermission(
+                permission, GeckoSession.PermissionDelegate.ContentPermission.VALUE_PROMPT
+            )
+        }
+        tab.knownSitePermissions = emptyList()
+        notice = "Site content permissions reset. Reload to apply changes."
     }
 
     fun bookmark() { store.bookmark(active.url, active.title); notice = "Added to Library" }
