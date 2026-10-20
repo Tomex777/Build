@@ -42,6 +42,8 @@ jobs:
         run: node offline-games/verify-catalog.cjs
       - name: Verify old-WebView parse compatibility
         run: node offline-games/verify-webview.cjs
+      - name: Verify native Kotlin game coverage and legacy count
+        run: node offline-games/verify-native-coverage.cjs
       - name: Build installable debug APK
         working-directory: offline-games
         run: gradle --no-daemon :app:assembleDebug
