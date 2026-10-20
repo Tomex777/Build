@@ -98,7 +98,7 @@ async function executeSearch(ctx, { query, sourceId = '' }) {
   })
 
   if (outcome.status === 'choice-required') return chooseSource(ctx, query)
-  if (outcome.status !== 'ok') return outcomeError(ctx, outcome)
+  if (outcome.status !== 'ok') return ctx.reply(outcomeError(ctx, outcome))
   if (query) outcome = await retryAliases(ctx, { query, sourceId, firstOutcome:outcome })
 
   const result = outcome.result || {}
