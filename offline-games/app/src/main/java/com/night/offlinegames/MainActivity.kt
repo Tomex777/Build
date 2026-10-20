@@ -376,6 +376,23 @@ private fun GameRow(entry: GameEntry, favourite: Boolean, onOpen: () -> Unit, on
 
 @Composable
 private fun OfflineBundledGameView(gameId: String, directory: String, onExit: () -> Unit) {
+    // Android 8 emulator images can ship without any WebView provider. Never crash the
+    // entire offline-games app when one of the remaining legacy games is opened.
+    // Remove this path entirely once the last legacy game has a native implementation.
+    if (WebView.getCurrentWebViewPackage() == null) {
+        Column(
+            modifier = Modifier.fillMaxSize().navigationBarsPadding().padding(24.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text("Native version in progress", color = ink, fontWeight = FontWeight.Bold, fontSize = 22.sp)
+            Spacer(Modifier.height(12.dp))
+            Text("This game still relies on the device's WebView component, which is unavailable here. It is being rebuilt in Kotlin.", color = muted)
+            Spacer(Modifier.height(16.dp))
+            androidx.compose.material3.Button(onClick = onExit) { Text("Back to games") }
+        }
+        return
+    }
     val context = androidx.compose.ui.platform.LocalContext.current
     val loader = remember(context) {
         WebViewAssetLoader.Builder()
