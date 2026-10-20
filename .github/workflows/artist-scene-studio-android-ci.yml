@@ -8,6 +8,7 @@ on:
       - ".github/workflows/artist-scene-studio-android-ci.yml"
   pull_request:
     branches: [artist-scene-studio-foundation, main, integrate/mise-studio-completion-20261020]
+    types: [opened, reopened, synchronize, ready_for_review]
     paths:
       - "artist-scene-studio/**"
       - ".github/workflows/artist-scene-studio-android-ci.yml"
@@ -202,6 +203,8 @@ jobs:
           if-no-files-found: error
 
   release-install-smoke:
+    # Device QA is deferred only while a PR remains a draft.
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft != true }}
     strategy:
       fail-fast: false
       matrix:
@@ -247,6 +250,9 @@ jobs:
           if-no-files-found: warn
 
   api-36-renderer-smoke:
+    # Draft agent PRs still compile, but expensive emulators run only when review-ready.
+    # Integration pushes and manually dispatched runs always execute full device QA.
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft != true }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -357,6 +363,9 @@ jobs:
           STATE: ${{ job.status == 'success' && 'success' || 'failure' }}
 
   api-26-renderer-smoke:
+    # Draft agent PRs still compile, but expensive emulators run only when review-ready.
+    # Integration pushes and manually dispatched runs always execute full device QA.
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft != true }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -434,6 +443,9 @@ jobs:
           if-no-files-found: warn
 
   fresh-editor-instrumentation:
+    # Draft agent PRs still compile, but expensive emulators run only when review-ready.
+    # Integration pushes and manually dispatched runs always execute full device QA.
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft != true }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     strategy:
