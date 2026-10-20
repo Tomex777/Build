@@ -105,4 +105,82 @@ class SceneGraphIntegrityTest {
         assertEquals("character", invalid.selectedActorId)
     }
 
+    @Test
+    fun immutableSculptedAssetRevisionIsOneUndoStepAndPreservesOtherSceneObjects() {
+        val terrain = Actor(
+            id = "terrain",
+            name = "Mountain",
+            kind = ActorKind.ENVIRONMENT,
+            asset = AssetReference(
+                assetId = "terrain.generated.mountains",
+                relativePath = "models/terrain-original.glb",
+                storage = AssetStorage.PROJECT_FILE,
+                byteSize = 123L,
+            ),
+            metadata = mapOf("terrainOrigin" to "MOUNTAINS"),
+        )
+        val project = SceneProject(
+            id = "sculpt-history",
+            name = "My mountain and two people",
+            actors = listOf(terrain, character, prop),
+            tracks = listOf(AnimationTrack(
+                "actor-motion", "character", SceneTimelinePaths.POSITION,
+                listOf(Keyframe(0f, AnimatedValue(vector = Vec3(1f, 0f, 0f)))),
+            )),
+        )
+        val start = SceneEditorState(project).selectActor(terrain.id)
+        val revised = terrain.copy(
+            asset = terrain.asset!!.copy(
+                relativePath = "models/terrain-revision.glb",
+                byteSize = 456L,
+                checksumSha256 = "a".repeat(64),
+            ),
+            metadata = terrain.metadata + ("terrainRevision" to "1"),
+        )
+        val updated = start.commitSelectedAssetRevision(revised)
+        assertEquals(1, updated.undoStack.size)
+        assertEquals(emptyList<SceneProject>(), updated.redoStack)
+        assertEquals(revised, updated.selectedActor)
+        assertEquals(project.actors.drop(1), updated.project.actors.drop(1))
+        assertEquals(project.tracks, updated.project.tracks)
+        assertEquals(updated.project, SceneProjectCodec.decode(SceneProjectCodec.encode(updated.project)))
+        assertEquals(updated, updated.commitSelectedAssetRevision(revised)) // No duplicate undo record.
+
+        val undo = updated.undo()
+        assertEquals(project, undo.project)
+        assertEquals("terrain", undo.selectedActorId)
+        assertEquals(terrain.asset, undo.selectedActor?.asset)
+        val redo = undo.redo()
+        assertEquals(updated.project, redo.project)
+        assertEquals("models/terrain-revision.glb", redo.selectedActor?.asset?.relativePath)
+        assertEquals("a".repeat(64), redo.selectedActor?.asset?.checksumSha256)
+    }
+
+    @Test
+    fun terrainRevisionCannotMutateActorIdentityHierarchyOrRigAndRespectsLocking() {
+        val original = Actor(
+            id = "terrain",
+            name = "Mountain",
+            kind = ActorKind.ENVIRONMENT,
+            asset = AssetReference("terrain.generated.flat", "models/original.glb",
+                storage = AssetStorage.PROJECT_FILE),
+        )
+        val start = SceneEditorState(SceneProject("safe-revisions", "Safe revisions",
+            actors = listOf(original, prop))).selectActor(original.id)
+        val revision = original.copy(asset = original.asset!!.copy(relativePath = "models/sculpted.glb"))
+        assertEquals(start, start.commitSelectedAssetRevision(revision.copy(id = "new-actor")))
+        assertEquals(start, start.commitSelectedAssetRevision(revision.copy(kind = ActorKind.VEHICLE)))
+        assertEquals(start, start.commitSelectedAssetRevision(revision.copy(transform =
+            Transform(position = Vec3(x = 100f)))))
+        assertEquals(start, start.commitSelectedAssetRevision(revision.copy(parentId = "prop")))
+        assertEquals(start, start.commitSelectedAssetRevision(revision.copy(
+            asset = revision.asset!!.copy(assetId = "somebody-elses-model"))))
+        assertEquals(start, start.commitSelectedAssetRevision(revision.copy(
+            asset = revision.asset!!.copy(storage = AssetStorage.PERSISTED_URI))))
+        val locked = start.toggleSelectedLocked()
+        assertEquals(locked, locked.commitSelectedAssetRevision(revision))
+        assertEquals(original, start.selectedActor)
+        assertFalse(start.canUndo)
+    }
+
 }
