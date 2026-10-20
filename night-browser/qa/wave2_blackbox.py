@@ -220,7 +220,7 @@ class Device:
 
     def ten_tabs(self):
         labels = self.tab_count()
-        matches = [re.search(r"(?:Regular\\s+(\\d+)|^(\\d+)$)", x) for x in labels]
+        matches = [re.search(r"(?:Regular\s+(\d+)|^(\d+)$)", x) for x in labels]
         numbers = [int(m.group(1) or m.group(2)) for m in matches if m]
         if not numbers:
             raise AssertionError("Regular tab count was not exposed")
@@ -231,7 +231,7 @@ class Device:
             self.click("New tab")
             self.click("Tabs")
         labels = self.tab_count()
-        if not any(re.search(r"(?:Regular\\s+10|^10$)", x) for x in labels):
+        if not any(re.search(r"(?:Regular\s+10|^10$)", x) for x in labels):
             raise AssertionError("10 regular tabs not visible in overview")
         return "Created up to ten tabs through actual controls"
 
@@ -268,7 +268,7 @@ class Device:
             raise AssertionError("Regular cookie was not carried to echo")
         self.click("Tabs")
         labels = [n for n in self.ui() if re.fullmatch(
-            r"Private\\s+\\d+", n.get("text", "") or n.get("content-desc", ""))]
+            r"Private\s+\d+", n.get("text", "") or n.get("content-desc", ""))]
         if not labels:
             raise Blocked("Private tab filter absent in combined build")
         name = labels[0].get("text", "") or labels[0].get("content-desc", "")
@@ -290,7 +290,7 @@ class Device:
             # snapshots or form data into a private session.
             self.click("Tabs")
             regular = next((n for n in self.ui() if re.fullmatch(
-                r"Regular\\s+\\d+", n.get("text", "") or n.get("content-desc", ""))), None)
+                r"Regular\s+\d+", n.get("text", "") or n.get("content-desc", ""))), None)
             if regular:
                 label = regular.get("text", "") or regular.get("content-desc", "")
                 self.click(label)
