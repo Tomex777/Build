@@ -33,6 +33,7 @@ class BrowserTab(
     var canGoBack by mutableStateOf(false)
     var canGoForward by mutableStateOf(false)
     var lastNode by mutableStateOf<String?>(null)
+    var journeyTracker: JourneyVisitTracker? = null
     var crashed by mutableStateOf(false)
     var failedUrl by mutableStateOf<String?>(null)
     var secureConnection by mutableStateOf(false)
@@ -55,6 +56,43 @@ class BrowserController(
     private val writes = Executors.newSingleThreadExecutor()
     private val handler = Handler(Looper.getMainLooper())
     private val pendingSave = Runnable { persistNow() }
+    private val pendingJourneyUpdates = mutableMapOf<String, Runnable>()
+    private fun cancelJourneyUpdate(tabId: String) {
+        pendingJourneyUpdates.remove(tabId)?.let(handler::removeCallbacks)
+    }
+
+    private fun attachJourneyTracker(tab: BrowserTab, seedNodeId: String? = null) {
+        if (tab.isPrivate) return
+        tab.journeyTracker = JourneyVisitTracker(
+            lookup = { nodeId ->
+                if (store.journeyRecordingEnabled) store.getNode(tab.journeyId, nodeId) else null
+            },
+            saveVisit = { url, title, parentId ->
+                store.record(tab.journeyId, url, title, parentId)
+            },
+            seedNodeId = seedNodeId
+        )
+        tab.lastNode = tab.journeyTracker?.nodeId
+    }
+
+    // In-document navigation has no network onPageStop. Debounce it so redirects
+    // are not recorded as a chain of transient Journey nodes.
+    private fun queueJourneyUpdate(tab: BrowserTab, url: String) {
+        if (tab.isPrivate) return
+        cancelJourneyUpdate(tab.id)
+        val callback = object : Runnable {
+            override fun run() {
+                pendingJourneyUpdates.remove(tab.id)
+                if (!isClosed && tabs.any { it.id == tab.id } &&
+                    tab.session.isOpen && !tab.isLoading && tab.url == url) {
+                    tab.lastNode = tab.journeyTracker?.visited(url, tab.title)
+                    schedulePersist()
+                }
+            }
+        }
+        pendingJourneyUpdates[tab.id] = callback
+        handler.postDelayed(callback, 400L)
+    }
     private var isClosed = false
     private val recentlyClosedNormal = mutableListOf<TabSessionStore.Entry>()
     val tabs = mutableStateListOf<BrowserTab>()
@@ -85,14 +123,20 @@ class BrowserController(
     fun newTab(
         url: String? = null,
         journeyId: String = store.journeys.first().id,
-        privateMode: Boolean = false
-    ): BrowserTab = createTab(url, journeyId, privateMode)
+        privateMode: Boolean = false,
+        seedNodeId: String? = null
+    ): BrowserTab = createTab(url, journeyId, privateMode, seedNodeId = seedNodeId)
+
+    /** New link tabs are descendants of the source tab, including popup links. */
+    fun newChildTab(url: String, sourceTab: BrowserTab = active): BrowserTab =
+        newTab(url, sourceTab.journeyId, sourceTab.isPrivate, sourceTab.lastNode)
 
     private fun createTab(
         url: String? = null,
         journeyId: String = store.journeys.first().id,
         privateMode: Boolean = false,
-        restored: TabSessionStore.Entry? = null
+        restored: TabSessionStore.Entry? = null,
+        seedNodeId: String? = null
     ): BrowserTab {
         val session = GeckoSession(
             GeckoSessionSettings.Builder().usePrivateMode(privateMode).build()
@@ -105,6 +149,7 @@ class BrowserController(
             tab.lastNode = restored.lastNode
             tab.sessionState = restored.sessionState
         }
+        attachJourneyTracker(tab, restored?.lastNode ?: seedNodeId)
         installDelegates(tab, session)
         session.open(runtime)
         if (!tab.isPrivate) siteStudio.attach(session)
@@ -129,6 +174,7 @@ class BrowserController(
         )
         val popup = BrowserTab(UUID.randomUUID().toString(),
             popupSession, parent.journeyId, parent.isPrivate)
+        attachJourneyTracker(popup, parent.lastNode)
         installDelegates(popup, popup.session)
         if (!popup.isPrivate) siteStudio.attach(popup.session)
         tabs.add(popup)
@@ -200,8 +246,7 @@ class BrowserController(
                 if (tab.url != url) {
                     tab.url = url
                     if (!tab.isPrivate) {
-                        store.record(tab.journeyId, url, tab.title, tab.lastNode)
-                            ?.let { tab.lastNode = it }
+                        if (!tab.isLoading) queueJourneyUpdate(tab, url)
                         schedulePersist()
                     }
                 }
@@ -224,8 +269,10 @@ class BrowserController(
             override fun onTitleChange(session: GeckoSession, title: String?) {
                 if (!title.isNullOrBlank()) {
                     tab.title = title
-                    if (!tab.isPrivate) {
-                        store.renameNode(tab.journeyId, tab.lastNode, title)
+                    if (!tab.isPrivate && store.journeyRecordingEnabled &&
+                        store.getNode(tab.journeyId, tab.lastNode)?.url ==
+                            JourneyGraph.safeUrl(tab.url)) {
+                        store.updatePageTitle(tab.journeyId, tab.lastNode, title)
                         schedulePersist()
                     }
                 }
@@ -294,6 +341,7 @@ class BrowserController(
                     GeckoSession.ProgressDelegate.SecurityInformation.CONTENT_LOADED
             }
             override fun onPageStart(session: GeckoSession, url: String) {
+                cancelJourneyUpdate(tab.id)
                 tab.isLoading = true
                 if (url.startsWith("http://", true) || url.startsWith("https://", true)) {
                     tab.failedUrl = null
@@ -303,7 +351,12 @@ class BrowserController(
                 tab.mixedContent = false
             }
             override fun onPageStop(session: GeckoSession, success: Boolean) {
+                cancelJourneyUpdate(tab.id)
                 tab.isLoading = false
+                if (success && !tab.isPrivate) {
+                    tab.lastNode = tab.journeyTracker?.visited(tab.url, tab.title)
+                    schedulePersist()
+                }
                 // A local error document already shows a usable explanation.
                 if (!success && tab.failedUrl == null) notice = "This page couldn't finish loading."
             }
@@ -322,6 +375,7 @@ class BrowserController(
 
     fun closeTab(tabId: String) {
         val tab = tabs.firstOrNull { it.id == tabId } ?: return
+        cancelJourneyUpdate(tab.id)
         if (!tab.isPrivate) {
             recentlyClosedNormal.add(toSavedTab(tab))
             if (recentlyClosedNormal.size > 5) recentlyClosedNormal.removeAt(0)
@@ -373,6 +427,7 @@ class BrowserController(
         persistNow()
         isClosed = true
         handler.removeCallbacks(pendingSave)
+        pendingJourneyUpdates.keys.toList().forEach(::cancelJourneyUpdate)
         tabs.forEach {
             if (!it.isPrivate) siteStudio.detach(it.session)
             if (it.session.isOpen) it.session.close()
@@ -395,10 +450,21 @@ class BrowserController(
         }
     }
 
-    fun goBack() { if (active.canGoBack) active.session.goBack() }
-    fun goForward() { if (active.canGoForward) active.session.goForward() }
+    fun goBack() {
+        if (active.canGoBack) {
+            active.journeyTracker?.expectBack()
+            active.session.goBack()
+        }
+    }
+    fun goForward() {
+        if (active.canGoForward) {
+            active.journeyTracker?.expectForward()
+            active.session.goForward()
+        }
+    }
     fun reload() {
         val tab = active
+        tab.journeyTracker?.expectReload()
         val failedUrl = tab.failedUrl
         if (failedUrl != null) {
             tab.failedUrl = null

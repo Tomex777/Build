@@ -131,6 +131,8 @@ private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> U
     var newJourneyDialog by remember { mutableStateOf(false) }
     var studioTabId by remember { mutableStateOf<String?>(null) }
     val current = browser.active
+    val context = LocalContext.current
+    val archive = remember(browser) { TimeMachineArchive(context.applicationContext) }
     val keyboard = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
     val snack = remember { SnackbarHostState() }
@@ -197,19 +199,23 @@ private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> U
                             browser.newTab(privateMode = privateMode)
                             page = Page.HOME
                         })
-                    Page.JOURNEYS -> JourneyPanel(browser,
+                    Page.JOURNEYS -> JourneyScreen(
+                        store = browser.store,
                         onNew = { newJourneyDialog = true },
-                        onOpen = { j, url ->
-                            browser.newTab(url, j.id)
-                            page = Page.WEB
-                        },
-                        onSelect = { j ->
-                            browser.newTab(journeyId = j.id)
-                            page = Page.HOME
-                        })
+                        onResume = { journey, node ->
+                            browser.newTab(node?.url, journey.id, seedNodeId = node?.id)
+                            page = if (node == null) Page.HOME else Page.WEB
+                        }
+                    )
                     Page.LIBRARY -> NightLibraryScreen(browser,
                         onOpen = { browser.newTab(it); page = Page.WEB })
-                    Page.TIME_MACHINE -> TimeMachinePanel(browser, openSaved)
+                    Page.TIME_MACHINE -> TimeMachineArchivePanel(
+                        archive = archive,
+                        openSaved = { item ->
+                            openSaved(SavedPage(item.fileName, item.url, item.title, item.capturedAt))
+                        },
+                        onNotice = { browser.notice = it }
+                    )
                     Page.AI_SEARCH -> UniversalSearchPanel(
                         bookmarks = browser.store.bookmarks,
                         journeys = browser.store.journeys,
@@ -338,7 +344,11 @@ private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> U
                             text = { Text("Save PDF copy") },
                             leadingIcon = { Icon(Icons.Rounded.SaveAlt, null) },
                             enabled = current.url.startsWith("http") && !current.isPrivate,
-                            onClick = { dismiss { browser.savePdfSnapshot() } })
+                            onClick = { dismiss {
+                                archive.savePdf(current.session, current.url, current.title) {
+                                    browser.notice = it
+                                }
+                            } })
                         DropdownMenuItem(
                             text = { Text("Reload") },
                             leadingIcon = { Icon(Icons.Rounded.Refresh, null) },
@@ -363,7 +373,7 @@ private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> U
             dismissButton = {
                 TextButton(onClick = {
                     browser.contextLink = null
-                    browser.newTab(link, privateMode = current.isPrivate)
+                    browser.newChildTab(link)
                     page = Page.WEB
                 }) { Text("New tab") }
             },
@@ -375,7 +385,7 @@ private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> U
         PeekOverlay(browser, url,
             onDismiss = { peekUrl = null },
             onOpen = { previewUrl ->
-                browser.newTab(previewUrl, privateMode = current.isPrivate)
+                browser.newChildTab(previewUrl)
                 peekUrl = null
                 page = Page.WEB
             })
@@ -736,31 +746,6 @@ private fun LibraryPanel(browser: BrowserController, onOpen: (String) -> Unit) {
                     RowCard(it.title, it.url,
                         { Icon(Icons.Rounded.BookmarkBorder, null, tint = Accent) },
                         { onOpen(it.url) })
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun TimeMachinePanel(browser: BrowserController, openSaved: (SavedPage) -> Unit) {
-    Column(Modifier.fillMaxSize()) {
-        PanelHeader("Time Machine")
-        Text("Saved PDF copies · not interactive webpage archives",
-            modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
-            fontSize = 12.sp, color = Muted)
-        if (browser.store.savedPages.isEmpty()) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Save a PDF copy from the page menu.", color = Muted)
-            }
-        } else {
-            LazyColumn(contentPadding = PaddingValues(16.dp)) {
-                items(browser.store.savedPages, key = { it.fileName }) { item ->
-                    RowCard(
-                        item.title, DateFormat.getDateTimeInstance().format(Date(item.timestamp)),
-                        { Icon(Icons.Rounded.PictureAsPdf, null, tint = Accent) },
-                        { openSaved(item) }
-                    )
                 }
             }
         }
