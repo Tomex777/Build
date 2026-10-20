@@ -80,9 +80,8 @@ try {
     assert.equal(library.emojiThumbnails, 0, 'Library should retain original artwork at ' + width)
     await page.screenshot({ path: join(output, 'library-' + width + '.png') })
     console.log('NIGHT_UI_LIBRARY ' + JSON.stringify({ width, ...library }))
-    // A1 owns the shared shell CSS. Inject this scoped A9 proposal ONLY into
-    // the browser QA page to compare before/after without shipping it.
-    await page.addStyleTag({ path: join(here, 'wave2-discovery-profile.css') })
+    // A1 granted the scoped CSS edit window in issue #459; check the actual
+    // integrated stylesheet served by this test, not a dynamically injected mock.
     const discovery = await page.evaluate(() => {
       const box = selector => {
         const el = document.querySelector(selector)
@@ -94,10 +93,9 @@ try {
         search: box('#view-games #gameSearch'),
         overflow: document.documentElement.scrollWidth - innerWidth }
     })
-    assert.ok(discovery.filter.height >= 44, 'A9 proposed puzzle filter has 44px touch target at ' + width)
-    assert.ok(discovery.search.height >= 44, 'A9 proposed search field has 44px touch target at ' + width)
-    assert.ok(discovery.overflow <= 1, 'A9 proposed discovery style must not overflow at ' + width)
-    await page.screenshot({ path: join(output, 'library-refined-' + width + '.png') })
+    assert.ok(discovery.filter.height >= 44, 'Puzzle filter has 44px touch target at ' + width)
+    assert.ok(discovery.search.height >= 44, 'Search field has 44px touch target at ' + width)
+    assert.ok(discovery.overflow <= 1, 'Discovery layout must not overflow at ' + width)
     console.log('NIGHT_UI_WAVE2_DISCOVERY ' + JSON.stringify({ width, ...discovery }))
 
     // Wave 2 journey A: the actual category + search controls must work as
@@ -185,13 +183,21 @@ try {
     const profileOverflow = await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)
     assert.ok(profileOverflow <= 1, 'Profile does not overflow horizontally at ' + width)
     await page.screenshot({ path: join(output, 'profile-' + width + '.png') })
-    await page.addStyleTag({ path: join(here, 'wave2-discovery-profile.css') })
     const profileEditTarget = await page.locator('#editPlayerName').evaluate(el => el.getBoundingClientRect().height)
-    assert.ok(profileEditTarget >= 44, 'A9 proposed edit-name touch target at ' + width)
-    await page.screenshot({ path: join(output, 'profile-refined-' + width + '.png') })
+    assert.ok(profileEditTarget >= 44, 'Edit-name control has 44px touch target at ' + width)
     // Wave 2 journey B: guest-name change must affect actual saved profile
     // state and the Home greeting, not simply a temporary text decoration.
     await page.locator('#editPlayerName').click()
+    const editFormTargets = await page.evaluate(() => ({
+      input: document.querySelector('#playerNameInput').getBoundingClientRect().height,
+      save: document.querySelector('#playerNameForm button[type="submit"]').getBoundingClientRect().height,
+      cancel: document.querySelector('#cancelPlayerName').getBoundingClientRect().height,
+      overflow: document.documentElement.scrollWidth - innerWidth
+    }))
+    assert.ok(editFormTargets.input >= 44 && editFormTargets.save >= 44 && editFormTargets.cancel >= 44,
+      'Profile custom input and buttons must be touch-safe at ' + width)
+    assert.ok(editFormTargets.overflow <= 1, 'Expanded profile editor must not overflow at ' + width)
+    await page.screenshot({ path: join(output, 'profile-edit-' + width + '.png') })
     await page.locator('#playerNameInput').fill('NIGHT Tester')
     await page.locator('#playerNameForm button[type="submit"]').click()
     assert.equal((await page.locator('#playerDisplayName').textContent()).trim(), 'NIGHT Tester')
