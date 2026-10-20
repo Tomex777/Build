@@ -344,6 +344,29 @@ class Device:
         self.click("Dismiss preview")
         return "Long-press opened disposable preview and dismissed it"
 
+    def offline_pdf(self):
+        """Decode a captured PDF page using native PdfRenderer without a network."""
+        self.click("Home")
+        self.click("More")
+        self.click("Time Machine")
+        if self.find("Open PDF version") is None:
+            raise AssertionError("No verified saved PDF action in Time Machine")
+        shell("svc", "wifi", "disable", check=False)
+        shell("svc", "data", "disable", check=False)
+        try:
+            self.click("Open PDF version")
+            deadline = time.monotonic() + 24
+            while self.find("Saved PDF page 1") is None:
+                if time.monotonic() >= deadline:
+                    raise AssertionError("Offline PDF page pixels were not rendered")
+                time.sleep(1)
+            self.img("C34-rendered-pdf")
+            self.click("Close saved PDF")
+            return "Saved PDF decoded to first-page pixels while network disabled"
+        finally:
+            shell("svc", "wifi", "enable", check=False)
+            shell("svc", "data", "enable", check=False)
+
     def mem(self):
         raw = shell("dumpsys", "meminfo", PKG, check=False)
         total = re.search(r"TOTAL\s+PSS:\s*([\d,]+)", raw)
@@ -410,7 +433,7 @@ class Device:
                          + row["status"] + " | " + ev + " |")
         lines.extend(["", "## Release blockers", "",
             "External real-site login, authenticated download, camera/microphone permission, "
-            "AI provider consent, Site Studio per-origin isolation, PDF offline open, "
+            "AI provider consent, Site Studio per-origin isolation, independent PDF decode review, "
             "tab thumbnail pixels, scroll jank, slow network, process death, thermal/battery "
             "and physical phone require explicit complementary evidence. "
             "This test run does not certify any of them.", ""])
@@ -487,8 +510,8 @@ class Device:
                   lambda: self._unverified("Use two origins, CSS override, rollback, private exclusion"))
         self.test("C33", "Camera/mic prompt deny/allow/revoke",
                   lambda: self._unverified("Requires getUserMedia, OS prompt and permission-revocation assertion"))
-        self.test("C34", "Open saved PDF offline",
-                  lambda: self._unverified("Listing a PDF isn't proof it opens without network"))
+        self.test("C34", "Open saved PDF offline", self.offline_pdf,
+                  prerequisites=("C26",), screenshot=True)
         self.test("C35", "Authenticated downloads verify byte SHA",
                   lambda: self._unverified("Requires login test fixture + download consent and SHA256"))
         self.test("C36", "Real thumbnail quality",
