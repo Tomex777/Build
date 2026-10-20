@@ -58,7 +58,9 @@ object PrototypeScene {
         val isUnderTreeStudent = actor.metadata["misePose"] == UnderTreeScene.POSE_TAG &&
             actor.asset?.assetId in setOf(ANIME_ASSET_ID, ANIME_FEMALE_ASSET_ID)
         if (!isHero && !isUnderTreeStudent) return actor
-        // Purely one-time demo expression authoring; never replays on saved edits.\n        fun withSampleFace(next: Actor) = CharacterDemoStyling.resolve(next, definition)\n        val pose = actor.rig ?: return withSampleFace(actor)
+        // Purely one-time demo expression authoring; never replays on saved edits.
+        fun withSampleFace(next: Actor) = CharacterDemoStyling.resolve(next, definition)
+        val pose = actor.rig ?: return withSampleFace(actor)
         val discoveredIds = definition.bones.map { it.id }.toSet()
         if (pose.joints.keys.all { it in discoveredIds }) return withSampleFace(actor)
         // VRoid names joints J_Bip_L_UpperArm, J_Bip_R_LowerLeg, etc., while
