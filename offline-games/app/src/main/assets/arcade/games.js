@@ -144,8 +144,8 @@ function scheduleWingFit(){
  wingFitFrame=requestAnimationFrame(fitWingBoard);
 }
 window.addEventListener("resize",scheduleWingFit,{passive:true});
-window.visualViewport?.addEventListener("resize",scheduleWingFit,{passive:true});
-window.visualViewport?.addEventListener("scroll",scheduleWingFit,{passive:true});
+window.visualViewport && window.visualViewport.addEventListener("resize",scheduleWingFit,{passive:true});
+window.visualViewport && window.visualViewport.addEventListener("scroll",scheduleWingFit,{passive:true});
 if(typeof ResizeObserver==="function"){
  const wingLayoutObserver=new ResizeObserver(scheduleWingFit);
  wingLayoutObserver.observe($("canvasShell"));
@@ -392,8 +392,8 @@ function scheduleBlockFit(){
  blockFitFrame=requestAnimationFrame(fitBlockBoard);
 }
 window.addEventListener("resize",scheduleBlockFit,{passive:true});
-window.visualViewport?.addEventListener("resize",scheduleBlockFit,{passive:true});
-window.visualViewport?.addEventListener("scroll",scheduleBlockFit,{passive:true});
+window.visualViewport && window.visualViewport.addEventListener("resize",scheduleBlockFit,{passive:true});
+window.visualViewport && window.visualViewport.addEventListener("scroll",scheduleBlockFit,{passive:true});
 if(typeof ResizeObserver==="function"){
  const blockLayoutObserver=new ResizeObserver(scheduleBlockFit);
  blockLayoutObserver.observe($("canvasShell"));
@@ -485,10 +485,10 @@ c.addEventListener("pointerup",e=>{
 });
 c.addEventListener("pointercancel",e=>{
  blockPointers.delete(e.pointerId);
- if(blockGesture?.id===e.pointerId)blockGesture=null; // never rotate or drop on cancellation
+ if((blockGesture && blockGesture.id)===e.pointerId)blockGesture=null; // never rotate or drop on cancellation
 });
 c.addEventListener("lostpointercapture",e=>{
- if(blockGesture?.id===e.pointerId){blockGesture=null;blockPointers.delete(e.pointerId);}
+ if((blockGesture && blockGesture.id)===e.pointerId){blockGesture=null;blockPointers.delete(e.pointerId);}
 });
 c.addEventListener("contextmenu",e=>{if(type==="blocks")e.preventDefault();});
 /* Direction keys act on finger down and repeat while held, but suppress the
