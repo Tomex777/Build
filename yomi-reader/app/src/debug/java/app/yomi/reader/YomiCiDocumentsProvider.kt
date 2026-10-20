@@ -19,11 +19,13 @@ class YomiCiDocumentsProvider : DocumentsProvider() {
     override fun queryRoots(projection: Array<out String>?): Cursor {
         val columns = projection ?: ROOT_COLUMNS
         return MatrixCursor(columns).apply {
-            newRow().apply {
-                put(columns, DocumentsContract.Root.COLUMN_ROOT_ID, ROOT_ID)
-                put(columns, DocumentsContract.Root.COLUMN_DOCUMENT_ID, ROOT_ID)
-                put(columns, DocumentsContract.Root.COLUMN_TITLE, "Yomi CI Folder")
-                put(columns, DocumentsContract.Root.COLUMN_FLAGS, DocumentsContract.Root.FLAG_SUPPORTS_IS_CHILD)
+            for ((id, label) in listOf(ROOT_ID to "Yomi CI Folder", ARCHIVE_FOLDER_ID to "Yomi CI ZIP Folder")) {
+                newRow().apply {
+                    put(columns, DocumentsContract.Root.COLUMN_ROOT_ID, id)
+                    put(columns, DocumentsContract.Root.COLUMN_DOCUMENT_ID, id)
+                    put(columns, DocumentsContract.Root.COLUMN_TITLE, label)
+                    put(columns, DocumentsContract.Root.COLUMN_FLAGS, DocumentsContract.Root.FLAG_SUPPORTS_IS_CHILD)
+                }
             }
         }
     }
@@ -44,6 +46,7 @@ class YomiCiDocumentsProvider : DocumentsProvider() {
         val columns = projection ?: DOCUMENT_COLUMNS
         val children = when (parentDocumentId) {
             ROOT_ID -> listOf(CHAPTER_1, CHAPTER_2)
+            ARCHIVE_FOLDER_ID -> listOf(CHAPTER_ARCHIVE_ID)
             CHAPTER_1 -> listOf(C1_PAGE_1, C1_PAGE_2)
             CHAPTER_2 -> listOf(C2_PAGE_1, C2_PAGE_2)
             else -> emptyList()
@@ -60,7 +63,7 @@ class YomiCiDocumentsProvider : DocumentsProvider() {
         signal: CancellationSignal?,
     ): ParcelFileDescriptor {
         Log.i(TAG, "open-document id=$documentId")
-        if (documentId == ARCHIVE_ID) {
+        if (documentId == ARCHIVE_ID || documentId == CHAPTER_ARCHIVE_ID) {
             val archive = File(providerContext().cacheDir, "yomi-ci-book.cbz")
             require(archive.isFile) { "CI CBZ fixture missing: $archive" }
             return ParcelFileDescriptor.open(archive, ParcelFileDescriptor.MODE_READ_ONLY)
@@ -74,6 +77,7 @@ class YomiCiDocumentsProvider : DocumentsProvider() {
     override fun isChildDocument(parentDocumentId: String, documentId: String): Boolean {
         return when (parentDocumentId) {
             ROOT_ID -> documentId == CHAPTER_1 || documentId == CHAPTER_2 || documentId in IMAGE_IDS
+            ARCHIVE_FOLDER_ID -> documentId == CHAPTER_ARCHIVE_ID
             CHAPTER_1 -> documentId == C1_PAGE_1 || documentId == C1_PAGE_2
             CHAPTER_2 -> documentId == C2_PAGE_1 || documentId == C2_PAGE_2
             else -> false
@@ -81,9 +85,11 @@ class YomiCiDocumentsProvider : DocumentsProvider() {
     }
 
     private fun addDocumentRow(cursor: MatrixCursor, columns: Array<out String>, id: String) {
-        val directory = id == ROOT_ID || id == CHAPTER_1 || id == CHAPTER_2
+        val directory = id == ROOT_ID || id == ARCHIVE_FOLDER_ID || id == CHAPTER_1 || id == CHAPTER_2
         val name = when (id) {
             ROOT_ID -> "Yomi CI Folder"
+            ARCHIVE_FOLDER_ID -> "Yomi CI ZIP Folder"
+            CHAPTER_ARCHIVE_ID -> "Chapter 1.cbz"
             CHAPTER_1 -> "Chapter 1"
             CHAPTER_2 -> "Chapter 2"
             ARCHIVE_ID -> "Yomi CI Book.cbz"
@@ -99,13 +105,13 @@ class YomiCiDocumentsProvider : DocumentsProvider() {
                 DocumentsContract.Document.COLUMN_MIME_TYPE,
                 when {
                     directory -> DocumentsContract.Document.MIME_TYPE_DIR
-                    id == ARCHIVE_ID -> "application/vnd.comicbook+zip"
+                    id == ARCHIVE_ID || id == CHAPTER_ARCHIVE_ID -> "application/vnd.comicbook+zip"
                     else -> "image/png"
                 },
             )
             put(columns, DocumentsContract.Document.COLUMN_FLAGS, 0)
             if (!directory) {
-                val file = if (id == ARCHIVE_ID) File(providerContext().cacheDir, "yomi-ci-book.cbz") else fixtureFile(id)
+                val file = if (id == ARCHIVE_ID || id == CHAPTER_ARCHIVE_ID) File(providerContext().cacheDir, "yomi-ci-book.cbz") else fixtureFile(id)
                 put(columns, DocumentsContract.Document.COLUMN_SIZE, file.length())
             }
         }
@@ -160,6 +166,8 @@ class YomiCiDocumentsProvider : DocumentsProvider() {
         const val AUTHORITY_SUFFIX = ".ci.documents"
         const val ROOT_ID = "root"
         const val ARCHIVE_ID = "ci-archive.cbz"
+        const val ARCHIVE_FOLDER_ID = "ci-zip-folder"
+        const val CHAPTER_ARCHIVE_ID = "ci-zip-folder/chapter-1.cbz"
         private const val CHAPTER_1 = "chapter-1"
         private const val CHAPTER_2 = "chapter-2"
         private const val C1_PAGE_1 = "chapter-1/1.png"
