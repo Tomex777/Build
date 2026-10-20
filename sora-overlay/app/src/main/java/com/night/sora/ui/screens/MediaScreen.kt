@@ -30,6 +30,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.compose.ui.text.TextStyle
@@ -131,7 +133,7 @@ fun MediaScreen(
     }
     var favoriteArtists by remember(musicTastePreferences) {
         val stored = musicTastePreferences.getStringSet("favorite_artists", null)
-        mutableStateOf(stored?.toList()?.sorted() ?: listOf("Juice WRLD"))
+        mutableStateOf<List<String>>(stored?.toList()?.sorted() ?: emptyList())
     }
     val musicTasteArtists = remember(favoriteArtists, rankedTaste) {
         (favoriteArtists + rankedTaste.map { it.artistName })
@@ -303,7 +305,24 @@ fun MediaScreen(
             return
         }
 
-        val providerQueries = if (requestType == ContentType.MUSIC && requestQuery.isBlank()) {
+        // Never seed a new user's Music Home with an arbitrary regional chart.
+        // The previous blank browse resolved to YouTube's "top songs", which
+        // surfaced unrelated Indian mixes and mislabeled them "For you".
+        // Wait for a user-selected artist, actual listening history, or search.
+        if (requestType == ContentType.MUSIC && requestQuery.isBlank() &&
+            musicTasteArtists.isEmpty()) {
+            rows = emptyList()
+            primaryLoading = false
+            primaryError = null
+            return
+        }
+
+        // Do not force everyone to start with a made-up favorite artist.
+        // With no preferences or listening history, use the source's real
+        // general catalog instead of issuing an arbitrary empty-result search.
+        val unpersonalizedMusic = requestType == ContentType.MUSIC &&
+            requestQuery.isBlank() && musicTasteArtists.isEmpty()
+        val providerQueries = if (requestType == ContentType.MUSIC && requestQuery.isBlank() && !unpersonalizedMusic) {
             musicTasteArtists
         } else {
             listOf(requestQuery)
@@ -316,7 +335,11 @@ fun MediaScreen(
             primaryError = "Choose artists you like in Music → Tune your taste to build your personal feed."
             return
         }
-        val method = if (requestQuery.isBlank() && requestType != ContentType.MUSIC) ExtensionContract.Method.BROWSE else ExtensionContract.Method.SEARCH
+        val method = if (requestQuery.isBlank() && (requestType != ContentType.MUSIC || unpersonalizedMusic)) {
+            ExtensionContract.Method.BROWSE
+        } else {
+            ExtensionContract.Method.SEARCH
+        }
         primaryLoading = rows.isEmpty()
         val failures = MutableList<String?>(providerRequests.size) { null }
         val collected = MutableList(providerRequests.size) { emptyList<BrowseCard>() }
@@ -505,8 +528,8 @@ private fun MediaTopBar(
     onQuery: (String) -> Unit,
 ) {
     Row(
-        Modifier.fillMaxWidth().statusBarsPadding().height(58.dp).padding(horizontal = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
+        Modifier.fillMaxWidth().height(48.dp).padding(horizontal = 8.dp),
+        verticalAlignment = Alignment.Top,
     ) {
         if (searchOpen && searchEnabled) {
             IconButton(onClick = onCloseSearch) { Icon(Icons.Rounded.ArrowBack, "Close search") }
@@ -736,98 +759,117 @@ private fun MusicHome(
     onOpenExtensions: () -> Unit, onSelectPanel: (MusicLocal) -> Unit,
     loading: Boolean, error: String?, onRetry: () -> Unit,
 ) {
-    var optionsOpen by remember { mutableStateOf(false) }
     var tasteDialogOpen by remember { mutableStateOf(false) }
     var tasteDraft by remember { mutableStateOf("") }
-    val rankedRows = remember(rows, rankedTaste) {
-        val order = rankedTaste.mapIndexed { index, signal -> signal.artistName.trim().lowercase() to index }.toMap()
-        rows.sortedBy { card -> order[card.subtitle.substringBefore(" · ").trim().lowercase()] ?: Int.MAX_VALUE }
-    }
     val recentRows = remember(rows, rankedTaste) {
         rankedTaste
             .sortedByDescending { it.lastPlayedEpochMs }
             .flatMap { signal ->
-                rows.filter { card -> card.subtitle.substringBefore(" · ").trim().equals(signal.artistName.trim(), ignoreCase = true) }
+                rows.filter { card ->
+                    card.subtitle.substringBefore(" · ").trim()
+                        .equals(signal.artistName.trim(), ignoreCase = true)
+                }
             }
             .distinctBy { it.id }
     }
+    fun editTaste() {
+        tasteDraft = tasteArtists.joinToString(", ")
+        tasteDialogOpen = true
+    }
 
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 12.dp)) {
-        item {
-            Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("Music", fontSize = 28.sp, fontWeight = FontWeight.Black)
-                    Text("Your listening space", color = SoraMuted, fontSize = 11.sp)
-                }
-                Box {
-                    IconButton(onClick = { optionsOpen = true }) { Icon(Icons.Rounded.MoreVert, "Music options") }
-                    DropdownMenu(expanded = optionsOpen, onDismissRequest = { optionsOpen = false }) {
-                        DropdownMenuItem(
-                            text = { Text("Discover") },
-                            leadingIcon = { Icon(Icons.Rounded.Explore, null) },
-                            onClick = { optionsOpen = false; onSelectPanel(MusicLocal.DISCOVER) },
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Your Music") },
-                            leadingIcon = { Icon(Icons.Rounded.LibraryMusic, null) },
-                            onClick = { optionsOpen = false; onSelectPanel(MusicLocal.LIBRARY) },
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Tune your taste") },
-                            leadingIcon = { Icon(Icons.Rounded.Tune, null) },
-                            onClick = {
-                                optionsOpen = false
-                                tasteDraft = tasteArtists.joinToString(", ")
-                                tasteDialogOpen = true
-                            },
-                        )
-                        HorizontalDivider()
-                        DropdownMenuItem(
-                            text = { Text("Music sources") },
-                            leadingIcon = { Icon(Icons.Rounded.Extension, null) },
-                            onClick = { optionsOpen = false; onOpenExtensions() },
-                        )
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 16.dp)) {
+        if (tasteArtists.isEmpty()) {
+            item {
+                Surface(
+                    color = SoraSurfaceHigh,
+                    shape = RoundedCornerShape(16.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = .06f)),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 18.dp),
+                ) {
+                    Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text("Make Music yours", fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                        Text("Choose artists you love. Sora will find their tracks from your connected music sources.",
+                            color = SoraMuted, fontSize = 12.sp, lineHeight = 18.sp)
+                        Row(verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(onClick = ::editTaste, shape = RoundedCornerShape(10.dp)) {
+                                Icon(Icons.Rounded.Tune, contentDescription = null,
+                                    modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(6.dp))
+                                Text("Choose artists")
+                            }
+                            TextButton(onClick = onOpenExtensions) { Text("Sources") }
+                        }
                     }
                 }
             }
-        }
-        item {
-            MusicSectionTitle(
-                "For you",
-                if (tasteArtists.isEmpty()) "Add artists you like to shape your music feed."
-                else "Built around " + tasteArtists.take(3).joinToString(", "),
-                null,
-            )
-        }
-        if (rows.isEmpty()) item { CatalogSourceState("Music", loading, error, onRetry, onOpenExtensions) }
-        if (rows.isNotEmpty()) item { MusicQuickGrid(rows.take(6), selection, onPlay) }
-        if (rankedRows.isNotEmpty()) {
-            item { MusicSectionTitle("Your rotation", "Songs from artists you follow, refined by listening history", null) }
-            item { MusicSquareRail(rankedRows.take(8), selection, onPlay) }
-        }
-        if (recentRows.isNotEmpty()) {
-            item { MusicSectionTitle("From artists you played recently", "Pulled from your actual listening history", null) }
-            item { MusicSquareRail(recentRows.take(8), selection, onPlay) }
-        }
-        if (rankedTaste.isNotEmpty()) {
-            item { MusicSectionTitle("Your top artists", "Based on your listening history", null); ArtistRail(rankedRows) }
-            item { MusicSectionTitle("Your rotation", "Artists and songs you return to", null); MusicTrackList(rankedRows.take(8), selection, onPlay) }
+        } else {
+            item {
+                Row(
+                    Modifier.fillMaxWidth().padding(start = 18.dp, end = 10.dp, top = 16.dp, bottom = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text("For you", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                        Text(tasteArtists.take(3).joinToString(" · "),
+                            color = SoraMuted, fontSize = 11.sp, maxLines = 1,
+                            overflow = TextOverflow.Ellipsis)
+                    }
+                    TextButton(onClick = ::editTaste) { Text("Edit artists") }
+                }
+            }
+            if (rows.isEmpty()) {
+                item { CatalogSourceState("Music", loading, error, onRetry, onOpenExtensions) }
+            } else {
+                item { MusicQuickGrid(rows.take(6), selection, onPlay) }
+                if (recentRows.isNotEmpty()) {
+                    item { MusicSectionTitle("Recently played", "", null) }
+                    item { MusicTrackList(recentRows.take(8), selection, onPlay) }
+                }
+                if (rows.size > 6) {
+                    item {
+                        TextButton(
+                            onClick = { onSelectPanel(MusicLocal.DISCOVER) },
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        ) { Text("Explore more tracks") }
+                    }
+                }
+            }
         }
     }
     if (tasteDialogOpen) {
         AlertDialog(
             onDismissRequest = { tasteDialogOpen = false },
-            title = { Text("Tune your music taste") },
+            title = { Text("Choose your artists") },
             text = {
                 Column {
-                    Text("Add artists you want Sora to look for across your installed music sources.")
-                    OutlinedTextField(
-                        value = tasteDraft,
-                        onValueChange = { tasteDraft = it },
-                        label = { Text("Favorite artists") },
-                        placeholder = { Text("Juice WRLD, ...") },
-                    )
-                    Text("Separate names with commas. Sora keeps these preferences on this device.", color = SoraMuted, fontSize = 10.sp)
+                    Text("Separate artist names with commas.", color = SoraMuted,
+                        fontSize = 12.sp, modifier = Modifier.padding(bottom = 10.dp))
+                    Surface(
+                        color = SoraSurfaceHigh,
+                        shape = RoundedCornerShape(12.dp),
+                        border = androidx.compose.foundation.BorderStroke(
+                            1.dp, Color.White.copy(alpha = .10f)),
+                    ) {
+                        BasicTextField(
+                            value = tasteDraft,
+                            onValueChange = { tasteDraft = it },
+                            textStyle = TextStyle(color = SoraText, fontSize = 14.sp,
+                                lineHeight = 21.sp),
+                            cursorBrush = androidx.compose.ui.graphics.SolidColor(SoraAccent),
+                            minLines = 2, maxLines = 4,
+                            modifier = Modifier.fillMaxWidth().padding(14.dp),
+                            decorationBox = { field ->
+                                Box {
+                                    if (tasteDraft.isEmpty()) {
+                                        Text("Tems, Burna Boy, SZA",
+                                            color = SoraMuted, fontSize = 14.sp)
+                                    }
+                                    field()
+                                }
+                            },
+                        )
+                    }
                 }
             },
             confirmButton = {
@@ -836,7 +878,9 @@ private fun MusicHome(
                     tasteDialogOpen = false
                 }) { Text("Save") }
             },
-            dismissButton = { TextButton(onClick = { tasteDialogOpen = false }) { Text("Cancel") } },
+            dismissButton = {
+                TextButton(onClick = { tasteDialogOpen = false }) { Text("Cancel") }
+            },
         )
     }
 }
@@ -851,24 +895,19 @@ private fun MusicDiscover(
     error: String?,
     onRetry: () -> Unit,
 ) {
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 12.dp)) {
-        item {
-            Surface(color = Color(0xFF242118), shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth().padding(18.dp)) {
-                Column(Modifier.padding(20.dp)) {
-                    Text("DISCOVER", color = SoraAccent, fontSize = 9.sp, fontWeight = FontWeight.Black, letterSpacing = 1.2.sp)
-                    Text("Something new for tonight.", fontSize = 27.sp, lineHeight = 29.sp, fontWeight = FontWeight.Black, modifier = Modifier.padding(top = 16.dp))
-                    Text("Explore songs from your favorite artists across your installed sources.", color = SoraMuted, fontSize = 12.sp, lineHeight = 17.sp, modifier = Modifier.padding(top = 8.dp))
-                    Button(onClick = { rows.firstOrNull()?.let { onPlay(selection(it, ContentType.MUSIC)) } }, enabled = rows.isNotEmpty(), shape = RoundedCornerShape(10.dp), modifier = Modifier.padding(top = 18.dp)) {
-                        Icon(Icons.Rounded.PlayArrow, null); Spacer(Modifier.width(5.dp)); Text("Play from Discover")
-                    }
-                }
-            }
-        }
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 16.dp)) {
+        item { MusicSectionTitle("Explore tracks", "", null) }
         if (rows.isEmpty()) {
-            item { CatalogSourceState("Music", loading, error, onRetry, onOpenExtensions) }
+            item {
+                Text("Choose artists on the Music Home tab to get relevant tracks.",
+                    color = SoraMuted, fontSize = 12.sp,
+                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp))
+            }
+            if (error != null) {
+                item { CatalogSourceState("Music", loading, error, onRetry, onOpenExtensions) }
+            }
         } else {
-            item { MusicSectionTitle("From your artists", "Results come from sources and are chosen using your Sora taste profile", null); MusicSquareRail(rows, selection, onPlay) }
-            item { MusicSectionTitle("More tracks", "Continue through the current feed", null); MusicTrackList(rows.take(10), selection, onPlay) }
+            item { MusicTrackList(rows, selection, onPlay) }
         }
     }
 }
@@ -880,20 +919,10 @@ private fun MusicLibrary(
 ) {
     val savedMusic = libraryEntries.filter { it.contentType == ContentType.MUSIC }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 12.dp)) {
-        item {
-            Column(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 16.dp)) {
-                Text("YOUR MUSIC", color = SoraAccent, fontSize = 9.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
-                Text("Everything you kept.", fontSize = 25.sp, fontWeight = FontWeight.Black, modifier = Modifier.padding(top = 3.dp))
-                Text(
-                    if (savedMusic.isEmpty()) "Saved songs will appear here." else "${savedMusic.size} saved ${if (savedMusic.size == 1) "song" else "songs"}",
-                    color = SoraMuted, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp),
-                )
-            }
-        }
+        item { MusicSectionTitle("Saved songs", "", null) }
         if (savedMusic.isEmpty()) {
-            item { HintLine("Save a song from its player or details screen to keep it in Your Music.") }
+            item { HintLine("Songs you save will appear here.") }
         } else {
-            item { MusicSectionTitle("Saved songs", "Stored in your Sora library", null) }
             items(savedMusic, key = { it.id }) { entry ->
                 val track = entry.toMediaSelection()
                 Row(
@@ -985,8 +1014,9 @@ private fun SearchResultsSurface(
     onRetry: () -> Unit,
 ) {
     val musicQueue = remember(rows, type) { if (type == ContentType.MUSIC) rows.map { selection(it, type) } else emptyList() }
+    val keyboard = LocalSoftwareKeyboardController.current
+    val focus = LocalFocusManager.current
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 18.dp)) {
-        item { MediaSectionTitle("Search", "${type.label} · ${query.trim()}") }
         when {
             loading && rows.isEmpty() -> items(6) { SearchResultSkeleton(type) }
             error != null && rows.isEmpty() -> item { CatalogFailure(error, onRetry) }
@@ -997,7 +1027,16 @@ private fun SearchResultsSurface(
         items(rows, key = { "search-${type.name}-${it.id}" }) { card ->
             Row(
                 Modifier.fillMaxWidth().clickable {
-                    if (type == ContentType.MUSIC) onPlayMusic(selection(card, type), musicQueue) else onOpen(selection(card, type))
+                    if (type == ContentType.MUSIC) {
+                        // Otherwise the search keyboard covers Mini player and
+                        // prevents the user from opening controls or seeing
+                        // playback/authentication errors.
+                        focus.clearFocus(force = true)
+                        keyboard?.hide()
+                        onPlayMusic(selection(card, type), musicQueue)
+                    } else {
+                        onOpen(selection(card, type))
+                    }
                 }.padding(horizontal = 18.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {

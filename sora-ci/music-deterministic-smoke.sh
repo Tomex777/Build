@@ -201,10 +201,43 @@ wait_for_node 'Anime & Manga' 10
 tap_text 'Anime & Manga'
 wait_for_node Music 10
 tap_text Music
-wait_for_node 'Low Light' 20
-shot 01-music-demo-catalog
+# Music Home does not auto-populate a fake "For you" feed for new users.
+# Exercise deliberate search for the deterministic test track instead.
+wait_for_node 'Make Music yours' 12
+wait_for_node 'Search Music' 12
+tap_text 'Search Music'
+wait_for_node 'Search Music…' 12
+tap_text 'Search Music…'
+# A broad explicit query returns multiple real fixture items, allowing us to
+# verify Next/Previous and queue order without auto-seeding a home playlist.
+adb shell input text 'a'
+wait_for_node 'Low Light' 30
+wait_for_node 'Wake Slowly' 20
+shot 01-music-demo-search
 
-tap_text 'Low Light'
+# The search input and the playable result share the text "Low Light".
+# Tap the actual result row (below the query field), not the text field.
+dump_ui
+python3 <<'PY'
+import re, subprocess, xml.etree.ElementTree as ET
+root = ET.parse('/tmp/sora-music-window.xml').getroot()
+matches = []
+for node in root.iter('node'):
+    if node.attrib.get('text', '').strip() != 'Low Light':
+        continue
+    b = re.match(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]', node.attrib.get('bounds', ''))
+    if b:
+        x1,y1,x2,y2=map(int,b.groups())
+        matches.append(((y1+y2)//2,(x1+x2)//2))
+if not matches:
+    raise SystemExit('Playable result was not found: '+str(matches))
+y,x=max(matches)
+if y < 350:
+    raise SystemExit('Refusing to tap a search-field node: '+str(matches))
+print('Opening real Low Light search result', x, y, flush=True)
+subprocess.check_call(['adb','shell','input','tap',str(x),str(y)])
+PY
+adb shell input keyevent KEYCODE_BACK
 wait_for_node 'Mini player' 20
 wait_for_node Pause 20
 shot 02-playing

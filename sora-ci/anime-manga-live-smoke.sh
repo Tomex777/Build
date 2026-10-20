@@ -193,14 +193,13 @@ tap_text Media
 wait_for_node 'Anime & Manga' 12
 shot 01-anime-initial
 
-# Core owns the Music screen and recommendation layout. With all external
-# providers removed, verify the screen is still present and renders its own
-# taste-led empty/loading state before any source is installed.
-# Media destinations live in the switcher menu beside the selected label.
+# With no music preferences or installed source, Music must not display a
+# false personalized chart. Verify its onboarding state instead.
 tap_text 'Anime & Manga'
 wait_for_node Music 12
 tap_text Music
-wait_for_node 'For you' 25
+wait_for_node 'Make Music yours' 25
+wait_for_node 'Choose artists' 10
 shot 01b-core-music-without-extensions
 tap_text Music
 wait_for_node 'Anime & Manga' 12

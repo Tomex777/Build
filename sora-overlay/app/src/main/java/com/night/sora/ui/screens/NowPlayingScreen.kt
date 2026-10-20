@@ -1,6 +1,7 @@
 package com.night.sora.ui.screens
 
 import android.content.Intent
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -8,6 +9,8 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -34,23 +37,33 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.night.sora.model.ExtensionMediaSelection
+import com.night.sora.model.DownloadEntry
+import com.night.sora.model.DownloadStatus
 import com.night.sora.playback.MusicPlaybackController
 import com.night.sora.playback.MusicRepeatMode
 import com.night.sora.ui.theme.*
 import java.util.Locale
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.launch
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun NowPlayingScreen(
     player: MusicPlaybackController,
     isSaved: (ExtensionMediaSelection) -> Boolean,
     onToggleSaved: (ExtensionMediaSelection) -> Unit,
+    downloadEntry: (ExtensionMediaSelection) -> DownloadEntry?,
+    downloadAllowed: (ExtensionMediaSelection) -> Boolean,
+    onDownload: (ExtensionMediaSelection) -> Unit,
+    onRemoveDownload: (ExtensionMediaSelection) -> Unit,
+    onManageSources: () -> Unit,
     onBack: () -> Unit,
 ) {
     val track = player.currentTrack
     var queueOpen by remember { mutableStateOf(false) }
     var optionsOpen by remember { mutableStateOf(false) }
+    val lyricsRequester = remember { BringIntoViewRequester() }
+    val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
     if (track == null) {
@@ -71,6 +84,11 @@ fun NowPlayingScreen(
     } else 0f
     val sessionPlayer = remember(player) { player.sessionPlayer() }
     val saved = isSaved(track)
+    val download = downloadEntry(track)
+    val downloaded = download?.status == DownloadStatus.COMPLETED && !download.filePath.isNullOrBlank()
+    val downloadBusy = download?.status == DownloadStatus.DOWNLOADING || download?.status == DownloadStatus.QUEUED
+    val sourceAllowsDownload = downloaded || downloadAllowed(track)
+    val downloadAction: () -> Unit = { if (downloaded) onRemoveDownload(track) else onDownload(track) }
 
     Column(
         Modifier.fillMaxSize().background(SoraBg).statusBarsPadding().navigationBarsPadding()
@@ -98,6 +116,18 @@ fun NowPlayingScreen(
                                 }, "Share track"))
                             }
                         },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(when {
+                            downloaded -> "Remove offline download"
+                            !sourceAllowsDownload -> "Switch Music source to download"
+                            downloadBusy -> "Downloading"
+                            download?.status == DownloadStatus.FAILED -> "Retry download"
+                            else -> "Download"
+                        }) },
+                        leadingIcon = { Icon(if (downloaded) Icons.Rounded.DeleteOutline else Icons.Rounded.Download, null) },
+                        enabled = !downloadBusy && sourceAllowsDownload,
+                        onClick = { optionsOpen = false; downloadAction() },
                     )
                     DropdownMenuItem(
                         text = { Text(if (saved) "Remove from Library" else "Add to Library") },
@@ -158,9 +188,30 @@ fun NowPlayingScreen(
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
             ) {
-                Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Rounded.ErrorOutline, null, tint = SoraMuted, modifier = Modifier.size(18.dp))
-                    Text(message, color = SoraMuted, fontSize = 11.sp, modifier = Modifier.padding(start = 9.dp))
+                Column(Modifier.padding(12.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Rounded.ErrorOutline, null, tint = SoraMuted,
+                            modifier = Modifier.size(18.dp))
+                        Text(message, color = SoraMuted, fontSize = 11.sp,
+                            modifier = Modifier.padding(start = 9.dp).weight(1f))
+                    }
+                    // Some public music endpoints explicitly require login or
+                    // anti-bot verification. Offer an actionable recovery path
+                    // instead of leaving users staring at a frozen play button.
+                    if (track.sourceId == "youtube.music" &&
+                        (message.contains("sign in", ignoreCase = true) ||
+                         message.contains("signed-in", ignoreCase = true) ||
+                         message.contains("login", ignoreCase = true) ||
+                         message.contains("403") || message.contains("401") ||
+                         message.contains("challenge", ignoreCase = true))) {
+                        TextButton(onClick = onManageSources,
+                            modifier = Modifier.padding(top = 4.dp)) {
+                            Icon(Icons.Rounded.OpenInNew, contentDescription = null,
+                                modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Open music source settings", color = SoraAccent)
+                        }
+                    }
                 }
             }
         }
@@ -206,13 +257,26 @@ fun NowPlayingScreen(
 
         Spacer(Modifier.height(20.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-            PlayerSecondary(Icons.Rounded.Lyrics, "Lyrics")
+            PlayerSecondary(Icons.Rounded.Lyrics, "Lyrics", onClick = {
+                scope.launch { lyricsRequester.bringIntoView() }
+            })
             PlayerSecondary(Icons.Rounded.QueueMusic, "Queue", onClick = { queueOpen = true })
-            PlayerSecondary(Icons.Rounded.Download, "Download")
+            PlayerSecondary(
+                if (downloaded) Icons.Rounded.OfflinePin else Icons.Rounded.Download,
+                when {
+                    downloaded -> "Downloaded"
+                    !sourceAllowsDownload -> "Switch source"
+                    downloadBusy -> "Downloading"
+                    download?.status == DownloadStatus.FAILED -> "Retry"
+                    else -> "Download"
+                },
+                enabled = !downloadBusy && sourceAllowsDownload,
+                onClick = downloadAction,
+            )
         }
 
         Spacer(Modifier.height(22.dp))
-        Surface(color = Color(0xFF26241D), shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth()) {
+        Surface(color = Color(0xFF26241D), shape = RoundedCornerShape(16.dp), modifier = Modifier.fillMaxWidth().bringIntoViewRequester(lyricsRequester)) {
             Column(Modifier.padding(16.dp)) {
                 Text("LYRICS", color = SoraMuted, fontSize = 8.sp, fontWeight = FontWeight.Black, letterSpacing = 1.sp)
                 when {
@@ -389,11 +453,12 @@ private fun MusicSeekBar(
 private fun PlayerSecondary(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
+    enabled: Boolean = true,
     onClick: () -> Unit = {},
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.clickable(onClick = onClick).padding(horizontal = 10.dp, vertical = 6.dp),
+        modifier = Modifier.clickable(enabled = enabled, onClick = onClick).padding(horizontal = 10.dp, vertical = 6.dp),
     ) {
         Icon(icon, null, tint = SoraMuted)
         Text(label, color = SoraMuted, fontSize = 9.sp, modifier = Modifier.padding(top = 4.dp))

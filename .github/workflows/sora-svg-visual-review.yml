@@ -1,0 +1,36 @@
+name: Sora SVG Visual Review
+
+on:
+  pull_request:
+    branches: [sora-media-ci]
+    paths:
+      - 'sora-overlay/app/src/main/assets/icons/**'
+      - 'sora-overlay/app/src/main/res/drawable/sora_game_*.xml'
+      - 'sora-ci/svg-preview.py'
+      - '.github/workflows/sora-svg-visual-review.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: sora-svg-review-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  svg-previews:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install rasterizer
+        run: python -m pip install "cairosvg==2.8.2" "pillow==11.3.0"
+      - name: Validate paths and render 40px, 96px and 256px previews
+        run: python sora-ci/svg-preview.py
+      - name: Upload icon contact sheet and individual sizes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sora-svg-visual-previews
+          path: artifacts/
+          if-no-files-found: error
+          retention-days: 30

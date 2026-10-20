@@ -9,7 +9,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
@@ -23,7 +22,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -33,6 +31,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import com.night.sora.data.CoreRepository
 import com.night.sora.data.MediaCatalogCache
+import com.night.sora.data.SoraCoreRuntime
 import com.night.sora.extension.ExtensionManager
 import com.night.sora.extension.InstalledExtension
 import com.night.sora.model.ContentType
@@ -63,20 +62,21 @@ sealed interface AppScreen {
     data class Reader(val session: ReaderSession) : AppScreen
     data class VideoPlayer(val session: PlaybackSession) : AppScreen
     data object NowPlaying : AppScreen
+    data class NightGame(val id: String) : AppScreen
 }
 
 @Composable
 fun SoraApp() {
     val context = LocalContext.current
-    val repository = remember { CoreRepository(context.applicationContext) }
+    val repository = remember { SoraCoreRuntime.repository(context.applicationContext) }
     val mediaCatalogCache = remember { MediaCatalogCache(context.applicationContext) }
-    val extensionManager = remember { ExtensionManager(context.applicationContext) }
+    val extensionManager = remember { SoraCoreRuntime.extensions(context.applicationContext) }
     val musicPlayer = remember { MusicPlaybackRuntime.get(context.applicationContext, extensionManager) }
+    val musicDownloads = remember { SoraCoreRuntime.downloads(context.applicationContext) }
     var tab by remember { mutableStateOf(RootTab.HOME) }
     val screenStack = remember { mutableStateListOf<AppScreen>() }
     var extensions by remember { mutableStateOf<List<InstalledExtension>>(emptyList()) }
     var extensionScanDone by remember { mutableStateOf(false) }
-    var showAiQuick by remember { mutableStateOf(false) }
     var mediaSelectedType by remember { mutableStateOf(ContentType.ANIME) }
 
     fun refreshExtensions() {
@@ -91,7 +91,11 @@ fun SoraApp() {
 
     LaunchedEffect(Unit) { refreshExtensions() }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { refreshExtensions() }
-    LaunchedEffect(extensions) { musicPlayer.updateExtensions(extensions) }
+    LaunchedEffect(extensions) {
+        musicPlayer.updateExtensions(extensions)
+        musicDownloads.updateExtensions(extensions)
+        musicPlayer.setOfflineResolver(musicDownloads::localFileFor)
+    }
     LaunchedEffect(musicPlayer.listeningEvent?.serial) {
         val event = musicPlayer.listeningEvent ?: return@LaunchedEffect
         val track = event.track
@@ -143,14 +147,6 @@ fun SoraApp() {
                     }
                 }
             },
-            floatingActionButton = {
-                FloatingActionButton(
-                    onClick = { showAiQuick = true },
-                    containerColor = SoraAccent,
-                    contentColor = SoraAccentInk,
-                    shape = RoundedCornerShape(16.dp),
-                ) { Icon(Icons.Rounded.AutoAwesome, "Open Sora AI") }
-            },
         ) { padding ->
             when (tab) {
                 RootTab.HOME -> HomeScreen(
@@ -199,7 +195,11 @@ fun SoraApp() {
                     progressEntries = repository.mediaProgress,
                     onOpenMedia = ::openMedia,
                 )
-                RootTab.GAMES -> GamesScreen(Modifier.padding(padding), repository.library)
+                RootTab.GAMES -> GamesScreen(
+                    modifier = Modifier.padding(padding),
+                    library = repository.library,
+                    onOpenNightGame = { push(AppScreen.NightGame(it)) },
+                )
                 RootTab.MORE -> MoreScreen(
                     modifier = Modifier.padding(padding),
                     extensionCount = extensions.count {
@@ -222,13 +222,6 @@ fun SoraApp() {
             }
         }
 
-        if (showAiQuick) {
-            AiQuickSheet(
-                onDismiss = { showAiQuick = false },
-                onSend = { repository.sendAiText(it) },
-                onExpand = { showAiQuick = false; push(AppScreen.Ai) },
-            )
-        }
     } else {
         when (current) {
             AppScreen.Ai -> AiScreen(
@@ -245,9 +238,9 @@ fun SoraApp() {
             AppScreen.Downloads -> DownloadsScreen(
                 downloads = repository.downloads,
                 onBack = ::pop,
-                onStatus = repository::setDownloadStatus,
-                onRemove = repository::removeDownload,
-                onClearCompleted = repository::clearCompletedDownloads,
+                onRetry = musicDownloads::retry,
+                onRemove = musicDownloads::remove,
+                onClearCompleted = musicDownloads::clearCompleted,
             )
             AppScreen.Statistics -> StatisticsScreen(
                 library = repository.library,
@@ -306,7 +299,18 @@ fun SoraApp() {
                     }
                 },
             )
-            AppScreen.NowPlaying -> NowPlayingScreen(player = musicPlayer, isSaved = repository::isSaved, onToggleSaved = repository::toggleSaved, onBack = ::pop)
+            is AppScreen.NightGame -> NightPlayGameScreen(current.id, onClose = ::pop)
+            AppScreen.NowPlaying -> NowPlayingScreen(
+                player = musicPlayer,
+                isSaved = repository::isSaved,
+                onToggleSaved = repository::toggleSaved,
+                downloadEntry = musicDownloads::entryFor,
+                downloadAllowed = musicDownloads::canUseSource,
+                onDownload = musicDownloads::download,
+                onRemoveDownload = musicDownloads::remove,
+                onManageSources = { push(AppScreen.Extensions) },
+                onBack = ::pop,
+            )
         }
     }
 }
@@ -351,49 +355,5 @@ private fun MiniPlayer(player: MusicPlaybackController, onOpen: () -> Unit) {
                 }
             }
         }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun AiQuickSheet(onDismiss: () -> Unit, onSend: (String) -> Unit, onExpand: () -> Unit) {
-    var draft by remember { mutableStateOf("") }
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = Color(0xFF161614)) {
-        Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 14.dp).padding(bottom = 14.dp)) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) { Text("Sora AI", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold); Text("Local chat · AI provider not connected", color = SoraMuted, fontSize = 9.sp) }
-                TextButton(onClick = onExpand) { Text("Full chat") }
-                IconButton(onClick = onDismiss) { Icon(Icons.Rounded.Close, "Close") }
-            }
-            Row(Modifier.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) { Box(Modifier.size(6.dp).background(SoraAccent, RoundedCornerShape(99.dp))); Text("Messages stay local until a provider is connected", color = SoraMuted, fontSize = 9.sp, modifier = Modifier.padding(start = 7.dp)) }
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(7.dp), verticalArrangement = Arrangement.spacedBy(7.dp), modifier = Modifier.padding(vertical = 7.dp)) {
-                QuickSuggestion("What should I continue tonight?") { draft = "What should I continue tonight?" }
-                QuickSuggestion("Find me another manga") { draft = "Find me a manga based on what I like." }
-                QuickSuggestion("Give me something funny") { draft = "Show me something funny." }
-                QuickSuggestion("Explain a Bible passage") { draft = "Explain this Bible passage for me." }
-            }
-            Surface(color = SoraSurface, border = androidx.compose.foundation.BorderStroke(1.dp, Color.White.copy(alpha = .08f)), shape = RoundedCornerShape(24.dp), modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
-                Row(Modifier.padding(horizontal = 7.dp, vertical = 7.dp), verticalAlignment = Alignment.Bottom) {
-                    Box(Modifier.weight(1f).padding(vertical = 9.dp)) {
-                        BasicTextField(
-                            value = draft, onValueChange = { draft = it }, minLines = 1, maxLines = 4,
-                            textStyle = TextStyle(color = SoraText, fontSize = 14.sp, lineHeight = 20.sp), modifier = Modifier.fillMaxWidth(),
-                            decorationBox = { inner -> if (draft.isEmpty()) Text("Ask Sora anything…", color = SoraMuted, fontSize = 14.sp); inner() },
-                        )
-                    }
-                    FilledIconButton(
-                        onClick = { val clean = draft.trim(); if (clean.isNotEmpty()) { onSend(clean); draft = ""; onExpand() } },
-                        modifier = Modifier.size(38.dp), colors = IconButtonDefaults.filledIconButtonColors(containerColor = SoraText, contentColor = Color.Black),
-                    ) { Icon(Icons.Rounded.ArrowUpward, "Send") }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun QuickSuggestion(text: String, onClick: () -> Unit) {
-    Surface(color = SoraSurfaceHigh, shape = RoundedCornerShape(999.dp), modifier = Modifier.clickable(onClick = onClick)) {
-        Text(text, fontSize = 9.sp, modifier = Modifier.padding(horizontal = 11.dp, vertical = 8.dp))
     }
 }

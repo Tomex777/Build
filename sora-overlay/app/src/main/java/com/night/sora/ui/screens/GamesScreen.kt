@@ -1,6 +1,7 @@
 package com.night.sora.ui.screens
 
 import android.content.Context
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -11,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -27,7 +29,20 @@ import com.night.sora.ui.theme.*
 private data class GameStats(val quizzes: Int, val correct: Int, val bestStreak: Int)
 
 @Composable
-fun GamesScreen(modifier: Modifier = Modifier, library: List<LibraryEntry>) {
+fun GamesScreen(
+    modifier: Modifier = Modifier,
+    library: List<LibraryEntry>,
+    onOpenNightGame: (String) -> Unit = {},
+) {
+    var selectedGame by rememberSaveable { mutableStateOf("") }
+    BackHandler(enabled = selectedGame.isNotBlank()) { selectedGame = "" }
+    if (selectedGame != "quiz") {
+        SoraArcadePage(
+            selectedGame, onSelect = { selectedGame = it }, library = library,
+            onOpenNightGame = onOpenNightGame, modifier = modifier,
+        )
+        return
+    }
     val context = LocalContext.current
     val candidates = remember(library) {
         library.filter { (it.contentType == ContentType.ANIME || it.contentType == ContentType.MANGA) && !it.artworkUrl.isNullOrBlank() }
@@ -83,10 +98,15 @@ fun GamesScreen(modifier: Modifier = Modifier, library: List<LibraryEntry>) {
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         item {
-            Text("Games", fontSize = 28.sp, fontWeight = FontWeight.ExtraBold)
-            Text("A title quiz built from your saved collection.", color = SoraMuted, fontSize = 12.sp, modifier = Modifier.padding(top = 3.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = { selectedGame = "" }) { Icon(Icons.Rounded.ArrowBack, "All games") }
+                Text("Cover quiz", fontSize = 28.sp, fontWeight = FontWeight.ExtraBold)
+            }
         }
-        item {
+        // The onboarding card is only for first launch. Keeping its large
+        // preamble visible during every round pushed answer buttons below the
+        // viewport, forcing users to scroll just to advance a short quiz.
+        if (questions.isEmpty()) item {
             Surface(color = Color(0xFF242118), shape = RoundedCornerShape(20.dp), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(19.dp)) {
                     Text("TITLE MATCH", color = SoraAccent, fontSize = 9.sp, fontWeight = FontWeight.Black, letterSpacing = 1.2.sp)

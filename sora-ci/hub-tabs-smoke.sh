@@ -66,9 +66,12 @@ for node in nodes:
     if node.attrib.get('text','').strip() == 'Library' and bounds and int(bounds.group(2)) < height//2:
         has_heading=True
         break
-counts=[int(match.group(1)) for text in texts if (match := re.fullmatch(r'(\d+) items?',text))]
-empty='No saved items in this filter.' in texts
-if has_heading and counts and ((counts[0] == 0 and empty) or (counts[0] > 0 and not empty)):
+descs=[node.attrib.get('content-desc','').strip() for node in nodes]
+# The old count + "Last updated" metadata row was redundant and removed.
+# Require actual library controls and the content area, not that old row.
+has_controls='All' in texts and 'Search library' in descs
+redundant=any(re.fullmatch(r'\d+ items?',text) for text in texts) or 'Last updated' in texts
+if has_heading and has_controls and not redundant:
     raise SystemExit(0)
 raise SystemExit(1)
 PY
@@ -81,7 +84,7 @@ wait_library_state() {
     sleep 1
   done
   shot failure-library-state
-  echo 'Library did not show a saved-item count consistent with its empty state.' >&2
+  echo 'Library heading/controls missing or redundant item-count metadata returned.' >&2
   return 1
 }
 
@@ -146,33 +149,268 @@ PY
 }
 
 tap_scrolling() {
-  local label="$1"
+  local label="$1" width height geometry
+  # Android's wm override changes the screenshot viewport in the 360dp
+  # responsive pass. Fixed Pixel 7 coordinates (540,1850) start *outside*
+  # the 720x1600 window, so swipes never reached the arcade list.
+  geometry=$(adb shell wm size | sed -n 's/.*size: \([0-9]*\)x\([0-9]*\).*/\1 \2/p' | tail -n 1)
+  read -r width height <<<"$geometry"
+  if [[ ! "$width" =~ ^[0-9]+$ || ! "$height" =~ ^[0-9]+$ ]]; then
+    echo "Could not detect emulator viewport for '$label': $geometry" >&2
+    return 1
+  fi
+  local x=$((width / 2))
+  local from_y=$((height * 75 / 100))
+  local to_y=$((height * 30 / 100))
   for _ in $(seq 1 12); do
     dump_ui
     if node_exists "$label"; then tap "$label"; return 0; fi
-    adb shell input swipe 540 1850 540 650 350
+    adb shell input swipe "$x" "$from_y" "$x" "$to_y" 350
     sleep 1
   done
-  echo "Could not find '$label' while scrolling" >&2
+  shot "failure-scroll-${label//[^A-Za-z0-9]/_}"
+  echo "Could not find '$label' while scrolling (${width}x${height})" >&2
   return 1
 }
 
-# Games now uses actual saved Anime/Manga art and reports real play counts.
+# Games must expose real playable boards instead of no-op game cards.
 tap Games
-wait_for "Title Match"
+wait_for "Snake"
+wait_for "2048"
+wait_for "Tic-tac-toe"
+# LazyVerticalGrid only composes cards currently on screen. The remaining
+# launchers are proven below by navigating to their playable destinations.
+# Never expect an offscreen card to exist in an accessibility dump.
+shot games-arcade-hub
+
+tap "Snake"
+wait_for "SCORE"
+wait_for "Start"
+tap "Start"
+# The button stays at the same coordinates when its label changes to Pause.
+# Pause immediately: Snake otherwise reaches the wall before UIAutomator's
+# next multi-second accessibility dump. Verify Pause -> Resume even at score 0.
+read -r snake_button_x snake_button_y < /tmp/sora-hub-tap.txt
+adb shell input tap "$snake_button_x" "$snake_button_y"
+wait_for "Resume"
+wait_for "Paused"
+shot games-snake-paused
+tap "Resume"
+adb shell input swipe 530 850 530 640 180
+shot games-snake-steered
+adb shell input keyevent KEYCODE_BACK
+wait_for "Snake"
+
+tap "2048"
+wait_for "SCORE"
+wait_for "New"
+shot games-2048-board
+# Exercise touch/swipe control rather than accepting a static 2048 board.
+# Following a left/right pair always moves at least the initial two tiles.
+adb shell input swipe 800 800 260 800 240
+sleep 1
+shot games-2048-after-swipe
+# Two starting tiles can randomly both occupy the left edge. In that case,
+# try right and up before failing, rather than misdiagnosing legal no-op moves.
+if cmp -s "$OUT/games-2048-board.png" "$OUT/games-2048-after-swipe.png"; then
+  adb shell input swipe 260 800 800 800 240
+  sleep 1
+  shot games-2048-after-swipe
+fi
+if cmp -s "$OUT/games-2048-board.png" "$OUT/games-2048-after-swipe.png"; then
+  adb shell input swipe 540 940 540 500 240
+  sleep 1
+  shot games-2048-after-swipe
+fi
+if cmp -s "$OUT/games-2048-board.png" "$OUT/games-2048-after-swipe.png"; then
+  echo '2048 board was visually unchanged after three gestures.' >&2
+  exit 1
+fi
+
+# 2048 must restore the *same* playable round, not only a best score, after
+# navigating away or Android destroys the process.
+adb shell run-as com.night.sora cat shared_prefs/sora_arcade_v1.xml | grep -q 'name="tiles_board"'
+capture_2048_tiles() {
+  dump_ui
+  python3 - <<'PYTILES'
+import re, xml.etree.ElementTree as ET
+root=ET.parse('/tmp/sora-hub-window.xml').getroot()
+tiles=[]
+for node in root.iter('node'):
+    value=(node.attrib.get('text') or '').strip()
+    if not re.fullmatch(r'(?:2|4|8|16|32|64|128|256|512|1024|2048|4096|8192|16384)', value):
+        continue
+    bounds=node.attrib.get('bounds','')
+    if re.fullmatch(r'\[\d+,\d+\]\[\d+,\d+\]', bounds):
+        tiles.append((bounds,value))
+assert len(tiles)>=2, f'2048 board has no visible tiles: {tiles}'
+for item in sorted(tiles): print(*item)
+PYTILES
+}
+capture_2048_tiles > /tmp/sora-2048-before-relaunch.txt
+shot games-2048-before-relaunch
+adb shell am force-stop com.night.sora
+adb shell am start -W -n com.night.sora/.MainActivity >/dev/null
+sleep 2
+tap Games
+tap "2048"
+wait_for "SCORE"
+capture_2048_tiles > /tmp/sora-2048-after-relaunch.txt
+if ! diff -u /tmp/sora-2048-before-relaunch.txt /tmp/sora-2048-after-relaunch.txt; then
+  shot games-2048-failed-restore
+  echo '2048 round was not restored after process restart.' >&2
+  exit 1
+fi
+shot games-2048-restored
+tap "All games"
+
+tap_scrolling "Tic-tac-toe"
+wait_for "Your turn"
+shot games-tictactoe-board
+# The nine X/O squares are drawn with Canvas; tap the top-left playable cell.
+# A successful interaction renders marks and changes the screenshot.
+adb shell input tap 265 605
+sleep 2
+shot games-tictactoe-after-move
+if cmp -s "$OUT/games-tictactoe-board.png" "$OUT/games-tictactoe-after-move.png"; then
+  echo 'Tic-tac-toe did not respond visually to a board tap.' >&2
+  exit 1
+fi
+tap "Play again"
+wait_for "Your turn"
+tap "All games"
+
+tap_scrolling "Memory match"
+wait_for "MOVES"
+shot games-memory-board
+# Tap two face-down memory cards by accessibility bounds (not hardcoded
+# screen positions). The counter increments whether or not they match.
+for flip in 1 2; do
+  dump_ui
+  python3 - <<'PYMEM'
+import re,subprocess,xml.etree.ElementTree as ET
+root=ET.parse('/tmp/sora-hub-window.xml').getroot()
+for node in root.iter('node'):
+    if node.attrib.get('content-desc') != 'Hidden': continue
+    m=re.fullmatch(r'\[(\d+),(\d+)\]\[(\d+),(\d+)\]',node.attrib.get('bounds',''))
+    if m:
+        x1,y1,x2,y2=map(int,m.groups())
+        subprocess.check_call(['adb','shell','input','tap',str((x1+x2)//2),str((y1+y2)//2)])
+        break
+else: raise SystemExit('No hidden memory card available')
+PYMEM
+  sleep .15
+done
+wait_for "MOVES  1"
+shot games-memory-after-two-flips
+tap "Restart"
+wait_for "MOVES  0"
+tap "All games"
+
+tap_scrolling "Cover quiz"
+wait_for "TITLE MATCH"
 wait_for "YOUR PLAY"
 wait_for "Save at least two Anime or Manga titles"
 shot games-empty-library
+tap "All games"
+
+tap_scrolling "Daily 5"
+wait_for "QUESTION"
+shot games-daily-five
+tap "All games"
+
+tap_scrolling "Who am I?"
+wait_for "QUESTION"
+shot games-who-am-i
+tap "All games"
+
+tap_scrolling "Who said it?"
+wait_for "QUESTION"
+shot games-who-said-it
+tap "All games"
+
+tap_scrolling "Bible trivia"
+wait_for "QUESTION"
+shot games-bible-trivia
+# Complete all five Bible questions using their real displayed text. That
+# verifies quiz choice, Next/Results navigation and persisted best score.
+for round in 1 2 3 4 5; do
+  dump_ui
+  answer=$(python3 - <<'PYBIBLE'
+import xml.etree.ElementTree as ET
+root=ET.parse('/tmp/sora-hub-window.xml').getroot()
+texts=[n.attrib.get('text','') for n in root.iter('node')]
+answers={
+    'Which book begins the Bible?':'Genesis',
+    'Who built the ark before the great flood?':'Noah',
+    'Who defeated Goliath using a sling?':'David',
+    'Who was thrown into a den of lions?':'Daniel',
+    'According to the Gospels, where was Jesus born?':'Bethlehem',
+    "Which book contains 'The Lord is my shepherd'?":'Psalms',
+    'Who led the Israelites out of Egypt?':'Moses',
+    'Who spent three days in a great fish?':'Jonah',
+    'Which disciple denied knowing Jesus three times?':'Peter',
+}
+for prompt,right in answers.items():
+    if prompt in texts:
+        print(right);break
+else: raise SystemExit('Unknown Bible question: '+repr(texts))
+PYBIBLE
+  )
+  tap "$answer"
+  wait_for "Correct!"
+  if (( round == 5 )); then tap "See results"; else tap "Next question"; fi
+done
+wait_for "Round complete"
+wait_for "Best: 5 correct"
+adb shell run-as com.night.sora cat shared_prefs/sora_arcade_v1.xml | grep -q 'name="quiz_best_bible" value="5"'
+shot games-bible-trivia-result
+tap "All games"
+
+tap_scrolling "Would you rather?"
+wait_for "ROUND 1 / 10"
+shot games-would-rather
+tap "Finish your favorite manga in one night"
+wait_for "Next choice"
+adb shell run-as com.night.sora cat shared_prefs/sora_arcade_v1.xml | grep -q 'name="rather_0_0" value="1"'
+tap "Next choice"
+wait_for "ROUND 2 / 10"
+shot games-would-rather-next
+tap "All games"
+
+tap_scrolling "Meme caption"
+wait_for "Save a meme in your Library"
+shot games-meme-caption-empty
+tap "All games"
+
+# Water Sort is a real playable twelfth native game; check the rendered board
+# rather than simply counting a card in the launcher.
+tap_scrolling "Water Sort"
+wait_for "LEVEL 1"
+wait_for "MOVES"
+wait_for "Restart"
+shot games-water-sort-board
+tap "Restart"
+wait_for "0 MOVES"
+tap "All games"
+
+# The standalone arcade workflow verifies all eleven modes independently of
+# live AniList, Reddit, TMDB, and Bible service availability. This is also where
+# we capture the actual Android-rendered UI for visual review.
+if [[ "${SORA_ONLY_GAMES:-0}" == "1" ]]; then
+  echo 'Verified all 12 Sora arcade modes, touch controls, board transitions,'
+  echo 'score persistence, and navigation on Android.'
+  exit 0
+fi
 
 # The live Anime flow can seed a real title before this walkthrough. Check that
-# Library shows its count and matching content/empty state, then verify Memes.
+# Verify Library heading and controls without the redundant item-count row.
 tap Library
 wait_library_state
 shot library-all-filter
 adb shell input swipe 950 350 160 350 350
 sleep 1
 tap Memes
-wait_for "0 items"
 wait_for "No saved items in this filter"
 shot library-memes-empty
 
@@ -201,7 +439,14 @@ adb shell input keyevent 4
 wait_for "Downloads"
 
 tap Downloads
-wait_for "Active transfers"
+# Downloads UI now names the queue "Transfers & retries". The previous
+# "Active transfers" assertion targeted copy removed from the actual screen,
+# so it failed after successful navigation. Verify the real queue, completed
+# grouping and empty-state copy to catch an actual route/render regression.
+wait_for "Transfers & retries"
+wait_for "Nothing downloading right now"
+wait_for "Downloaded"
+wait_for "No completed files"
 shot downloads-empty
 adb shell input keyevent 4
 tap Statistics
@@ -255,7 +500,9 @@ adb shell input keyevent 4
 # Bible opens the real reader, and book -> chapter navigation is functional.
 bible_loaded=0
 tap Home
-tap_scrolling "Open Bible"
+# Home Bible tile is clickable in its entirety; the redundant Open link
+# was removed. Open the passage by tapping the visible card itself.
+tap_scrolling "John 1:5"
 wait_for "Books"
 wait_for "Go to reference"
 shot bible-hub
@@ -353,14 +600,15 @@ else
 fi
 tap "Movies & TV"
 tap Music
-wait_for_any 50 "For you" "Music sources could not load right now." "No Music items were returned by the installed source feed."
-if node_exists "Music sources could not load right now."; then
-  wait_for "Retry"
-  wait_for "Manage sources"
-  shot music-source-state
-else
-  shot music-live-source
+# New users no longer receive an unsolicited regional "top songs" feed
+# or a misleading personalized mix before choosing their artists.
+wait_for "Make Music yours"
+wait_for "Choose artists"
+if node_exists "For you"; then
+  echo 'Music Home displayed an unpersonalized For you feed' >&2
+  exit 1
 fi
+shot music-taste-onboarding
 tap Music
 tap Memes
 if wait_for_any 40 "Less like this" "installed-app client ID" "Memes sources could not load right now."; then
@@ -403,5 +651,42 @@ if adb logcat -d -t 1500 | grep -E 'FATAL EXCEPTION|ANR in com\.night\.sora'; th
   echo 'Android reported a Sora crash or ANR during hub validation.' >&2
   exit 1
 fi
+# Re-check the real Compose boards at 360dp (720x1600 / 2x density).
+# This catches layouts that fit the Pixel 7's default viewport but overflow on
+# narrower Android phones. Keep this after the full-flow checks so coordinates
+# used for the deterministic media validations still refer to the stock device.
+adb shell wm size 720x1600
+adb shell wm density 320
+adb shell am force-stop com.night.sora
+adb shell am start -W -n com.night.sora/.MainActivity >/dev/null
+sleep 3
+tap Games
+wait_for "Snake"
+tap Snake
+wait_for "SCORE"
+wait_for "Start"
+shot responsive-360dp-snake
+tap "All games"
+tap "2048"
+wait_for "New"
+shot responsive-360dp-2048
+tap "All games"
+tap "Tic-tac-toe"
+wait_for "Your turn"
+shot responsive-360dp-tictactoe
+tap "All games"
+tap_scrolling "Memory match"
+wait_for "MOVES"
+shot responsive-360dp-memory
+tap "All games"
+tap_scrolling "Bible trivia"
+wait_for "QUESTION"
+shot responsive-360dp-trivia
+tap "All games"
+tap_scrolling "Would you rather?"
+wait_for "ROUND 1 / 10"
+shot responsive-360dp-rather
+tap "All games"
+
 touch "$OUT/HUB_TABS_PASS"
-echo 'Hub tabs emulator walkthrough passed.'
+echo 'Hub tabs emulator walkthrough and 360dp responsive game checks passed.'
