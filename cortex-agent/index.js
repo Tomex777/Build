@@ -1220,55 +1220,25 @@ async function commandSettings() {
 
 async function setCommandSetting(key, enabled) {
   const entries = await commandSettings();
-  if (!entries.some((entry) => entry.key === key)) {
-    throw Object.assign(new Error('Unknown command setting'), { statusCode: 400 });
+  if (!entries.some((entry) => entry.key === key) || typeof enabled !== 'boolean') {
+    throw Object.assign(new Error('Unknown or invalid command setting'), { statusCode: 400 });
   }
-  let values = {};
-  try {
-    values = JSON.parse(await fs.readFile(COMMAND_SETTINGS_FILE, 'utf8'));
-  } catch (error) {
-    if (error?.code !== 'ENOENT') throw error;
-  }
-  async function protectedWrite() {
-    await new Promise((resolve, reject) => {
-      const child = spawn('/usr/bin/sudo',
-        ['-n', SERVICE_CONTROL_HELPER, 'setting-set', key],
-        { stdio: ['pipe', 'ignore', 'ignore'] });
-      child.once('error', reject);
-      child.once('exit', (code) => {
-        if (code === 0) resolve();
-        else reject(Object.assign(new Error('Protected setting write is unavailable'), { statusCode: 503 }));
-      });
-      child.stdin.on('error', () => {});
-      child.stdin.end(enabled === true ? 'true' : 'false');
-    });
-  }
-  if (COMMAND_SETTINGS_FILE === '/var/lib/mscc/data/mscc-settings.json') {
-    // Production NIGHT settings are private MSCC state. Always use the
-    // allowlisted root helper, not a speculative direct write with EACCES.
-    await protectedWrite();
-  } else {
-    await fs.mkdir(path.dirname(COMMAND_SETTINGS_FILE), { recursive: true });
-    const temp = COMMAND_SETTINGS_FILE + '.cortex-' + crypto.randomUUID() + '.tmp';
-    values = { ...values, version: 1, [key]: enabled === true, savedAt: Date.now() };
-    try {
-      await fs.writeFile(temp, JSON.stringify(values, null, 2), 'utf8');
-      await fs.rename(temp, COMMAND_SETTINGS_FILE);
-    } catch (error) {
-      await fs.rm(temp, { force: true }).catch(() => {});
-      if (!['EACCES', 'EPERM', 'EROFS'].includes(error?.code)) throw error;
-      await protectedWrite();
-    }
+  // Only NIGHT may write its own settings file. The protected sudo helper is
+  // not an appropriate second owner of this state and failed in production
+  // (HTTP 503). The existing loopback MSCC service updates its own in-memory
+  // settings and atomically persists them through its canonical saveSettings().
+  const confirmation = await msccControl('POST', '/settings', { key, value: enabled });
+  if (confirmation?.ok !== true) {
+    throw Object.assign(new Error('NIGHT did not acknowledge command setting'), { statusCode: 502 });
   }
   const persisted = await commandSettings();
-  const confirmed = persisted.find(row => row.key === key);
-  if (confirmed?.enabled !== (enabled === true)) {
-    throw Object.assign(new Error('Protected setting readback mismatch'), { statusCode: 503 });
+  const row = persisted.find((entry) => entry.key === key);
+  if (row?.enabled !== enabled) {
+    throw Object.assign(new Error('NIGHT settings disk readback did not match'), { statusCode: 503 });
   }
-  await recordActivity('server:setting.update', { key, enabled: enabled === true });
+  await recordActivity('server:setting.update', { key, enabled });
   return persisted;
 }
-
 
 async function environmentSchema() {
   let entries = DEFAULT_ENVIRONMENT_SCHEMA;
