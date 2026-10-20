@@ -2,9 +2,16 @@ name: Mise Under Tree - Real Scene QA
 
 on:
   push:
-    branches: [mise-two-students-under-tree-20261018]
+    branches: [mise-two-students-under-tree-20261018, integrate/mise-studio-completion-20261020]
     paths:
-      - "artist-scene-studio/**"
+      - "artist-scene-studio/app/**"
+      - "artist-scene-studio/scripts/**"
+      - ".github/workflows/mise-under-tree-qa.yml"
+  pull_request:
+    branches: [integrate/mise-studio-completion-20261020]
+    paths:
+      - "artist-scene-studio/app/**"
+      - "artist-scene-studio/scripts/**"
       - ".github/workflows/mise-under-tree-qa.yml"
   workflow_dispatch:
 
