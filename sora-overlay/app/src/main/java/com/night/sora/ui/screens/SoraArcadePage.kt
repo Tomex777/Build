@@ -7,6 +7,10 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowBack
@@ -24,21 +28,21 @@ import com.night.sora.R
 import com.night.sora.model.LibraryEntry
 import com.night.sora.ui.theme.*
 
-private data class ArcadeEntry(val key: String, val title: String, val subtitle: String, val icon: Int)
+private data class ArcadeEntry(val key: String, val title: String, val subtitle: String, val icon: Int, val category: String = "Arcade")
 
 private val arcadeEntries = listOf(
     ArcadeEntry("snake", "Snake", "Swipe to steer, survive and grow", R.drawable.sora_game_snake),
-    ArcadeEntry("tiles", "2048", "Swipe and merge matching numbers", R.drawable.sora_game_tiles),
-    ArcadeEntry("water", "Water Sort", "Pour matching colours into tubes", R.drawable.sora_game_water),
-    ArcadeEntry("ttt", "Tic-tac-toe", "Challenge a computer opponent", R.drawable.sora_game_tictactoe),
-    ArcadeEntry("memory", "Memory match", "Find all eight hidden pairs", R.drawable.sora_game_memory),
-    ArcadeEntry("quiz", "Cover quiz", "Guess titles saved in your Library", R.drawable.sora_game_quiz),
-    ArcadeEntry("daily", "Daily 5", "Five quick questions, fresh each session", R.drawable.sora_game_daily),
-    ArcadeEntry("who", "Who am I?", "Identify the character from its clues", R.drawable.sora_game_who),
-    ArcadeEntry("quotes", "Who said it?", "Match a famous line to its speaker", R.drawable.sora_game_quotes),
-    ArcadeEntry("bible", "Bible trivia", "Test your Bible knowledge", R.drawable.sora_game_bible),
-    ArcadeEntry("rather", "Would you rather?", "Make tough choices; see your own picks", R.drawable.sora_game_rather),
-    ArcadeEntry("meme", "Meme caption", "Write captions for saved memes", R.drawable.sora_game_meme),
+    ArcadeEntry("tiles", "2048", "Swipe and merge matching numbers", R.drawable.sora_game_tiles, "Puzzle"),
+    ArcadeEntry("water", "Water Sort", "Pour matching colours into tubes", R.drawable.sora_game_water, "Puzzle"),
+    ArcadeEntry("ttt", "Tic-tac-toe", "Challenge a computer opponent", R.drawable.sora_game_tictactoe, "Strategy"),
+    ArcadeEntry("memory", "Memory match", "Find all eight hidden pairs", R.drawable.sora_game_memory, "Puzzle"),
+    ArcadeEntry("quiz", "Cover quiz", "Guess titles saved in your Library", R.drawable.sora_game_quiz, "Trivia"),
+    ArcadeEntry("daily", "Daily 5", "Five quick questions, fresh each session", R.drawable.sora_game_daily, "Trivia"),
+    ArcadeEntry("who", "Who am I?", "Identify the character from its clues", R.drawable.sora_game_who, "Trivia"),
+    ArcadeEntry("quotes", "Who said it?", "Match a famous line to its speaker", R.drawable.sora_game_quotes, "Trivia"),
+    ArcadeEntry("bible", "Bible trivia", "Test your Bible knowledge", R.drawable.sora_game_bible, "Trivia"),
+    ArcadeEntry("rather", "Would you rather?", "Make tough choices; see your own picks", R.drawable.sora_game_rather, "Social"),
+    ArcadeEntry("meme", "Meme caption", "Write captions for saved memes", R.drawable.sora_game_meme, "Creative"),
 )
 
 @Composable
@@ -50,6 +54,13 @@ fun SoraArcadePage(
     modifier: Modifier = Modifier,
 ) {
     if (selected.isEmpty()) {
+        var selectedCategory by rememberSaveable { mutableStateOf("All") }
+        val categories = listOf(
+            "All", "Arcade", "Action", "Puzzle", "Strategy",
+            "Cards", "Board", "Rhythm", "Trivia", "Social", "Creative", "Story",
+        )
+        val visibleNative = arcadeEntries.filter { selectedCategory == "All" || it.category == selectedCategory }
+        val visibleNight = soraNightGames.filter { selectedCategory == "All" || it.category == selectedCategory }
         // Cards are intentionally bigger than the original compact list:
         // game SVGs are readable at 360dp and the entire card is touchable.
         // A 2-column layout makes the full arcade discoverable without hiding
@@ -66,6 +77,30 @@ fun SoraArcadePage(
                     modifier = Modifier.fillMaxWidth())
             }
             item(span = { GridItemSpan(maxLineSpan) }) {
+                Row(
+                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(7.dp),
+                ) {
+                    categories.forEach { category ->
+                        val selected = category == selectedCategory
+                        Surface(
+                            modifier = Modifier.clickable { selectedCategory = category },
+                            color = if (selected) SoraAccent else SoraSurfaceHigh,
+                            shape = RoundedCornerShape(999.dp),
+                            border = androidx.compose.foundation.BorderStroke(
+                                1.dp, if (selected) SoraAccent else Color.White.copy(alpha = .08f),
+                            ),
+                        ) {
+                            Text(
+                                category, color = if (selected) SoraAccentInk else SoraMuted,
+                                fontSize = 11.sp, fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 13.dp, vertical = 10.dp),
+                            )
+                        }
+                    }
+                }
+            }
+            if (selectedCategory == "All" || selectedCategory == "Story") item(span = { GridItemSpan(maxLineSpan) }) {
                 Surface(
                     modifier = Modifier.fillMaxWidth().clickable { onOpenNightGame(soraNightStory.id) },
                     shape = RoundedCornerShape(16.dp),
@@ -92,7 +127,7 @@ fun SoraArcadePage(
                     }
                 }
             }
-            items(arcadeEntries, key = { it.key }) { game ->
+            items(visibleNative, key = { it.key }) { game ->
                 Surface(
                     modifier = Modifier.fillMaxWidth().clickable { onSelect(game.key) },
                     color = SoraSurfaceHigh,
@@ -126,7 +161,7 @@ fun SoraArcadePage(
             }
             // Playable games reused from NIGHT Play. They open fullscreen,
             // retain their own offline scores, and share no duplicate launcher.
-            items(soraNightGames, key = { it.id }) { game ->
+            items(visibleNight, key = { it.id }) { game ->
                 Surface(
                     modifier = Modifier.fillMaxWidth().clickable { onOpenNightGame(game.id) },
                     color = SoraSurfaceHigh,
