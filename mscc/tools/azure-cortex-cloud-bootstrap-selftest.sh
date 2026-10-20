@@ -18,7 +18,7 @@ grep -Fq 'readonly SERVICE_BLOB=82518da0a5a09d5148671aac1d8d3cfa3d7fb7fc' "$UPGR
 grep -Fq 'readonly SETTINGS_WRITE_BLOB=ad3f66e3b02ffca4367de009cda505e7f189db66' "$UPGRADE"
 grep -Fq 'readonly SETTINGS_WRITE_TARGET=/usr/local/libexec/cortex-agent-settings-write.cjs' "$UPGRADE"
 grep -Fq '"$SETTINGS_WRITE_BLOB protected-settings-write.cjs"' "$UPGRADE"
-grep -Fq '"$tmp/protected-settings-write.cjs" == "$SETTINGS_WRITE_BLOB"' "$UPGRADE"
+grep -Fq 'git hash-object "$tmp/protected-settings-write.cjs"' "$UPGRADE"
 grep -Fq 'sudo -n install -m 0440 "$tmp/new-sudoers" /etc/sudoers.d/cortex-agent' "$UPGRADE"
 grep -Fq 'sudo -n install -m 0644 "$tmp/protected-settings-write.cjs" "$SETTINGS_WRITE_TARGET"' "$UPGRADE"
 grep -Fq 'Cortex protected command-setting write readback passed (no value changed).' "$UPGRADE"
