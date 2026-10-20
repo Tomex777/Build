@@ -178,8 +178,9 @@ tap Games
 wait_for "Snake"
 wait_for "2048"
 wait_for "Tic-tac-toe"
-wait_for "Memory match"
-wait_for "Cover quiz"
+# LazyVerticalGrid only composes cards currently on screen. The remaining
+# launchers are proven below by navigating to their playable destinations.
+# Never expect an offscreen card to exist in an accessibility dump.
 shot games-arcade-hub
 
 tap "Snake"
@@ -263,7 +264,7 @@ fi
 shot games-2048-restored
 tap "All games"
 
-tap "Tic-tac-toe"
+tap_scrolling "Tic-tac-toe"
 wait_for "Your turn"
 shot games-tictactoe-board
 # The nine X/O squares are drawn with Canvas; tap the top-left playable cell.
@@ -306,7 +307,7 @@ tap "Restart"
 wait_for "MOVES  0"
 tap "All games"
 
-tap "Cover quiz"
+tap_scrolling "Cover quiz"
 wait_for "TITLE MATCH"
 wait_for "YOUR PLAY"
 wait_for "Save at least two Anime or Manga titles"

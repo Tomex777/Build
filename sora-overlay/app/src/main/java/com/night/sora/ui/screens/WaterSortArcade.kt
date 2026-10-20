@@ -20,6 +20,8 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -28,6 +30,9 @@ import kotlin.math.min
 import kotlin.random.Random
 
 private const val WATER_CAP = 4
+private val waterColorNames = listOf(
+    "Coral", "Blue", "Gold", "Lavender", "Green", "Rose", "Sand",
+)
 private val waterColors = listOf(
     Color(0xFFED796D), Color(0xFF63B5D7), Color(0xFFF5BD58),
     Color(0xFF9B87D6), Color(0xFF6FBF8C), Color(0xFFD88CB8),
@@ -159,6 +164,7 @@ fun WaterSortArcade(modifier: Modifier = Modifier) {
                     WaterTube(
                         tube = tube,
                         picked = index == selected,
+                        number = index + 1,
                         onTap = { choose(index) },
                         modifier = Modifier.weight(1f),
                     )
@@ -208,6 +214,7 @@ fun WaterSortArcade(modifier: Modifier = Modifier) {
 private fun WaterTube(
     tube: List<Int>,
     picked: Boolean,
+    number: Int,
     onTap: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -215,10 +222,19 @@ private fun WaterTube(
         targetValue = if (picked) -10f else 0f,
         animationSpec = tween(180), label = "Lift selected tube",
     )
+    val tubeDescription = if (tube.isEmpty()) {
+        "Tube $number, empty"
+    } else {
+        "Tube $number, top to bottom: " +
+            tube.asReversed().joinToString(", ") { waterColorNames[it] }
+    }
     Box(
         modifier.height(174.dp).clip(RoundedCornerShape(16.dp))
             .background(if (picked) SoraSurfaceRaised else SoraSurfaceHigh)
-            .clickable(onClick = onTap),
+            .clickable(onClick = onTap)
+            .semantics {
+                contentDescription = if (picked) "$tubeDescription, selected" else tubeDescription
+            },
         contentAlignment = Alignment.Center,
     ) {
         Canvas(Modifier.fillMaxWidth().height(146.dp).offset(y = lift.dp)) {
