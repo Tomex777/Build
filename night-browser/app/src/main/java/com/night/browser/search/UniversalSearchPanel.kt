@@ -74,20 +74,24 @@ fun UniversalSearchPanel(
     var question by remember { mutableStateOf("") }
     var temporaryKey by remember { mutableStateOf("") }
     var model by remember { mutableStateOf("gpt-4.1-mini") }
+    var localFilter by remember { mutableStateOf("") }
     var confirmRequest by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
     var outcome by remember { mutableStateOf<AiSearchOutcome?>(null) }
     var showResult by remember { mutableStateOf(false) }
     var generation by remember { mutableIntStateOf(0) }
     var job by remember { mutableStateOf<Job?>(null) }
-    val approved = remember(bookmarks, journeys) {
-        SearchSourceCatalog.collect(bookmarks, journeys)
+    val localIndex = remember(bookmarks, journeys) {
+        SearchSourceCatalog.index(bookmarks, journeys)
+    }
+    val approved = remember(localIndex, localFilter) {
+        SearchSourceCatalog.match(localIndex, localFilter)
     }
     val selected = remember { mutableStateListOf<String>() }
 
     // A record's title/domain could change after a tick; require selection
     // again when the actual catalog changes, rather than consent by stale ID.
-    LaunchedEffect(approved) {
+    LaunchedEffect(localIndex) {
         // Abort an in-flight answer if the approved records changed underneath
         // the user; a later result must never masquerade as the current catalog.
         if (selected.isNotEmpty() || busy) {
@@ -166,6 +170,7 @@ fun UniversalSearchPanel(
             Spacer(Modifier.height(12.dp))
             SearchEntryField(
                 label = "What are you looking for?",
+                placeholder = "Ask about a saved or visited page",
                 value = question,
                 onValueChange = {
                     if (!busy && it.length <= 500) {
@@ -178,6 +183,7 @@ fun UniversalSearchPanel(
             Spacer(Modifier.height(8.dp))
             SearchEntryField(
                 label = "Temporary OpenAI API key",
+                placeholder = "Paste key for this session",
                 value = temporaryKey,
                 onValueChange = {
                     if (!busy) {
@@ -191,6 +197,7 @@ fun UniversalSearchPanel(
             Spacer(Modifier.height(8.dp))
             SearchEntryField(
                 label = "Model",
+                placeholder = "OpenAI model ID",
                 value = model,
                 onValueChange = {
                     if (!busy && it.length <= 80) {
@@ -240,6 +247,14 @@ fun UniversalSearchPanel(
                 }
             }
         } else {
+            SearchEntryField(
+                label = "Filter saved pages · on device",
+                placeholder = "Search titles or websites",
+                value = localFilter,
+                onValueChange = { if (!busy && it.length <= 120) localFilter = it },
+                enabled = !busy,
+            )
+            Spacer(Modifier.height(8.dp))
             Text(
                 "Select pages · " + selected.size + " of " + UniversalSearchPolicy.MAX_SHARED_SOURCES + " max",
                 style = MaterialTheme.typography.titleSmall,
@@ -248,7 +263,9 @@ fun UniversalSearchPanel(
             if (approved.isEmpty()) {
                 Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                     Text(
-                        "No eligible saved or visited pages. Open and bookmark a public HTTPS page first.",
+                        if (localIndex.isEmpty())
+                            "No eligible saved or visited pages. Open and bookmark a public HTTPS page first."
+                        else "No pages match this local filter.",
                         modifier = Modifier.padding(24.dp),
                         style = MaterialTheme.typography.bodyMedium,
                     )
@@ -331,7 +348,7 @@ fun UniversalSearchPanel(
             onDismissRequest = { confirmRequest = false },
             title = { Text("Share selected pages?") },
             text = {
-                val chosen = approved.filter { selected.contains(it.id) }
+                val chosen = localIndex.filter { selected.contains(it.id) }
                     .take(UniversalSearchPolicy.MAX_SHARED_SOURCES)
                 // The disclosure must show EXACTLY the context about to be shared.
                 // Hiding extra sources behind "+ N more" would not be informed consent.
@@ -359,7 +376,7 @@ fun UniversalSearchPanel(
                     confirmRequest = false
                     val approvedRequest = UniversalSearchPolicy.prepare(
                         question = question,
-                        eligible = approved,
+                        eligible = localIndex,
                         selectedIds = selected.toSet(),
                         explicitlyConfirmed = true,
                         privateTab = privateTab,
@@ -400,6 +417,7 @@ private fun SearchEntryField(
     onValueChange: (String) -> Unit,
     secret: Boolean = false,
     enabled: Boolean = true,
+    placeholder: String = "",
 ) {
     val colors = MaterialTheme.colorScheme
     Column {
@@ -430,7 +448,7 @@ private fun SearchEntryField(
                 cursorBrush = SolidColor(colors.primary),
                 decorationBox = { field ->
                     if (value.isEmpty()) {
-                        Text("Not configured", color = colors.onSurfaceVariant,
+                        Text(placeholder, color = colors.onSurfaceVariant,
                             style = MaterialTheme.typography.bodyMedium)
                     }
                     field()
