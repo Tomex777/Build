@@ -313,6 +313,8 @@ private fun OfflineHub() {
             }
         } else if (selected == "2048") {
             Game2048Screen(onExit = { selected = null })
+        } else if (selected == "mines") {
+            NativeMinesScreen(onExit = { selected = null })
         } else if (selected == "reversi") {
             NativeReversiScreen(onExit = { selected = null })
         } else if (selected == "snake") {

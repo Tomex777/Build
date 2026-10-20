@@ -24,7 +24,7 @@ import org.junit.Test
 
 @RunWith(AndroidJUnit4::class)
 class OfflineFlowTest {
-    @Test fun hubNativeAndBundledGameWorkWithoutNetworkPermission() {
+    @Test fun nativeHubGamesWorkWithoutNetworkPermission() {
         val instrument = InstrumentationRegistry.getInstrumentation()
         val context = instrument.targetContext
         val granted = context.packageManager
@@ -46,38 +46,20 @@ class OfflineFlowTest {
             device.pressBack()
             assertNotNull("Did not return from 2048", device.wait(Until.findObject(By.text("Offline collection")), 7000))
 
-            val mines = device.wait(Until.findObject(By.text("Minesweeper")), 7000)
-            assertNotNull("Minesweeper missing from hub", mines)
+            // Native Minesweeper must work without any system WebView provider.
+            val mines = device.wait(Until.findObject(By.desc("Open Minesweeper")), 7000)
+            assertNotNull("Native Minesweeper missing from hub", mines)
             mines!!.click()
-            if (WebView.getCurrentWebViewPackage() == null) {
-                // Real Android 8 system images sometimes ship without a WebView provider.
-                // Legacy games must show an explicit native-migration notice, not crash.
-                assertNotNull("Missing-WebView fallback not visible",
-                    device.wait(Until.findObject(By.text("Native version in progress")), 9000))
-                saveScreenshot(device, context, "03-minesweeper-native-pending.png")
-            } else {
-                // Only the old browser titles need this DOM check. Native titles do not.
-                val minesReady = awaitJavaScript(scenario, """
-                    (function() {
-                        var title = document.getElementById('title');
-                        return !!title && title.textContent === 'Minesweeper' &&
-                            document.querySelectorAll('#mineboard [data-tile]').length === 81;
-                    })()
-                """.trimIndent(), 18000)
-                saveScreenshot(device, context, "03-minesweeper.png")
-                assertEquals("Bundled Minesweeper did not render: ${diagnose(scenario)}", "true", minesReady)
-                assertEquals("Minesweeper does not respond to a click", "true",
-                    evaluateJavaScript(scenario, """
-                        (function(){
-                            document.querySelector('#mineboard [data-tile="0"]').click();
-                            return document.querySelectorAll('#mineboard button.revealed').length > 0;
-                        })()
-                    """.trimIndent()))
-                saveScreenshot(device, context, "03-minesweeper-touched.png")
-            }
-
+            val center = device.wait(Until.findObject(By.desc("Mine cell 5, 5: hidden")), 9000)
+            assertNotNull("Minesweeper native touch cells missing", center)
+            saveScreenshot(device, context, "03-native-minesweeper-opening.png")
+            center!!.click()
+            assertNotNull("Native Minesweeper did not reveal the first safe square",
+                device.wait(Until.findObject(By.descContains("Mine cell 5, 5: revealed")), 7000))
+            saveScreenshot(device, context, "03-native-minesweeper-revealed.png")
             device.pressBack()
-            assertNotNull("Did not return from legacy game", device.wait(Until.findObject(By.text("Offline collection")), 7000))
+            assertNotNull("Did not return from native Minesweeper",
+                device.wait(Until.findObject(By.text("Offline collection")), 7000))
 
             // This is now a genuine Kotlin/Compose Tic-Tac-Toe screen — not a DOM.
             val search = device.wait(Until.findObject(By.clazz("android.widget.EditText")), 5000)
