@@ -28,7 +28,7 @@ G.add('mancala','Mancala','Sow stones around the board, collect captures in your
  if(selfSide&&pits[pos]===1&&pits[12-pos]>0){pits[store]+=pits[pos]+pits[12-pos];pits[pos]=0;pits[12-pos]=0}
  if(pits.slice(0,6).every(v=>v===0)||pits.slice(7,13).every(v=>v===0)){for(let k=0;k<6;k++){pits[6]+=pits[k];pits[k]=0;pits[13]+=pits[k+7];pits[k+7]=0}ended=true}
  return pos===store;}
- function cpu(){let count=0;while(!ended&&count++<20){const legal=[7,8,9,10,11,12].filter(i=>pits[i]);if(!legal.length)break;const extra=legal.find(i=>(i+pits[i])%14===13);const choice=extra??rand(legal);if(!turn(choice,2))break}}
+ function cpu(){let count=0;while(!ended&&count++<20){const legal=[7,8,9,10,11,12].filter(i=>pits[i]);if(!legal.length)break;const extra=legal.find(i=>(i+pits[i])%14===13);const choice=(extra == null ? rand(legal) : extra);if(!turn(choice,2))break}}
  function draw(){G.status(ended?(pits[6]>pits[13]?'You win!':pits[6]===pits[13]?'Draw':'Computer wins'):'Your store '+pits[6]+' · Computer '+pits[13]);const wrap=G.el('div','mancala');let storeBot=G.el('button','pit store',pits[13]);storeBot.disabled=true;storeBot.style.gridColumn='1';storeBot.style.gridRow='1 / span 2';wrap.append(storeBot);
  for(let i=12;i>=7;i--){const btn=G.el('button','pit',pits[i]);btn.disabled=true;btn.style.gridColumn=String(14-i);btn.style.gridRow='1';wrap.append(btn)}
  for(let i=0;i<6;i++){const btn=G.el('button','pit',pits[i]);btn.disabled=!pits[i]||ended;btn.style.gridColumn=String(i+2);btn.style.gridRow='2';btn.onclick=()=>{if(!turn(i,1))cpu();draw()};wrap.append(btn)}
