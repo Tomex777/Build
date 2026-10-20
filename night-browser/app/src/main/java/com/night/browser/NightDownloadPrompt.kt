@@ -143,7 +143,11 @@ fun NightDownloadPrompt(state: WebDownloadConsent) {
 
     AlertDialog(
         onDismissRequest = state::dismiss,
-        title = { Text(if (state.privateMode) "Save private file?" else "Save downloaded file?") },
+        title = { Text(when {
+            state.privateMode -> "Save private file?"
+            state.isRepeatDownload -> "Download again?"
+            else -> "Save downloaded file?"
+        }) },
         text = {
             Column {
                 Text(filename)
