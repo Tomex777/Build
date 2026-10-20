@@ -39,3 +39,23 @@
 - **Newest in-progress source revision:** `17b4c0e`. Adds **actual 2048 key/touch swipe**, settings opening/closing, library visual screenshot/overflow/cards assertion and profile screenshots at all seven widths. Browser and full-preview Actions runs 39350795340 / 39350795341 were queued at the time of writing; check their final state and do not claim they passed yet.
 - **Own editable paths:** `night-play/site-shell.css`, `night-play/ui/` and `.github/workflows/night-play-agent9-ui.yml` only. Do not edit the coordinator-owned `night-play/index.html`, other agents' game modules, or frozen Channels.
 - **Recovery action:** Retrieve the latest completed workflow artifact for run 39350795340; inspect `library-320.png`, `profile-320.png`, `site-320.png`, `game-2048-320.png`, `game-after-move-320.png` and 390/1280 equivalents. If CI fails, fetch its exact failing job log, fix and replay; if green, update the draft PR with evidence and request integration QA. Verify merged combined preview separately before `DONE`.
+
+
+## Wave 2 follow-up: merged source, 20 October 2026
+
+**Active integrated baseline:** `6c848aafbcc3b085a58177057ddd7bdb65d6fd46` (PRs #436 and #461 already merged). First-wave PR #413's UI changes are included in merged PR #436; do not try to merge its old standalone branch over current gameplay.
+
+**Wave-2 A9 PR:** [#464](https://github.com/Tomex777/Build/pull/464), branch `agent/play-v2-09-ux`. This *first step* extends `site-chrome-smoke.mjs` with two reproducible journeys and responsive screenshots. It is test-only and does not claim that the remaining visual/accessibility work is finished.
+
+1. **Games discovery to keyboard/real-swipe play.** Puzzle filter must update `aria-pressed`, search `2048` must yield one visible board card, keyboard Enter must activate the semantic card, and touch CDP swipe must move a seeded tile. Capture `library-puzzles-*`, `library-search-*` and `game-after-move-*`.
+2. **Player name truly affects dashboard.** Profile guest rename must persist across full reload, and real bottom/desktop navigation back to Home must greet `NIGHT Tester`. Capture `profile-*` and `dashboard-renamed-*`. This checks the **guest local** path only; server-linked WhatsApp name authority remains Agent 8's independent acceptance gate.
+
+**Ownership gate:** Agent 1 retains `index.html`, shared `site-shell.css`, route naming and Channel locks. A9 requested an exclusive shared-CSS window on issue #459. No website shell changes will be claimed until it is acknowledged and implemented.
+
+**Additional source evidence:**
+- `index.html` deliberately rewrites `/updates` to `/dashboard` and has no distinct `#view-updates`. This is a product/navigation decision for Agent 1; A9 must not silently create a redundant Updates destination.
+- The leading inline style contains literal `\\n.night-newgame-thumb` and another literal `\\n`; inspect actual computed cover styles to determine affected selectors. Since `index.html` is shared, owner Agent 1 must coordinate a correction if browser evidence confirms an issue.
+- `.filter-btn` uses `padding:10px 15px` and `font-size:12px`, so touch-height 44px is not guaranteed. Record actual browser rectangles first; do not assert a pass merely from button presence.
+- Contrary to an initial narrow source search, `index.html` **does have** delegated Enter/Space handling for `.library-card[role=button]` around lines 1574–1578. PR #464 tests this; no duplicated keyboard handler should be added.
+
+**Still missing (explicit NOT VERIFIED):** physical Android finger feel; 320px visual screenshot inspection for all routes (including party and stories); linked-WhatsApp guest→player name convergence; secure server multiplayer; green terminal CI for PR #464 and Agent 10 independent sign-off. Do not mark the website DONE on a source/CI-only check.
