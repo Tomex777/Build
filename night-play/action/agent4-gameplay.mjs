@@ -32,7 +32,7 @@ try{
   for(let i=0;i<280;i++){
    const s=await snap(p);if(s.over)break;
    if(s.attached)await p.locator('canvas').click({position:{x:180,y:270}});
-   else if(s.ball.vy>0&&s.ball.y>330){const x=s.ball.x<195?345:35;await p.mouse.move(box.x+box.width*x/390,box.y+box.height*.85);await p.mouse.down();await p.mouse.up();}
+   else if(s.ball.vy>0&&s.ball.y>330){const x=s.ball.x<195?345:35;await p.mouse.move(box.x+box.width*x/390,box.y+box.height*.85);await p.mouse.down();await p.waitForTimeout(45);await p.mouse.up();}
    await p.waitForTimeout(85);
   }
   const lost=await snap(p);
@@ -43,11 +43,11 @@ try{
  }
  {
   const p=await actionPage('shooter'),box=await p.locator('canvas').boundingBox();
-  await p.mouse.move(box.x+box.width*.09,box.y+box.height*.85);await p.mouse.down();await p.mouse.up();
+  await p.mouse.move(box.x+box.width*.09,box.y+box.height*.85);await p.mouse.down();await p.waitForTimeout(190);await p.mouse.up();
   await p.waitForFunction(()=>window.__nightActionTest.snapshot().enemyShots.some(b=>b.y>350),null,{timeout:10000,polling:40});
   const live=await snap(p);assert.ok(live.enemies.length&&live.shots.length);
   await shot(p,'shooter-action');
-  await p.mouse.move(box.x+box.width*.5,box.y+box.height*.84);await p.mouse.down();
+  await p.mouse.move(box.x+box.width*.5,box.y+box.height*.84);await p.mouse.down();await p.waitForTimeout(400);
   await p.waitForFunction(()=>window.__nightActionTest.snapshot().lives<3,null,{timeout:5700,polling:40});
   await p.mouse.up();const hurt=await snap(p);assert.ok(hurt.lives<3);
   await shot(p,'shooter-damage');await sizes(p);
@@ -59,7 +59,7 @@ try{
   p.on('pageerror',e=>errors.push(e.message));await p.goto(origin+'/arcade/?game=bird');await sizes(p);
   assert.equal(await p.locator('[data-control="flap"]').count(),0);await shot(p,'flappy-start');
   await p.locator('canvas').tap();
-  for(let i=0;i<5;i++){await p.waitForTimeout(310);await p.locator('canvas').tap();}
+  for(let i=0;i<2;i++){await p.waitForTimeout(640);await p.locator('canvas').tap();}
   const flight=await p.evaluate(()=>window.__nightArcadeTest.snapshot());
   assert.ok(flight.started&&flight.pipes.length>0,'actually flying between pipes');
   assert.ok(flight.pipes.every(pipe=>pipe.gap>=115),'per-pipe gap is physical');
