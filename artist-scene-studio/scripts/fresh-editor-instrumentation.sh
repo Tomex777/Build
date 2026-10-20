@@ -165,13 +165,22 @@ for stage in before hair-short hair-afro hair-bob appearance posed; do
   cp "$PROOF_DIR/humanoid-${stage}.png" "artist-scene-studio-${API_TAG}-humanoid-${stage}.png" || fail "Humanoid $stage screenshot was missing"
   python3 scripts/check-viewport-pixels.py "artist-scene-studio-${API_TAG}-humanoid-${stage}.png" || fail "Humanoid $stage viewport was black"
 done
+# Verify appearance separately from bone posing. Comparing only "before" with
+# "posed" could hide a broken pose behind an otherwise working hair/material edit.
 python3 scripts/verify-acceptance-frames.py \
-  --case "humanoid-pose-and-appearance-api$API_LEVEL" \
+  --case "humanoid-appearance-api$API_LEVEL" \
   --before "$PROOF_DIR/humanoid-before.png" \
+  --after "$PROOF_DIR/humanoid-appearance.png" \
+  --minimum-pct 0.10 \
+  --json "$PROOF_DIR/qa-humanoid-visible-appearance.json" \
+  || fail "Humanoid appearance edits were not visible in actual scene screenshots"
+python3 scripts/verify-acceptance-frames.py \
+  --case "humanoid-joint-pose-api$API_LEVEL" \
+  --before "$PROOF_DIR/humanoid-appearance.png" \
   --after "$PROOF_DIR/humanoid-posed.png" \
   --minimum-pct 0.10 \
-  --json "$PROOF_DIR/qa-humanoid-visible-change.json" \
-  || fail "Humanoid before/posed screenshots do not show a visible character change"
+  --json "$PROOF_DIR/qa-humanoid-visible-pose.json" \
+  || fail "Humanoid pose edits were not visible after appearance was applied"
 fi
 
 echo "Fresh API $API_LEVEL instrumentation passed with all screenshot proof"
