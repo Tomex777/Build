@@ -71,10 +71,12 @@ wait_ui "Choose a melody"
 # The expanded library is lazily rendered and sorted by relevance/recent history.
 # Search the actual UI instead of assuming a title must appear above the fold.
 tap_ui "Find a tune"
-adb shell input text 'Jingle%sBells'
+adb shell input text 'Jingle'
 adb shell input keyevent KEYCODE_ENTER
 wait_ui "Jingle Bells"
 capture tiles-library
+# Save is real persistent app state, not an unconnected heart icon.
+tap_ui "Save Jingle Bells"
 tap_ui "Jingle Bells"
 wait_ui "ENDLESS TILES"
 wait_ui "Tap the first tile to start in lane"
@@ -135,8 +137,12 @@ tap_ui "Endless tiles"
 wait_ui "Piano Tiles"
 wait_ui "Best 103"
 capture tiles-song-record
+tap_ui "Saved"
+wait_ui "Jingle Bells"
+# Selected song survives process death and remains discoverable in Saved.
+tap_ui "All"
 tap_ui "Find a tune"
-adb shell input text 'Happy%sBirthday'
+adb shell input text 'Happy'
 adb shell input keyevent KEYCODE_ENTER
 wait_ui "Happy Birthday"
 tap_ui "Happy Birthday"
