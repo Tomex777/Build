@@ -178,6 +178,55 @@
       "text_status": "public_domain_english_alternate_needs_edition_review"
     },
     {
+      "number": 195,
+      "title_en": "Rejoice! The Lord is King!",
+      "author": "Charles Wesley",
+      "published": 1744,
+      "source_url": "https://hymnary.org/text/rejoice_the_lord_is_king_your_lord_and_k",
+      "source_first_line": "Rejoice, the Lord is King",
+      "verses_en": [
+        [
+          "Rejoice, the Lord is King:",
+          "Your Lord and King adore!",
+          "Rejoice, give thanks and sing,",
+          "And triumph evermore.",
+          "Lift up your heart,",
+          "Lift up your voice!",
+          "Rejoice, again I say, rejoice!"
+        ],
+        [
+          "Jesus, the Savior, reigns,",
+          "The God of truth and love;",
+          "When He has purged our stains,",
+          "He took his seat above;",
+          "Lift up your heart,",
+          "Lift up your voice!",
+          "Rejoice, again I say, rejoice!"
+        ],
+        [
+          "His kingdom cannot fail,",
+          "He rules o'er earth and heaven;",
+          "The keys of death and hell",
+          "Are to our Jesus given:",
+          "Lift up your heart,",
+          "Lift up your voice!",
+          "Rejoice, again I say, rejoice!"
+        ],
+        [
+          "Rejoice in glorious hope!",
+          "Our Lord and judge shall come",
+          "And take His servants up",
+          "To their eternal home:",
+          "Lift up your heart,",
+          "Lift up your voice!",
+          "Rejoice, again I say, rejoice!"
+        ]
+      ],
+      "rights": "public_domain_historical_english_text",
+      "edition_match": "first_line_matches_RH2006; stanza_order_and_wording_need_TAC_book_check",
+      "text_status": "public_domain_english_alternate_needs_edition_review"
+    },
+    {
       "number": 200,
       "title_en": "Arise, my soul, arise",
       "author": "Charles Wesley",
