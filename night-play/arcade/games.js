@@ -671,7 +671,14 @@ for(const eventName of ["pointerup","pointercancel","lostpointercapture"])
   if(eventName==="pointercancel")blockSuppressedClicks.delete(b);
   else setTimeout(()=>blockSuppressedClicks.delete(b),380);
  });
-function action(control){if(type==="bird"&&control==="flap")flap();if(type==="bird"&&control==="bird-skin")switchBird();if(type==="blocks")blockMove(control);if(type==="maze"){if(control==="pause"){paused=!paused;message(paused?"Paused":"Back in the maze");drawMaze();}else{const dirs={left:[-1,0],right:[1,0],up:[0,-1],down:[0,1]};if(dirs[control])mazeMove(...dirs[control]);}}if(type==="mines"&&(control==="flag"||control==="reveal"))flagMode(control==="flag");}
+function action(control){if(type==="bird"&&control==="flap")flap();if(type==="bird"&&control==="bird-skin")switchBird();if(type==="blocks")blockMove(control);if(type==="maze"){if(control==="pause"){
+ paused=!paused;
+ const icon=touch.querySelector('[data-control="pause"] svg path'),
+  controlButton=touch.querySelector('[data-control="pause"]');
+ if(icon)icon.setAttribute("d",paused?"m8 5 12 7-12 7z":"M8 5v14M16 5v14");
+ if(controlButton)controlButton.setAttribute("aria-label",paused?"Resume":"Pause");
+ message("");drawMaze();
+}else{const dirs={left:[-1,0],right:[1,0],up:[0,-1],down:[0,1]};if(dirs[control])mazeMove(...dirs[control]);}}if(type==="mines"&&(control==="flag"||control==="reveal"))flagMode(control==="flag");}
 $("picks").addEventListener("click",e=>{const target=e.target.closest("[data-game]");if(target)pick(target.dataset.game);});
 $("settingsButton").addEventListener("click",()=>$("settingsDialog").showModal());
 $("settingsClose").addEventListener("click",()=>$("settingsDialog").close());
