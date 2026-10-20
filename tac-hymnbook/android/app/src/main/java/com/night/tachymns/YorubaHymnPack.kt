@@ -168,15 +168,14 @@ object YorubaHymnPack {
     }
 
     private fun requireLine(value: String): String {
-        val clean = value.trim()
+        // Canonicalize copied Yorùbá accents rather than rejecting text
+        // composed with combining marks by a legitimate keyboard or PDF.
+        val clean = Normalizer.normalize(value.trim(), Normalizer.Form.NFC)
         require(clean.isNotEmpty() && clean.length <= 500) {
             "A Yorùbá hymn line is missing or too long"
         }
         require(clean.none { it.code < 32 }) {
             "Split stanzas into individual lines instead of embedded line breaks"
-        }
-        require(Normalizer.isNormalized(clean, Normalizer.Form.NFC)) {
-            "Yorùbá hymn text must be Unicode NFC"
         }
         return clean
     }
