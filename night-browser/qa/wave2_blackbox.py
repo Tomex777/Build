@@ -207,28 +207,33 @@ class Device:
         wait_hit(path, previous)
         return "Clicked page link and fixture observed " + path
 
-    def back(self, path):
-        old = hits(path)
-        self.click("Back")
-        # Gecko back/forward cache MAY restore without GET, so observe tab title
-        # or committed URL through tab grid instead of requiring HTTP request.
+    def verify_title(self, title):
         self.click("Tabs")
-        self.click("NIGHT QA " + path, partial=True, timeout=10)
-        return "Back navigated to expected titled tab " + path
+        if not self.find(title, partial=True):
+            raise AssertionError("Expected committed title not shown: " + title)
+        self.click(title, partial=True)
+        return "Confirmed committed tab title " + title
 
     def tab_count(self):
         self.click("Tabs")
         return [n.get("text", "") or n.get("content-desc", "") for n in self.ui()]
 
     def ten_tabs(self):
-        self.click("Tabs")
-        for _ in range(9):
+        labels = self.tab_count()
+        matches = [re.search(r"(?:Regular\\s+(\\d+)|^(\\d+)$)", x) for x in labels]
+        numbers = [int(m.group(1) or m.group(2)) for m in matches if m]
+        if not numbers:
+            raise AssertionError("Regular tab count was not exposed")
+        initial = max(numbers)
+        if initial > 10:
+            raise Blocked("Already >10 tabs; isolated reset required")
+        for _ in range(initial, 10):
             self.click("New tab")
             self.click("Tabs")
         labels = self.tab_count()
-        if not any(re.search(r"(?:Regular\s+10|^10$)", x) for x in labels):
+        if not any(re.search(r"(?:Regular\\s+10|^10$)", x) for x in labels):
             raise AssertionError("10 regular tabs not visible in overview")
-        return "Created ten tabs through actual New tab controls"
+        return "Created up to ten tabs through actual controls"
 
     def rotate(self):
         shell("settings", "put", "system", "accelerometer_rotation", "0")
@@ -255,26 +260,41 @@ class Device:
         return "After app restart ten tabs restored"
 
     def private(self):
+        # Control: regular browsing MUST send its same-origin cookie before
+        # asserting that a private profile doesn't leak it.
+        self.go("/cookie/set")
+        self.go("/cookie/echo")
+        if not list(fixture()["cookie_seen"].values())[-1]:
+            raise AssertionError("Regular cookie was not carried to echo")
         self.click("Tabs")
         labels = [n for n in self.ui() if re.fullmatch(
-            r"Private\s+\d+", n.get("text", "") or n.get("content-desc", ""))]
+            r"Private\\s+\\d+", n.get("text", "") or n.get("content-desc", ""))]
         if not labels:
-            raise Blocked("No private-tab filter implemented in combined build")
+            raise Blocked("Private tab filter absent in combined build")
         name = labels[0].get("text", "") or labels[0].get("content-desc", "")
         self.click(name)
         self.click("New private tab")
-        return "Private tab created via actual UI"
+        return "Private tab created, regular cookie control observed"
 
     def cookie_isolation(self):
-        # Regular cookie set before creating a separate private profile.
-        # The test must use the same fixture origin for both requests.
-        self.go("/cookie/echo")
-        stats = fixture()["cookie_seen"]
-        if not stats:
-            raise AssertionError("Cookie echo never reached fixture")
-        if list(stats.values())[-1]:
-            raise AssertionError("Private Gecko request leaked regular cookie")
-        return "Private Gecko request omitted normal cookie on same origin"
+        try:
+            self.go("/cookie/echo")
+            seen = list(fixture()["cookie_seen"].values())
+            if len(seen) < 2 or not seen[-2]:
+                raise AssertionError("No positive regular-cookie control visit")
+            if seen[-1]:
+                raise AssertionError("PRIVATE COOKIE LEAK to same origin")
+            return "Control cookie present in regular, absent in private"
+        finally:
+            # Return to regular browsing so PDF/history tests don't write
+            # snapshots or form data into a private session.
+            self.click("Tabs")
+            regular = next((n for n in self.ui() if re.fullmatch(
+                r"Regular\\s+\\d+", n.get("text", "") or n.get("content-desc", ""))), None)
+            if regular:
+                label = regular.get("text", "") or regular.get("content-desc", "")
+                self.click(label)
+                self.click("New tab")
 
     def upload(self):
         self.go("/upload")
@@ -387,9 +407,11 @@ class Device:
                   prerequisites=("C08",), screenshot=True)
         self.test("C10", "Touch child link C", lambda: self.link("/branch/c", "Visit C"),
                   prerequisites=("C09",))
-        self.test("C11", "Hardware browser Back", lambda: self.click("Back"),
+        self.test("C11", "Back returns to branch A", lambda: (
+                  self.click("Back"), self.verify_title("NIGHT QA BRANCH A")),
                   prerequisites=("C10",))
-        self.test("C12", "Hardware browser Forward", lambda: self.click("Forward"),
+        self.test("C12", "Forward returns to branch C", lambda: (
+                  self.click("Forward"), self.verify_title("NIGHT QA BRANCH C")),
                   prerequisites=("C11",))
         self.test("C13", "Bookmark test site", lambda: (
                   self.go("/"), self.click("More"), self.click("Bookmark page")),
@@ -399,7 +421,8 @@ class Device:
                   self.click("10.0.2.2", partial=True)), prerequisites=("C13",))
         self.test("C15", "Journeys history access", lambda: (
                   self.click("More"), self.click("Journeys"),
-                  self.click("My browsing", partial=True)), prerequisites=("C13",))
+                  "My browsing panel visible" if self.find("My browsing", partial=True)
+                  else self._missing("My browsing panel")), prerequisites=("C13",))
         self.test("C16", "10 tabs via touch", self.ten_tabs, prerequisites=("C01",), screenshot=True)
         self.test("C17", "Landscape UI still interactive", self.rotate,
                   prerequisites=("C16",), screenshot=True)
@@ -426,7 +449,33 @@ class Device:
         self.test("C28", "Offline Home interactive", self.offline_home,
                   prerequisites=("C01",))
         self.test("C29", "Live process PSS captured", self.mem, prerequisites=("C01",))
+        self.test("C31", "AI provider opt-in and response",
+                  lambda: self._unverified("Test key, consent packet trace, grounded response and opt-out required"))
+        self.test("C32", "Site Studio per-origin isolation",
+                  lambda: self._unverified("Use two origins, CSS override, rollback, private exclusion"))
+        self.test("C33", "Camera/mic prompt deny/allow/revoke",
+                  lambda: self._unverified("Requires getUserMedia, OS prompt and permission-revocation assertion"))
+        self.test("C34", "Open saved PDF offline",
+                  lambda: self._unverified("Listing a PDF isn't proof it opens without network"))
+        self.test("C35", "Authenticated downloads verify byte SHA",
+                  lambda: self._unverified("Requires login test fixture + download consent and SHA256"))
+        self.test("C36", "Real thumbnail quality",
+                  lambda: self._unverified("Nonblank thumbnail screenshots must be reviewed"))
+        self.test("C37", "Scroll jank and frame timing",
+                  lambda: self._unverified("Requires swipe frame timing trace, p95 responsiveness"))
+        self.test("C38", "Low-memory process death recovery",
+                  lambda: self._unverified("Force-stop alone does not replicate Android LMK"))
+        self.test("C39", "Physical-device API26/API36",
+                  lambda: self._unverified("CI emulators only; no physical phone tested"))
         return self.finish(gate)
+
+    @staticmethod
+    def _missing(message):
+        raise AssertionError(message)
+
+    @staticmethod
+    def _unverified(message):
+        raise Blocked(message)
 
     @staticmethod
     def _posted():
