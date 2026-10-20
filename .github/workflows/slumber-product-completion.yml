@@ -36,6 +36,7 @@ on:
       - ".ci/slumber_116_long_hold_stability/**"
       - ".ci/slumber_117_web_criticism/**"
       - ".ci/slumber_118_compact_hud/**"
+      - ".ci/slumber_119_melody_library/**"
   pull_request:
     branches: ["slumber-087-build"]
     paths:
@@ -71,6 +72,7 @@ on:
       - ".ci/slumber_116_long_hold_stability/**"
       - ".ci/slumber_117_web_criticism/**"
       - ".ci/slumber_118_compact_hud/**"
+      - ".ci/slumber_119_melody_library/**"
 
 permissions:
   actions: read
@@ -420,6 +422,19 @@ jobs:
           set -euo pipefail
           patch --fuzz=0 -d /tmp/slumber-088 -p1 < .ci/slumber_118_compact_hud/restore-header.patch
           grep -q 'Text("ENDLESS TILES"' /tmp/slumber-088/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt
+
+      - name: Install native music-library browsing and rhythmic arrangements
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT=/tmp/slumber-088
+          base64 -d .ci/slumber_119_melody_library/library.patch.gz.b64 | gzip -dc > "$OUT/library.patch"
+          echo '88ef9443cd3c022ba6f8257d9a41f1343207eb9567f3a1afe05d0312677b9ef0  /tmp/slumber-088/library.patch' | sha256sum -c -
+          patch --fuzz=0 -d "$OUT" -p1 < "$OUT/library.patch"
+          grep -q 'fun loadTileFavorites' "$OUT/app/src/main/java/com/night/pianohub/storage/PianoHubLocalStore.kt"
+          grep -q 'fun recordTileSelection' "$OUT/app/src/main/java/com/night/pianohub/ui/AppState.kt"
+          grep -q 'LazyColumn(' "$OUT/app/src/main/java/com/night/pianohub/ui/screens/TilesLibraryScreen.kt"
+          grep -q 'class TilesLibraryBrowseTest' "$OUT/app/src/test/java/com/night/pianohub/music/TilesLibraryBrowseTest.kt"
 
       - uses: actions/setup-java@v4
         with:
