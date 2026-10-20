@@ -23,6 +23,7 @@ Branch: `agent/browser-09-peek-site-studio`. Scope is new files only; **do not m
    - Preview: `siteStudio.preview(current.session, draft)`; dismiss editor; reload **this** tab.
    - Save: `siteStudioStore.save(rule)`; `siteStudio.discardPreview(current.session)`; dismiss editor; reload this tab. Show failure if save returns false.
    - Reset: `siteStudioStore.remove(current.url)`; discard preview; close editor; reload tab.
+   - Undo: pass `canUndo = siteStudioStore.canUndo(current.url)`; call `siteStudioStore.undo(current.url)`, discard the preview and reload; this restores the previous stored rule or clears the most recent newly created rule.
    - Cancel/discard preview: discard preview; reload the tab to remove temporary CSS/JS. **JS side effects cannot be undone while the document is open**, so reload is mandatory.
 4. **Agent 3 memory owner:** Register `AdaptiveBrowserMemory({ browser.tabs.toList() }, { browser.activeId })` as an Android ComponentCallbacks2 with application/activity lifecycle, and unregister when destroyed. This clears memory-only thumbnails without discarding session state. Never persist previews from incognito.
 
