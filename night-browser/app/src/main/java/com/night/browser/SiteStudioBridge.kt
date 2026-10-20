@@ -119,6 +119,9 @@ class SiteStudioBridge(
     }
 
     fun editorRule(session: GeckoSession, pageUrl: String): SiteRule? {
+        // The editor is a public bridge API as well as a Compose call site:
+        // deny unregistered/private/Peek sessions here, not only in the UI.
+        if (!attached.contains(session)) return null
         val origin = SiteOrigins.fromUrl(pageUrl) ?: return null
         return previews[session]?.takeIf { it.origin == origin }
             ?: store.get(pageUrl) ?: SiteRule(origin)

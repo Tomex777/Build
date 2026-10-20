@@ -136,6 +136,16 @@ fun PeekOverlay(
                 isLoading = false
                 error = "Preview closed unexpectedly."
             }
+            override fun onExternalResponse(
+                session: GeckoSession,
+                response: org.mozilla.geckoview.WebResponse
+            ) {
+                // Previews are disposable, never a second download surface.
+                // Gecko owns an open response stream: always close it.
+                runCatching { response.body?.close() }
+                isLoading = false
+                error = "Open this page in a tab to download files."
+            }
         }
         }
     }
