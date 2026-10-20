@@ -671,9 +671,18 @@ function down(e){
 }
 function move(e){
  if(!inputs.drag||(game==='slice'&&e.pointerId!==inputs.slicePointerId))return;
- const p=point(e);if(game==='slice')sliceMove(inputs.lastX,inputs.lastY,p.x,p.y);
- if(game==='runner'&&p.y-inputs.dragStartY>28){duckRunner(true);state.duckTimer=.45}
- inputs.lastX=p.x;inputs.lastY=p.y;
+ const p=point(e);
+ if(game==='slice'){
+  // Accumulate tiny high-frequency touch deltas. Otherwise 120Hz devices
+  // never exceed the minimum stroke length in any individual pointer event.
+  if(Math.hypot(p.x-inputs.lastX,p.y-inputs.lastY)>=14){
+   sliceMove(inputs.lastX,inputs.lastY,p.x,p.y);
+   inputs.lastX=p.x;inputs.lastY=p.y;
+  }
+ }else{
+  if(game==='runner'&&p.y-inputs.dragStartY>28){duckRunner(true);state.duckTimer=.45}
+  inputs.lastX=p.x;inputs.lastY=p.y;
+ }
 }
 function up(e){
  if(game==='slice'&&e.pointerId!==inputs.slicePointerId)return;
