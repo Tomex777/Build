@@ -38,7 +38,11 @@ class JourneyVisitTracker(
     fun visited(rawUrl: String, title: String): String? {
         val safe = JourneyGraph.safeUrl(rawUrl) ?: return null
         if (nodeId?.let(lookup)?.url == safe) {
-            expected = Expected.NONE
+            // A late Gecko location callback can arrive *after* onPageStop.
+            // Do not consume an expected Back/Forward move on the stale URL.
+            if (expected == Expected.RELOAD || expected == Expected.NONE) {
+                expected = Expected.NONE
+            }
             return nodeId
         }
         val match = when (expected) {
