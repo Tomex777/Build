@@ -17,7 +17,8 @@ object RecordedSounds {
                 val high=bytes[2*i+1].toInt()
                 samples[i]=((high shl 8) or low).toShort()
             }
-            kind to samples
+            // This runs once, off the UI thread, not during real-time mixing.
+            kind to PcmLeveler.normalize(samples)
         }.toMap()
     }
     fun hrtf(assets: AssetManager): MeasuredHrtf? = try {
