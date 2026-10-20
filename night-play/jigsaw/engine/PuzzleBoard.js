@@ -117,7 +117,7 @@ export class PuzzleBoard{
      }
      if(packed.length===target)return packed;
     }
-    const maxCols=Math.max(1,Math.floor((z.w-4)/(pw*1.04)));
+    const maxCols=Math.max(1,Math.floor(z.w/pw));
     let cols=Math.min(maxCols,Math.max(1,Math.round(
      Math.sqrt(target*(z.w/Math.max(1,z.h))*(ph/pw)))));
     let rows=Math.ceil(target/cols);
@@ -219,6 +219,11 @@ export class PuzzleBoard{
   // by bounding box can grab an *invisible corner* of the topmost piece instead
   // of the piece the user actually sees. Use the pre-rendered alpha silhouette.
   const precise=this.totalPieces>=72;
+  // Very short phones fit 144 tiles only with narrow but non-overlapping
+  // packing. Choose the nearest actual piece center rather than a neighbour's
+  // protruding tab when both silhouettes share the fingertip radius.
+  const denseShort=this.totalPieces>=144&&this.viewportWidth<=380&&this.viewportHeight<550;
+  let closest=null,closestDistance=Infinity;
   for(let i=this.pieces.length-1;i>=0;i--){
    const p=this.pieces[i];if(p.isPlaced)continue;
    const pad=Math.min(this.pieceWidth*.12,8);
@@ -234,11 +239,21 @@ export class PuzzleBoard{
     const data=p.offscreenCanvas.getContext('2d').getImageData(ox,oy,pw,ph).data;
     let visible=false;
     for(let j=3;j<data.length;j+=4)if(data[j]>38){visible=true;break}
-    if(!visible)continue;
+    const nearCenter=denseShort&&
+     Math.abs(x-(p.x+this.pieceWidth*.5))<=this.pieceWidth*.47&&
+     Math.abs(y-(p.y+this.pieceHeight*.5))<=this.pieceHeight*.64;
+    if(!visible&&!nearCenter)continue;
+   }
+   if(denseShort){
+    const nx=(x-(p.x+this.pieceWidth*.5))/this.pieceWidth;
+    const ny=(y-(p.y+this.pieceHeight*.5))/this.pieceHeight;
+    const distance=nx*nx+ny*ny;
+    if(distance<closestDistance){closestDistance=distance;closest={piece:p,index:i};}
+    continue;
    }
    return {piece:p,index:i};
   }
-  return null;
+  return closest;
  }
  bringToTop(index){
   const p=this.pieces[index],id=p.group||p.id;
