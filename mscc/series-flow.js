@@ -833,7 +833,7 @@ async function performSingleEpisodeDelivery(ctx, {
     return {
       ok:true,
       source:fallback.source,
-      message:`✅ Fallback: ${fallback.fallbackFrom} could not deliver Episode ${episode.number}; ${fallback.source.name || fallback.source.id} was used. ✦`,
+      message:`✅ Fallback: ${fallback.fallbackFrom} could not deliver Episode ${episode.number}; ${fallback.source.name || fallback.source.id} was used and the media was sent successfully. ✦`,
     }
   }
 
