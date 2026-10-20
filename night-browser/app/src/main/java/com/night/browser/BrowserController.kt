@@ -341,6 +341,9 @@ class BrowserController(
                     GeckoSession.ProgressDelegate.SecurityInformation.CONTENT_LOADED
             }
             override fun onPageStart(session: GeckoSession, url: String) {
+                // Gecko opens popup sessions after onNewSession returns. At that
+                // point the already selected tab can safely become active.
+                if (session.isOpen) session.setActive(tab.id == activeId)
                 cancelJourneyUpdate(tab.id)
                 tab.isLoading = true
                 if (url.startsWith("http://", true) || url.startsWith("https://", true)) {
@@ -369,7 +372,11 @@ class BrowserController(
     fun select(tabId: String) {
         if (tabs.none { it.id == tabId }) return
         activeId = tabId
-        tabs.forEach { it.session.setActive(it.id == activeId) }
+        // onNewSession MUST return an unopened GeckoSession. Do not activate
+        // Gecko's unopened popup here; activate it once Gecko starts loading.
+        tabs.forEach { tab ->
+            if (tab.session.isOpen) tab.session.setActive(tab.id == activeId)
+        }
         schedulePersist()
     }
 
