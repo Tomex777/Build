@@ -41,7 +41,7 @@ class BrowserController(private val appContext: Context) {
     private val writes = Executors.newSingleThreadExecutor()
     private val handler = Handler(Looper.getMainLooper())
     private val pendingSave = Runnable { persistNow() }
-    private var lastClosedNormal: TabSessionStore.Entry? = null
+    private val recentlyClosedNormal = mutableListOf<TabSessionStore.Entry>()
     val tabs = mutableStateListOf<BrowserTab>()
     var activeId by mutableStateOf("")
         private set
@@ -185,7 +185,10 @@ class BrowserController(private val appContext: Context) {
     fun closeTab(tabId: String) {
         val tab = tabs.firstOrNull { it.id == tabId } ?: return
         // Private-tab closure is final: no private URLs, thumbnails or state in undo storage.
-        lastClosedNormal = if (tab.isPrivate) null else toSavedTab(tab)
+        if (!tab.isPrivate) {
+            recentlyClosedNormal.add(toSavedTab(tab))
+            if (recentlyClosedNormal.size > 5) recentlyClosedNormal.removeAt(0)
+        }
         if (tabs.size == 1) newTab(journeyId = tab.journeyId)
         else if (tabId == activeId) select(tabs.first { it.id != tabId }.id)
         tabs.remove(tab)
@@ -194,9 +197,10 @@ class BrowserController(private val appContext: Context) {
         schedulePersist()
     }
 
-    fun undoCloseTab(): Boolean {
-        val closed = lastClosedNormal ?: return false
-        lastClosedNormal = null
+    fun undoCloseTab(tabId: String): Boolean {
+        val index = recentlyClosedNormal.indexOfLast { it.id == tabId }
+        if (index == -1) return false
+        val closed = recentlyClosedNormal.removeAt(index)
         val journey = store.journeys.find { it.id == closed.journeyId }?.id
             ?: store.journeys.first().id
         createTab(journeyId = journey, restored = closed)
