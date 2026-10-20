@@ -311,12 +311,6 @@ fun ReaderSettingsDialog(
                                 }
                                 SettingSwitch("Grayscale", grayscale, onGrayscaleChange)
                                 SettingSwitch("Invert colors", invertedColors, onInvertedColorsChange)
-                                Text(
-                                    "Mihon's reader filters apply to the displayed pages only; " +
-                                        "your original CBZ stays unchanged.",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
                             }
             }
         }
