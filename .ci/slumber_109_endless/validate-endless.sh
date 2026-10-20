@@ -75,6 +75,12 @@ adb shell input text 'Jingle'
 adb shell input keyevent KEYCODE_ENTER
 wait_ui "Jingle Bells"
 capture tiles-library
+# Real native sampler preview is a separate action from starting gameplay.
+tap_ui "Hear Jingle Bells"
+wait_ui "Stop preview"
+capture tiles-audition
+tap_ui "Stop preview"
+wait_ui "Hear Jingle Bells"
 # Save is real persistent app state, not an unconnected heart icon.
 tap_ui "Save Jingle Bells"
 tap_ui "Jingle Bells"
