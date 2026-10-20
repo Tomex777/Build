@@ -98,10 +98,12 @@ for(const count of [24,48,144]){
  assert.equal(board.placedCount,1);
  const otherRound=structuredClone(snapshot);
  otherRound.roundId='00000000-0000-4000-8000-000000000002';
- applyServerSnapshot(board,otherRound);
- assert.equal(board.placedCount,0,'new server round invalidates all prior pieces');
+ assert.throws(()=>applyServerSnapshot(board,otherRound),/explicit server confirmation/,'old/new round cannot replace board silently');
+ applyServerSnapshot(board,otherRound,{allowRoundChange:true});
+ assert.equal(board.placedCount,0,'verified new server round invalidates all prior pieces');
  assert.throws(()=>makeDropCommand(board,'0-0',0,'bad'),/Invalid piece drop metadata/);
- applyServerSnapshot(board,placed); // Reset the old test round only for assertions below.
+ assert.throws(()=>applyServerSnapshot(board,placed),/explicit server confirmation/,'late old-round event cannot silently overwrite current game');
+ applyServerSnapshot(board,placed,{allowRoundChange:true}); // An explicit new-round transition for the following single-round assertions.
  assert.throws(()=>makeDropCommand(board,'0-0',2,'transportMutation0124'),/not movable/);
  // Resizing must project canonical x/y again without sharing viewport ratios.
  wrapper.width=1280;wrapper.height=850;board.resize();
