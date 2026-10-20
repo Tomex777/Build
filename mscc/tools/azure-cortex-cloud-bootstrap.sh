@@ -5,8 +5,8 @@
 set -euo pipefail
 umask 077
 
-readonly SOURCE_SHA=e8c24ebe7b2cd891e7453a65360cd167966f145a
-readonly AGENT_BLOB=50ba5c50ea9c5dfe40cff51eb5b8c33677e05f75
+readonly SOURCE_SHA=dd4a272909b73b4aada53c846dea7d45240f953c
+readonly AGENT_BLOB=24192fb0c1c8f765604c070211809289a42281ff
 readonly PREVIOUS_AGENT_BLOB=558a8394d574aec9b8798e39d9d4475f6b6bf4a9
 readonly HELPER_BLOB=8bc55110b92f60bfe31b8097cbc5dad32ae0a820
 readonly PREVIOUS_HELPER_BLOB=4e0fa0455c604d3793a72254a1c3b4e260b67f4e
@@ -489,7 +489,7 @@ const matched=after.entries?.find(x=>x.key===expected.key);
 if (matched?.enabled!==expected.enabled ||
   !Array.isArray(original.entries) || after.entries.length!==original.entries.length)
   process.exit(2);
-console.log('Cortex protected command-setting write readback passed (no value changed).');
+console.log('Cortex canonical NIGHT settings write readback passed (no value changed).');
 VERIFY_SETTING
 curl -fsS --max-time 12 -o "$tmp/activity-after.json" \
   -H "Authorization: Bearer $TOKEN" \
