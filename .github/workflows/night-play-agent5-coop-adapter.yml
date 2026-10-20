@@ -1,0 +1,30 @@
+name: NIGHT Play Agent 5 Jigsaw Co-op Adapter
+
+on:
+  pull_request:
+    paths:
+      - 'night-play/jigsaw/engine/CoopAdapter.js'
+      - 'night-play/jigsaw/co-op-adapter-test.mjs'
+      - '.github/workflows/night-play-agent5-coop-adapter.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  adapter-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify standalone Jigsaw visual adapter syntax
+        run: |
+          node --check night-play/jigsaw/engine/CoopAdapter.js
+          node --check night-play/jigsaw/co-op-adapter-test.mjs
+      - name: Exercise server cell coordinates against 24 48 and 144 piece boards
+        run: node night-play/jigsaw/co-op-adapter-test.mjs
+      - name: Confirm existing solo PuzzleBoard invariants
+        run: node night-play/jigsaw/board-logic-test.mjs
