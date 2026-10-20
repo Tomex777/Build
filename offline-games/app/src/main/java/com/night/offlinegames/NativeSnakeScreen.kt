@@ -35,10 +35,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -214,9 +212,10 @@ private fun DrawScope.drawNativeSnake(game: NativeSnakeState) {
         val x = left + part.x * cells
         val y = top + part.y * cells
         drawRoundRect(
-            if (isHead) snakeDark else Brush.linearGradient(listOf(snakeBright, snakeDark)),
-            Offset(x + cells * .065f, y + cells * .065f),
-            Size(cells * .87f, cells * .87f), CornerRadius(cells * .27f)
+            color = if (isHead) snakeDark else snakeBright,
+            topLeft = Offset(x + cells * .065f, y + cells * .065f),
+            size = Size(cells * .87f, cells * .87f),
+            cornerRadius = CornerRadius(cells * .27f)
         )
         if (isHead) {
             val h = game.heading
