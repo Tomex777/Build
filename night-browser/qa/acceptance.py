@@ -182,23 +182,29 @@ class Acceptance:
     def navigate(self):
         self.replace_omnibar("example.com")
         self.tap("Go")
-        end = time.monotonic() + 30
-        loaded = False
+        time.sleep(5)
+        # Capture immediate UX too: earlier real screenshots showed Gecko had
+        # rendered the page, but the omnibar remained focused with IME open.
+        self.shot("02-after-go")
+        # The typed address intentionally remains visible while focused. Inspect
+        # Gecko's independent tab model (page title + committed full URL) rather
+        # than treating the editable text field as the engine's location.
+        self.tap("Tabs")
+        end = time.monotonic() + 20
+        title_found = url_found = False
         while time.monotonic() < end:
-            # Verify the address changes to a fully resolved URL. A bare typed query
-            # does not prove navigation. Gecko's webpage text may be inaccessible.
-            for node in self.nodes():
-                text = node.get("text", "")
-                if text.startswith("https://example.com"):
-                    loaded = True
-                    break
-            if loaded:
+            labels = [self.label(n) for n in self.nodes()]
+            title_found = any("Example Domain" in x for x in labels)
+            url_found = any("https://example.com" in x for x in labels)
+            if title_found and url_found:
                 break
             time.sleep(1)
-        if not loaded:
-            raise AssertionError("Navigation did not expose a resolved https://example.com URL")
-        time.sleep(3)
-        return self.shot("02-real-website")
+        if not (title_found and url_found):
+            self.shot("02-tab-navigation-unverified")
+            raise AssertionError("Gecko tab did not show Example Domain title AND committed HTTPS URL")
+        self.tap("Example Domain", partial=True)
+        time.sleep(2)
+        return self.shot("02-real-website") + "; verified Gecko page title and HTTPS URL via tab UI"
 
     def bookmark_library(self):
         self.tap("More")
