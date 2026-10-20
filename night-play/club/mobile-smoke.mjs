@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import "../strategy/logic-test.mjs";
 import {mkdirSync} from "node:fs";
 import {createServer} from "node:http";
 import {readFileSync} from "node:fs";
