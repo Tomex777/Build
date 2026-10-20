@@ -245,6 +245,9 @@ class EndlessRenderer(
     fun depthBufferBits(): Int = activeDepthBits
 
     override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
+        // A new EGL context invalidates all previous program handles,
+        // including numeric IDs that a driver may reuse after context loss.
+        cachedUniforms.clear()
         val depth = IntArray(1)
         GLES30.glGetIntegerv(GLES30.GL_DEPTH_BITS, depth, 0)
         activeDepthBits = depth[0]
@@ -860,15 +863,15 @@ class EndlessRenderer(
         GLES30.glDisable(GLES30.GL_DEPTH_TEST)
         GLES30.glDepthMask(false)
         GLES30.glUseProgram(marsSkyProgram)
-        GLES30.glUniform1i(GLES30.glGetUniformLocation(marsSkyProgram, "uSkyWorld"), skyWorld)
-        GLES30.glUniform1f(GLES30.glGetUniformLocation(marsSkyProgram, "uPitch"), pitch.toFloat())
-        GLES30.glUniform1f(GLES30.glGetUniformLocation(marsSkyProgram, "uYaw"), yaw.toFloat())
-        GLES30.glUniform1f(GLES30.glGetUniformLocation(marsSkyProgram, "uAspect"), width.toFloat() / height)
+        GLES30.glUniform1i(uniformLocation(marsSkyProgram, "uSkyWorld"), skyWorld)
+        GLES30.glUniform1f(uniformLocation(marsSkyProgram, "uPitch"), pitch.toFloat())
+        GLES30.glUniform1f(uniformLocation(marsSkyProgram, "uYaw"), yaw.toFloat())
+        GLES30.glUniform1f(uniformLocation(marsSkyProgram, "uAspect"), width.toFloat() / height)
         val parent = if (skyWorld == 2) textures["jupiter"] ?: 0 else 0
         GLES30.glActiveTexture(GLES30.GL_TEXTURE3)
         GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, parent)
-        GLES30.glUniform1i(GLES30.glGetUniformLocation(marsSkyProgram, "uJupiterTexture"), 3)
-        GLES30.glUniform1i(GLES30.glGetUniformLocation(marsSkyProgram, "uHasJupiterTexture"), if (parent == 0) 0 else 1)
+        GLES30.glUniform1i(uniformLocation(marsSkyProgram, "uJupiterTexture"), 3)
+        GLES30.glUniform1i(uniformLocation(marsSkyProgram, "uHasJupiterTexture"), if (parent == 0) 0 else 1)
         GLES30.glDrawArrays(GLES30.GL_TRIANGLES, 0, 3)
         GLES30.glActiveTexture(GLES30.GL_TEXTURE3)
         GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, 0)
@@ -1276,17 +1279,17 @@ class EndlessRenderer(
             else -> textures[body.id] ?: 0
         }
         bindTexture(0, baseTexture)
-        GLES30.glUniform1i(GLES30.glGetUniformLocation(planetProgram, "uTexture"), 0)
+        GLES30.glUniform1i(uniformLocation(planetProgram, "uTexture"), 0)
         GLES30.glUniform1i(
-            GLES30.glGetUniformLocation(planetProgram, "uUseTexture"),
+            uniformLocation(planetProgram, "uUseTexture"),
             if (baseTexture != 0) 1 else 0
         )
 
         val night = if (body.id == "earth" && deepTimeAgeGa <= 0.0001) earthNightTexture else 0
         bindTexture(1, night)
-        GLES30.glUniform1i(GLES30.glGetUniformLocation(planetProgram, "uNightTexture"), 1)
+        GLES30.glUniform1i(uniformLocation(planetProgram, "uNightTexture"), 1)
         GLES30.glUniform1i(
-            GLES30.glGetUniformLocation(planetProgram, "uUseNight"),
+            uniformLocation(planetProgram, "uUseNight"),
             if (night != 0) 1 else 0
         )
 
@@ -1296,13 +1299,13 @@ class EndlessRenderer(
             else -> 0
         }
         bindTexture(2, normal)
-        GLES30.glUniform1i(GLES30.glGetUniformLocation(planetProgram, "uNormalTexture"), 2)
+        GLES30.glUniform1i(uniformLocation(planetProgram, "uNormalTexture"), 2)
         GLES30.glUniform1i(
-            GLES30.glGetUniformLocation(planetProgram, "uUseNormal"),
+            uniformLocation(planetProgram, "uUseNormal"),
             if (normal != 0) 1 else 0
         )
         GLES30.glUniform1i(
-            GLES30.glGetUniformLocation(planetProgram, "uCloseMaterial"),
+            uniformLocation(planetProgram, "uCloseMaterial"),
             when {
                 useMarsClose -> 1
                 useMoonClose -> 2
@@ -1310,8 +1313,8 @@ class EndlessRenderer(
             }
         )
 
-        GLES30.glUniform1i(GLES30.glGetUniformLocation(planetProgram, "uMode"), 0)
-        GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uOpacity"), 1f)
+        GLES30.glUniform1i(uniformLocation(planetProgram, "uMode"), 0)
+        GLES30.glUniform1f(uniformLocation(planetProgram, "uOpacity"), 1f)
         val historyState = when (body.id) {
             "earth" -> DeepTimeHistory.earthVisualState(deepTimeAgeGa)
             "mercury" -> DeepTimeHistory.mercuryVisualState(deepTimeAgeGa)
@@ -1324,27 +1327,27 @@ class EndlessRenderer(
             "neptune" -> DeepTimeHistory.neptuneVisualState(deepTimeAgeGa)
             else -> null
         }
-        GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uHistoryLava"), historyState?.lava ?: 0f)
-        GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uHistoryIce"), historyState?.ice ?: 0f)
-        GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uHistoryOcean"), historyState?.ocean ?: 1f)
-        GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uHistoryAtmosphere"), historyState?.atmosphere ?: 1f)
-        GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uHistoryImpact"), historyState?.impact ?: 0f)
-        GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uHistoryWater"), historyState?.water ?: 0f)
-        GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uHistoryBasalt"), historyState?.basalt ?: 0f)
+        GLES30.glUniform1f(uniformLocation(planetProgram, "uHistoryLava"), historyState?.lava ?: 0f)
+        GLES30.glUniform1f(uniformLocation(planetProgram, "uHistoryIce"), historyState?.ice ?: 0f)
+        GLES30.glUniform1f(uniformLocation(planetProgram, "uHistoryOcean"), historyState?.ocean ?: 1f)
+        GLES30.glUniform1f(uniformLocation(planetProgram, "uHistoryAtmosphere"), historyState?.atmosphere ?: 1f)
+        GLES30.glUniform1f(uniformLocation(planetProgram, "uHistoryImpact"), historyState?.impact ?: 0f)
+        GLES30.glUniform1f(uniformLocation(planetProgram, "uHistoryWater"), historyState?.water ?: 0f)
+        GLES30.glUniform1f(uniformLocation(planetProgram, "uHistoryBasalt"), historyState?.basalt ?: 0f)
         GLES30.glUniform1f(
-            GLES30.glGetUniformLocation(planetProgram, "uHistoryFuture"),
+            uniformLocation(planetProgram, "uHistoryFuture"),
             if (body.id == "sun" && deepTimeAgeGa < 0.0 && deepTimeAgeGa > -6.0) (-deepTimeAgeGa / 5.0).toFloat().coerceIn(0f, 1f) else 0f
         )
 
         drawSphereGeometry()
-        GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uHistoryLava"), 0f)
-        GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uHistoryIce"), 0f)
-        GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uHistoryOcean"), 1f)
-        GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uHistoryAtmosphere"), 1f)
-        GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uHistoryImpact"), 0f)
-        GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uHistoryWater"), 0f)
-        GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uHistoryBasalt"), 0f)
-        GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uHistoryFuture"), 0f)
+        GLES30.glUniform1f(uniformLocation(planetProgram, "uHistoryLava"), 0f)
+        GLES30.glUniform1f(uniformLocation(planetProgram, "uHistoryIce"), 0f)
+        GLES30.glUniform1f(uniformLocation(planetProgram, "uHistoryOcean"), 1f)
+        GLES30.glUniform1f(uniformLocation(planetProgram, "uHistoryAtmosphere"), 1f)
+        GLES30.glUniform1f(uniformLocation(planetProgram, "uHistoryImpact"), 0f)
+        GLES30.glUniform1f(uniformLocation(planetProgram, "uHistoryWater"), 0f)
+        GLES30.glUniform1f(uniformLocation(planetProgram, "uHistoryBasalt"), 0f)
+        GLES30.glUniform1f(uniformLocation(planetProgram, "uHistoryFuture"), 0f)
     }
 
     private fun isBodyFormed(id: String, ageGa: Double): Boolean {
@@ -1377,19 +1380,19 @@ class EndlessRenderer(
         bindPlanetCommon(body)
 
         bindTexture(0, texture)
-        GLES30.glUniform1i(GLES30.glGetUniformLocation(planetProgram, "uTexture"), 0)
-        GLES30.glUniform1i(GLES30.glGetUniformLocation(planetProgram, "uUseTexture"), 1)
+        GLES30.glUniform1i(uniformLocation(planetProgram, "uTexture"), 0)
+        GLES30.glUniform1i(uniformLocation(planetProgram, "uUseTexture"), 1)
 
         bindTexture(1, 0)
-        GLES30.glUniform1i(GLES30.glGetUniformLocation(planetProgram, "uNightTexture"), 1)
-        GLES30.glUniform1i(GLES30.glGetUniformLocation(planetProgram, "uUseNight"), 0)
+        GLES30.glUniform1i(uniformLocation(planetProgram, "uNightTexture"), 1)
+        GLES30.glUniform1i(uniformLocation(planetProgram, "uUseNight"), 0)
         bindTexture(2, 0)
-        GLES30.glUniform1i(GLES30.glGetUniformLocation(planetProgram, "uNormalTexture"), 2)
-        GLES30.glUniform1i(GLES30.glGetUniformLocation(planetProgram, "uUseNormal"), 0)
-        GLES30.glUniform1i(GLES30.glGetUniformLocation(planetProgram, "uCloseMaterial"), 0)
+        GLES30.glUniform1i(uniformLocation(planetProgram, "uNormalTexture"), 2)
+        GLES30.glUniform1i(uniformLocation(planetProgram, "uUseNormal"), 0)
+        GLES30.glUniform1i(uniformLocation(planetProgram, "uCloseMaterial"), 0)
 
-        GLES30.glUniform1i(GLES30.glGetUniformLocation(planetProgram, "uMode"), mode)
-        GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uOpacity"), opacity)
+        GLES30.glUniform1i(uniformLocation(planetProgram, "uMode"), mode)
+        GLES30.glUniform1f(uniformLocation(planetProgram, "uOpacity"), opacity)
 
         drawSphereGeometry()
 
@@ -1437,19 +1440,19 @@ class EndlessRenderer(
 
     private fun bindPlanetCommon(body: CelestialBody) {
         GLES30.glUniformMatrix4fv(
-            GLES30.glGetUniformLocation(planetProgram, "uMvp"),
+            uniformLocation(planetProgram, "uMvp"),
             1, false, mvp, 0
         )
         GLES30.glUniformMatrix4fv(
-            GLES30.glGetUniformLocation(planetProgram, "uModel"),
+            uniformLocation(planetProgram, "uModel"),
             1, false, model, 0
         )
         GLES30.glUniform4fv(
-            GLES30.glGetUniformLocation(planetProgram, "uColor"),
+            uniformLocation(planetProgram, "uColor"),
             1, body.color, 0
         )
         GLES30.glUniform3f(
-            GLES30.glGetUniformLocation(planetProgram, "uCamera"),
+            uniformLocation(planetProgram, "uCamera"),
             cameraPosition.x.toFloat(),
             cameraPosition.y.toFloat(),
             cameraPosition.z.toFloat()
@@ -1458,15 +1461,15 @@ class EndlessRenderer(
         // oblate ellipsoid; treating Jupiter as a scaled sphere mislights
         // its polar clouds and creates a false circular highlight.
         GLES30.glUniform1f(
-            GLES30.glGetUniformLocation(planetProgram, "uPolarRatio"),
+            uniformLocation(planetProgram, "uPolarRatio"),
             PlanetShape.polarRatio(body.id)
         )
         GLES30.glUniform1f(
-            GLES30.glGetUniformLocation(planetProgram, "uEmissive"),
+            uniformLocation(planetProgram, "uEmissive"),
             if (body.id == "sun") 1f else 0f
         )
         GLES30.glUniform1i(
-            GLES30.glGetUniformLocation(planetProgram, "uPlanetKind"),
+            uniformLocation(planetProgram, "uPlanetKind"),
             when (body.id) {
                 "earth" -> 1
                 "jupiter", "saturn", "uranus", "neptune" -> 2
@@ -1527,7 +1530,7 @@ class EndlessRenderer(
     private fun drawOrbits() {
         GLES30.glUseProgram(lineProgram)
         GLES30.glUniformMatrix4fv(
-            GLES30.glGetUniformLocation(lineProgram, "uVp"),
+            uniformLocation(lineProgram, "uVp"),
             1, false, viewProjection, 0
         )
         GLES30.glLineWidth(1f)
@@ -1539,11 +1542,11 @@ class EndlessRenderer(
             val offset = body.parentId?.let { byId[it]?.position } ?: Vec3d.ZERO
 
             GLES30.glUniform3f(
-                GLES30.glGetUniformLocation(lineProgram, "uOffset"),
+                uniformLocation(lineProgram, "uOffset"),
                 offset.x.toFloat(), offset.y.toFloat(), offset.z.toFloat()
             )
             GLES30.glUniform4f(
-                GLES30.glGetUniformLocation(lineProgram, "uColor"),
+                uniformLocation(lineProgram, "uColor"),
                 body.color[0] * .62f,
                 body.color[1] * .62f,
                 body.color[2] * .62f,
@@ -1620,35 +1623,35 @@ class EndlessRenderer(
 
         GLES30.glUseProgram(ringProgram)
         GLES30.glUniformMatrix4fv(
-            GLES30.glGetUniformLocation(ringProgram, "uMvp"),
+            uniformLocation(ringProgram, "uMvp"),
             1, false, mvp, 0
         )
         GLES30.glUniformMatrix4fv(
-            GLES30.glGetUniformLocation(ringProgram, "uModel"),
+            uniformLocation(ringProgram, "uModel"),
             1, false, model, 0
         )
         // Solar illumination is from the Sun at world origin. Ringed gas
         // giants cast a real planet-shaped umbra over the far-side annulus;
         // the previous ring texture glowed uniformly through Saturn's night.
         GLES30.glUniform3f(
-            GLES30.glGetUniformLocation(ringProgram, "uPlanetCenter"),
+            uniformLocation(ringProgram, "uPlanetCenter"),
             saturn.position.x.toFloat(),
             saturn.position.y.toFloat(),
             saturn.position.z.toFloat()
         )
         val tiltRad = Math.toRadians(saturn.axialTiltDeg)
         GLES30.glUniform3f(
-            GLES30.glGetUniformLocation(ringProgram, "uRingNormal"),
+            uniformLocation(ringProgram, "uRingNormal"),
             -sin(tiltRad).toFloat(), cos(tiltRad).toFloat(), 0f
         )
         GLES30.glUniform1f(
-            GLES30.glGetUniformLocation(ringProgram, "uEquatorialRadius"),
+            uniformLocation(ringProgram, "uEquatorialRadius"),
             ringRadius
         )
 
         bindTexture(0, saturnRingTexture)
         GLES30.glUniform1i(
-            GLES30.glGetUniformLocation(ringProgram, "uTexture"),
+            uniformLocation(ringProgram, "uTexture"),
             0
         )
 
@@ -1702,11 +1705,11 @@ class EndlessRenderer(
         GLES30.glDepthMask(false)
         GLES30.glUseProgram(starProgram)
         GLES30.glUniformMatrix4fv(
-            GLES30.glGetUniformLocation(starProgram, "uVp"),
+            uniformLocation(starProgram, "uVp"),
             1, false, viewProjection, 0
         )
-        GLES30.glUniform1f(GLES30.glGetUniformLocation(starProgram, "uPointSize"), 2.0f)
-        GLES30.glUniform4f(GLES30.glGetUniformLocation(starProgram, "uColor"), 0.82f, 0.88f, 1.0f, 0.72f)
+        GLES30.glUniform1f(uniformLocation(starProgram, "uPointSize"), 2.0f)
+        GLES30.glUniform4f(uniformLocation(starProgram, "uColor"), 0.82f, 0.88f, 1.0f, 0.72f)
 
         val buffer = starBuffer ?: return
         buffer.position(0)
@@ -1730,11 +1733,11 @@ class EndlessRenderer(
         GLES30.glDepthMask(false)
         GLES30.glUseProgram(starProgram)
         GLES30.glUniformMatrix4fv(
-            GLES30.glGetUniformLocation(starProgram, "uVp"),
+            uniformLocation(starProgram, "uVp"),
             1, false, viewProjection, 0
         )
-        GLES30.glUniform1f(GLES30.glGetUniformLocation(starProgram, "uPointSize"), if (selectedId == "ceres") 3.4f else 2.35f)
-        GLES30.glUniform4f(GLES30.glGetUniformLocation(starProgram, "uColor"), 0.67f, 0.62f, 0.54f, 0.62f)
+        GLES30.glUniform1f(uniformLocation(starProgram, "uPointSize"), if (selectedId == "ceres") 3.4f else 2.35f)
+        GLES30.glUniform4f(uniformLocation(starProgram, "uColor"), 0.67f, 0.62f, 0.54f, 0.62f)
 
         GLES30.glEnableVertexAttribArray(0)
         GLES30.glVertexAttribPointer(0, 3, GLES30.GL_FLOAT, false, 12, buffer)
@@ -1750,9 +1753,9 @@ class EndlessRenderer(
         val progress = DeepTimeHistory.systemFormationProgress(age)
         val opacity = (0.10f + 0.34f * progress).coerceIn(0f, 0.44f)
         GLES30.glUseProgram(lineProgram)
-        GLES30.glUniformMatrix4fv(GLES30.glGetUniformLocation(lineProgram, "uVp"), 1, false, viewProjection, 0)
-        GLES30.glUniform3f(GLES30.glGetUniformLocation(lineProgram, "uOffset"), 0f, 0f, 0f)
-        GLES30.glUniform4f(GLES30.glGetUniformLocation(lineProgram, "uColor"), 0.92f, 0.48f, 0.19f, opacity)
+        GLES30.glUniformMatrix4fv(uniformLocation(lineProgram, "uVp"), 1, false, viewProjection, 0)
+        GLES30.glUniform3f(uniformLocation(lineProgram, "uOffset"), 0f, 0f, 0f)
+        GLES30.glUniform4f(uniformLocation(lineProgram, "uColor"), 0.92f, 0.48f, 0.19f, opacity)
         GLES30.glDepthMask(false)
         GLES30.glEnable(GLES30.GL_BLEND)
         for (buffer in formationDiskBuffers) {
@@ -1870,22 +1873,22 @@ class EndlessRenderer(
         GLES30.glUseProgram(planetProgram)
         bindPlanetCommon(body)
         GLES30.glUniform4f(
-            GLES30.glGetUniformLocation(planetProgram, "uColor"),
+            uniformLocation(planetProgram, "uColor"),
             when (body.id) { "earth" -> .28f; "venus" -> .99f; else -> .92f },
             when (body.id) { "earth" -> .57f; "venus" -> .73f; else -> .38f },
             when (body.id) { "earth" -> 1.0f; "venus" -> .48f; else -> .18f }, 1f
         )
         bindTexture(0, 0)
-        GLES30.glUniform1i(GLES30.glGetUniformLocation(planetProgram, "uTexture"), 0)
-        GLES30.glUniform1i(GLES30.glGetUniformLocation(planetProgram, "uUseTexture"), 0)
+        GLES30.glUniform1i(uniformLocation(planetProgram, "uTexture"), 0)
+        GLES30.glUniform1i(uniformLocation(planetProgram, "uUseTexture"), 0)
         bindTexture(1, 0)
-        GLES30.glUniform1i(GLES30.glGetUniformLocation(planetProgram, "uNightTexture"), 1)
-        GLES30.glUniform1i(GLES30.glGetUniformLocation(planetProgram, "uUseNight"), 0)
+        GLES30.glUniform1i(uniformLocation(planetProgram, "uNightTexture"), 1)
+        GLES30.glUniform1i(uniformLocation(planetProgram, "uUseNight"), 0)
         bindTexture(2, 0)
-        GLES30.glUniform1i(GLES30.glGetUniformLocation(planetProgram, "uNormalTexture"), 2)
-        GLES30.glUniform1i(GLES30.glGetUniformLocation(planetProgram, "uUseNormal"), 0)
-        GLES30.glUniform1i(GLES30.glGetUniformLocation(planetProgram, "uMode"), 3)
-        GLES30.glUniform1f(GLES30.glGetUniformLocation(planetProgram, "uOpacity"), opacity)
+        GLES30.glUniform1i(uniformLocation(planetProgram, "uNormalTexture"), 2)
+        GLES30.glUniform1i(uniformLocation(planetProgram, "uUseNormal"), 0)
+        GLES30.glUniform1i(uniformLocation(planetProgram, "uMode"), 3)
+        GLES30.glUniform1f(uniformLocation(planetProgram, "uOpacity"), opacity)
         drawSphereGeometry()
 
         GLES30.glDepthMask(true)
@@ -1920,6 +1923,19 @@ class EndlessRenderer(
         marsNormalTexture = loadTextureResource("mars_normal")
         moonCloseTexture = loadTextureResource("moon_close")
         moonNormalTexture = loadTextureResource("moon_normal")
+    }
+
+    private val cachedUniforms = HashMap<Int, MutableMap<String, Int>>(12)
+
+    /**
+     * Rendering Mars/Moon and the full solar system made hundreds of driver
+     * uniform-location lookups per frame. Cache only the locations, NEVER
+     * the uniform values. A GLSurfaceView context recreation clears the
+     * cache before programs are recompiled in onSurfaceCreated.
+     */
+    private fun uniformLocation(program: Int, name: String): Int {
+        val uniforms = cachedUniforms.getOrPut(program) { HashMap(30) }
+        return uniforms.getOrPut(name) { GLES30.glGetUniformLocation(program, name) }
     }
 
     private fun loadTextureResource(name: String, repeatX: Boolean = true): Int {
