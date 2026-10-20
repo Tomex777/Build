@@ -155,6 +155,71 @@ async function main(){
    for(let i=0;i<22;i++){if((await page.locator('#status').innerText()).includes('You win'))break;await page.getByRole('button',{name:'Stroke'}).click();await page.waitForTimeout(390)}
    const status=await page.locator('#status').innerText();assert(status.includes('You win'),'Swimming 50m not reached: '+status);
  });
+
+ // Play complete games, not only one initial tap. The final win/loss/draw
+ // state must be reached through real pointer interactions with visible controls.
+ await run('higher',async page=>{
+   let turns=0;
+   while(await page.getByRole('button',{name:'Higher',exact:true}).count()){
+     await page.getByRole('button',{name:'Higher',exact:true}).click();
+     if(++turns>51)throw new Error('Higher or Lower never ends after 51 reveals');
+   }
+   assert(turns===51,'Expected all 51 card reveals, got '+turns);
+   assert((await page.locator('#status').innerText()).includes('Deck complete'),'Higher/Lower end missing');
+ });
+ await run('snap',async page=>{
+   let rounds=0;
+   while(await page.getByRole('button',{name:'Next pair',exact:true}).count()){
+     await page.getByRole('button',{name:'Next pair',exact:true}).click();
+     if(++rounds>26)throw new Error('Snap never ends after 26 pairs');
+   }
+   assert(rounds===26,'Snap did not consume entire deck');
+   assert((await page.locator('#status').innerText()).includes('Deck complete'),'Snap end missing');
+ });
+ await run('war',async page=>{
+   let flips=0;
+   while(await page.getByRole('button',{name:'Flip cards',exact:true}).count()){
+     await page.getByRole('button',{name:'Flip cards',exact:true}).click();
+     if(++flips>26)throw new Error('War dealt more than original 26 pairs');
+   }
+   assert(flips>0,'War never dealt the deck');
+   assert(/win|Draw/i.test(await page.locator('#status').innerText()),'War no match outcome');
+ });
+ await run('reversi',async page=>{
+   let turns=0;
+   for(;turns<65;turns++){
+     if(/You win|Computer wins|Draw/i.test(await page.locator('#status').innerText()))break;
+     const pass=page.getByRole('button',{name:'Pass turn',exact:true});
+     if(await pass.count()){await pass.click();continue;}
+     const legal=page.locator('#board button.cell:not([disabled])');
+     assert(await legal.count()>0,'Reversi unfinished with no legal action');
+     await legal.first().click();
+   }
+   assert(turns<65,'Reversi did not finish after all board moves');
+   assert(/You win|Computer wins|Draw/i.test(await page.locator('#status').innerText()),'Reversi no end result');
+ });
+ await run('dots',async page=>{
+   let turns=0;
+   for(;turns<25;turns++){
+     if(/You win|Computer wins|Draw/i.test(await page.locator('#status').innerText()))break;
+     const legal=page.locator('#board button.edge:not([disabled])');
+     assert(await legal.count()>0,'Dots & Boxes no free edges but no result');
+     await legal.first().click();
+   }
+   assert(turns<25,'Dots & Boxes did not finish after edge claims');
+   assert(/You win|Computer wins|Draw/i.test(await page.locator('#status').innerText()),'Dots & Boxes no winner');
+ });
+ await run('mancala',async page=>{
+   let turns=0;
+   for(;turns<130;turns++){
+     if(/You win|Computer wins|Draw/i.test(await page.locator('#status').innerText()))break;
+     const legal=page.locator('#board button.pit:not([disabled])');
+     assert(await legal.count()>0,'Mancala no legal pit but not finished');
+     await legal.first().click();
+   }
+   assert(turns<130,'Mancala did not reach the final-stones condition');
+   assert(/You win|Computer wins|Draw/i.test(await page.locator('#status').innerText()),'Mancala no winner');
+ });
  fs.writeFileSync(path.join(out,'results.json'),JSON.stringify(cases,null,2));await browser.close();server.close();
  console.log('PLAYTHROUGH_TOTALS '+JSON.stringify({cases:cases.length,passed:cases.length-failed,failed}));
  if(failed)process.exitCode=1;
