@@ -1,3 +1,25 @@
+# WAVE 2: NIGHT Browser Agent 8 — User-consented AI Universal Search, genuinely useful
+
+**Priority change:** This supersedes first-wave assignments below where outdated. **Same app, same integration branch `feature/night-browser-multi-agent-20261020`**, short-lived `agent/browser-v2-08-ai-search` branch. In your GitHub-connected chat, saying **"You are NIGHT Browser Agent 8"** or "Continue NIGHT Browser Wave 2" means: read this file, `night-browser/AGENTS.md`, `night-browser/docs/agent-backlog.md`, `night-browser/agents/README.md`, current source/PRs and [Issue #460](https://github.com/Tomex777/Build/issues/460) latest comments. Claim task on #460, coordinate shared edit file lock with Agent 1, implement immediately and create a PR to `feature/night-browser-multi-agent-20261020`. Don't claim other agents are automatically running. **Don't create another disconnected variant of an existing specialist module.**
+
+### Substantial improvement assignment
+
+PR #431 implements opt-in user-key provider code but is **not user-facing in integrated shell**. Complete verified provider UI and on-device privacy contract with A1: no credentials in GitHub, user can choose source scope, explicit external-request confirmation, search results must cite real local Journeys/Library pages, never hallucinate or pretend keywords are model inference. Harden remote model errors, streaming/timeouts, prompt injection within page content, cost/status UX and opt-out/deletion. Add a local helpful regular search fallback that is clearly NON-AI, distinct from model search. Never index private sessions or silently upload page text.
+
+### Acceptance (real APK / real websites)
+
+With explicitly configured test provider, perform true API call and check source-grounded citations, confidence/failure; with no key show truthful disabled setup; network failure, opt-out/no-upload, private exclusion and protected key handling tested. Do not claim working inference just because SDK compiled.
+
+### Dependency coordination
+
+A1 shell wiring, A3 private-mode flags, A5/A6 user-selected search index, A10 privacy QA.
+
+**Required loop:** inspect baseline → reproduce failure/identify quality gap → communicate exact shared API → implement → build → Android install → interact with actual sites → screenshot/logcat/perf → fix → retest → small PR → ask A10 for independent QA → integrate via A1 → next task. Distinguish real installed tests from CI-only; no unattended execution beyond the active session.
+
+---
+
+## Original first-wave role brief (background, lower priority than Wave 2)
+
 # NIGHT Browser — Agent 8: AI-powered Universal Search
 
 Repo: `Tomex777/Build`; path: `night-browser/`; integration branch: `feature/night-browser-multi-agent-20261020`; your isolated branch: `agent/browser-08-universal-search`.

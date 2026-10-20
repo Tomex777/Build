@@ -89,3 +89,23 @@ For each new implementation add: `Task ID | owner | worktree/branch | commit/PR 
 3. Automated guard + JVM unit tests + **real Android compilation** pass on the actual merge head; app IDs, FileProvider authority, Kotlin packages and Android SDK must be internally consistent. Package choice remains under project-owner review due to #422.
 4. **Install** the resulting APK on suitable Android emulators/devices, **interact** with browser pages, forms, multiple tabs, Journey branches, Peek, downloads and permission dialogs; attach redacted screenshots/logs and record failures.
 5. Coordinator records branch, commit, CI run, actual install/test evidence, remaining defect and next action. Do not call it integrated/done until combined app is tested.
+
+
+## WAVE 2 integration and whole-app quality priorities (2026-10-20)
+
+**This table supersedes unverified "unimplemented" statuses in the first-wave snapshot:** Integration `feature/night-browser-multi-agent-20261020` has merged #425 coordinator, #430 Home components, #437 Home shell. **Open draft #439** partially assembles new Agent 6/8/9/10 files without production wiring. **Open specialist #426–#434**, plus Agent 2 #441 QA; statuses must be rechecked before action. Build workflows on #439 were queued at review; not accepted as a working full app. Issue: [#460](https://github.com/Tomex777/Build/issues/460). First mission: integrate existing outstanding work, not create parallel replacements.
+
+| Agent | Wave-2 immediate quality task | Evidence required |
+| --- | --- | --- |
+| A1 | Coordinator: produce ONE working browser APK | Actual integrated app compile/install/site tests, not just PR exists |
+| A2 | Home, omnibar and visual design mastery | Actual integrated app compile/install/site tests, not just PR exists |
+| A3 | Stable tab grid, process restoration and true incognito | Actual integrated app compile/install/site tests, not just PR exists |
+| A4 | Production GeckoView site compatibility | Actual integrated app compile/install/site tests, not just PR exists |
+| A5 | Beautiful correct automatic branching Journeys | Actual integrated app compile/install/site tests, not just PR exists |
+| A6 | Real downloads and useful Library | Actual integrated app compile/install/site tests, not just PR exists |
+| A7 | Versioned Time Machine with trustworthy offline behavior | Actual integrated app compile/install/site tests, not just PR exists |
+| A8 | User-consented AI Universal Search, genuinely useful | Actual integrated app compile/install/site tests, not just PR exists |
+| A9 | Peek, per-origin Site Studio and adaptive browsing | Actual integrated app compile/install/site tests, not just PR exists |
+| A10 | Independent app-wide Android quality and security gate | Actual integrated app compile/install/site tests, not just PR exists |
+
+Communication posts: `[BROWSER A#][CLAIM|DESIGN|BLOCKED|HANDOFF|READY|VERIFIED|INTEGRATED]` on Issue #460. Agent1 owns cross-file integration lock; preserve original package/SDK. At session end record exact last commit/PR/CI error, APK/test evidence, blocker, next command. Truthful "not integrated / not live model-tested / not installed" labels required.
