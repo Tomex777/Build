@@ -64,10 +64,12 @@ private enum class Page { HOME, WEB, TABS, JOURNEYS, LIBRARY, TIME_MACHINE }
 
 class MainActivity : ComponentActivity() {
     private lateinit var browser: BrowserController
+    private lateinit var platformHost: BrowserPlatformHost
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Register Gecko's SAF/permission launchers before Activity reaches STARTED.\n        browser = BrowserController(applicationContext, BrowserPlatformHost(this))
+        // Register Gecko's SAF/permission launchers before Activity reaches STARTED.\n        platformHost = BrowserPlatformHost(this)
+        browser = BrowserController(applicationContext, platformHost)
         setContent {
             MaterialTheme(colorScheme = darkColorScheme(
                 background = Ink, surface = Raised, primary = Accent,
@@ -92,6 +94,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        platformHost.cancelPending()
         if (isFinishing) browser.tabs.forEach { if (it.session.isOpen) it.session.close() }
         super.onDestroy()
     }
