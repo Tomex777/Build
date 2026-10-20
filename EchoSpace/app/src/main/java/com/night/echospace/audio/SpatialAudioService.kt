@@ -58,8 +58,9 @@ class SpatialAudioService : Service() {
                     if (resumeOnFocusGain && !playing) {
                         resumeOnFocusGain = false
                         playing = true
-                        startForeground(NOTIFICATION_ID, notification())
                         engine?.setPlaying(true)
+                        // The original foreground notification was kept alive.
+                        notificationManager().notify(NOTIFICATION_ID, notification())
                     }
                 }
                 AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
