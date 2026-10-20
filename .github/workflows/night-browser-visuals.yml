@@ -72,4 +72,5 @@ jobs:
           git add night-browser/screenshots
           if git diff --cached --quiet; then exit 0; fi
           git commit -m "test(browser): real Android emulator UI screenshots"
+          git pull --rebase origin feature/night-browser-omni-inspired-ui-20261020
           git push origin HEAD:feature/night-browser-omni-inspired-ui-20261020
