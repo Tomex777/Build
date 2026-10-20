@@ -410,7 +410,7 @@ function tickRunner(dt){
  const p=state.player;
  state.clock+=dt;
  state.duckTimer=Math.max(0,state.duckTimer-dt);
- p.duck=inputs.duck||state.duckTimer>0;
+ p.duck=inputs.duck||inputs.runnerFingerDuck||state.duckTimer>0;
  p.vy+=1690*dt;p.y=Math.min(442,p.y+p.vy*dt);if(p.y>=442)p.vy=0;
  state.distance+=state.speed*dt;state.score=Math.floor(state.distance/12);
  state.speed=Math.min(530,state.speed+7*dt);
@@ -881,7 +881,7 @@ function tick(timestamp){
 function reset(){
  state=INIT[game]();over=false;paused=false;started=false;frame=0;
  $('message').textContent='';$('pauseButton').setAttribute('aria-label','Pause game');$('pauseButton').querySelector('use').setAttribute('href','#icon-pause');
- inputs.left=inputs.right=inputs.drag=inputs.duck=false;inputs.runnerGesture=null;inputs.slicePointerId=null;
+ inputs.left=inputs.right=inputs.drag=inputs.duck=false;inputs.runnerFingerDuck=false;inputs.runnerGesture=null;
  updateHud();overlay('READY TO PLAY',defs[game].title,defs[game].rules,'Start game');
  render();
 }
@@ -945,7 +945,8 @@ function move(e){
  }else{
   if(game==='runner'&&started&&!paused&&!over){
   if(p.y-inputs.dragStartY>26&&inputs.runnerGesture!=='jump'){
-   inputs.runnerGesture='slide';state.duckTimer=.58;state.player.duck=true;
+   // A held down-swipe must keep the player ducking through a crossing glider.
+   inputs.runnerGesture='slide';inputs.runnerFingerDuck=true;state.duckTimer=.58;state.player.duck=true;
   }else if(inputs.dragStartY-p.y>27&&inputs.runnerGesture!=='slide'&&inputs.runnerGesture!=='jump'){
    inputs.runnerGesture='jump';jumpRunner();
   }
@@ -963,6 +964,10 @@ function up(e){
    sliceMove(inputs.lastX,inputs.lastY,p.x,p.y);
  }
  if(game==='runner'&&e.type!=='pointercancel'&&started&&!paused&&!over&&inputs.runnerGesture===null)jumpRunner();
+ if(game==='runner'&&inputs.runnerGesture==='slide'){
+  // Lift or cancel ends finger slide; preserve a concurrently held keyboard key.
+  inputs.runnerFingerDuck=false;state.duckTimer=0;state.player.duck=Boolean(inputs.duck);
+ }
  inputs.runnerGesture=null;inputs.drag=false;inputs.slicePointerId=null;
  try{canvas.releasePointerCapture(e.pointerId)}catch{}
 }
