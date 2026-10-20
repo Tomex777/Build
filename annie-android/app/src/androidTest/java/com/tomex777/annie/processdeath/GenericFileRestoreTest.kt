@@ -36,8 +36,15 @@ class GenericFileRestoreTest {
         val navigation = androidx.test.uiautomator.By.desc("Open navigation")
         assertTrue("Restored Annie did not render navigation", device.wait(androidx.test.uiautomator.Until.hasObject(navigation), 10000))
         device.findObject(navigation).click()
+        // ABR retains one Downloads entry under Library rather than duplicating it
+        // in the navigation drawer. Exercise the actual navigation after process death.
+        val library = androidx.test.uiautomator.By.text("Library")
+        assertTrue("Restored navigation has no Library route",
+            device.wait(androidx.test.uiautomator.Until.hasObject(library), 5000))
+        device.findObject(library).click()
         val downloads = androidx.test.uiautomator.By.text("Downloads")
-        assertTrue(device.wait(androidx.test.uiautomator.Until.hasObject(downloads), 5000))
+        assertTrue("Restored Library has no Downloads route",
+            device.wait(androidx.test.uiautomator.Until.hasObject(downloads), 5000))
         device.findObject(downloads).click()
         val filename = androidx.test.uiautomator.By.text("sample.blorp")
         assertTrue("Completed filename was absent after process death", device.wait(androidx.test.uiautomator.Until.hasObject(filename), 8000))
