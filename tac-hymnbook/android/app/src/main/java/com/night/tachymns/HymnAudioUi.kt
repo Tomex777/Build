@@ -276,7 +276,7 @@ fun LearnHymnsHome(
                             fontWeight = FontWeight.Bold, modifier = Modifier.width(46.dp))
                         Column(Modifier.weight(1f)) {
                             Text(hymn.titleYo, fontWeight = FontWeight.Medium)
-                            hymn.titleEn?.let {
+                            hymn.titleEn?.takeIf { it != hymn.titleYo }?.let {
                                 Spacer(Modifier.height(3.dp))
                                 Text(it, fontSize = 12.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -304,7 +304,7 @@ fun LearnHymnReader(
     onDownload: (AudioKey) -> Unit,
     onExplore: (Hymn, Boolean) -> Unit
 ) {
-    val actualEnglish = english && hymn.hasEnglish
+    val actualEnglish = (english || !hymn.hasYoruba) && hymn.hasEnglish
     val verses = if (actualEnglish) hymn.versesEn else hymn.versesYo
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().padding(12.dp),
