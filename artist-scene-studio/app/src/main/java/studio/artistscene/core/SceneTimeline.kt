@@ -79,8 +79,10 @@ fun SceneProject.transformKeyTimes(actorId: String): List<Float> =
                     SceneTimelinePaths.SCALE,
                 )
         }
-        .flatMap { it.keyframes.asSequence() }
-        .filter { it.timeSeconds.isFinite() && it.timeSeconds >= 0f }
+        .flatMap { track -> track.keyframes.asSequence().filter { frame ->
+            frame.timeSeconds.isFinite() && frame.timeSeconds >= 0f &&
+                frame.value.isValidFor(track.propertyPath)
+        } }
         .map { it.timeSeconds }
         .distinct()
         .sorted()
@@ -95,8 +97,10 @@ fun SceneProject.poseKeyTimes(actorId: String): List<Float> =
                         it.propertyPath.startsWith(SceneTimelinePaths.RIG_MORPH_PREFIX)
                     )
         }
-        .flatMap { it.keyframes.asSequence() }
-        .filter { it.timeSeconds.isFinite() && it.timeSeconds >= 0f }
+        .flatMap { track -> track.keyframes.asSequence().filter { frame ->
+            frame.timeSeconds.isFinite() && frame.timeSeconds >= 0f &&
+                frame.value.isValidFor(track.propertyPath)
+        } }
         .map { it.timeSeconds }
         .distinct()
         .sorted()
