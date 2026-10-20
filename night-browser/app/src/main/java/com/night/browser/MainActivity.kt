@@ -166,7 +166,7 @@ private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> U
                             browser.newTab(journeyId = j.id)
                             page = Page.HOME
                         })
-                    Page.LIBRARY -> LibraryPanel(browser,
+                    Page.LIBRARY -> NightLibraryScreen(browser,
                         onOpen = { browser.newTab(it); page = Page.WEB })
                     Page.TIME_MACHINE -> TimeMachinePanel(browser, openSaved)
                 }
@@ -299,10 +299,10 @@ private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> U
     }
 
     peekUrl?.let { url ->
-        PeekDialog(browser, url,
+        PeekOverlay(browser, url,
             onDismiss = { peekUrl = null },
-            onOpen = {
-                browser.newTab(url)
+            onOpen = { previewUrl ->
+                browser.newTab(previewUrl)
                 peekUrl = null
                 page = Page.WEB
             })
