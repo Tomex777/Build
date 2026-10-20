@@ -12,7 +12,8 @@ import java.util.Locale
  * https://example.com can never affect https://login.example.com or an HTTP page.
  */
 object SiteOrigins {
-    fun fromUrl(pageUrl: String): String? = try {
+    fun fromUrl(pageUrl: String): String? {
+        return try {
         val uri = URI(pageUrl.trim())
         val scheme = uri.scheme?.lowercase(Locale.ROOT) ?: return null
         if (scheme != "https" && scheme != "http") return null
@@ -30,8 +31,9 @@ object SiteOrigins {
         if (port < -1 || port > 65535 || port == 0) return null
         val defaultPort = if (scheme == "https") 443 else 80
         "$scheme://$host" + if (port == -1 || port == defaultPort) "" else ":$port"
-    } catch (_: Exception) {
-        null
+        } catch (_: Exception) {
+            null
+        }
     }
 
     fun matches(pageUrl: String, origin: String): Boolean =
