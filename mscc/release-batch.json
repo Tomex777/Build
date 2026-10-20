@@ -1,10 +1,10 @@
 {
-  "releaseId": "night-cortex-protected-write-20261020",
+  "releaseId": "night-cortex-settings-audit-repair-20261021",
   "baseBranch": "mscc-azure",
-  "baseCommit": "52158594ad55376828f869e4622426c053653004",
+  "baseCommit": "1adc3cab2a1d7aa2090fe538199e7241874444e3",
   "pullRequests": [
-    508
+    521
   ],
-  "preparedAt": "2026-10-20T21:28:29.463Z",
-  "notes": "Cortex emergency repair requested Oct 20: restore protected command-settings writes and verify idempotent authenticated settings/ENV POST on production host. Exactly pinned reviewed Agent PR #503 already merged to cortex-android-live, installed only via protected MSCC release. Existing Cortex bearer token, WhatsApp authentication and Azure SSH forced-command policy retained. Android v1.0.6 PR #502 separately merged; install on user device afterwards. One mscc-production approval, followed by live endpoint and Cloud credential save validation. No unrelated TheNkiri or bot changes."
+  "preparedAt": "2026-10-20T23:06:43.654Z",
+  "notes": "Follow-up to failed protected Azure release #39505566864. Pin passing Cortex Agent #520, repair only private Cortex activity journal permissions, and verify that unchanged settings + environment POSTs persist and create new audit records before releasing. No WhatsApp auth changes, Cortex token resets, unrelated TheNkiri changes, or public credential logging. Exactly one protected mscc-production approval needed after integrated PR checks. Rollback on failures. Android v1.0.6 already built separately."
 }
