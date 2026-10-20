@@ -161,8 +161,8 @@ try {
   }
   await host.locator('.party-leaderboard').waitFor({timeout:8000});
   assert.equal(game.phase,'finished');
-  assert.match(await host.locator('.party-leaderboard').innerText(),/Aster[\\s\\S]*3 \\/ 3/,'host sees actual quiz results');
-  assert.match(await two.locator('.party-leaderboard').innerText().catch(()=>''),/Aster[\\s\\S]*3 \\/ 3/,'guest sees synchronized results');
+  assert.match(await host.locator('.party-leaderboard').innerText(),/Aster[\s\S]*3 \/ 3/,'host sees actual quiz results');
+  assert.match(await two.locator('.party-leaderboard').innerText().catch(()=>''),/Aster[\s\S]*3 \/ 3/,'guest sees synchronized results');
   await host.screenshot({path:path.join(output,'party-online-scored-quiz.jpg'),type:'jpeg',quality:78});
   for(const [w,h] of [[320,568],[360,800],[390,844],[412,915],[768,1024],[1280,860]]){
     await host.setViewportSize({width:w,height:h});
