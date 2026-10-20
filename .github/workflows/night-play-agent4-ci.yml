@@ -20,6 +20,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Validate real Brick Breaker collision physics
+        run: node night-play/action/agent4-physics.test.mjs
       - name: Install Chromium browser test helper
         run: npm install --no-save playwright@1.56.1
       - name: Launch and actually play three arcade games
