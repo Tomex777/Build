@@ -33,3 +33,18 @@ for(const url of [
  const body=await response.text();
  console.log('CHARACTER MODAL',url,response.status,body.length,body.slice(0,4300));
 }
+
+for(const url of [
+ 'https://shadow-garden.jp/1st/assets/img/character/chara1_main2.png',
+ 'https://shadow-garden.jp/1st/assets/img/character/chara1_main1.png',
+ 'https://shadow-garden.jp/1st/assets/img/character/chara2_main1.png',
+ 'https://shadow-garden.jp/2nd/assets/img/character/chara2_alpha__main1.png',
+ 'https://shadow-garden.jp/2nd/assets/img/character/chara3_beta__main1.png',
+ 'https://shadow-garden.jp/2nd/assets/img/character/chara5_delta__main1.png',
+ 'https://shadow-garden.jp/2nd/assets/img/character/chara14_elisabeth__main1.png'
+]){
+ const response=await fetch(url,{signal:AbortSignal.timeout(15000)});
+ const bytes=Buffer.from(await response.arrayBuffer());
+ const png=bytes.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]));
+ console.log('FULL PORTRAIT',JSON.stringify({url,status:response.status,bytes:bytes.length,png,width:png?bytes.readUInt32BE(16):null,height:png?bytes.readUInt32BE(20):null,colorType:png?bytes[25]:null}));
+}
