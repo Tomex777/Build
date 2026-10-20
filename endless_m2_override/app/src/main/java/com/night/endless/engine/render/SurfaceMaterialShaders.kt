@@ -85,7 +85,16 @@ float noise2(vec2 p) {
 // aggressive moire texture across kilometer-distant planetary slopes.
 float noiseFiltered(vec2 coordinates) {
     float footprint = max(length(dFdx(coordinates)), length(dFdy(coordinates)));
-    return mix(noise2(coordinates), 0.5, smoothstep(0.50, 1.55, footprint));
+    // Above Nyquist the value is exactly its 0.5 mean. Early-exit BEFORE
+    // four integer hashes and interpolation per sample. At orbital distances
+    // most fine grains are many pixels across in texture space but subpixel
+    // on screen; hashing their discarded detail wasted considerable mobile
+    // shader time and increased the risk of frame stutter on software GLES.
+    // dFdx/dFdy are evaluated unconditionally as GLES3 requires.
+    if (footprint >= 1.55) return 0.5;
+    float measured = noise2(coordinates);
+    if (footprint <= 0.50) return measured;
+    return mix(measured, 0.5, smoothstep(0.50, 1.55, footprint));
 }
 
 float geologicalDetail(vec2 pos) {

@@ -6,6 +6,15 @@ import org.junit.Test
 import kotlin.math.abs
 
 class SurfaceDetailMeshTest {
+    @Test fun remainingForegroundRadiusIsSafeAtNewNineMetreReanchor() {
+        val fullRadius = (SurfaceDetailMesh.SIDE - 1) * SurfaceDetailMesh.STEP / 2f
+        val interval = .0030f
+        // Units are 3km: an astronaut remains inside the original
+        // fine-triangle square throughout the reanchor interval.
+        org.junit.Assert.assertTrue(fullRadius - interval > .015f)
+        org.junit.Assert.assertTrue((fullRadius - interval) * 3000f > 49.0f)
+    }
+
     @Test fun rockRimsAreEmbeddedOnBothSidesOfASlope() {
         val slope: (Double, Double) -> Double = { x, z -> .2 + x * .21 - z * .17 }
         val rocks = SurfaceDetailMesh.buildRocks(.03, -.04, slope)

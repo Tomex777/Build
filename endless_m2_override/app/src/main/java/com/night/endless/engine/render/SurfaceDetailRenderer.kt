@@ -87,7 +87,12 @@ internal class SurfaceDetailRenderer(
     }
 
     private fun update(centerX: Double, centerZ: Double) {
-        if (anchorX.isFinite() && hypot(centerX - anchorX, centerZ - anchorZ) < 0.0011) return
+        // The movable foreground extends 58.8m from its centre, so a
+        // 9.0m reanchor interval still leaves >49m of fine terrain around
+        // the eye. Building 12k vertices plus hundreds of rock/shadow
+        // facets every 3.3m caused visible UI stalls during walking.
+        // Reanchor 2.7x less often without reducing per-vertex detail.
+        if (anchorX.isFinite() && hypot(centerX - anchorX, centerZ - anchorZ) < 0.0030) return
         val patch = SurfaceDetailMesh.buildPatch(
             centerX, centerZ, elevation,
             geologyRelief ?: SurfaceDetailMesh::defaultMicroRelief
