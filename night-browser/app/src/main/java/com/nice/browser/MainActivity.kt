@@ -208,8 +208,8 @@ private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> U
                         }
                     )
                 }
-                ChromeIcon(Icons.Rounded.ArrowUpward, "Go", enabled = address.isNotBlank()) {
-                    openAddress()
+                if (addressFocused && address.isNotBlank()) {
+                    ChromeIcon(Icons.Rounded.ArrowUpward, "Go") { openAddress() }
                 }
             }
             }
