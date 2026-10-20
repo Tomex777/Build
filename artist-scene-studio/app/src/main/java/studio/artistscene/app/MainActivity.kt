@@ -3,16 +3,20 @@ package studio.artistscene.app
 import android.os.Bundle
 import android.os.Build
 import android.util.Log
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import java.util.UUID
 import studio.artistscene.core.ProjectMetadata
 import studio.artistscene.core.SceneProject
@@ -156,7 +160,34 @@ class MainActivity : ComponentActivity() {
                 var projects by remember { mutableStateOf(runCatching { store.list() }.getOrDefault(emptyList())) }
                 var activeProject by remember { mutableStateOf<SceneProject?>(null) }
                 var openedFromDisk by remember { mutableStateOf(false) }
+
                 var browserMessage by remember { mutableStateOf<String?>(null) }
+
+                // The scene editor needs the complete drawing area on phones. Keep
+                // Android navigation available for gestures, while restoring the
+                // status bar as soon as the project browser is visible.
+                // FLAG_FULLSCREEN is used together with the insets controller so
+                // a contextual sheet or reference-mode inset update cannot bring
+                // the status bar back over the 3D viewport.
+                val inEditor = activeProject != null
+                DisposableEffect(inEditor) {
+                    val bars = WindowCompat.getInsetsController(window, window.decorView)
+                    if (inEditor) {
+                        window.addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
+                        bars.hide(WindowInsetsCompat.Type.statusBars())
+                        bars.systemBarsBehavior =
+                            WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                    } else {
+                        window.clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
+                        bars.show(WindowInsetsCompat.Type.statusBars())
+                    }
+                    onDispose {
+                        if (inEditor) {
+                            window.clearFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN)
+                            bars.show(WindowInsetsCompat.Type.statusBars())
+                        }
+                    }
+                }
 
                 val refreshProjects = { projects = runCatching { store.list() }.getOrDefault(emptyList()) }
                 val openProject: (String) -> Unit = { id ->
