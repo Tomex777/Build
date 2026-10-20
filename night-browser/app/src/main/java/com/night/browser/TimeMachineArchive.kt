@@ -253,8 +253,13 @@ class TimeMachineArchive(context: Context) {
     fun delete(item: TimeMachineVersion): Boolean {
         val file = resolveFile(item.fileName) ?: return false
         if (file.exists() && !file.delete()) return false
+        val previous = versions
         versions = versions.filterNot { it.id == item.id }
-        persist()
+        if (!persist()) {
+            // The file is gone, but the index still has a recoverable missing-file row.
+            versions = previous
+            return false
+        }
         return true
     }
 
