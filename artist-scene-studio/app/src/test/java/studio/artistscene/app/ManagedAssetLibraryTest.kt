@@ -109,4 +109,98 @@ class ManagedAssetLibraryTest {
             files.deleteRecursively()
         }
     }
+
+    @Test
+    fun corruptedPrimaryIndexRecoversFromLastCommittedBackup() {
+        val files = Files.createTempDirectory("mise-backup-test").toFile()
+        try {
+            val original = ManagedAssetLibrary(files, "library")
+            val first = original.install("Oak.glb", "prop", "glb", byteArrayOf(4, 5, 6))
+            val index = File(files, "library/library.json")
+            val backup = File(files, "library/library.backup")
+            assertTrue(index.isFile)
+            assertTrue(backup.isFile)
+
+            index.writeText("[invalid json")
+            val reopened = ManagedAssetLibrary(files, "library")
+            assertEquals(first.assetId, reopened.list().single().assetId)
+
+            reopened.install("Birch.glb", "prop", "glb", byteArrayOf(7, 8, 9))
+            assertEquals(2, ManagedAssetLibrary(files, "library").list().size)
+            assertEquals(index.readText(), backup.readText())
+        } finally {
+            files.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun damagedPrimaryAndBackupCannotBeSilentlyOverwritten() {
+        val files = Files.createTempDirectory("mise-index-protect").toFile()
+        try {
+            val library = ManagedAssetLibrary(files, "library")
+            val installed = library.install("Character.glb", "character", "glb", byteArrayOf(1, 2, 3))
+            val main = File(files, "library/library.json")
+            val backup = File(files, "library/library.backup")
+            main.writeText("not json")
+            backup.writeText("also not json")
+
+            val error = runCatching {
+                ManagedAssetLibrary(files, "library").install(
+                    "New.glb", "prop", "glb", byteArrayOf(5, 6, 7),
+                )
+            }.exceptionOrNull()
+            assertTrue(error is IllegalStateException)
+            assertEquals("not json", main.readText())
+            assertEquals("also not json", backup.readText())
+            assertTrue(File(files, installed.relativePath).isFile)
+        } finally {
+            files.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun missingPayloadRecordIsPreservedWhenAnotherAssetIsInstalled() {
+        val files = Files.createTempDirectory("mise-missing-asset").toFile()
+        try {
+            val library = ManagedAssetLibrary(files, "library")
+            val missingBytes = byteArrayOf(1, 2, 3, 4)
+            val missing = library.install("Missing.glb", "character", "glb", missingBytes)
+            assertTrue(File(files, missing.relativePath).delete())
+            library.install("Other.glb", "prop", "glb", byteArrayOf(8, 9, 10))
+
+            // Missing records are hidden from the picker but must not be thrown out of the index.
+            val index = File(files, "library/library.json").readText()
+            assertTrue(index.contains(missing.assetId))
+            val restored = library.install("Missing.glb", "character", "glb", missingBytes)
+            assertEquals(missing.assetId, restored.assetId)
+            assertTrue(File(files, missing.relativePath).isFile)
+            assertEquals(2, ManagedAssetLibrary(files, "library").list().size)
+        } finally {
+            files.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun duplicateImportRepairsCorruptedContentAddressedPayload() {
+        val files = Files.createTempDirectory("mise-payload-repair").toFile()
+        try {
+            val library = ManagedAssetLibrary(files, "library")
+            val cleanBytes = byteArrayOf(11, 12, 13, 14, 15, 16)
+            val first = library.install(
+                "Original.glb", "prop", "glb", cleanBytes,
+                creator = "Original artist", license = "CC0-1.0",
+            )
+            val payload = File(files, first.relativePath)
+            val bad = cleanBytes.copyOf().also { it[2] = 0 }
+            payload.writeBytes(bad)
+            val repaired = library.install("Same model.glb", "prop", "glb", cleanBytes)
+            assertEquals(first.assetId, repaired.assetId)
+            assertTrue(payload.readBytes().contentEquals(cleanBytes))
+            assertEquals("Original artist", repaired.creator)
+            assertEquals("CC0-1.0", repaired.license)
+            assertEquals(1, library.list().size)
+        } finally {
+            files.deleteRecursively()
+        }
+    }
 }
