@@ -72,45 +72,67 @@ function bg(top,bottom){
  ctx.fillStyle=grad;ctx.fillRect(0,0,W,H);
 }
 
-function initSlice(){return {score:0,misses:0,spawn:.55,fruits:[],halves:[],splashes:[],trail:[],clock:0,combo:0};}
+// The launch arc is solved from a target apex, rather than increasing velocity
+// blindly. Nearly every throw crosses the centre and upper-middle touch area.
+const SLICE_GRAVITY=980;
+function initSlice(){return {score:0,misses:0,spawn:.55,fruits:[],halves:[],splashes:[],trail:[],popups:[],clock:0,combo:0,comboClock:0};}
 function addFruit(){
- const multi=Math.random()<.37?2:1;
- for(let i=0;i<multi;i++){
-  const kind=Math.random()<.13?'bomb':Math.floor(rand(0,5));
-  // Give each throw an upper/mid-screen apex instead of keeping fruit near the bottom.
-  state.fruits.push({x:rand(55,W-55),y:H+30+rand(0,35),vx:rand(-85,85),
-   vy:rand(-970,-880),r:kind==='bomb'?24:rand(24,28),kind,
-   rotation:rand(-.34,.34),spin:rand(-1.4,1.4),hit:false});
+ const level=Math.min(8,Math.floor(state.score/100));
+ const count=Math.random()<Math.min(.59,.26+level*.045)?(level>=3&&Math.random()<.22?3:2):1;
+ const bombChance=Math.min(.19,.075+level*.014);
+ for(let i=0;i<count;i++){
+  const kind=Math.random()<bombChance?'bomb':Math.floor(rand(0,5));
+  const x=rand(65,W-65),y=H+24+rand(0,26),apex=rand(137,233);
+  const rise=Math.sqrt(2*SLICE_GRAVITY*(y-apex)),timeToApex=rise/SLICE_GRAVITY;
+  // Prevent the apex from being outside the screen, even for edge launches.
+  const vx=clamp(rand(-65,65)+(W*.5-x)*.16,
+   (51-x)/timeToApex,(W-51-x)/timeToApex);
+  state.fruits.push({x,y,vx,vy:-rise,r:kind==='bomb'?24:rand(24,28),kind,
+   rotation:rand(-.32,.32),spin:rand(-1.6,1.6),hit:false,apex});
  }
 }
-function segDist(x,y,x1,y1,x2,y2){
- const dx=x2-x1,dy=y2-y1,len=dx*dx+dy*dy;
- const t=len?clamp(((x-x1)*dx+(y-y1)*dy)/len,0,1):0;
- return Math.hypot(x-(x1+t*dx),y-(y1+t*dy));
+// A swipe must actually travel THROUGH a fruit. Merely touching its edge
+// or tapping/hovering at one coordinate cannot award points.
+function bladeCutsFruit(f,x1,y1,x2,y2){
+ const dx=x2-x1,dy=y2-y1,len2=dx*dx+dy*dy;
+ if(len2<14*14)return false;
+ const fx=x1-f.x,fy=y1-f.y,r=f.r*.87;
+ const b=2*(fx*dx+fy*dy),c=fx*fx+fy*fy-r*r;
+ const disc=b*b-4*len2*c;
+ if(disc<=0)return false;
+ const root=Math.sqrt(disc),enter=Math.max(0,(-b-root)/(2*len2));
+ const exit=Math.min(1,(-b+root)/(2*len2));
+ return (exit-enter)*Math.sqrt(len2)>=Math.max(10,f.r*.4);
 }
 function sliceMove(x1,y1,x2,y2){
  if(!started||paused||over)return;
  state.trail.push({x:x2,y:y2,a:1});
+ if(state.trail.length>28)state.trail.splice(0,state.trail.length-28);
  const dx=x2-x1,dy=y2-y1,length=Math.hypot(dx,dy);
- if(length<3)return;
+ if(length<14)return;
  const nx=-dy/length,ny=dx/length;
+ let sliced=0;
  for(const f of state.fruits){
-  if(f.hit||segDist(f.x,f.y,x1,y1,x2,y2)>=f.r*.91)continue;
+  if(f.hit||!bladeCutsFruit(f,x1,y1,x2,y2))continue;
   if(f.kind==='bomb'){f.hit=true;end('Bomb hit!');return}
-  f.hit=true;
+  f.hit=true;sliced++;
   const angle=Math.atan2(dy,dx),juice=['#ffbf50','#e94750','#86ca64','#b0e38d','#f64e51'][f.kind];
-  for(const side of [-1,1])state.halves.push({x:f.x+nx*side*3,y:f.y+ny*side*3,
-   vx:f.vx+nx*side*135,vy:f.vy+ny*side*110-30,r:f.r,kind:f.kind,
-   angle,rotation:f.rotation,spin:side*rand(1.8,3.8),side,age:0});
-  for(let i=0;i<16;i++){
-   const a=rand(0,TAU),speed=rand(60,260);
-   state.splashes.push({x:f.x,y:f.y,vx:Math.cos(a)*speed,vy:Math.sin(a)*speed-40,
-     age:0,life:rand(.3,.68),r:rand(1.5,4),color:juice});
+  // Each clipped piece keeps its own original cut edge as it rotates.
+  for(const side of [-1,1])state.halves.push({x:f.x+nx*side*7,y:f.y+ny*side*7,
+   vx:f.vx+nx*side*170,vy:f.vy+ny*side*140-25,r:f.r,kind:f.kind,
+   angle,cutRotation:f.rotation,rotation:f.rotation,spin:side*rand(2.7,4.5),
+   side,age:0});
+  for(let i=0;i<20;i++){
+   const a=rand(0,TAU),speed=rand(50,270);
+   state.splashes.push({x:f.x,y:f.y,vx:Math.cos(a)*speed,vy:Math.sin(a)*speed-45,
+    age:0,life:rand(.29,.63),r:rand(1.5,4),color:juice});
   }
-  state.score+=10;state.combo++;audio('point');
+  state.popups.push({x:f.x,y:f.y-34,age:0,points:10});
+  state.score+=10;audio('point');
  }
- updateHud();
+ if(sliced){state.combo=state.comboClock>0?state.combo+sliced:sliced;state.comboClock=.52;updateHud()}
 }
+
 const fruitColors=['#fcae39','#e84456','#66a34e','#89b05e','#ee4e4e'];
 function fruitShape(kind,r){
  ctx.beginPath();
@@ -184,9 +206,9 @@ function drawFruit(f){
  ctx.restore();
 }
 function drawHalf(h){
- const r=h.r,R=r*1.65,a=h.angle-h.rotation,tx=Math.cos(a),ty=Math.sin(a),nx=-ty,ny=tx;
+ const r=h.r,R=r*1.65,a=h.angle-h.cutRotation,tx=Math.cos(a),ty=Math.sin(a),nx=-ty,ny=tx;
  ctx.save();ctx.translate(h.x,h.y);ctx.rotate(h.rotation);
- ctx.globalAlpha=Math.min(1,(1.05-h.age)*2.7);
+ ctx.globalAlpha=Math.min(1,(1.25-h.age)*2.8);
  // Clip each independent physical piece against the plane of the actual swipe.
  ctx.beginPath();ctx.moveTo(-tx*R,-ty*R);ctx.lineTo(tx*R,ty*R);
  ctx.lineTo(tx*R+nx*R*h.side,ty*R+ny*R*h.side);
@@ -200,17 +222,20 @@ function drawHalf(h){
 }
 function tickSlice(dt){
  state.clock+=dt;state.spawn-=dt;
- if(state.spawn<0){addFruit();state.spawn=rand(.68,1.04)*Math.max(.62,1-state.score/2400);}
+ if(state.spawn<0){addFruit();state.spawn=rand(.72,1.02)*Math.max(.54,1-state.score/1100);}
  for(const f of state.fruits){
-  f.x+=f.vx*dt;f.y+=f.vy*dt;f.vy+=1010*dt;f.rotation+=f.spin*dt;
+  f.x+=f.vx*dt;f.y+=f.vy*dt;f.vy+=SLICE_GRAVITY*dt;f.rotation+=f.spin*dt;
   if(f.vy>0&&f.y>H+f.r+4&&!f.hit&&f.kind!=='bomb'){f.hit=true;state.misses++;audio('bad')}
  }
  state.fruits=state.fruits.filter(f=>!f.hit&&f.y<H+95);
- for(const h of state.halves){h.x+=h.vx*dt;h.y+=h.vy*dt;h.vy+=1010*dt;h.rotation+=h.spin*dt;h.age+=dt}
- state.halves=state.halves.filter(h=>h.age<1.05&&h.y<H+95);
+ for(const h of state.halves){h.x+=h.vx*dt;h.y+=h.vy*dt;h.vy+=SLICE_GRAVITY*dt;h.rotation+=h.spin*dt;h.age+=dt}
+ state.halves=state.halves.filter(h=>h.age<1.25&&h.y<H+95);
  for(const p of state.splashes){p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=560*dt;p.age+=dt}
  state.splashes=state.splashes.filter(p=>p.age<p.life&&p.y<H+20);
- state.trail=state.trail.filter(p=>(p.a-=dt*4)>0);
+ state.trail=state.trail.filter(p=>(p.a-=dt*4.7)>0);
+ state.comboClock=Math.max(0,state.comboClock-dt);
+ for(const p of state.popups){p.y-=dt*42;p.age+=dt}
+ state.popups=state.popups.filter(p=>p.age<.65);
  if(state.misses>=5)end('Too many missed fruit');
 }
 function paintSlice(){
