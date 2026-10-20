@@ -62,7 +62,7 @@ try{
  assert.equal(await page.evaluate(()=>window.__nightPianoTest.snapshot().ended),true,
   'Tapping an empty lane causes a real loss');
  assert.equal(await page.locator('#coverTitle').textContent(),'Wrong tile');
- await page.locator('#restart').click();
+ await page.locator('#coverAction').click();
  assert.equal(await page.evaluate(()=>window.__nightPianoTest.snapshot().ended),false,
   'Restart must create a fresh playable round');
  const events=await page.evaluate(()=>window.__nightPianoTest.snapshot().notes);
