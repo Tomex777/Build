@@ -240,22 +240,24 @@ function jumpPlatform(x,y,w,moving=false){
 function initJump(){
  const platforms=[jumpPlatform(120,505,133)];
  let last=platforms[0];
- for(let y=428,i=0;y>=-90;y-=rand(66,81),i++){
-   const w=rand(69,96);
+ for(let y=428,i=0;y>=-90;y-=rand(65,78),i++){
+   const w=i<4?rand(84,106):rand(69,96);
    // Keep a reachable stepping route rather than independent random Xs.
-   const x=clamp(last.x+rand(-112,112),12,W-w-12);
-   const plat=jumpPlatform(x,y,w,i===2||(i>3&&Math.random()<.19));
+   const earlyStep=i<4?88:112;
+   const x=clamp(last.x+rand(-earlyStep,earlyStep),12,W-w-12);
+   // Ease in with four permanent wide platforms before moving targets.
+   const plat=jumpPlatform(x,y,w,i===4||(i>4&&Math.random()<.19));
    platforms.push(plat);last=plat;
  }
- return {score:0,elapsed:0,bounce:0,player:{x:180,y:460,vy:-560,vx:0},
+ return {score:0,elapsed:0,bounce:0,player:{x:180,y:460,vy:-575,vx:0},
    platforms,scroll:0};
 }
 function tickJump(dt){
  const p=state.player,prev=p.y;
  state.elapsed+=dt;state.bounce=Math.max(0,state.bounce-dt);
- const desired=inputs.left?-260:inputs.right?260:
+ const desired=inputs.left?-285:inputs.right?285:
    inputs.drag?(inputs.lastX-p.x)*10:0;
- p.vx+=(clamp(desired,-295,295)-p.vx)*Math.min(1,dt*13);
+ p.vx+=(clamp(desired,-310,310)-p.vx)*Math.min(1,dt*14);
  p.x+=p.vx*dt;
  if(p.x>W+18)p.x=-17;if(p.x< -18)p.x=W+17;
  p.vy+=1230*dt;p.y+=p.vy*dt;
@@ -267,7 +269,7 @@ function tickJump(dt){
  if(p.vy>0)for(const plat of state.platforms){
    if(!(prev+17<=plat.y+4&&p.y+17>=plat.y&&
        p.x+15>plat.x&&p.x-15<plat.x+plat.w))continue;
-   p.y=plat.y-18;p.vy=-560;state.bounce=.12;
+   p.y=plat.y-18;p.vy=-575;state.bounce=.12;
    // Platforms always remain solid, no matter how many landings.
    audio('hit');break;
  }
@@ -334,30 +336,33 @@ function paintJump(){
  }
 }
 
-function initRunner(){return {score:0,speed:220,player:{x:88,y:442,vy:0,duck:false},obstacles:[],spawn:1.25,distance:0,passed:0,duckTimer:0};}
+function initRunner(){return {score:0,speed:220,player:{x:88,y:442,vy:0,duck:false},obstacles:[],spawn:1.25,distance:0,passed:0,duckTimer:0,clock:0,nearMisses:0};}
 function jumpRunner(){
  const p=state.player;if(!started||paused||over)return;
  if(p.y>=441){p.vy=-685;p.y=440;audio('hit')}
 }
-function duckRunner(on){if(!state||game!=='runner')return;state.player.duck=on;}
+function duckRunner(on){if(!state||game!=='runner')return;inputs.duck=on;state.player.duck=on||state.duckTimer>0;}
 function runnerBounds(o){
  // Art and collision are attached to identical physical heights.
- if(o.kind==='flying')return {top:390,bottom:438};
- if(o.kind==='glider')return {top:347,bottom:405};
+ if(o.kind==='flying')return {top:396,bottom:438};
+ if(o.kind==='glider')return {top:347,bottom:403};
  return {top:442-o.h,bottom:442};
 }
 function tickRunner(dt){
  const p=state.player;
+ state.clock+=dt;
+ state.duckTimer=Math.max(0,state.duckTimer-dt);
+ p.duck=inputs.duck||state.duckTimer>0;
  p.vy+=1690*dt;p.y=Math.min(442,p.y+p.vy*dt);if(p.y>=442)p.vy=0;
  state.distance+=state.speed*dt;state.score=Math.floor(state.distance/12);
- state.speed=Math.min(530,state.speed+6*dt);
+ state.speed=Math.min(530,state.speed+7*dt);
  state.spawn-=dt;
  if(state.spawn<=0){
-  const roll=Math.random(),kind=roll<.36?'flying':roll<.52?'glider':roll<.77?'pillar':'stone';
-  const o={x:W+25,w:kind==='flying'?48:kind==='glider'?51:kind==='pillar'?29:43,
-   h:kind==='pillar'?54:kind==='stone'?28:kind==='flying'?48:58,kind};
+  const roll=Math.random(),kind=roll<.36?'flying':roll<.52?'glider':roll<.74?'pillar':roll<.91?'stone':'barrel';
+  const o={x:W+25,w:kind==='flying'?48:kind==='glider'?51:kind==='pillar'?29:kind==='barrel'?36:43,
+   h:kind==='pillar'?54:kind==='stone'?28:kind==='barrel'?39:kind==='flying'?48:58,kind};
   state.obstacles.push(o);
-  state.spawn=rand(1.06,1.48)*(240/state.speed)**.23;
+  state.spawn=rand(1.12,1.48)*(250/state.speed)**.23;
  }
  const standingHeight=p.duck&&p.y>=441?24:48;
  const playerLeft=p.x-12,playerRight=p.x+12,playerTop=p.y-standingHeight+3,playerBottom=p.y-3;
@@ -366,29 +371,46 @@ function tickRunner(dt){
   const bounds=runnerBounds(o);
   // No phantom safe flying hazards: standing and sliding into a low flyer
   // both collide. High gliders require ducking; obstacles above a jump count.
-  if(playerRight>o.x+5&&playerLeft<o.x+o.w-5&&
+  if(prevX+o.w-5>playerLeft&&o.x+5<playerRight&&
      playerTop<bounds.bottom-3&&playerBottom>bounds.top+3){
    end('An obstacle caught you');break;
   }
-  if(o.x+o.w<playerLeft&&!o.passed){o.passed=true;state.passed++}
+  if(o.x+o.w<playerLeft&&!o.passed){o.passed=true;state.passed++;
+    if((p.duck&&o.kind==='glider')||(p.y<413&&o.kind!=='glider'))state.nearMisses++}
  }
  state.obstacles=state.obstacles.filter(o=>o.x+o.w>-10);
  updateHud();
 }
 function paintRunner(){
- bg('#d0e4ee','#c3e2d3');
+ bg('#bfdce7','#deede1');
+ // Separate layers travel at different speeds, so the sprint has real depth.
+ for(let i=0;i<6;i++){
+  const x=((i*123-state.distance*.055)%(W+160)+(W+160))%(W+160)-75;
+  const y=68+(i%3)*61;
+  ctx.fillStyle='#ffffff86';ctx.beginPath();
+  ctx.ellipse(x,y,29,10,0,0,TAU);
+  ctx.ellipse(x+17,y-7,22,13,0,0,TAU);ctx.fill();
+ }
+ ctx.fillStyle='#96bab22c';ctx.beginPath();ctx.moveTo(0,440);
+ for(let x=0;x<=W+12;x+=12){
+  ctx.lineTo(x,375+19*Math.sin(x*.015+state.distance*.00025)+
+    11*Math.sin(x*.037+1.5));
+ }
+ ctx.lineTo(W,440);ctx.closePath();ctx.fill();
  const offset=state.distance*.23;
  for(let i=0;i<12;i++){
   const x=((i*95-offset*.5)%490+490)%490-40;
-  fill(x,300+(i%4)*13,52,143,'#a6bfc3',6);
-  fill(x+12,315+(i%4)*13,7,13,'#edf1eb');
+  const roof=300+(i%4)*13;
+  fill(x,roof,52,143,'#a6bfc3',6);
+  fill(x+12,roof+15,7,13,'#edf1eb');
+  fill(x+31,roof+31,6,12,'#edf1ebad');
  }
  fill(0,442,W,108,'#426956');fill(0,440,W,5,'#98c8a6');
  for(let i=0;i<22;i++){const x=((i*41-state.distance)%W+W)%W;fill(x,463+(i%3)*21,25,2,'#6d9e7a')}
  for(const o of state.obstacles){
   if(o.kind==='flying'){ // A low flying dinosaur sweeps its wings and talons across the runner's lane.
    ctx.save();ctx.translate(o.x,0);
-   const wing=Math.sin(state.distance*.035)*5;
+   const wing=Math.sin(state.clock*18+o.x*.014)*7;
    ctx.fillStyle='#a25c61';ctx.beginPath();ctx.moveTo(7,412);ctx.lineTo(19,396+wing);
    ctx.lineTo(27,413);ctx.lineTo(42,395-wing);ctx.lineTo(39,422);
    ctx.lineTo(24,431);ctx.lineTo(12,427);ctx.closePath();ctx.fill();
@@ -397,7 +419,7 @@ function paintRunner(){
    ctx.moveTo(27,427);ctx.lineTo(24,437);ctx.stroke();ctx.restore();
   }else if(o.kind==='glider'){
    ctx.save();ctx.translate(o.x,0);
-   const wing=Math.sin(state.distance*.035)*8;
+   const wing=Math.sin(state.clock*15+o.x*.012)*7;
    ctx.fillStyle='#815a78';ctx.beginPath();ctx.moveTo(4,383);ctx.lineTo(12,349+wing);
    ctx.lineTo(25,381);ctx.lineTo(43,348-wing);ctx.lineTo(47,392);
    ctx.lineTo(28,397);ctx.lineTo(12,393);ctx.closePath();ctx.fill();
@@ -405,12 +427,49 @@ function paintRunner(){
   }else if(o.kind==='pillar'){
    fill(o.x,442-o.h,o.w,o.h,'#93676c',5);
    fill(o.x+6,442-o.h+9,7,8,'#d3a198');
-  }else{fill(o.x,442-o.h,o.w,o.h,'#aa8170',10);
+  }else if(o.kind==='barrel'){
+    fill(o.x,442-o.h,o.w,o.h,'#9f6b56',7);
+    fill(o.x+3,442-o.h+7,o.w-6,5,'#ddb083',2);
+    fill(o.x+3,442-11,o.w-6,5,'#ddb083',2);
+    disk(o.x+o.w*.5,442-o.h*.5,7,'#bd9171');
+   }else{fill(o.x,442-o.h,o.w,o.h,'#aa8170',10);
    fill(o.x+7,442-o.h+6,19,7,'#e1b7a1',4)}
  }
- const p=state.player,h=p.duck&&p.y>=441?24:48;
- fill(p.x-12,p.y-h,24,h,'#315c51',8);disk(p.x+1,p.y-h+9,5,'#ead2b1');
- fill(p.x-15,p.y-4,34,5,'#bd835e',3);
+ const p=state.player,ducking=p.duck&&p.y>=441,airborne=p.y<441;
+ const stride=Math.sin(state.clock*21);
+ // The shadow separates the playable character from the ground while jumping.
+ ctx.fillStyle='#1b40362b';ctx.beginPath();
+ ctx.ellipse(p.x,443,airborne?11:15,3,0,0,TAU);ctx.fill();
+ ctx.save();ctx.translate(p.x,p.y);
+ if(airborne)ctx.rotate(-.1);
+ if(ducking){
+  // Distinct crouch pose: body below the glider's physical collision height.
+  fill(-14,-17,29,14,'#32725b',7);
+  fill(-16,-7,34,6,'#c28b62',3);
+  fill(-13,-4,11,5,'#28463e',2);fill(5,-4,11,5,'#28463e',2);
+  disk(7,-15,10,'#e9b18c');
+  fill(0,-26,17,7,'#254f49',4);
+  disk(11,-15,1.6,'#263f37');
+ }else{
+  // Arms and staggered legs turn the former tall rectangle into a runner.
+  ctx.lineWidth=5;ctx.lineCap='round';ctx.strokeStyle='#e7ae89';
+  ctx.beginPath();ctx.moveTo(-8,-29);ctx.lineTo(-15,-22+stride*4);
+  ctx.moveTo(8,-29);ctx.lineTo(14,-22-stride*4);ctx.stroke();
+  const swing=airborne?5:stride*6;
+  ctx.lineWidth=7;ctx.strokeStyle='#2b5448';ctx.beginPath();
+  ctx.moveTo(-5,-16);ctx.lineTo(-7+swing,-6);
+  ctx.moveTo(5,-16);ctx.lineTo(7-swing,-6);ctx.stroke();
+  fill(-13+swing,-6,13,6,'#f4e9d4',3);
+  fill(2-swing,-6,13,6,'#f4e9d4',3);
+  fill(-11,-34,22,21,'#32725b',6);
+  fill(-9,-27,18,4,'#8ac0a2',2);
+  fill(-10,-16,20,7,'#be885e',3);
+  disk(0,-41,10,'#e9b18c');
+  fill(-11,-51,22,8,'#254f49',5);
+  fill(-11,-44,22,4,'#386f5b',2);
+  disk(4,-40,1.5,'#253a37');
+ }
+ ctx.restore();
 }
 
 function initShooter(){return {score:0,wave:1,lives:3,ship:{x:195,y:488,shield:0,invincible:0},shots:[],enemies:[],enemyShots:[],pickups:[],spawn:.4,kills:0,clock:0,shoot:0};}
@@ -584,7 +643,7 @@ function tick(timestamp){
 function reset(){
  state=INIT[game]();over=false;paused=false;started=false;frame=0;
  $('message').textContent='';$('pauseButton').setAttribute('aria-label','Pause game');$('pauseButton').querySelector('use').setAttribute('href','#icon-pause');
- inputs.left=inputs.right=inputs.drag=inputs.duck=false;
+ inputs.left=inputs.right=inputs.drag=inputs.duck=false;inputs.runnerGesture=null;
  updateHud();overlay('READY TO PLAY',defs[game].title,defs[game].rules,'Start game');
  render();
 }
@@ -620,16 +679,27 @@ function point(e){const r=canvas.getBoundingClientRect();return {x:clamp((e.clie
 function down(e){
  if(e.button!==undefined&&e.button!==0)return;
  const p=point(e);inputs.drag=true;inputs.lastX=p.x;inputs.lastY=p.y;inputs.dragStartY=p.y;
- if(started&&!over&&!paused){if(game==='runner')jumpRunner();if(game==='bricks')launchBall();if(game==='slice')state.trail.push({x:p.x,y:p.y,a:1})}
+ if(started&&!over&&!paused){if(game==='bricks')launchBall();if(game==='slice')state.trail.push({x:p.x,y:p.y,a:1})}
+ if(game==='runner')inputs.runnerGesture=null;
  try{canvas.setPointerCapture(e.pointerId)}catch{}
 }
 function move(e){
  if(!inputs.drag)return;
  const p=point(e);if(game==='slice')sliceMove(inputs.lastX,inputs.lastY,p.x,p.y);
- if(game==='runner'&&p.y-inputs.dragStartY>28){duckRunner(true);state.duckTimer=.45}
+ if(game==='runner'&&started&&!paused&&!over){
+  if(p.y-inputs.dragStartY>26&&inputs.runnerGesture!=='jump'){
+   inputs.runnerGesture='slide';state.duckTimer=.58;state.player.duck=true;
+  }else if(inputs.dragStartY-p.y>27&&inputs.runnerGesture!=='slide'&&inputs.runnerGesture!=='jump'){
+   inputs.runnerGesture='jump';jumpRunner();
+  }
+ }
  inputs.lastX=p.x;inputs.lastY=p.y;
 }
-function up(e){inputs.drag=false;if(game==='runner'){duckRunner(false)}try{canvas.releasePointerCapture(e.pointerId)}catch{}}
+function up(e){
+ if(game==='runner'&&e.type!=='pointercancel'&&started&&!paused&&!over&&inputs.runnerGesture===null)jumpRunner();
+ inputs.runnerGesture=null;inputs.drag=false;
+ try{canvas.releasePointerCapture(e.pointerId)}catch{}
+}
 canvas.addEventListener('pointerdown',down);canvas.addEventListener('pointermove',move);canvas.addEventListener('pointerup',up);canvas.addEventListener('pointercancel',up);
 $('touchControls').addEventListener('pointerdown',e=>{
  const b=e.target.closest('[data-control]');if(!b)return;e.preventDefault();
