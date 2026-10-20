@@ -1,0 +1,861 @@
+{
+  "version": 1,
+  "series": "shieldhero",
+  "name": "The Rising of the Shield Hero / NIGHT Collection",
+  "dimensions": [
+    3000,
+    4800
+  ],
+  "artworkPolicy": {
+    "distinctPerEdition": true
+  },
+  "tierPolicy": {
+    "mode": "power-selects-design"
+  },
+  "rightsNote": "Reference-only candidate art; Shield Hero anime images remain rights reserved; no independent public redistribution license.",
+  "cards": [
+    {
+      "id": "naofumi-shield-hero",
+      "number": 1,
+      "character": "naofumi",
+      "name": "Naofumi Iwatani",
+      "title": "Naofumi",
+      "form": "Shield Hero / four-hero alliance",
+      "formId": "shield-hero-alliance",
+      "aliases": [
+        "Naofumi Iwatani",
+        "Naofumi",
+        "naofumi"
+      ],
+      "designs": [
+        "emberglass"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "shieldhero-official-anime",
+        "page": "https://shieldhero-anime.jp/en/3rd/",
+        "image": "https://shieldhero-anime.jp/assets/img/3rd/char/detail/naofumi.png",
+        "rights": "© Aneko Yusagi, Seira Minami / KADOKAWA / Shield Hero S3 Project. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Shield Hero anime site; no independent card distribution license",
+        "localPath": "artwork/shieldhero/naofumi-shield-hero.png",
+        "sha256": "93a25dd8c71a1fa32f5304e32398f86e25d37f5de826c0bd2400d0aa35c751b8",
+        "width": 1052,
+        "height": 1756,
+        "artist": "Shield Hero anime production"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          1052,
+          1756
+        ],
+        "bottomPadding": 0.18,
+        "edgeFade": 0.006,
+        "bottomFade": 0.025,
+        "focal": [
+          0.5,
+          0.32
+        ],
+        "artworkPlacement": {
+          "emberglass": {
+            "x": 0,
+            "y": 8,
+            "width": 1000
+          }
+        }
+      }
+    },
+    {
+      "id": "raphtalia-katana-hero",
+      "number": 2,
+      "character": "raphtalia",
+      "name": "Raphtalia",
+      "title": "Raphtalia",
+      "form": "Vassal Katana Hero",
+      "formId": "katana-hero",
+      "aliases": [
+        "Raphtalia",
+        "raphtalia"
+      ],
+      "designs": [
+        "emberglass"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "shieldhero-official-anime",
+        "page": "https://shieldhero-anime.jp/en/3rd/",
+        "image": "https://shieldhero-anime.jp/assets/img/3rd/char/detail/raphtalia.png",
+        "rights": "© Aneko Yusagi, Seira Minami / KADOKAWA / Shield Hero S3 Project. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Shield Hero anime site; no independent card distribution license",
+        "localPath": "artwork/shieldhero/raphtalia-katana-hero.png",
+        "sha256": "ca24a40093390bfe4ddd5257376eeba83051d5f65bcaeb91ecc9b2bde83e810f",
+        "width": 1052,
+        "height": 1756,
+        "artist": "Shield Hero anime production"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          1052,
+          1756
+        ],
+        "bottomPadding": 0.18,
+        "edgeFade": 0.006,
+        "bottomFade": 0.025,
+        "focal": [
+          0.5,
+          0.32
+        ],
+        "artworkPlacement": {
+          "emberglass": {
+            "x": 0,
+            "y": 8,
+            "width": 1000
+          }
+        }
+      }
+    },
+    {
+      "id": "filo-filolial-queen",
+      "number": 3,
+      "character": "filo",
+      "name": "Filo",
+      "title": "Filo",
+      "form": "Filolial Queen / human form",
+      "formId": "filolial-queen-human",
+      "aliases": [
+        "Filo",
+        "filo"
+      ],
+      "designs": [
+        "tidelight"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "shieldhero-official-anime",
+        "page": "https://shieldhero-anime.jp/en/3rd/",
+        "image": "https://shieldhero-anime.jp/assets/img/3rd/char/detail/filo.png",
+        "rights": "© Aneko Yusagi, Seira Minami / KADOKAWA / Shield Hero S3 Project. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Shield Hero anime site; no independent card distribution license",
+        "localPath": "artwork/shieldhero/filo-filolial-queen.png",
+        "sha256": "e45b4fa4d412cdffe3b36188b3bc291bda4f7819698994740a2e2190da69cdd0",
+        "width": 1052,
+        "height": 1756,
+        "artist": "Shield Hero anime production"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          1052,
+          1756
+        ],
+        "bottomPadding": 0.18,
+        "edgeFade": 0.006,
+        "bottomFade": 0.025,
+        "focal": [
+          0.5,
+          0.32
+        ],
+        "artworkPlacement": {
+          "tidelight": {
+            "x": 0,
+            "y": 8,
+            "width": 1000
+          }
+        }
+      }
+    },
+    {
+      "id": "rishia-projectile-hero",
+      "number": 4,
+      "character": "rishia",
+      "name": "Rishia Ivyred",
+      "title": "Rishia",
+      "form": "Hengen Muso / Projectile Hero",
+      "formId": "projectile-hero",
+      "aliases": [
+        "Rishia Ivyred",
+        "Rishia",
+        "rishia"
+      ],
+      "designs": [
+        "nocturne"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "shieldhero-official-anime",
+        "page": "https://shieldhero-anime.jp/en/3rd/",
+        "image": "https://shieldhero-anime.jp/assets/img/3rd/char/detail/rishia.png",
+        "rights": "© Aneko Yusagi, Seira Minami / KADOKAWA / Shield Hero S3 Project. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Shield Hero anime site; no independent card distribution license",
+        "localPath": "artwork/shieldhero/rishia-projectile-hero.png",
+        "sha256": "57f07074cb6a86ffa81bb32dea560acdc13a49ef1d886e482f67357c8241e762",
+        "width": 1052,
+        "height": 1756,
+        "artist": "Shield Hero anime production"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          1052,
+          1756
+        ],
+        "bottomPadding": 0.18,
+        "edgeFade": 0.006,
+        "bottomFade": 0.025,
+        "focal": [
+          0.5,
+          0.32
+        ],
+        "artworkPlacement": {
+          "nocturne": {
+            "x": 0,
+            "y": 8,
+            "width": 1000
+          }
+        }
+      }
+    },
+    {
+      "id": "ren-sword-hero",
+      "number": 5,
+      "character": "ren",
+      "name": "Ren Amaki",
+      "title": "Ren",
+      "form": "Sword Hero / recovered",
+      "formId": "sword-hero-recovered",
+      "aliases": [
+        "Ren Amaki",
+        "Ren",
+        "ren"
+      ],
+      "designs": [
+        "nocturne"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "shieldhero-official-anime",
+        "page": "https://shieldhero-anime.jp/en/3rd/",
+        "image": "https://shieldhero-anime.jp/assets/img/3rd/char/detail/ren.png",
+        "rights": "© Aneko Yusagi, Seira Minami / KADOKAWA / Shield Hero S3 Project. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Shield Hero anime site; no independent card distribution license",
+        "localPath": "artwork/shieldhero/ren-sword-hero.png",
+        "sha256": "255e821f76812318beb94a781792e9f986109a7ab12e87a02f3642af6e806946",
+        "width": 1052,
+        "height": 1756,
+        "artist": "Shield Hero anime production"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          1052,
+          1756
+        ],
+        "bottomPadding": 0.18,
+        "edgeFade": 0.006,
+        "bottomFade": 0.025,
+        "focal": [
+          0.5,
+          0.32
+        ],
+        "artworkPlacement": {
+          "nocturne": {
+            "x": -115,
+            "y": -115,
+            "width": 1350
+          }
+        }
+      }
+    },
+    {
+      "id": "motoyasu-empowered",
+      "number": 6,
+      "character": "motoyasu",
+      "name": "Motoyasu Kitamura",
+      "title": "Motoyasu",
+      "form": "Spear Hero / enhanced",
+      "formId": "spear-hero-enhanced",
+      "aliases": [
+        "Motoyasu Kitamura",
+        "Motoyasu",
+        "motoyasu"
+      ],
+      "designs": [
+        "emberglass"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "shieldhero-official-anime",
+        "page": "https://shieldhero-anime.jp/en/3rd/",
+        "image": "https://shieldhero-anime.jp/assets/img/3rd/char/detail/motoyasu.png",
+        "rights": "© Aneko Yusagi, Seira Minami / KADOKAWA / Shield Hero S3 Project. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Shield Hero anime site; no independent card distribution license",
+        "localPath": "artwork/shieldhero/motoyasu-empowered.png",
+        "sha256": "f583e6f2becfeb1506633692752e52689c4a7f924f9b067ab578e5079731f7dd",
+        "width": 1052,
+        "height": 1756,
+        "artist": "Shield Hero anime production"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          1052,
+          1756
+        ],
+        "bottomPadding": 0.18,
+        "edgeFade": 0.006,
+        "bottomFade": 0.025,
+        "focal": [
+          0.5,
+          0.32
+        ],
+        "artworkPlacement": {
+          "emberglass": {
+            "x": 0,
+            "y": 8,
+            "width": 1000
+          }
+        }
+      }
+    },
+    {
+      "id": "itsuki-bow-hero",
+      "number": 7,
+      "character": "itsuki",
+      "name": "Itsuki Kawasumi",
+      "title": "Itsuki",
+      "form": "Bow Hero / curse recovery",
+      "formId": "bow-hero-recovering",
+      "aliases": [
+        "Itsuki Kawasumi",
+        "Itsuki",
+        "itsuki"
+      ],
+      "designs": [
+        "tidelight"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "shieldhero-official-anime",
+        "page": "https://shieldhero-anime.jp/en/3rd/",
+        "image": "https://shieldhero-anime.jp/assets/img/3rd/char/detail/itsuki.png",
+        "rights": "© Aneko Yusagi, Seira Minami / KADOKAWA / Shield Hero S3 Project. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Shield Hero anime site; no independent card distribution license",
+        "localPath": "artwork/shieldhero/itsuki-bow-hero.png",
+        "sha256": "bf9dca0ed742e000542e13737667b0813d7d6ba4ec4b1c33cf6ec456c3160960",
+        "width": 1052,
+        "height": 1756,
+        "artist": "Shield Hero anime production"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          1052,
+          1756
+        ],
+        "bottomPadding": 0.18,
+        "edgeFade": 0.006,
+        "bottomFade": 0.025,
+        "focal": [
+          0.5,
+          0.32
+        ],
+        "artworkPlacement": {
+          "tidelight": {
+            "x": 0,
+            "y": 8,
+            "width": 1000
+          }
+        }
+      }
+    },
+    {
+      "id": "melty-water-magic",
+      "number": 8,
+      "character": "melty",
+      "name": "Melty Q Melromarc",
+      "title": "Melty",
+      "form": "Water magic",
+      "formId": "water-magic",
+      "aliases": [
+        "Melty Q Melromarc",
+        "Melty",
+        "melty"
+      ],
+      "designs": [
+        "crimson"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "shieldhero-official-anime",
+        "page": "https://shieldhero-anime.jp/en/3rd/",
+        "image": "https://shieldhero-anime.jp/assets/img/3rd/char/detail/melty.png",
+        "rights": "© Aneko Yusagi, Seira Minami / KADOKAWA / Shield Hero S3 Project. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Shield Hero anime site; no independent card distribution license",
+        "localPath": "artwork/shieldhero/melty-water-magic.png",
+        "sha256": "5ff35424c3b1033e546f7bf2246a038f83040003db275336958af9f57e846df0",
+        "width": 1052,
+        "height": 1756,
+        "artist": "Shield Hero anime production"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          1052,
+          1756
+        ],
+        "bottomPadding": 0.18,
+        "edgeFade": 0.006,
+        "bottomFade": 0.025,
+        "focal": [
+          0.5,
+          0.32
+        ],
+        "artworkPlacement": {
+          "crimson": {
+            "x": 0,
+            "y": 8,
+            "width": 1000
+          }
+        }
+      }
+    },
+    {
+      "id": "eclair-swordswoman",
+      "number": 9,
+      "character": "eclair",
+      "name": "Eclair Seaetto",
+      "title": "Eclair",
+      "form": "Seyaette swordmaster",
+      "formId": "swordmaster",
+      "aliases": [
+        "Eclair Seaetto",
+        "Eclair",
+        "eclair"
+      ],
+      "designs": [
+        "crimson"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "shieldhero-official-anime",
+        "page": "https://shieldhero-anime.jp/en/3rd/",
+        "image": "https://shieldhero-anime.jp/assets/img/3rd/char/detail/eclair.png",
+        "rights": "© Aneko Yusagi, Seira Minami / KADOKAWA / Shield Hero S3 Project. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Shield Hero anime site; no independent card distribution license",
+        "localPath": "artwork/shieldhero/eclair-swordswoman.png",
+        "sha256": "6a481dcd7684a9829ab469a0e6bd9743a02152e0133ed83edcac0e433be6cb7c",
+        "width": 1052,
+        "height": 1756,
+        "artist": "Shield Hero anime production"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          1052,
+          1756
+        ],
+        "bottomPadding": 0.18,
+        "edgeFade": 0.006,
+        "bottomFade": 0.025,
+        "focal": [
+          0.5,
+          0.32
+        ],
+        "artworkPlacement": {
+          "crimson": {
+            "x": 0,
+            "y": 8,
+            "width": 1000
+          }
+        }
+      }
+    },
+    {
+      "id": "myne-fire-magic",
+      "number": 10,
+      "character": "myne",
+      "name": "Malty S Melromarc",
+      "title": "Myne",
+      "form": "Fire magic / adventurer",
+      "formId": "fire-mage",
+      "aliases": [
+        "Malty S Melromarc",
+        "Myne",
+        "myne"
+      ],
+      "designs": [
+        "voltage"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "shieldhero-official-anime",
+        "page": "https://shieldhero-anime.jp/en/3rd/",
+        "image": "https://shieldhero-anime.jp/assets/img/3rd/char/detail/myne.png",
+        "rights": "© Aneko Yusagi, Seira Minami / KADOKAWA / Shield Hero S3 Project. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Shield Hero anime site; no independent card distribution license",
+        "localPath": "artwork/shieldhero/myne-fire-magic.png",
+        "sha256": "f8381c2fd2a0fcde42dcea10018e178ffbb4d56a1aa3f2face90c31cbfafbbc5",
+        "width": 1052,
+        "height": 1756,
+        "artist": "Shield Hero anime production"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          1052,
+          1756
+        ],
+        "bottomPadding": 0.18,
+        "edgeFade": 0.006,
+        "bottomFade": 0.025,
+        "focal": [
+          0.5,
+          0.32
+        ],
+        "artworkPlacement": {
+          "voltage": {
+            "x": 0,
+            "y": 8,
+            "width": 1000
+          }
+        }
+      }
+    },
+    {
+      "id": "sadeena-orca-warrior",
+      "number": 11,
+      "character": "sadeena",
+      "name": "Sadeena",
+      "title": "Sadeena",
+      "form": "Orca warrior / lightning",
+      "formId": "orca-harpoon-warrior",
+      "aliases": [
+        "Sadeena",
+        "sadeena"
+      ],
+      "designs": [
+        "nocturne"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "shieldhero-official-anime",
+        "page": "https://shieldhero-anime.jp/en/3rd/",
+        "image": "https://shieldhero-anime.jp/assets/img/3rd/char/detail/sadeena.png",
+        "rights": "© Aneko Yusagi, Seira Minami / KADOKAWA / Shield Hero S3 Project. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Shield Hero anime site; no independent card distribution license",
+        "localPath": "artwork/shieldhero/sadeena-orca-warrior.png",
+        "sha256": "09315bddb23bb54915a4dd358faf2e09e1d720d00a8e6fcdc2ae8f22066f7380",
+        "width": 1052,
+        "height": 1920,
+        "artist": "Shield Hero anime production"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          1052,
+          1920
+        ],
+        "bottomPadding": 0.18,
+        "edgeFade": 0.006,
+        "bottomFade": 0.025,
+        "focal": [
+          0.5,
+          0.32
+        ],
+        "artworkPlacement": {
+          "nocturne": {
+            "x": 0,
+            "y": 8,
+            "width": 1000
+          }
+        }
+      }
+    },
+    {
+      "id": "fohl-hakuko-fighter",
+      "number": 12,
+      "character": "fohl",
+      "name": "Fohl Fayon",
+      "title": "Fohl",
+      "form": "Hakuko warrior",
+      "formId": "hakuko-fighter",
+      "aliases": [
+        "Fohl Fayon",
+        "Fohl",
+        "fohl"
+      ],
+      "designs": [
+        "tidelight"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "shieldhero-official-anime",
+        "page": "https://shieldhero-anime.jp/en/3rd/",
+        "image": "https://shieldhero-anime.jp/assets/img/3rd/char/detail/fohl.png",
+        "rights": "© Aneko Yusagi, Seira Minami / KADOKAWA / Shield Hero S3 Project. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Shield Hero anime site; no independent card distribution license",
+        "localPath": "artwork/shieldhero/fohl-hakuko-fighter.png",
+        "sha256": "19a72758cf6e5616cdc1a6d30f8a1c3837d489b58ace022a0b1c55708c65de3a",
+        "width": 1052,
+        "height": 1756,
+        "artist": "Shield Hero anime production"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          1052,
+          1756
+        ],
+        "bottomPadding": 0.18,
+        "edgeFade": 0.006,
+        "bottomFade": 0.025,
+        "focal": [
+          0.5,
+          0.32
+        ],
+        "artworkPlacement": {
+          "tidelight": {
+            "x": 0,
+            "y": 8,
+            "width": 1000
+          }
+        }
+      }
+    },
+    {
+      "id": "atla-hengen-muso",
+      "number": 13,
+      "character": "atla",
+      "name": "Atla Fayon",
+      "title": "Atla",
+      "form": "Hengen Muso practitioner",
+      "formId": "hengen-muso",
+      "aliases": [
+        "Atla Fayon",
+        "Atla",
+        "atla"
+      ],
+      "designs": [
+        "nocturne"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "shieldhero-official-anime",
+        "page": "https://shieldhero-anime.jp/en/3rd/",
+        "image": "https://shieldhero-anime.jp/assets/img/3rd/char/detail/atla.png",
+        "rights": "© Aneko Yusagi, Seira Minami / KADOKAWA / Shield Hero S3 Project. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Shield Hero anime site; no independent card distribution license",
+        "localPath": "artwork/shieldhero/atla-hengen-muso.png",
+        "sha256": "e21671f7f38860a5a87b6004c092a38e563e6922b3b53ac658cbd7f30e19bbbf",
+        "width": 1052,
+        "height": 1756,
+        "artist": "Shield Hero anime production"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          1052,
+          1756
+        ],
+        "bottomPadding": 0.18,
+        "edgeFade": 0.006,
+        "bottomFade": 0.025,
+        "focal": [
+          0.5,
+          0.32
+        ],
+        "artworkPlacement": {
+          "nocturne": {
+            "x": -185,
+            "y": -365,
+            "width": 1700
+          }
+        }
+      }
+    },
+    {
+      "id": "syne-sewing-hero",
+      "number": 14,
+      "character": "syne",
+      "name": "S'yne",
+      "title": "S'yne",
+      "form": "Vassal Sewing Set Hero",
+      "formId": "sewing-set-hero",
+      "aliases": [
+        "S'yne",
+        "syne"
+      ],
+      "designs": [
+        "nocturne"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "shieldhero-official-anime",
+        "page": "https://shieldhero-anime.jp/en/3rd/",
+        "image": "https://shieldhero-anime.jp/assets/img/3rd/char/detail/syne.png",
+        "rights": "© Aneko Yusagi, Seira Minami / KADOKAWA / Shield Hero S3 Project. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Shield Hero anime site; no independent card distribution license",
+        "localPath": "artwork/shieldhero/syne-sewing-hero.png",
+        "sha256": "7bebdff5ba55f99245705e25bb8023551696f48866ab7de8b043d0b51ac82ea5",
+        "width": 1052,
+        "height": 1756,
+        "artist": "Shield Hero anime production"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          1052,
+          1756
+        ],
+        "bottomPadding": 0.18,
+        "edgeFade": 0.006,
+        "bottomFade": 0.025,
+        "focal": [
+          0.5,
+          0.32
+        ],
+        "artworkPlacement": {
+          "nocturne": {
+            "x": 0,
+            "y": 8,
+            "width": 1000
+          }
+        }
+      }
+    },
+    {
+      "id": "werner-shusaku",
+      "number": 15,
+      "character": "werner",
+      "name": "Werner",
+      "title": "Werner",
+      "form": "Shusaku representative",
+      "formId": "shusaku-representative",
+      "aliases": [
+        "Werner",
+        "werner"
+      ],
+      "designs": [
+        "crimson"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "shieldhero-official-anime",
+        "page": "https://shieldhero-anime.jp/en/4th/",
+        "image": "https://shieldhero-anime.jp/assets/img/4th/char/detail/werner.png",
+        "rights": "© Aneko Yusagi, Seira Minami / KADOKAWA / Shield Hero S4 Project. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Shield Hero anime site; no independent card distribution license",
+        "localPath": "artwork/shieldhero/werner-shusaku.png",
+        "sha256": "95dd76a1db2aa8df2a32602d4ba12fd1bb1937071f8df338ecd86992d4f17da0",
+        "width": 1288,
+        "height": 1756,
+        "artist": "Shield Hero anime production"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          1288,
+          1756
+        ],
+        "bottomPadding": 0.18,
+        "edgeFade": 0.006,
+        "bottomFade": 0.025,
+        "focal": [
+          0.5,
+          0.32
+        ],
+        "artworkPlacement": {
+          "crimson": {
+            "x": 0,
+            "y": 8,
+            "width": 1000
+          }
+        }
+      }
+    },
+    {
+      "id": "jaralis-laio",
+      "number": 16,
+      "character": "jaralis",
+      "name": "Jaralis",
+      "title": "Jaralis",
+      "form": "Laio representative",
+      "formId": "laio-representative",
+      "aliases": [
+        "Jaralis",
+        "jaralis"
+      ],
+      "designs": [
+        "tidelight"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "shieldhero-official-anime",
+        "page": "https://shieldhero-anime.jp/en/4th/",
+        "image": "https://shieldhero-anime.jp/assets/img/4th/char/detail/jaralis.png",
+        "rights": "© Aneko Yusagi, Seira Minami / KADOKAWA / Shield Hero S4 Project. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Shield Hero anime site; no independent card distribution license",
+        "localPath": "artwork/shieldhero/jaralis-laio.png",
+        "sha256": "3434ac9a2a62d24ed277b6a5296fa41714a36e2d0cc04f798467b46a3f187f3e",
+        "width": 1052,
+        "height": 1756,
+        "artist": "Shield Hero anime production"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          1052,
+          1756
+        ],
+        "bottomPadding": 0.18,
+        "edgeFade": 0.006,
+        "bottomFade": 0.025,
+        "focal": [
+          0.5,
+          0.32
+        ],
+        "artworkPlacement": {
+          "tidelight": {
+            "x": 0,
+            "y": 8,
+            "width": 1000
+          }
+        }
+      }
+    }
+  ],
+  "pendingForms": []
+}

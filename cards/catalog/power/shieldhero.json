@@ -1,0 +1,267 @@
+{
+  "version": 1,
+  "series": "shieldhero",
+  "universe": "shieldhero",
+  "scope": "in-universe",
+  "scale": "night-universe-power-v1",
+  "status": "editorial-proposal",
+  "notes": "Form-specific, Shield Hero anime Seasons 3–4 only; power grades are independent NIGHT editorial proposals. Not a complete feat audit or official grading.",
+  "assessments": {
+    "naofumi-shield-hero": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "S",
+      "formId": "shield-hero-alliance",
+      "artworkSHA256": "93a25dd8c71a1fa32f5304e32398f86e25d37f5de826c0bd2400d0aa35c751b8",
+      "scope": "Naofumi Iwatani — Shield Hero / four-hero alliance",
+      "basis": "Highly developed Legendary Shield defense, binding and counterattacks; sustained front-line protection in major battles.",
+      "limits": "Offensive output is restricted; Wrath Shield attack modes, late-novel weapons and 0 Series are not depicted.",
+      "references": [
+        "https://shieldhero-anime.jp/en/3rd/",
+        "https://shieldhero-anime.jp/assets/img/3rd/char/detail/naofumi.png"
+      ],
+      "universe": "shieldhero",
+      "continuity": "shieldhero-anime"
+    },
+    "raphtalia-katana-hero": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "S",
+      "formId": "katana-hero",
+      "artworkSHA256": "ca24a40093390bfe4ddd5257376eeba83051d5f65bcaeb91ecc9b2bde83e810f",
+      "scope": "Raphtalia — Vassal Katana Hero",
+      "basis": "Chosen Vassal Katana wielder, with lethal close combat, mobility and illusion techniques.",
+      "limits": "This image does not depict an unverified later heavenly-emperor power state.",
+      "references": [
+        "https://shieldhero-anime.jp/en/3rd/",
+        "https://shieldhero-anime.jp/assets/img/3rd/char/detail/raphtalia.png"
+      ],
+      "universe": "shieldhero",
+      "continuity": "shieldhero-anime"
+    },
+    "filo-filolial-queen": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "B",
+      "formId": "filolial-queen-human",
+      "artworkSHA256": "e45b4fa4d412cdffe3b36188b3bc291bda4f7819698994740a2e2190da69cdd0",
+      "scope": "Filo — Filolial Queen / human form",
+      "basis": "Transformed queen candidate with major physical strength, speed and wind magic.",
+      "limits": "Human form pictured; not proof of Fitoria-level power or a distinct beast-form card.",
+      "references": [
+        "https://shieldhero-anime.jp/en/3rd/",
+        "https://shieldhero-anime.jp/assets/img/3rd/char/detail/filo.png"
+      ],
+      "universe": "shieldhero",
+      "continuity": "shieldhero-anime"
+    },
+    "rishia-projectile-hero": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "A",
+      "formId": "projectile-hero",
+      "artworkSHA256": "57f07074cb6a86ffa81bb32dea560acdc13a49ef1d886e482f67357c8241e762",
+      "scope": "Rishia Ivyred — Hengen Muso / Projectile Hero",
+      "basis": "Mastered Hengen Muso and a Projectile Vassal Weapon recognizes her in combat.",
+      "limits": "Requires combat focus; does not automatically outrank every Cardinal Hero.",
+      "references": [
+        "https://shieldhero-anime.jp/en/3rd/",
+        "https://shieldhero-anime.jp/assets/img/3rd/char/detail/rishia.png"
+      ],
+      "universe": "shieldhero",
+      "continuity": "shieldhero-anime"
+    },
+    "ren-sword-hero": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "A",
+      "formId": "sword-hero-recovered",
+      "artworkSHA256": "255e821f76812318beb94a781792e9f986109a7ab12e87a02f3642af6e806946",
+      "scope": "Ren Amaki — Sword Hero / recovered",
+      "basis": "Legendary Sword wielder; improves through physical sword training and weapon mastery.",
+      "limits": "Not the strongest novel-era Ren, and no cursed-Greed form is shown.",
+      "references": [
+        "https://shieldhero-anime.jp/en/3rd/",
+        "https://shieldhero-anime.jp/assets/img/3rd/char/detail/ren.png"
+      ],
+      "universe": "shieldhero",
+      "continuity": "shieldhero-anime"
+    },
+    "motoyasu-empowered": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "S",
+      "formId": "spear-hero-enhanced",
+      "artworkSHA256": "f583e6f2becfeb1506633692752e52689c4a7f924f9b067ab578e5079731f7dd",
+      "scope": "Motoyasu Kitamura — Spear Hero / enhanced",
+      "basis": "Legendary Spear Hero using additional enhancement methods, giving overwhelming offensive power.",
+      "limits": "Conditions and unstable decision-making still affect real-world fights.",
+      "references": [
+        "https://shieldhero-anime.jp/en/3rd/",
+        "https://shieldhero-anime.jp/assets/img/3rd/char/detail/motoyasu.png"
+      ],
+      "universe": "shieldhero",
+      "continuity": "shieldhero-anime"
+    },
+    "itsuki-bow-hero": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "B",
+      "formId": "bow-hero-recovering",
+      "artworkSHA256": "bf9dca0ed742e000542e13737667b0813d7d6ba4ec4b1c33cf6ec456c3160960",
+      "scope": "Itsuki Kawasumi — Bow Hero / curse recovery",
+      "basis": "Legendary Bow enables versatile long-range attacks and hero skills.",
+      "limits": "Still recovering from curse consequences; not his strongest later state.",
+      "references": [
+        "https://shieldhero-anime.jp/en/3rd/",
+        "https://shieldhero-anime.jp/assets/img/3rd/char/detail/itsuki.png"
+      ],
+      "universe": "shieldhero",
+      "continuity": "shieldhero-anime"
+    },
+    "melty-water-magic": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "C",
+      "formId": "water-magic",
+      "artworkSHA256": "5ff35424c3b1033e546f7bf2246a038f83040003db275336958af9f57e846df0",
+      "scope": "Melty Q Melromarc — Water magic",
+      "basis": "Trained royal water magician who supports allies and employs ranged magic.",
+      "limits": "Political authority is not combat power; no speculative advanced spells.",
+      "references": [
+        "https://shieldhero-anime.jp/en/3rd/",
+        "https://shieldhero-anime.jp/assets/img/3rd/char/detail/melty.png"
+      ],
+      "universe": "shieldhero",
+      "continuity": "shieldhero-anime"
+    },
+    "eclair-swordswoman": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "C",
+      "formId": "swordmaster",
+      "artworkSHA256": "6a481dcd7684a9829ab469a0e6bd9743a02152e0133ed83edcac0e433be6cb7c",
+      "scope": "Eclair Seaetto — Seyaette swordmaster",
+      "basis": "Disciplined sword fighter and instructor with documented victory over a weakened Ren.",
+      "limits": "Sword skill in a duel does not make her stronger than late-story Ren.",
+      "references": [
+        "https://shieldhero-anime.jp/en/3rd/",
+        "https://shieldhero-anime.jp/assets/img/3rd/char/detail/eclair.png"
+      ],
+      "universe": "shieldhero",
+      "continuity": "shieldhero-anime"
+    },
+    "myne-fire-magic": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "D",
+      "formId": "fire-mage",
+      "artworkSHA256": "f8381c2fd2a0fcde42dcea10018e178ffbb4d56a1aa3f2face90c31cbfafbbc5",
+      "scope": "Malty S Melromarc — Fire magic / adventurer",
+      "basis": "Uses fire magic and deception, but limited direct battle performance.",
+      "limits": "Manipulation, status and treachery are not supernatural fighting feats.",
+      "references": [
+        "https://shieldhero-anime.jp/en/3rd/",
+        "https://shieldhero-anime.jp/assets/img/3rd/char/detail/myne.png"
+      ],
+      "universe": "shieldhero",
+      "continuity": "shieldhero-anime"
+    },
+    "sadeena-orca-warrior": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "A",
+      "formId": "orca-harpoon-warrior",
+      "artworkSHA256": "09315bddb23bb54915a4dd358faf2e09e1d720d00a8e6fcdc2ae8f22066f7380",
+      "scope": "Sadeena — Orca warrior / lightning",
+      "basis": "Expert harpoon fighter with exceptional close-quarters skill and lightning magic.",
+      "limits": "This costume portrays the arena-era warrior, not the later Vassal Harpoon Hero.",
+      "references": [
+        "https://shieldhero-anime.jp/en/3rd/",
+        "https://shieldhero-anime.jp/assets/img/3rd/char/detail/sadeena.png"
+      ],
+      "universe": "shieldhero",
+      "continuity": "shieldhero-anime"
+    },
+    "fohl-hakuko-fighter": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "B",
+      "formId": "hakuko-fighter",
+      "artworkSHA256": "19a72758cf6e5616cdc1a6d30f8a1c3837d489b58ace022a0b1c55708c65de3a",
+      "scope": "Fohl Fayon — Hakuko warrior",
+      "basis": "Dangerous demi-human brawler with formidable Hakuko strength and arena experience.",
+      "limits": "Vassal Gauntlet Hero abilities require a separate matching artwork.",
+      "references": [
+        "https://shieldhero-anime.jp/en/3rd/",
+        "https://shieldhero-anime.jp/assets/img/3rd/char/detail/fohl.png"
+      ],
+      "universe": "shieldhero",
+      "continuity": "shieldhero-anime"
+    },
+    "atla-hengen-muso": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "A",
+      "formId": "hengen-muso",
+      "artworkSHA256": "e21671f7f38860a5a87b6004c092a38e563e6922b3b53ac658cbd7f30e19bbbf",
+      "scope": "Atla Fayon — Hengen Muso practitioner",
+      "basis": "Exceptional sense of ki and precise Hengen Muso strikes able to challenge stronger opponents.",
+      "limits": "Physical fragility and short-range conditions remain relevant.",
+      "references": [
+        "https://shieldhero-anime.jp/en/3rd/",
+        "https://shieldhero-anime.jp/assets/img/3rd/char/detail/atla.png"
+      ],
+      "universe": "shieldhero",
+      "continuity": "shieldhero-anime"
+    },
+    "syne-sewing-hero": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "A",
+      "formId": "sewing-set-hero",
+      "artworkSHA256": "7bebdff5ba55f99245705e25bb8023551696f48866ab7de8b043d0b51ac82ea5",
+      "scope": "S'yne — Vassal Sewing Set Hero",
+      "basis": "Versatile interworld hero who fights with scissors, thread, traps and her Sewing Set.",
+      "limits": "Damaged weapon and uncertain energy reserves limit comparisons.",
+      "references": [
+        "https://shieldhero-anime.jp/en/3rd/",
+        "https://shieldhero-anime.jp/assets/img/3rd/char/detail/syne.png"
+      ],
+      "universe": "shieldhero",
+      "continuity": "shieldhero-anime"
+    },
+    "werner-shusaku": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "C",
+      "formId": "shusaku-representative",
+      "artworkSHA256": "95dd76a1db2aa8df2a32602d4ba12fd1bb1937071f8df338ecd86992d4f17da0",
+      "scope": "Werner — Shusaku representative",
+      "basis": "Powerful avian demi-human lineage and impressive physical presence.",
+      "limits": "Official profile emphasizes diplomacy; no confirmed high-level combat display.",
+      "references": [
+        "https://shieldhero-anime.jp/en/4th/",
+        "https://shieldhero-anime.jp/assets/img/4th/char/detail/werner.png"
+      ],
+      "universe": "shieldhero",
+      "continuity": "shieldhero-anime"
+    },
+    "jaralis-laio": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "B",
+      "formId": "laio-representative",
+      "artworkSHA256": "3434ac9a2a62d24ed277b6a5296fa41714a36e2d0cc04f798467b46a3f187f3e",
+      "scope": "Jaralis — Laio representative",
+      "basis": "Force-oriented lion demi-human leader with significant physical potential.",
+      "limits": "No reliable evidence here for Guardian Beast-level or awakened-form power.",
+      "references": [
+        "https://shieldhero-anime.jp/en/4th/",
+        "https://shieldhero-anime.jp/assets/img/4th/char/detail/jaralis.png"
+      ],
+      "universe": "shieldhero",
+      "continuity": "shieldhero-anime"
+    }
+  }
+}
