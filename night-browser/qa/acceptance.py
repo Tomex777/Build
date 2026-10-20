@@ -226,10 +226,13 @@ class Acceptance:
 
     def private_tabs(self):
         self.tap("More")
-        options = [self.label(n).lower() for n in self.nodes()]
-        if not any("private" in s or "incognito" in s for s in options):
-            raise AssertionError("Private browsing entry point absent; cannot assert cookie isolation")
-        return "Private entry present; cookie isolation still needs separate on-device test"
+        try:
+            options = [self.label(n).lower() for n in self.nodes()]
+            if not any("private" in s or "incognito" in s for s in options):
+                raise AssertionError("Private browsing entry point absent; cannot assert cookie isolation")
+            return "Private entry present; cookie isolation still needs separate on-device test"
+        finally:
+            self.shell("input", "keyevent", "4", check=False)
 
     def offline(self):
         # Disables both services temporarily; always restore connectivity.
