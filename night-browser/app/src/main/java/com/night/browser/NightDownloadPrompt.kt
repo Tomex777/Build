@@ -1,5 +1,7 @@
 package com.night.browser
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
@@ -24,31 +26,64 @@ import android.net.Uri
  * IMPORTANT: the WebResponse stream must be consumed or closed; holding it too long may cause
  * the remote site to time out. The modal does not read or persist data until Save is tapped.
  *
- * Agent 1 / Agent 4: attach browser.downloadHandler = prompt::offer in MainActivity, and render
- * NightDownloadPrompt(prompt) inside setContent. Avoid registering handler twice.
+ * Agent 1 / Agent 4: after private tabs and Gecko controller are integrated, bind
+ * browser.downloadHandler = { tab, response -> prompt.offer(response, tab.isPrivate) }.
+ * Render NightDownloadPrompt(prompt) inside setContent. Do not register twice.
+ * Private downloads are sent directly to a user-selected SAF document, never Library.
  */
 class WebDownloadConsent(private val downloads: DownloadLibrary) {
     var pending by mutableStateOf<WebResponse?>(null)
         private set
     var eventMessage by mutableStateOf<String?>(null)
         private set
+    var privateMode by mutableStateOf(false)
+        private set
+    var selectingDestination by mutableStateOf(false)
+        private set
 
-    fun offer(response: WebResponse) {
+    fun offer(response: WebResponse, privateMode: Boolean = false) {
         // Gecko delegate delivers on the main thread. Close previous body if a site launches
         // multiple download requests while one is awaiting user consent.
         dismiss()
+        this.privateMode = privateMode
         pending = response
     }
 
+    /** Regular tabs may add a file to the persistent Library; private tabs cannot. */
     fun accept() {
+        if (privateMode) {
+            eventMessage = "Choose where to save this private file."
+            return
+        }
         val response = pending ?: return
         pending = null
         downloads.acceptGeckoResponse(response) { message -> eventMessage = message }
     }
 
+    fun beginPrivateExport() {
+        if (privateMode && pending != null) selectingDestination = true
+    }
+
+    fun finishPrivateExport(destination: Uri?) {
+        val response = pending
+        pending = null
+        selectingDestination = false
+        privateMode = false
+        if (response == null) return
+        if (destination == null) {
+            runCatching { response.body?.close() }
+        } else {
+            downloads.exportPrivateGeckoResponse(response, destination) {
+                message -> eventMessage = message
+            }
+        }
+    }
+
     fun dismiss() {
         pending?.let { response -> runCatching { response.body?.close() } }
         pending = null
+        privateMode = false
+        selectingDestination = false
     }
 
     fun consumeMessage(): String? = eventMessage.also { eventMessage = null }
@@ -57,6 +92,9 @@ class WebDownloadConsent(private val downloads: DownloadLibrary) {
 @Composable
 fun NightDownloadPrompt(state: WebDownloadConsent) {
     val context = LocalContext.current
+    val privateExport = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("*/*")
+    ) { uri -> state.finishPrivateExport(uri) }
     DisposableEffect(state) {
         onDispose { state.dismiss() }
     }
@@ -68,6 +106,7 @@ fun NightDownloadPrompt(state: WebDownloadConsent) {
         }
     }
     val response = state.pending ?: return
+    if (state.selectingDestination) return
     val contentDisposition = response.headers.entries.firstOrNull {
         it.key.equals("content-disposition", true)
     }?.value
@@ -82,18 +121,33 @@ fun NightDownloadPrompt(state: WebDownloadConsent) {
 
     AlertDialog(
         onDismissRequest = state::dismiss,
-        title = { Text("Save downloaded file?") },
+        title = { Text(if (state.privateMode) "Save private file?" else "Save downloaded file?") },
         text = {
             Column {
                 Text(filename)
                 Text(origin, modifier = Modifier.padding(top = 8.dp),
                     color = Color(0xFF9BA6B7))
-                Text("Saved locally and listed in Library downloads.",
-                    modifier = Modifier.padding(top = 12.dp), color = Color(0xFF9BA6B7))
+                Text(
+                    if (state.privateMode)
+                        "Choose a location. This file will not appear in Library or history."
+                    else "Saved locally and listed in Library downloads.",
+                    modifier = Modifier.padding(top = 12.dp), color = Color(0xFF9BA6B7)
+                )
             }
         },
         confirmButton = {
-            TextButton(onClick = state::accept) { Text("Save file") }
+            TextButton(onClick = {
+                if (state.privateMode) {
+                    state.beginPrivateExport()
+                    try {
+                        privateExport.launch(filename)
+                    } catch (_: Exception) {
+                        state.finishPrivateExport(null)
+                        Toast.makeText(context, "No document picker is available.",
+                            Toast.LENGTH_LONG).show()
+                    }
+                } else state.accept()
+            }) { Text(if (state.privateMode) "Choose location" else "Save file") }
         },
         dismissButton = {
             TextButton(onClick = state::dismiss) { Text("Cancel") }
