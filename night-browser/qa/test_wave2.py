@@ -72,6 +72,9 @@ class FixtureTests(unittest.TestCase):
         with self.assertRaises(HTTPError) as failure:
             self.fetch("/secure/file.bin")
         self.assertEqual(failure.exception.code, 403)
+        with self.assertRaises(HTTPError) as fake:
+            self.fetch("/secure/file.bin", {"Cookie": "othernightQa=fixture"})
+        self.assertEqual(fake.exception.code, 403)
         data, response = self.fetch(
             "/secure/file.bin", {"Cookie": "nightQa=fixture"})
         self.assertEqual(response.status, 200)
