@@ -35,7 +35,9 @@ class NativeGamesFlowTest {
             assertNotNull("Filled native water tube not accessible", source)
             assertNotNull("Empty native water tube not accessible", empty)
             source!!.click()
-            empty!!.click()
+            val emptyAfterSelection = device.wait(Until.findObject(By.descContains(", 0 layers")), 4000)
+            assertNotNull(emptyAfterSelection)
+            emptyAfterSelection!!.click()
             assertNotNull("Native pour didn't move any liquid",
                 device.wait(Until.findObject(By.descContains(", 1 layers")), 6000))
             snap(device, context, "06-native-water-poured.png")
