@@ -46,12 +46,17 @@
     const moves=game.moves({verbose:true});
     if(!moves.length)return emptyPosition(game,ply);
     if(game.insufficient_material())return 0;
-    const maximize=game.turn()==='b';
-    let best=value(game);
-    if(maximize){if(best>=beta)return best;alpha=Math.max(alpha,best)}
-    else{if(best<=alpha)return best;beta=Math.min(beta,best)}
-    if(remaining<=0)return best;
-    for(const move of order(moves.filter(m=>!!m.captured||!!m.promotion))){
+    const maximize=game.turn()==='b',inCheck=game.in_check();
+    // Standing still is not an option when in check: explore legal evasions.
+    // At the extension boundary, penalise unresolved checks rather than
+    // pretending the checked side may pass.
+    let best=inCheck?(maximize?-Infinity:Infinity):value(game);
+    if(!inCheck){
+      if(maximize){if(best>=beta)return best;alpha=Math.max(alpha,best)}
+      else{if(best<=alpha)return best;beta=Math.min(beta,best)}
+    }
+    if(remaining<=0)return inCheck?value(game)+(maximize?-45:45):best;
+    for(const move of order(inCheck?moves:moves.filter(m=>!!m.captured||!!m.promotion))){
       game.move(move);
       let score;
       try{score=quiet(game,alpha,beta,ply+1,remaining-1,ctx)}
