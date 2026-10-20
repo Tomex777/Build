@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import {createServer} from "node:http";
-import {readFileSync} from "node:fs";
+import {readFileSync,mkdirSync,writeFileSync} from "node:fs";
 import path from "node:path";
 import {fileURLToPath} from "node:url";
 import {chromium} from "playwright";
@@ -11,7 +11,7 @@ await new Promise(resolve=>server.listen(0,"127.0.0.1",resolve));const url="http
 let browser;try{
 browser=await chromium.launch({headless:true,channel:"chrome",args:["--no-sandbox"]});
 const page=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});const errors=[];
-page.on("pageerror",e=>errors.push(String(e)));
+page.on("pageerror",e=>errors.push(String(e.stack||e)));
 await page.goto(url+"/arcade/?game=bird");await page.locator("canvas").waitFor();
 assert.equal(await page.locator("#title").innerText(),"Wing Hop");
 assert.equal(await page.locator('.night-brand-mark use').getAttribute('href'),'#night-mark','Arcade uses real approved NIGHT logo');
@@ -240,7 +240,7 @@ await page.locator('canvas.mode-blocks').evaluate(el=>{
  window.__nightTouchTrace=[];
  for(const kind of ['pointerdown','pointermove','pointerup','pointercancel','lostpointercapture']){
   el.addEventListener(kind,e=>window.__nightTouchTrace.push({kind,x:e.clientX,y:e.clientY,id:e.pointerId,button:e.button,primary:e.isPrimary}),{capture:true});
-  el.addEventListener(kind,e=>window.__nightTouchTrace.push({kind:kind+'-after',gameX:window.__nightArcadeTest.snapshot().cur.x,controls:window.__nightArcadeTest.input()}));
+  el.addEventListener(kind,e=>window.__nightTouchTrace.push({kind:kind+'-after',gameX:window.__nightArcadeTest.snapshot().cur?.x??null,controls:window.__nightArcadeTest.input()}));
  }
 });
 const touchRect=await page.locator('canvas.mode-blocks').boundingBox();
@@ -337,8 +337,37 @@ assert.equal(await page.locator("#title").innerText(),"Maze Chase");
 assert.equal(await page.evaluate(()=>window.__nightArcadeTest.snapshot().walls.length),21);
 assert.equal(await page.evaluate(()=>window.__nightArcadeTest.perf().mazeCached),true,"Maze Chase caches static walls and collectible dots");
 assert.ok(await page.evaluate(()=>window.__nightArcadeTest.snapshot().total)>100);
+const mazeBegin=await page.evaluate(()=>window.__nightArcadeTest.snapshot());
+assert.equal(mazeBegin.power.flat().filter(Boolean).length,4,"Maze has four collectible power pellets");
+assert.equal(mazeBegin.ghosts.length,2,"Maze has distinct hunting ghosts");
+// Exercise the actual Restart control followed by a queued keyboard turn
+// in the same browser task so a 155ms movement tick cannot race the input.
+await page.evaluate(()=>{
+ document.querySelector('#restart').click();
+ document.querySelector('[data-control="down"]').click();
+});
+await page.waitForTimeout(520);
+const firstPower=await page.evaluate(()=>window.__nightArcadeTest.snapshot());
+assert.equal(firstPower.power[3][1],0,"Player can collect the lower-left corner power pellet");
+assert.ok(firstPower.frightened>0,"Power pellet triggers the edible-ghost timer");
+assert.ok(await page.evaluate(()=>window.__nightArcadeTest.flags().points)>=50,"Collecting power pellets adds actual score");
+assert.ok(firstPower.total<mazeBegin.total,"Maze progress truly consumes collectibles");
+const boxMaze=await page.locator('#screen').boundingBox();
+await page.mouse.move(boxMaze.x+boxMaze.width/2,boxMaze.y+boxMaze.height/2);
+await page.mouse.down();
+await page.mouse.move(boxMaze.x+boxMaze.width/2+45,boxMaze.y+boxMaze.height/2,{steps:4});
+await page.mouse.up();
+assert.deepEqual(await page.evaluate(()=>window.__nightArcadeTest.snapshot().p.wish),[1,0],"Dragging over the live maze updates the buffered turn");
+const ghostBefore=await page.evaluate(()=>window.__nightArcadeTest.snapshot().ghosts.map(g=>[g.x,g.y]));
+await page.waitForTimeout(1000);
+const ghostAfter=await page.evaluate(()=>window.__nightArcadeTest.snapshot().ghosts.map(g=>[g.x,g.y]));
+assert.notDeepEqual(ghostAfter,ghostBefore,"Chasing ghosts really move during play");
+mkdirSync(path.join(root,"visual-output"),{recursive:true});
+writeFileSync(path.join(root,"visual-output","maze-chase-power.jpg"),await page.screenshot({fullPage:true,type:"jpeg",quality:84}));
+console.log('NIGHT_MAZE_CHASE_POWER_PELLET_JPEG_BASE64='+
+ (await page.screenshot({type:'jpeg',quality:55,fullPage:true})).toString('base64'));
 await page.locator('[data-control="down"]').click();
-assert.deepEqual(await page.evaluate(()=>window.__nightArcadeTest.snapshot().p.dir),[0,1]);
+assert.deepEqual(await page.evaluate(()=>window.__nightArcadeTest.snapshot().p.wish),[0,1],"Input queues a legal turn rather than reversing blindly into a wall");
 await page.locator('[data-control="pause"]').click();
 assert.equal(await page.evaluate(()=>window.__nightArcadeTest.flags().paused),true);
 for(const name of ["bird","blocks","mines","maze"]){
