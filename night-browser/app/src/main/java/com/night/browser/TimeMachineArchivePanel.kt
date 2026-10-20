@@ -195,7 +195,11 @@ fun TimeMachineArchivePanel(
                             }.padding(start = 16.dp, end = 9.dp, top = 13.dp, bottom = 13.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Rounded.PictureAsPdf, contentDescription = null, tint = PageAccent)
+                            if (archive.health(latest) == ArchiveFileHealth.READY) {
+                                TimeMachinePdfPreview(archive, latest, 43.dp, 62.dp)
+                            } else {
+                                Icon(Icons.Rounded.PictureAsPdf, contentDescription = null, tint = PageAccent)
+                            }
                             Spacer(Modifier.width(12.dp))
                             Column(Modifier.weight(1f)) {
                                 Text(
@@ -226,7 +230,6 @@ fun TimeMachineArchivePanel(
                                     .let { i -> if (i > 0) chronology[i - 1] else null }
                                 HorizontalDivider(color = PageBorder)
                                 TimeMachineVersionRow(
-                                    archive = archive,
                                     item = item,
                                     health = archive.health(item),
                                     onOpen = { openSaved(item) },
@@ -322,7 +325,6 @@ fun TimeMachineArchivePanel(
 
 @Composable
 private fun TimeMachineVersionRow(
-    archive: TimeMachineArchive,
     item: TimeMachineVersion,
     health: ArchiveFileHealth,
     onOpen: () -> Unit,
@@ -335,10 +337,6 @@ private fun TimeMachineVersionRow(
         Modifier.fillMaxWidth().padding(start = 17.dp, end = 7.dp, top = 9.dp, bottom = 9.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        if (health == ArchiveFileHealth.READY) {
-            TimeMachinePdfPreview(archive, item, 45.dp, 62.dp)
-            Spacer(Modifier.width(9.dp))
-        }
         Column(Modifier.weight(1f)) {
             Text(versionDate(item.capturedAt), color = PageBright, fontSize = 13.sp)
             Text(
