@@ -2,6 +2,7 @@ package com.night.browser
 
 import android.content.Intent
 import android.os.Bundle
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -72,6 +73,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Browser launch must show the start page, not auto-open the IME.
+        // Explicit taps on either native omnibar still raise the keyboard.
+        window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
         platformHost = BrowserPlatformHost(this)
         browser = BrowserController(applicationContext, platformHost)
         memoryPolicy = AdaptiveBrowserMemory(
