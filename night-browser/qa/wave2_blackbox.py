@@ -396,6 +396,45 @@ class Device:
         return ("Original Gecko response bytes verified SHA256; Library shows "
                 + filename + " (" + str(observed[1]) + " bytes)")
 
+    def duplicate_download(self):
+        """Never silently overwrite or re-transfer a completed previous file."""
+        from wave2_fixture import PNG
+        previous = self.app_download_names()
+        if not any(name.endswith("_night-qa.png") for name in previous):
+            raise AssertionError("No original completed PNG to duplicate")
+        self.go("/file.png")
+        deadline = time.monotonic() + 20
+        while self.find("Download again?") is None:
+            if time.monotonic() >= deadline:
+                raise AssertionError("Repeat download did not ask before saving")
+            time.sleep(.7)
+        self.click("Cancel")
+        time.sleep(1.5)
+        if self.app_download_names() != previous:
+            raise AssertionError("Cancelled repeated download wrote another file")
+        self.go("/file.png")
+        self.click("Download again", timeout=20)
+        until = time.monotonic() + 35
+        extra = set()
+        while time.monotonic() < until:
+            extra = self.app_download_names() - previous
+            if extra:
+                break
+            time.sleep(.8)
+        if not extra:
+            raise AssertionError("Confirmed repeat download saved no second file")
+        if len(extra) != 1:
+            raise AssertionError("Repeated download added unexpected extra files")
+        newer = next(iter(extra))
+        for name in [newer, next(name for name in previous
+                                  if name.endswith("_night-qa.png"))]:
+            raw = adb("exec-out", "run-as", PKG, "cat",
+                      "files/browser-downloads/" + name,
+                      binary=True, check=False)
+            if hashlib.sha256(raw).digest() != hashlib.sha256(PNG).digest():
+                raise AssertionError("Repeat changed original or new bytes")
+        return "Cancel wrote zero files; confirmation produced distinct exact PNG bytes"
+
     def time_machine(self):
         self.go("/landing")
         self.click("More")
@@ -570,6 +609,8 @@ class Device:
                   prerequisites=("C01",))
         self.test("C25", "PDF response bytes and Library entry", lambda: self.download("/file.pdf"),
                   prerequisites=("C01",))
+        self.test("C40", "Repeat PNG download confirmation and cancel",
+                  self.duplicate_download, prerequisites=("C24",))
         self.test("C26", "Time Machine PDF version saved", self.time_machine,
                   prerequisites=("C01",), screenshot=True)
         self.test("C27", "Peek link long-press dismiss", self.peek,
