@@ -298,6 +298,14 @@ class MainActivity : Activity() {
         private var meter=1f
         private var sheet=Sheet.NONE
         private var soundPage=0
+        // Keep every sound card and footer reachable in compact portrait and
+        // landscape configurations; still show ten at once on normal phones.
+        private fun soundPageSize():Int = when {
+            hh<340f -> 2
+            hh<430f -> 4
+            hh<570f -> 6
+            else -> 10
+        }
         private var accessibilityState=""
         private var mode=Mode.EDIT
         private var wallMaterial=Material.STONE
@@ -590,9 +598,13 @@ class MainActivity : Activity() {
                 Sheet.SOUNDS->{
                     // Two sounds on the final page should not open a giant,
                     // mostly empty sheet that hides the acoustic map.
-                    val visible=(SoundKind.entries.size-soundPage*10).coerceIn(0,10)
+                    val pageSize=soundPageSize()
+                    val totalPages=(SoundKind.entries.size+pageSize-1)/pageSize
+                    soundPage=soundPage.coerceIn(0,totalPages-1)
+                    val visible=(SoundKind.entries.size-soundPage*pageSize)
+                        .coerceIn(0,pageSize)
                     val rows=(visible+1)/2
-                    min(min(500f,hh*.75f),max(235f,130f+rows*73f))
+                    min(min(500f,hh-16f),max(235f,130f+rows*73f))
                 }
                 Sheet.INSPECT->min(400f,hh*.77f)
                 Sheet.LIBRARY->min(530f,hh*.77f);Sheet.MATERIALS->340f
@@ -635,17 +647,19 @@ class MainActivity : Activity() {
                     }
                 }
                 Sheet.SOUNDS->{
-                    val totalPages=(SoundKind.entries.size+9)/10
-                    val start=soundPage*10
-                    val pageItems=SoundKind.entries.drop(start).take(10)
+                    val pageSize=soundPageSize()
+                    val totalPages=(SoundKind.entries.size+pageSize-1)/pageSize
+                    val start=soundPage*pageSize
+                    val pageItems=SoundKind.entries.drop(start).take(pageSize)
+                    val rowCount=((pageItems.size+1)/2).coerceAtLeast(1)
                     val cell=(ww-47f)/2f;val gap=7f
                     // Deliberately paginated: 22 cards never overlap the bottom
                     // edge on smaller devices. Proper 48dp minimum tap targets.
                     pageItems.forEachIndexed { i,kind->
                         val x=20f+(i%2)*(cell+gap)
-                        val step=(height-130f)/5f
+                        val step=(height-130f)/rowCount
                         val y=top+78f+(i/2)*step
-                        val ch=(step-7f).coerceAtLeast(48f)
+                        val ch=(step-7f).coerceIn(48f,69f)
                         box(c,x,y,x+cell,y+ch,0xFF1B3440.toInt(),10f)
                         c.drawCircle(x+15f,y+ch/2,5f,paint(kind.color))
                         label(c,kind.title,x+28f,y+ch/2+4f,11f,text,true)
