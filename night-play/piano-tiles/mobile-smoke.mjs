@@ -40,8 +40,67 @@ try{
    writeFileSync(path.join(output,'piano-start-'+w+'.png'),await page.screenshot({fullPage:true}));
  }
  await page.setViewportSize({width:390,height:844});
+ // Default mode is truly endless; verify a fully visible tile can be
+ // tapped well BEFORE the old narrow timing line, then replay finite songs.
+ assert.equal(await page.evaluate(()=>window.__nightPianoTest.snapshot().song),'endless');
+ await page.locator('#coverAction').click();
+ await page.waitForFunction(()=>window.__nightPianoTest.snapshot().elapsed>.24);
+ const early=await page.evaluate(()=>({
+  snapshot:window.__nightPianoTest.snapshot(),rect:window.__nightPianoTest.geometry()[0]
+ }));
+ assert.ok(early.snapshot.elapsed<early.snapshot.notes[0].at-.235,'Early tile is outside the removed invisible hit window');
+ const earlyBox=await page.locator('#board').boundingBox();
+ await page.touchscreen.tap(earlyBox.x+(early.snapshot.notes[0].lane+.5)*earlyBox.width/4,
+   earlyBox.y+Math.min(640,Math.max(18,early.rect.bottom-20))*earlyBox.height/660);
+ assert.equal(await page.evaluate(()=>window.__nightPianoTest.snapshot().complete),1,
+  'A touch on an actually visible tile must instantly register; it must not keep falling');
+ assert.equal(await page.evaluate(()=>window.__nightPianoTest.snapshot().ended),false,
+  'An early visual hit must not cause a wrong-tile loss');
+
+ // Actually play beyond the initial 32-note stream. The board must remain
+ // endless, keep producing notes, and honor real phone touches without a line.
+ for(let i=1;i<40;i++){
+  await page.waitForFunction(index=>{
+   const item=window.__nightPianoTest.snapshot().notes[index];
+   const geo=window.__nightPianoTest.geometry()[index];
+   return item&&geo&&geo.bottom>=530;
+  },i,{timeout:12000});
+  const next=await page.evaluate(index=>({
+   item:window.__nightPianoTest.snapshot().notes[index],
+   geo:window.__nightPianoTest.geometry()[index]
+  }),i);
+  const box=await page.locator('#board').boundingBox();
+  const px=box.x+(next.item.lane+.5)*box.width/4;
+  const py=box.y+Math.max(18,Math.min(640,next.geo.bottom-35))*box.height/660;
+  if(next.item.hold){
+   await page.mouse.move(px,py);
+   await page.mouse.down();
+   const heldBefore=await page.evaluate(index=>window.__nightPianoTest.geometry()[index].bottom,i);
+   await page.waitForTimeout(190);
+   const heldAfter=await page.evaluate(index=>window.__nightPianoTest.geometry()[index].bottom,i);
+   assert.ok(Math.abs(heldBefore-heldAfter)<.1,'A touched long tile must stop moving under the finger');
+   await page.waitForTimeout(540);
+   await page.mouse.up();
+  }else await page.touchscreen.tap(px,py);
+  const progress=await page.evaluate(()=>window.__nightPianoTest.snapshot());
+  assert.equal(progress.ended,false,'Endless visible tap should not unexpectedly end at tile '+i);
+ }
+ const endless=await page.evaluate(()=>window.__nightPianoTest.snapshot());
+ assert.ok(endless.complete>=40,'40 genuine visual notes earned in endless mode');
+ assert.ok(endless.endlessIndex>=40,'Endless mode generates new notes beyond the first chart');
+ assert.equal(endless.ended,false,'Endless mode never announces a finite song victory');
+ writeFileSync(path.join(output,'piano-endless-40-visible-touches.png'),
+  await page.screenshot({fullPage:true}));
+ await page.locator('#pause').click();
+ // Resume controls do not allow switching songs mid-run. End via an empty-lane tap.
+ const empty=await page.locator('#board').boundingBox();
+ await page.locator('#pause').click();
+ await page.mouse.click(empty.x+empty.width*.9,empty.y+empty.height*.92);
+ assert.equal(await page.evaluate(()=>window.__nightPianoTest.snapshot().ended),true);
+ await page.locator('[data-song="frere"]').click();
  await page.locator('#coverAction').click();
  await page.waitForFunction(()=>window.__nightPianoTest.snapshot().elapsed>.13);
+
  await page.locator('#pause').click();
  const before=await page.evaluate(()=>window.__nightPianoTest.snapshot().elapsed);
  await page.waitForTimeout(200);
@@ -99,7 +158,7 @@ try{
  assert.ok(state.score>=events.length*100,'Both taps and sustained notes score properly');
  writeFileSync(path.join(output,'piano-song-won.png'),await page.screenshot({fullPage:true}));
 
- // Wave 2: a complete second melody, an actual phone touch, early/late misses,
+ // Wave 2: a complete second melody, an actual phone touch, geometry-based misses,
  // and a full second song victory. Song switching must not reset a live match.
  await page.locator('[data-song="twinkle"]').click();
  assert.equal(await page.evaluate(()=>window.__nightPianoTest.snapshot().song),'twinkle');
@@ -112,12 +171,12 @@ try{
  await page.touchscreen.tap(touchBox.x+(firstTwinkle.lane+.5)*touchBox.width/4,
    touchBox.y+(660-93-40)*touchBox.height/660);
  assert.equal(await page.evaluate(()=>window.__nightPianoTest.snapshot().ended),true,
-  'Pressing before the first note is actually tappable must lose');
+  'Touching a blank part of the lane must lose');
  assert.equal(await page.locator('#coverTitle').textContent(),'Wrong tile');
  await page.locator('#coverAction').click();
- await page.waitForFunction(()=>window.__nightPianoTest.snapshot().ended);
+ await page.waitForFunction(()=>window.__nightPianoTest.snapshot().ended,{timeout:12000});
  assert.equal(await page.evaluate(()=>window.__nightPianoTest.snapshot().ended),true,
-  'Missing a note after the late timing window must lose');
+  'Missing a note after it has actually left the board must lose');
  assert.equal(await page.locator('#coverTitle').textContent(),'Missed tile');
  await page.locator('#coverAction').click();
  let second=await page.evaluate(()=>window.__nightPianoTest.snapshot());

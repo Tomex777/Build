@@ -14,9 +14,10 @@
 <a class="night-brand" href="/dashboard" aria-label="NIGHT Play home"><svg class="night-brand-mark"><use href="#night-mark"/></svg><strong>NIGHT <em>PLAY</em></strong></a>
 <button type="button" class="night-settings" id="pause" aria-label="Pause Piano Tiles" disabled><svg class="night-ico"><use id="pauseIcon" href="#icon-pause"/></svg><span class="night-text" id="pauseLabel">Pause</span></button></header>
 <main>
-<section class="night-game-intro"><span class="night-eyebrow">RHYTHM / SOLO</span><h1>Piano Tiles</h1><p>Play the notes as they fall. Hold the long tiles.</p></section>
+<section class="night-game-intro"><span class="night-eyebrow">RHYTHM / SOLO</span><h1>Piano Tiles</h1><p>Tap the entire visible tile, not a tiny timing line. Hold long notes.</p></section>
 <div class="song-selector" role="group" aria-label="Choose song">
-<button class="song-choice" type="button" data-song="frere" aria-pressed="true">Frère Jacques</button>
+<button class="song-choice" type="button" data-song="endless" aria-pressed="true">Endless</button>
+<button class="song-choice" type="button" data-song="frere" aria-pressed="false">Frère Jacques</button>
 <button class="song-choice" type="button" data-song="twinkle" aria-pressed="false">Twinkle, Twinkle</button>
 </div>
 <div class="night-play-hud" aria-label="Piano Tiles score">
@@ -26,9 +27,9 @@
 </div>
 <section class="board-area" aria-label="Piano Tiles game">
 <div class="board-shell">
-<canvas id="board" width="400" height="660" aria-label="Four vertical piano lanes. Tap the long falling tiles at the bottom and keep holding extended tiles. Keyboard: 1 to 4 or A S D F." tabindex="0"></canvas>
+<canvas id="board" width="400" height="660" aria-label="Four vertical piano lanes. Tap anywhere on a visible colored tile. Hold long notes. Keyboard: 1 to 4 or A S D F." tabindex="0"></canvas>
 <div class="cover" id="cover"><div class="cover-content">
-<span class="cover-kicker" id="coverKicker" hidden></span><h2 id="coverTitle">Feel the rhythm.</h2><p id="coverCopy">Four lanes. Short taps and long holds. Use more than one finger for chords.</p>
+<span class="cover-kicker" id="coverKicker" hidden></span><h2 id="coverTitle">Feel the rhythm.</h2><p id="coverCopy">Endless rhythm. Tap the visible tiles anywhere along their length. Hold the extended ones.</p>
 <button class="cover-action" id="coverAction" type="button">Start playing</button>
 </div></div>
 </div>

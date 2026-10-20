@@ -4,14 +4,15 @@
 (()=>{"use strict";
 const W=400,H=660,LANES=4,HIT=H-93,KEYS={1:0,2:1,3:2,4:3,a:0,s:1,d:2,f:3};
 const $=id=>document.getElementById(id),board=$("board"),ctx=board.getContext("2d");
-const colors=["#253a68","#253a68","#263a74","#273a69"],ACCENT="#86d4d4";
+const colors=["#2193a2","#8260c6","#d77d46","#328c78"],deepColors=["#165665","#46356e","#814521","#1c5446"],ACCENT="#86d4d4";
 let audioCtx=null,running=false,paused=false,ended=false,elapsed=0,previous=0,raf=0;
 let notes=[],score=0,streak=0,complete=0,held=new Map(),keyHeld=new Set(),ripples=[];
 const SONGS=[
+ {id:"endless",title:"Endless"},
  {id:"frere",title:"Frère Jacques"},
  {id:"twinkle",title:"Twinkle, Twinkle"}
 ];
-let selectedSong=SONGS[0];
+let selectedSong=SONGS[0],endlessNextAt=0,endlessIndex=0;
 const bestKey=()=>selectedSong.id==="frere"?"night-play-piano-tiles-best-v1":"night-play-piano-tiles-best-"+selectedSong.id+"-v1";
 const readBest=()=>{try{return Math.max(0,Number(localStorage.getItem(bestKey()))||0)}catch{return 0}};
 function saveBest(){try{if(score>readBest())localStorage.setItem(bestKey(),String(score))}catch{}}
@@ -22,7 +23,23 @@ function updateHud(){
  $("score").textContent=String(score);$("streak").textContent=String(streak);
  $("best").textContent=String(Math.max(score,readBest()));
 }
+// Endless is an actual continuous mode, not a finite song masquerading as one.
+function extendEndless(count){
+ const result=[],lanes=[0,2,1,3,0,3,1,2,1,3,2,0,3,1,0,2];
+ const pitches=[261.63,293.66,329.63,392,440,523.25,587.33,659.25];
+ for(let k=0;k<count;k++){
+  const i=endlessIndex++,lane=lanes[i%lanes.length];
+  const hold=i>3&&i%19===10;
+  const beat=Math.max(.36,.67-Math.min(.29,i*.0017));
+  result.push({lane,freq:pitches[(i*3+Math.floor(i/4))%pitches.length],at:endlessNextAt,
+   duration:hold?.67:0,hold,state:"waiting",pointer:null,start:0,
+   scoreGiven:false,voice:null,flash:0,hitBottom:null});
+  endlessNextAt+=beat;
+ }
+ return result;
+}
 function chart(){
+ if(selectedSong.id==="endless"){endlessIndex=0;endlessNextAt=1.45;return extendEndless(32);}
  if(selectedSong.id==="twinkle")return twinkleChart();
  // Frère Jacques (traditional), C-major; lanes determine hit geometry,
  // note.frequency determines pitch. The final bar includes two-note chords.
@@ -106,17 +123,19 @@ function chooseSong(id){
  if(!found||selectedSong===found)return;
  selectedSong=found;
  clearRun();
- cover("","Feel the rhythm.",selectedSong.title+" · Tap the falling notes; hold extended tiles.","Start playing");
+ cover("","Feel the rhythm.",selectedSong.id==="endless"?"Tap any visible colored tile. Keep holding the long ones.":"Tap the visible notes anywhere along their tiles.","Start playing");
 }
 function clearRun(){
  if(raf)cancelAnimationFrame(raf);raf=0;closeSounds();notes=chart();
  held.clear();keyHeld.clear();ripples=[];score=0;streak=0;complete=0;
  elapsed=0;previous=0;running=false;paused=false;ended=false;
+ document.body.classList.remove("is-playing");
  updateHud();setPauseButton();setSongControls();$("restart").hidden=true;$("status").textContent="";render();
 }
 function begin(){
  clearRun();running=true;paused=false;ended=false;
- $("cover").hidden=true;$("restart").hidden=false;setPauseButton();setSongControls();$("status").textContent="Play the next tile";
+ document.body.classList.add("is-playing");
+ $("cover").hidden=true;$("restart").hidden=false;setPauseButton();setSongControls();$("status").textContent="Tap any visible tile";
  previous=0;raf=requestAnimationFrame(tick);
 }
 function lose(reason){
@@ -124,15 +143,16 @@ function lose(reason){
  ended=true;running=false;paused=false;
  if(raf)cancelAnimationFrame(raf);raf=0;
  closeSounds();held.clear();keyHeld.clear();saveBest();updateHud();setPauseButton();setSongControls();$("restart").hidden=true;
+ document.body.classList.remove("is-playing");
  $("status").textContent="";
- cover("ROUND OVER",reason,"Score "+score+" · "+complete+" / "+notes.length+" notes","Play again");
+ cover("ROUND OVER",reason,selectedSong.id==="endless"?"Score "+score+" · "+complete+" tiles":"Score "+score+" · "+complete+" / "+notes.length+" notes","Play again");
  render();
 }
 function win(){
  if(ended)return;ended=true;running=false;paused=false;
  if(raf)cancelAnimationFrame(raf);raf=0;
  closeSounds();held.clear();keyHeld.clear();saveBest();updateHud();setPauseButton();setSongControls();
- $("status").textContent="";
+ document.body.classList.remove("is-playing");$("status").textContent="";
  cover("SONG COMPLETE","Beautifully played.","Score "+score+" · "+complete+" notes","Play again");
  render();
 }
@@ -181,7 +201,7 @@ function sound(frequency,hold){
 }
 function noteGeometry(n){
  const speed=294+Math.min(65,complete*1.6);
- const bottom=HIT+(elapsed-n.at)*speed;
+ const bottom=n.state==="holding"&&Number.isFinite(n.hitBottom)?n.hitBottom:HIT+(elapsed-n.at)*speed;
  const length=n.hold?(n.duration*speed+138):166;
  return {bottom,top:bottom-length,left:n.lane*100+4,right:n.lane*100+96,
   speed,length};
@@ -198,16 +218,25 @@ function play(x,y,id){
  if(!running||paused||ended||!Number.isFinite(x)||!Number.isFinite(y))return;
  const lane=Math.floor(x/100);
  if(lane<0||lane>=LANES||y<0||y>H)return;
- const n=notes.filter(t=>t.lane===lane&&t.state==="waiting"&&Math.abs(elapsed-t.at)<=.235)
-   .sort((a,b)=>Math.abs(elapsed-a.at)-Math.abs(elapsed-b.at))
-   .find(t=>{const g=noteGeometry(t);return y>=g.top-7&&y<=g.bottom+18;});
+ // Judge the actual visible rectangle, not a 470ms invisible timing gate.
+ // Before this fix a visibly touched tile could keep falling because it was
+ // still far above the old narrow timing shelf.
+ const n=notes.filter(t=>t.lane===lane&&t.state==="waiting")
+  .sort((a,b)=>noteGeometry(b).bottom-noteGeometry(a).bottom)
+  .find(t=>{
+   const g=noteGeometry(t);
+   return g.bottom>=0&&g.top<=H&&
+    y>=Math.max(0,g.top)-9&&y<=Math.min(H,g.bottom)+9;
+  });
  if(!n){lose("Wrong tile");return;}
+ const hit=noteGeometry(n);
  n.start=elapsed;n.flash=.24;
- const accurate=Math.abs(elapsed-n.at)<.085;
+ // The full tile is tappable; the lower playable third earns 'Perfect'.
+ const accurate=hit.bottom>=HIT-45&&hit.bottom<=H+18;
  score+=accurate?125:100;
  updateHud();n.voice=sound(n.freq,n.hold);
  if(n.hold){
-  n.state="holding";n.pointer=id;held.set(id,n);
+  n.state="holding";n.pointer=id;n.hitBottom=hit.bottom;held.set(id,n);
   $("status").textContent="Keep holding";
  }else{
   finishNote(n,false);$("status").textContent=accurate?"Perfect":"Good";
@@ -218,7 +247,7 @@ function release(id){
  if(!n)return;
  n.pointer=null;
  if(ended||!running)return;
- if(elapsed>=n.at+n.duration-.07){
+ if(elapsed>=n.start+n.duration-.07){
   finishNote(n,true);$("status").textContent="Long note complete";
  }else lose("Hold the long tile");
 }
@@ -259,16 +288,21 @@ function tick(ts){
  previous=ts;
  // A held long note may complete while the next note is being played.
  for(const n of notes){
-  if(n.state==="holding"&&elapsed>=n.at+n.duration){
+  if(n.state==="holding"&&elapsed>=n.start+n.duration){
    if(n.pointer!==null)held.delete(n.pointer);
    finishNote(n,true);$("status").textContent="Long note complete";
   }
-  if(n.state==="waiting"&&elapsed>n.at+.255){lose("Missed tile");break;}
+  // Only miss once the complete visible tile has left the playable canvas.
+  if(n.state==="waiting"&&noteGeometry(n).top>H+5){lose("Missed tile");break;}
   n.flash=Math.max(0,n.flash-.016);
  }
  for(const r of ripples)r.age+=.016;
  ripples=ripples.filter(r=>r.age<r.life);
- if(!ended&&complete===notes.length){win();return;}
+ if(!ended&&selectedSong.id==="endless"){
+  if(endlessNextAt-elapsed<11)notes.push(...extendEndless(20));
+  if(notes.length>110)notes=notes.filter(t=>t.state!=="done");
+ }
+ if(!ended&&selectedSong.id!=="endless"&&complete===notes.length){win();return;}
  render();
  if(!ended)raf=requestAnimationFrame(tick);
 }
@@ -297,13 +331,13 @@ function render(){
   if(n.state==="holding"){
    gradient.addColorStop(0,"#296b76");gradient.addColorStop(1,"#49b8bf");
   }else{
-   gradient.addColorStop(0,colors[n.lane]);gradient.addColorStop(1,"#131e3b");
+   gradient.addColorStop(0,colors[n.lane]);gradient.addColorStop(1,deepColors[n.lane]);
   }
   x.fillStyle=gradient;x.fillRect(g.left,g.top,g.right-g.left,g.length);
   x.fillStyle=n.state==="holding"?"#bff1e9":"#96b3d3";
   x.fillRect(g.left+9,g.top+9,3,Math.max(0,g.length-18));
   if(n.hold){
-   const progress=n.state==="holding"?Math.min(1,Math.max(0,(elapsed-n.at)/n.duration)):0;
+   const progress=n.state==="holding"?Math.min(1,Math.max(0,(elapsed-n.start)/n.duration)):0;
    x.fillStyle=n.state==="holding"?"#8df3dc":"#8bb4db";
    x.fillRect(g.left+20,g.bottom-12,(g.right-g.left-40)*Math.max(.12,progress),4);
    x.fillStyle="#f4fafb";
@@ -315,15 +349,11 @@ function render(){
   x.globalAlpha=Math.max(0,1-r.age/r.life);
   x.fillStyle=ACCENT;x.fillRect(r.lane*100,HIT-17,100,6);x.globalAlpha=1;
  }
- // A four-lane touch guide, kept unobtrusive beneath active notes.
- for(let i=0;i<4;i++){
-  x.fillStyle="#7a8ba4";x.font="700 14px system-ui";
-  x.textAlign="center";x.fillText(String(i+1),i*100+50,H-18);
- }
+
 }
 if(location.hostname==="localhost"||location.hostname==="127.0.0.1")
  window.__nightPianoTest=Object.freeze({snapshot:()=>({
-  song:selectedSong.id,running,paused,ended,elapsed,score,streak,complete,
+  song:selectedSong.id,running,paused,ended,elapsed,score,streak,complete,endlessIndex,
   notes:notes.map(n=>({lane:n.lane,at:n.at,duration:n.duration,hold:n.hold,state:n.state}))
  }),geometry:()=>notes.map(noteGeometry)});
 clearRun();scale();window.addEventListener("resize",scale,{passive:true});
