@@ -6,7 +6,7 @@ const W=400,H=660,LANES=4,HIT=H-93,KEYS={1:0,2:1,3:2,4:3,a:0,s:1,d:2,f:3};
 const $=id=>document.getElementById(id),board=$("board"),ctx=board.getContext("2d");
 const colors=["#2193a2","#8260c6","#d77d46","#328c78"],deepColors=["#165665","#46356e","#814521","#1c5446"],ACCENT="#86d4d4";
 let audioCtx=null,running=false,paused=false,ended=false,elapsed=0,previous=0,raf=0;
-let notes=[],score=0,streak=0,complete=0,held=new Map(),keyHeld=new Set(),ripples=[];
+let notes=[],score=0,streak=0,complete=0,held=new Map(),keyHeld=new Set();
 const SONGS=[
  {id:"endless",title:"Endless"},
  {id:"frere",title:"Frère Jacques"},
@@ -127,7 +127,7 @@ function chooseSong(id){
 }
 function clearRun(){
  if(raf)cancelAnimationFrame(raf);raf=0;closeSounds();notes=chart();
- held.clear();keyHeld.clear();ripples=[];score=0;streak=0;complete=0;
+ held.clear();keyHeld.clear();score=0;streak=0;complete=0;
  elapsed=0;previous=0;running=false;paused=false;ended=false;
  document.body.classList.remove("is-playing");
  updateHud();setPauseButton();setSongControls();$("restart").hidden=true;$("status").textContent="";render();
@@ -212,7 +212,7 @@ function finishNote(n,holdBonus){
  n.pointer=null;complete++;streak++;
  if(holdBonus)score+=75+Math.min(75,streak*2);
  updateHud();
- ripples.push({lane:n.lane,life:.32,age:0});
+
 }
 function play(x,y,id){
  if(!running||paused||ended||!Number.isFinite(x)||!Number.isFinite(y))return;
@@ -296,8 +296,7 @@ function tick(ts){
   if(n.state==="waiting"&&noteGeometry(n).top>H+5){lose("Missed tile");break;}
   n.flash=Math.max(0,n.flash-.016);
  }
- for(const r of ripples)r.age+=.016;
- ripples=ripples.filter(r=>r.age<r.life);
+
  if(!ended&&selectedSong.id==="endless"){
   if(endlessNextAt-elapsed<11)notes.push(...extendEndless(20));
   if(notes.length>110)notes=notes.filter(t=>t.state!=="done");
@@ -315,8 +314,7 @@ function render(){
   x.fillRect(lane*100,0,100,H);
   if(lane){x.fillStyle="#ced7e2";x.fillRect(lane*100-.7,0,1.4,H);}
  }
- const active=Array.from(held.values());
- for(const n of active){x.fillStyle="#d7f1ee";x.fillRect(n.lane*100,0,100,H);}
+ // Held feedback belongs inside the long tile; never flash or tint an entire lane.
  // A low-contrast timing shelf, not a full-width black strike line.
  const cue=x.createLinearGradient(0,HIT-24,0,H);
  cue.addColorStop(0,"#cad7e700");cue.addColorStop(1,"#c6d6e59c");
@@ -325,19 +323,22 @@ function render(){
   if(n.state==="done")continue;
   const g=noteGeometry(n);
   if(g.bottom<0||g.top>H)continue;
-  const top=Math.max(-4,g.top),bottom=Math.min(H+4,g.bottom);
+  const progress=n.state==="holding"?Math.min(1,Math.max(0,(elapsed-n.start)/n.duration)):0;
+  // Long tails gradually retract toward their anchored key while held; no screen flash.
+  const tail=n.state==="holding"?Math.max(45,g.length*(1-progress)):g.length;
+  const tileTop=n.state==="holding"?g.bottom-tail:g.top;
+  const top=Math.max(-4,tileTop),bottom=Math.min(H+4,g.bottom);
   x.save();x.beginPath();x.rect(g.left,top,g.right-g.left,bottom-top);x.clip();
-  const gradient=x.createLinearGradient(0,g.top,0,g.bottom);
+  const gradient=x.createLinearGradient(0,tileTop,0,g.bottom);
   if(n.state==="holding"){
    gradient.addColorStop(0,"#296b76");gradient.addColorStop(1,"#49b8bf");
   }else{
    gradient.addColorStop(0,colors[n.lane]);gradient.addColorStop(1,deepColors[n.lane]);
   }
-  x.fillStyle=gradient;x.fillRect(g.left,g.top,g.right-g.left,g.length);
+  x.fillStyle=gradient;x.fillRect(g.left,tileTop,g.right-g.left,tail);
   x.fillStyle=n.state==="holding"?"#bff1e9":"#96b3d3";
-  x.fillRect(g.left+9,g.top+9,3,Math.max(0,g.length-18));
+  x.fillRect(g.left+9,tileTop+9,3,Math.max(0,tail-18));
   if(n.hold){
-   const progress=n.state==="holding"?Math.min(1,Math.max(0,(elapsed-n.start)/n.duration)):0;
    x.fillStyle=n.state==="holding"?"#8df3dc":"#8bb4db";
    x.fillRect(g.left+20,g.bottom-12,(g.right-g.left-40)*Math.max(.12,progress),4);
    x.fillStyle="#f4fafb";
@@ -345,10 +346,7 @@ function render(){
   }
   x.restore();
  }
- for(const r of ripples){
-  x.globalAlpha=Math.max(0,1-r.age/r.life);
-  x.fillStyle=ACCENT;x.fillRect(r.lane*100,HIT-17,100,6);x.globalAlpha=1;
- }
+ // A flash-free subtle inset edge shows completion without lighting up whole lanes.
 
 }
 if(location.hostname==="localhost"||location.hostname==="127.0.0.1")
