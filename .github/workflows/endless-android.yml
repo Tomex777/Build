@@ -333,6 +333,10 @@ jobs:
         shell: bash
         run: python3 endless_ci/check_extended_surface_visuals.py artifacts/endless-m5-runtime/screenshots
 
+      - name: Validate real Jupiter and Saturn orbital renders
+        shell: bash
+        run: python3 endless_ci/check_gas_giant_visuals.py artifacts/endless-m5-runtime/screenshots
+
       - name: Upload Endless API 36 emulator evidence
         if: always()
         uses: actions/upload-artifact@v4

@@ -49,7 +49,14 @@ class GasGiantRuntimeTest {
                     state.selectedId == planet &&
                         !state.overview &&
                         state.distance < 6.2 &&
-                        renderer.completedFrameCount() >= before + 6L
+                        renderer.completedFrameCount() >= before + 20L &&
+                        renderer.labelSnapshots().any { label ->
+                            label.id == planet && label.visible &&
+                                kotlin.math.abs(label.xPx - checkNotNull(glView.get()).width/2f) <
+                                    checkNotNull(glView.get()).width*.24f &&
+                                kotlin.math.abs(label.yPx - checkNotNull(glView.get()).height/2f) <
+                                    checkNotNull(glView.get()).height*.24f
+                        }
                 }
                 assertEquals(null, renderer.surfaceBodyId())
                 capture(instrumentation, "orbital-$planet-oblate")
