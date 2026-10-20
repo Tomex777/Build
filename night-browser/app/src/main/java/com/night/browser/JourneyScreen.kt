@@ -59,7 +59,9 @@ fun JourneyScreen(
 ) {
     var query by remember { mutableStateOf("") }
     val expanded = remember { mutableStateListOf<String>() }
-    LaunchedEffect(store.journeys.firstOrNull()?.id) {
+    LaunchedEffect(store.journeys.map { it.id }) {
+        val validIds = store.journeys.mapTo(HashSet()) { it.id }
+        expanded.retainAll(validIds)
         if (expanded.isEmpty()) store.journeys.firstOrNull()?.let { expanded.add(it.id) }
     }
     var edit by remember { mutableStateOf<EditTarget?>(null) }
