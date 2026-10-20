@@ -8,21 +8,43 @@ mkdir -p "$ARTIFACT_DIR"
 APP_ID="com.night.endless"
 TEST_ID="com.night.endless.test"
 
+# A complete emulator run formerly timed out *after* all six API36 tests
+# passed: the EXIT trap waited indefinitely for adb logcat/dumpsys. Every
+# best-effort diagnostic must be bounded; never discard test completion or the
+# original nonzero test status because a diagnostic daemon is unresponsive.
+capture_diagnostic() {
+    local filename="$1"
+    local seconds="$2"
+    shift 2
+    if timeout -k 3s "${seconds}s" "$@" > "$ARTIFACT_DIR/$filename" 2>&1; then
+        echo "Diagnostic complete: $filename" >> "$ARTIFACT_DIR/diagnostic-status.txt"
+    else
+        echo "Diagnostic unavailable or timed out: $filename" >> "$ARTIFACT_DIR/diagnostic-status.txt"
+    fi
+}
+
 capture_diagnostics() {
     local result=$?
     trap - EXIT
     set +e
+    printf 'instrumentationExit=%s\\n' "$result" > "$ARTIFACT_DIR/diagnostic-status.txt"
 
-    adb -s emulator-5554 pull         /sdcard/Android/data/$APP_ID/files/endless-runtime         "$ARTIFACT_DIR/screenshots" || true
-    adb -s emulator-5554 logcat -d -b all > "$ARTIFACT_DIR/logcat.txt" 2>&1 || true
-    adb -s emulator-5554 shell dumpsys activity activities > "$ARTIFACT_DIR/activities.txt" 2>&1 || true
-    adb -s emulator-5554 shell dumpsys meminfo "$APP_ID" > "$ARTIFACT_DIR/meminfo.txt" 2>&1 || true
-    adb -s emulator-5554 shell dumpsys gfxinfo "$APP_ID" > "$ARTIFACT_DIR/gfxinfo.txt" 2>&1 || true
-    adb -s emulator-5554 shell dumpsys SurfaceFlinger --list > "$ARTIFACT_DIR/surfaceflinger-layers.txt" 2>&1 || true
-    adb -s emulator-5554 uninstall "$TEST_ID" >/dev/null 2>&1 || true
-    adb -s emulator-5554 uninstall "$APP_ID" >/dev/null 2>&1 || true
+    # APKs stay installed until screenshots are pulled, including API36's
+    # scoped-storage evidence. A stalled pull must not cost the whole job.
+    timeout -k 3s 35s adb -s emulator-5554 pull \
+        "/sdcard/Android/data/$APP_ID/files/endless-runtime" \
+        "$ARTIFACT_DIR/screenshots" >> "$ARTIFACT_DIR/diagnostic-status.txt" 2>&1 || true
+
+    capture_diagnostic logcat.txt 18 adb -s emulator-5554 logcat -d -b all
+    capture_diagnostic activities.txt 10 adb -s emulator-5554 shell dumpsys activity activities
+    capture_diagnostic meminfo.txt 10 adb -s emulator-5554 shell dumpsys meminfo "$APP_ID"
+    capture_diagnostic gfxinfo.txt 10 adb -s emulator-5554 shell dumpsys gfxinfo "$APP_ID"
+    capture_diagnostic surfaceflinger-layers.txt 10 adb -s emulator-5554 shell dumpsys SurfaceFlinger --list
+    timeout -k 3s 8s adb -s emulator-5554 uninstall "$TEST_ID" >/dev/null 2>&1 || true
+    timeout -k 3s 8s adb -s emulator-5554 uninstall "$APP_ID" >/dev/null 2>&1 || true
     exit "$result"
 }
+
 trap capture_diagnostics EXIT
 
 sdk_level="$(adb -s emulator-5554 shell getprop ro.build.version.sdk | tr -d '\r')"
