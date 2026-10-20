@@ -1,3 +1,4 @@
+import sharp from 'sharp';
 #!/usr/bin/env node
 const base='https://www.shadow-garden-mog.jp/wp-content/themes/officialsite/partials/page/dmg/assets/images/';
 const art=['img_shadow-adult.png','img_sid-adult.png','img_alpha-adult.png','img_beta-adult.png','img_gamma-adult.png','img_delta-adult.png','img_epsilon-adult.png','img_zeta-adult.png','img_eta-adult.png','img_aurora.png','img_beatrix.png'];
@@ -47,4 +48,18 @@ for(const url of [
  const bytes=Buffer.from(await response.arrayBuffer());
  const png=bytes.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]));
  console.log('FULL PORTRAIT',JSON.stringify({url,status:response.status,bytes:bytes.length,png,width:png?bytes.readUInt32BE(16):null,height:png?bytes.readUInt32BE(20):null,colorType:png?bytes[25]:null}));
+}
+
+for(const group of ['shadow-adult','sid-adult','alpha-adult','beta-adult','gamma-adult','delta-adult','epsilon-adult','zeta-adult','eta-adult','aurora','beatrix','alexia','rose','iris','clare']){
+ for(const view of ['pc','sp']){
+  const url='https://www.shadow-garden-mog.jp/wp-content/themes/officialsite/partials/page/dmg/assets/webp/'+view+'/chara/img_'+group+'.webp';
+  const response=await fetch(url,{signal:AbortSignal.timeout(12000)}).catch(e=>({status:0,error:e.message,headers:new Map(),arrayBuffer:async()=>new ArrayBuffer(0)}));
+  const bytes=Buffer.from(await response.arrayBuffer());
+  try{
+   const m=await sharp(bytes).metadata();
+   console.log('WEBP PORTRAIT',JSON.stringify({name:group,view,url,status:response.status,bytes:bytes.length,width:m.width,height:m.height,alpha:m.hasAlpha,format:m.format}));
+  }catch(e){
+   console.log('WEBP PORTRAIT',JSON.stringify({name:group,view,url,status:response.status,bytes:bytes.length,error:e.message.slice(0,90)}));
+  }
+ }
 }
