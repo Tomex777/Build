@@ -355,4 +355,74 @@ saved = null
   }
 }
 
+{
+  const sourceCalls = []
+  const mediaReplies = []
+  const sourceList = [
+    { id:'animepahe', name:'AnimePahe', fallbackOrder:20 },
+    { id:'animesogo', name:'AnimeSogo', fallbackOrder:30 },
+  ]
+  const mediaCtx = {
+    publicPrefix:'.',
+    botProfile:{ id:'nami', displayName:'Nami' },
+    listSources:() => sourceList,
+    reply:async value => { mediaReplies.push(String(value)); return value },
+    resolveAniListTitles:async title => ({ query:title, aliases:['Bleach'], matches:[] }),
+    executeSource:async ({ explicitSource, payload }) => {
+      sourceCalls.push({ explicitSource, payload })
+      if (explicitSource === 'animepahe' && payload.action === 'download') {
+        return {
+          status:'source-error',
+          source:{ id:'animepahe', name:'AnimePahe' },
+          error:new Error('AnimePahe request remained blocked after browser refresh.'),
+        }
+      }
+      if (explicitSource === 'animesogo' && payload.action === 'search') {
+        return {
+          status:'ok',
+          source:{ id:'animesogo', name:'AnimeSogo' },
+          result:{ items:[{ id:'sogo-bleach', title:'Bleach' }] },
+        }
+      }
+      if (explicitSource === 'animesogo' && payload.action === 'episodes') {
+        return {
+          status:'ok',
+          source:{ id:'animesogo', name:'AnimeSogo' },
+          result:{ title:'Bleach', episodes:[{ id:'sogo-episode-1', number:'1', title:'Episode 1' }] },
+        }
+      }
+      if (explicitSource === 'animesogo' && payload.action === 'download') {
+        if (payload.episode?.id !== 'sogo-episode-1') {
+          throw new Error('Alternate provider did not use its own provider-specific episode ID')
+        }
+        return {
+          status:'ok',
+          source:{ id:'animesogo', name:'AnimeSogo' },
+          result:{ delivered:true },
+        }
+      }
+      throw new Error('Unexpected media-fallback call: ' + explicitSource + '/' + payload.action)
+    },
+  }
+  const encode = value => Buffer.from(JSON.stringify(value), 'utf8').toString('base64url')
+  await runSeriesCommand(mediaCtx, {
+    capability:'anime',
+    commandName:'anime',
+    args:[
+      '~download',
+      'animepahe',
+      encode({ id:'pahe-bleach', title:'Bleach' }),
+      encode({ id:'pahe-episode-1', number:'1', title:'Episode 1' }),
+      '720',
+      'document',
+    ],
+  })
+  if (!sourceCalls.some(row => row.explicitSource === 'animesogo' && row.payload.action === 'download' && row.payload.episode?.id === 'sogo-episode-1')) {
+    throw new Error('Anime media failure did not retry the matching episode from an alternate provider')
+  }
+  if (!mediaReplies.some(value => value.includes('Fallback') && value.includes('AnimeSogo') && value.includes('sent'))) {
+    throw new Error('Anime alternate-provider success was not reported to the user')
+  }
+}
+
 console.log('PASS anime typed-number/range/alias flow')
