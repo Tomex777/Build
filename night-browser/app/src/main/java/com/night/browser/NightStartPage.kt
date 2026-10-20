@@ -88,13 +88,20 @@ fun NightStartPage(
     val focus = LocalFocusManager.current
     val clipboard = LocalClipboardManager.current
     var search by rememberSaveable { mutableStateOf("") }
+    var invalidAddress by rememberSaveable { mutableStateOf(false) }
     var editMode by rememberSaveable { mutableStateOf(false) }
     var editorVisible by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<StartSite?>(null) }
 
     fun submit() {
-        if (search.isBlank()) return
-        onOpen(search.trim())
+        val entry = search.trim()
+        if (entry.isBlank()) return
+        if (AddressInput.resolve(entry) == null) {
+            invalidAddress = true
+            return
+        }
+        invalidAddress = false
+        onOpen(entry)
         keyboard?.hide()
         focus.clearFocus()
         search = ""
@@ -147,7 +154,7 @@ fun NightStartPage(
                     Spacer(Modifier.width(12.dp))
                     BasicTextField(
                         value = search,
-                        onValueChange = { search = it },
+                        onValueChange = { search = it; invalidAddress = false },
                         modifier = Modifier.weight(1f),
                         singleLine = true,
                         textStyle = TextStyle(color = HomeText, fontSize = 15.sp),
@@ -166,7 +173,12 @@ fun NightStartPage(
                     )
                     if (search.isBlank()) {
                         IconButton(
-                            onClick = { clipboard.getText()?.text?.toString()?.let { search = it } },
+                            onClick = {
+                                clipboard.getText()?.text?.toString()?.let {
+                                    search = it
+                                    invalidAddress = false
+                                }
+                            },
                             modifier = Modifier.size(44.dp)
                         ) {
                             Icon(Icons.Rounded.ContentPaste, contentDescription = "Paste address",
@@ -181,7 +193,15 @@ fun NightStartPage(
                     }
                 }
             }
-            Spacer(Modifier.height(33.dp))
+            if (invalidAddress) {
+                Text(
+                    "Enter a valid website address.",
+                    color = Color(0xFFFFA1A1),
+                    fontSize = 12.sp,
+                    modifier = Modifier.padding(start = 12.dp, top = 8.dp)
+                )
+            }
+            Spacer(Modifier.height(if (invalidAddress) 22.dp else 33.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Quick access", color = HomeText, fontWeight = FontWeight.SemiBold,
                     fontSize = 18.sp, modifier = Modifier.weight(1f))
