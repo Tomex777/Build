@@ -359,10 +359,11 @@ class Device:
     def download(self, path):
         # This is deliberately a FULL byte-verified download acceptance, not a
         # pass for merely issuing GET or opening a consent dialog.
-        from wave2_fixture import PNG, PDF, BIN
+        from wave2_fixture import PNG, PDF, BIN, WAV
         expected = {"/file.png": ("night-qa.png", PNG),
                     "/file.pdf": ("night-qa.pdf", PDF),
-                    "/secure/file.bin": ("night-secure-qa.bin", BIN)}
+                    "/secure/file.bin": ("night-secure-qa.bin", BIN),
+                    "/media.wav": ("night-qa-audio.wav", WAV)}
         if path not in expected:
             raise AssertionError("No reference fixture for download")
         filename, original = expected[path]
@@ -449,6 +450,21 @@ class Device:
             if hashlib.sha256(raw).digest() != hashlib.sha256(PNG).digest():
                 raise AssertionError("Repeat changed original or new bytes")
         return "Cancel wrote zero files; confirmation produced distinct exact PNG bytes"
+
+    def media_duplicate(self):
+        """Audio uses the same consent path and never silently saves twice."""
+        self.download("/media.wav")
+        before = self.app_download_names()
+        self.go("/media.wav")
+        deadline = time.monotonic() + 20
+        while self.find("Download again?") is None:
+            if time.monotonic() >= deadline:
+                raise AssertionError("Previously downloaded audio did not warn")
+            time.sleep(.7)
+        self.click("Cancel")
+        if self.app_download_names() != before:
+            raise AssertionError("Cancelled repeat audio modified saved files")
+        return "Actual WAV bytes saved; repeat audio warned; cancel retained one copy"
 
     def duplicate_after_restart(self):
         """Completed normal downloads must be remembered after process restart."""
@@ -651,6 +667,8 @@ class Device:
                   self.duplicate_download, prerequisites=("C24",))
         self.test("C41", "Repeat warning survives application restart",
                   self.duplicate_after_restart, prerequisites=("C40",))
+        self.test("C42", "Repeat WAV media download confirmation",
+                  self.media_duplicate, prerequisites=("C01",))
         self.test("C26", "Time Machine PDF version saved", self.time_machine,
                   prerequisites=("C01",), screenshot=True)
         self.test("C27", "Peek link long-press dismiss", self.peek,
