@@ -47,7 +47,7 @@ class SiteStudioBridge(
                 .put("origin", origin)
                 .put("css", if (rule?.cssEnabled == true) rule.css else "")
                 .put("javascript", if (rule?.javascriptEnabled == true) rule.javascript else "")
-            return GeckoResult.fromValue(response)
+            return GeckoResult.fromValue(response as Any)
         }
     }
 
