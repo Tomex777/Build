@@ -2028,8 +2028,11 @@ body.whot-mode .table-surface>.whot-opponent-hand>.card-back.card-stack{
    constant and animate opacity only. Use spacious 3+2 mobile touch targets. */
 @keyframes whotPickerFade{from{opacity:0}to{opacity:1}}
 body.whot-mode .table-surface>.whot-call-panel{
- left:50%!important;top:50%!important;
- width:min(94%,460px)!important;max-width:calc(100% - 16px)!important;
+ /* A centered viewport overlay remains reachable when the hand is below the
+    fold and Chromium restores scroll after a suspended WHOT 20 call. */
+ position:fixed!important;
+ left:50vw!important;top:50dvh!important;
+ width:min(calc(100vw - 42px),460px)!important;max-width:calc(100vw - 24px)!important;
  transform:translate(-50%,-50%)!important;
  animation:whotPickerFade .16s ease both!important;
  box-sizing:border-box;
