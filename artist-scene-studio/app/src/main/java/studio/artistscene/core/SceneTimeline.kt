@@ -17,12 +17,24 @@ internal object SceneTimelinePaths {
         propertyPath.takeIf { it.startsWith(RIG_MORPH_PREFIX) }?.removePrefix(RIG_MORPH_PREFIX)?.takeIf { it.isNotBlank() }
 }
 
-fun SceneProject.evaluateTimeline(timeSeconds: Float): SceneProject {
-    if (tracks.none { it.enabled && it.keyframes.isNotEmpty() }) return this
-    val duration = timeline.durationSeconds.coerceAtLeast(0.001f)
+/**
+ * Playback sampling wraps at the loop boundary. The editor's playhead has different semantics:
+ * scrubbing to the very last frame must show that key, not unexpectedly jump to frame zero.
+ */
+fun SceneProject.evaluateTimeline(timeSeconds: Float): SceneProject =
+    evaluateTimelineAt(timeSeconds, wrapForLoop = timeline.loop)
+
+/** Sample the exact saved/editor playhead position without applying playback loop wrapping. */
+fun SceneProject.evaluateTimelineAtPlayhead(timeSeconds: Float): SceneProject =
+    evaluateTimelineAt(timeSeconds, wrapForLoop = false)
+
+private fun SceneProject.evaluateTimelineAt(timeSeconds: Float, wrapForLoop: Boolean): SceneProject {
+    // Corrupt/legacy duration or external scrub input must never feed NaN to the renderer.
+    if (!timeSeconds.isFinite() || tracks.none { it.enabled && it.keyframes.isNotEmpty() }) return this
+    val duration = timeline.durationSeconds.takeIf { it.isFinite() && it > 0.001f } ?: 0.001f
     val time = when {
         timeSeconds <= 0f -> 0f
-        timeline.loop -> timeSeconds % duration
+        wrapForLoop -> timeSeconds % duration
         else -> timeSeconds.coerceAtMost(duration)
     }
     val activeTracks = tracks.filter { it.enabled && it.keyframes.isNotEmpty() }
@@ -60,7 +72,7 @@ fun SceneProject.evaluateTimeline(timeSeconds: Float): SceneProject {
 fun SceneProject.transformKeyTimes(actorId: String): List<Float> =
     tracks.asSequence()
         .filter {
-            it.targetActorId == actorId &&
+            it.enabled && it.targetActorId == actorId &&
                 it.propertyPath in setOf(
                     SceneTimelinePaths.POSITION,
                     SceneTimelinePaths.ROTATION,
@@ -68,6 +80,7 @@ fun SceneProject.transformKeyTimes(actorId: String): List<Float> =
                 )
         }
         .flatMap { it.keyframes.asSequence() }
+        .filter { it.timeSeconds.isFinite() && it.timeSeconds >= 0f }
         .map { it.timeSeconds }
         .distinct()
         .sorted()
@@ -76,13 +89,14 @@ fun SceneProject.transformKeyTimes(actorId: String): List<Float> =
 fun SceneProject.poseKeyTimes(actorId: String): List<Float> =
     tracks.asSequence()
         .filter {
-            it.targetActorId == actorId &&
+            it.enabled && it.targetActorId == actorId &&
                 (
                     it.propertyPath.startsWith(SceneTimelinePaths.RIG_JOINT_PREFIX) ||
                         it.propertyPath.startsWith(SceneTimelinePaths.RIG_MORPH_PREFIX)
                     )
         }
         .flatMap { it.keyframes.asSequence() }
+        .filter { it.timeSeconds.isFinite() && it.timeSeconds >= 0f }
         .map { it.timeSeconds }
         .distinct()
         .sorted()
@@ -129,7 +143,16 @@ private fun Actor.withTimelineMorph(targetId: String, weight: Float): Actor {
 }
 
 private fun AnimationTrack.sampleAt(timeSeconds: Float): AnimatedValue? {
-    val keys = keyframes.sortedBy { it.timeSeconds }
+    // All normal authoring writes sorted unique frames. Imported/legacy scenes can contain
+    // unordered, duplicated or non-finite keys: the last duplicate authored at a time wins.
+    // Reject invalid values instead of forwarding NaN transforms/weights to Filament.
+    val ordered = keyframes.asSequence()
+        .filter { it.timeSeconds.isFinite() && it.timeSeconds >= 0f && it.value.isValidFor(propertyPath) }
+        .sortedBy { it.timeSeconds }
+        .toList()
+    val keys = ordered.filterIndexed { index, key ->
+        index == ordered.lastIndex || key.timeSeconds != ordered[index + 1].timeSeconds
+    }
     if (keys.isEmpty()) return null
     if (keys.size == 1 || timeSeconds <= keys.first().timeSeconds) return keys.first().value
     if (timeSeconds >= keys.last().timeSeconds) return keys.last().value
@@ -146,6 +169,17 @@ private fun AnimationTrack.sampleAt(timeSeconds: Float): AnimatedValue? {
     }
     return interpolate(left.value, right.value, amount)
 }
+
+private fun AnimatedValue.isValidFor(path: String): Boolean = when {
+    path == SceneTimelinePaths.POSITION || path == SceneTimelinePaths.SCALE ->
+        vector?.isFinite() == true
+    path == SceneTimelinePaths.ROTATION || SceneTimelinePaths.rigJointId(path) != null ->
+        rotationEulerDegrees?.isFinite() == true
+    SceneTimelinePaths.rigMorphId(path) != null -> scalar?.isFinite() == true
+    else -> false
+}
+
+private fun Vec3.isFinite(): Boolean = x.isFinite() && y.isFinite() && z.isFinite()
 
 private fun interpolate(a: AnimatedValue, b: AnimatedValue, amount: Float): AnimatedValue =
     AnimatedValue(
