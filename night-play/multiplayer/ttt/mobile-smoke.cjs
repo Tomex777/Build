@@ -98,6 +98,7 @@ const server=http.createServer(async(req,res)=>{
   await alice.waitForFunction(()=>document.querySelectorAll('.cell')[3].textContent==='O',{timeout:11000})
   offlineUsers.add('Alice')
   await alice.locator('#message').getByText('Connection interrupted.',{exact:false}).waitFor({timeout:10000})
+  assert.equal(await alice.locator('#message').evaluate(el=>getComputedStyle(el).position),'fixed','lost connection must be visible over tall phone boards')
   await alice.screenshot({path:path.join(dir,'../../visual-output/online-ttt-disconnected-mobile.jpg')})
   assert.equal(await alice.locator('#board .cell').count(),9,'temporary network failure preserves existing board')
   offlineUsers.delete('Alice')
@@ -108,6 +109,7 @@ const server=http.createServer(async(req,res)=>{
    const geometry=await alice.evaluate(()=>({page:document.documentElement.scrollWidth,width:innerWidth}))
    assert.ok(geometry.page<=geometry.width+2,'TTT online board horizontal overflow at '+w+'px: '+JSON.stringify(geometry))
   }
+  await alice.setViewportSize({width:390,height:844})
   await alice.getByRole('button',{name:'Lobby'}).click()
   await alice.locator('.match-row').first().click()
   assert.equal(await alice.locator('.cell').first().textContent(),'X')
