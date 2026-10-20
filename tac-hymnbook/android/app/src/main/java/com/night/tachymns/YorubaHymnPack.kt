@@ -63,7 +63,7 @@ object YorubaHymnPack {
             val verses = org.json.JSONArray()
             hymn.verses.forEach { stanza ->
                 val lines = org.json.JSONArray()
-                stanza.forEach(lines::put)
+                stanza.forEach { line -> lines.put(line) }
                 verses.put(lines)
             }
             row.put("verses_yo", verses)
