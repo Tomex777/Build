@@ -25,7 +25,7 @@ const scan=(html,url)=>{
   for(const m of html.matchAll(/<img\b[^>]*>/ig)){
     const tag=m[0],context=html.slice(Math.max(0,m.index-240),Math.min(html.length,m.index+tag.length+240));
     for(const k of ['src','data-src','data-original','data-lazy-src','srcset']){
-      const rx=new RegExp('(?:^|\\s)'+k+'\\s*=\\s*["\\']([^"\\']+)["\\']','i');
+      const rx=new RegExp("(?:^|\\s)"+k+"\\s*=\\s*[\\x22\\x27]([^\\x22\\x27]+)[\\x22\\x27]","i");
       const v=tag.match(rx)?.[1];
       if(v)for(const src of (k==='srcset'?v.split(',').map(x=>x.trim().split(/\s+/)[0]):[v]))add(src,context,'img:'+k);
     }
