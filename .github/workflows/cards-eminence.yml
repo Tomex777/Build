@@ -5,6 +5,8 @@ on:
     paths:
       - 'cards/catalog/eminence*'
       - 'cards/bin/eminence-*'
+      - 'cards/bin/seed-eminence.mjs'
+      - 'cards/src/**'
       - 'cards/tests/eminence*'
       - '.github/workflows/cards-eminence.yml'
   workflow_dispatch:
