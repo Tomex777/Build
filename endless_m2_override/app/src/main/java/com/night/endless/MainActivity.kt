@@ -613,7 +613,7 @@ private fun EndlessApp(
                                         ControlButton("Descend to surface", icon = R.drawable.ic_endless_approach, active = true) {
                                             glView?.endlessRenderer?.descendSelected()
                                         }
-                                        ControlButton("Pull back", icon = R.drawable.ic_endless_retreat, icon = R.drawable.ic_endless_retreat) {
+                                        ControlButton("Pull back", icon = R.drawable.ic_endless_retreat) {
                                             glView?.endlessRenderer?.pullBackSelected()
                                         }
                                     }
@@ -623,12 +623,12 @@ private fun EndlessApp(
                                                 infoVisible = false
                                             }
                                         }
-                                        ControlButton("Pull back", icon = R.drawable.ic_endless_retreat, icon = R.drawable.ic_endless_retreat) {
+                                        ControlButton("Pull back", icon = R.drawable.ic_endless_retreat) {
                                             glView?.endlessRenderer?.pullBackSelected()
                                         }
                                     }
                                     else -> {
-                                        ControlButton("Pull back", icon = R.drawable.ic_endless_retreat, icon = R.drawable.ic_endless_retreat) {
+                                        ControlButton("Pull back", icon = R.drawable.ic_endless_retreat) {
                                             glView?.endlessRenderer?.pullBackSelected()
                                         }
                                     }
@@ -645,7 +645,7 @@ private fun EndlessApp(
                                         ControlButton("Enter low orbit", icon = R.drawable.ic_endless_approach, active = true) {
                                             glView?.endlessRenderer?.descendSelected()
                                         }
-                                        ControlButton("Pull back", icon = R.drawable.ic_endless_retreat, icon = R.drawable.ic_endless_retreat) {
+                                        ControlButton("Pull back", icon = R.drawable.ic_endless_retreat) {
                                             glView?.endlessRenderer?.pullBackSelected()
                                         }
                                     }
@@ -653,7 +653,7 @@ private fun EndlessApp(
                                         ControlButton("Surface skim", icon = R.drawable.ic_endless_approach, active = true) {
                                             glView?.endlessRenderer?.descendSelected()
                                         }
-                                        ControlButton("Pull back", icon = R.drawable.ic_endless_retreat, icon = R.drawable.ic_endless_retreat) {
+                                        ControlButton("Pull back", icon = R.drawable.ic_endless_retreat) {
                                             glView?.endlessRenderer?.pullBackSelected()
                                         }
                                     }
@@ -663,12 +663,12 @@ private fun EndlessApp(
                                                 infoVisible = false
                                             }
                                         }
-                                        ControlButton("Pull back", icon = R.drawable.ic_endless_retreat, icon = R.drawable.ic_endless_retreat) {
+                                        ControlButton("Pull back", icon = R.drawable.ic_endless_retreat) {
                                             glView?.endlessRenderer?.pullBackSelected()
                                         }
                                     }
                                     else -> {
-                                        ControlButton("Pull back", icon = R.drawable.ic_endless_retreat, icon = R.drawable.ic_endless_retreat) {
+                                        ControlButton("Pull back", icon = R.drawable.ic_endless_retreat) {
                                             glView?.endlessRenderer?.pullBackSelected()
                                         }
                                     }
@@ -685,12 +685,12 @@ private fun EndlessApp(
                                         ControlButton("Cloud tops", icon = R.drawable.ic_endless_approach, active = true) {
                                             glView?.endlessRenderer?.descendSelected()
                                         }
-                                        ControlButton("Pull back", icon = R.drawable.ic_endless_retreat, icon = R.drawable.ic_endless_retreat) {
+                                        ControlButton("Pull back", icon = R.drawable.ic_endless_retreat) {
                                             glView?.endlessRenderer?.pullBackSelected()
                                         }
                                     }
                                     else -> {
-                                        ControlButton("Pull back", icon = R.drawable.ic_endless_retreat, icon = R.drawable.ic_endless_retreat) {
+                                        ControlButton("Pull back", icon = R.drawable.ic_endless_retreat) {
                                             glView?.endlessRenderer?.pullBackSelected()
                                         }
                                     }
