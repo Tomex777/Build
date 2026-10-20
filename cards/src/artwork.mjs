@@ -21,7 +21,7 @@ export async function acquireArtwork(card,{fetchImpl=fetch}={}) {
   }
   if(digest(bytes)!==s.sha256)throw Error('Artwork checksum mismatch');
   const metadata=await sharp(bytes,{limitInputPixels:30e6}).metadata();
-  if(!['png','jpeg','webp'].includes(metadata.format)||metadata.width!==s.width||metadata.height!==s.height||s.width<500||s.height<900||(!metadata.hasAlpha&&!card.recipe.sourceMatte))throw Error('Artwork resolution, transparency or format failed');
+  if(!['png','jpeg','webp'].includes(metadata.format)||metadata.width!==s.width||metadata.height!==s.height||s.width<500||s.height<(card.universe==='eminence'&&s.provider==='master-of-garden-official-sp'&&s.width>=768?800:900)||(!metadata.hasAlpha&&!card.recipe.sourceMatte))throw Error('Artwork resolution, transparency or format failed');
   const [left,top,width,height]=card.recipe.crop;
   const {data,info}=await sharp(bytes).extract({left,top,width,height}).ensureAlpha().raw().toBuffer({resolveWithObject:true});
   // Opaque official posters retain their original bytes/RGB. An explicit,
