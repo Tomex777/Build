@@ -57,7 +57,13 @@ class JourneyVisitTracker(
         }
 
         val parent = nodeId
-        val created = saveVisit(safe, title, parent) ?: return null
+        val created = saveVisit(safe, title, parent) ?: run {
+            // Privacy pause or a removed Journey: do not later attach new
+            // visits to a page that was traversed without recording.
+            trail.clear()
+            index = -1
+            return null
+        }
         // When Back was used, forward history becomes a separate, still-saved branch.
         if (index < trail.lastIndex) trail.subList(index + 1, trail.size).clear()
         trail.add(created)
