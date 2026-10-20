@@ -38,7 +38,12 @@ function handle(action,user,args){
   const side=match.x===user?'X':'O'
   if(match.turn!==side||match.board[args.cell]!=='.')return {error:'Not your turn.',status:409}
   match.board=match.board.slice(0,args.cell)+side+match.board.slice(args.cell+1)
-  match.turn=side==='X'?'O':'X';match.version++
+  const wins=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]]
+  if(wins.some(line=>line.every(cell=>match.board[cell]===side))){
+   match.status='finished';match.winner=side
+  }else if(!match.board.includes('.')){match.status='finished';match.winner='D'}
+  else match.turn=side==='X'?'O':'X'
+  match.version++
   return room(user,match)
  }
  return {error:'Unknown action',status:400}
@@ -113,7 +118,22 @@ const server=http.createServer(async(req,res)=>{
   await alice.getByRole('button',{name:'Lobby'}).click()
   await alice.locator('.match-row').first().click()
   assert.equal(await alice.locator('.cell').first().textContent(),'X')
+  // Play a complete legal remote match: X wins the first row after alternating
+  // turns; both clients must receive a terminal result and blocked board.
+  await alice.getByRole('button',{name:'Square 2, empty'}).click()
+  await bob.waitForFunction(()=>document.querySelectorAll('.cell')[1].textContent==='X',{timeout:11000})
+  await bob.getByRole('button',{name:'Square 5, empty'}).click()
+  await alice.waitForFunction(()=>document.querySelectorAll('.cell')[4].textContent==='O',{timeout:11000})
+  await alice.getByRole('button',{name:'Square 3, empty'}).click()
+  await alice.getByText('You won!',{exact:true}).waitFor({timeout:11000})
+  await bob.getByText('Game over',{exact:true}).waitFor({timeout:11000})
+  assert.equal(await alice.locator('#board .cell:not([disabled])').count(),0,'winning board is not clickable')
+  assert.equal(await bob.locator('#board .cell:not([disabled])').count(),0,'losing board is not clickable')
   fs.mkdirSync(path.join(dir,'../../visual-output'),{recursive:true})
+  await alice.screenshot({path:path.join(dir,'../../visual-output/online-ttt-win-mobile.jpg')})
+  await alice.getByRole('button',{name:'New match'}).click()
+  await alice.locator('#waitingPanel').waitFor({state:'visible'})
+  assert.equal(await alice.locator('#room').isVisible(),false,'new match waits for a genuine second player')
   await alice.screenshot({path:path.join(dir,'../../visual-output/online-ttt-mobile.jpg')})
   const [c,cara]=await getPage('Cara')
   const [d,dan]=await getPage('Dan')
@@ -124,6 +144,6 @@ const server=http.createServer(async(req,res)=>{
   await dan.getByText('Opponent',{exact:true}).waitFor()
   await cara.waitForFunction(()=>document.getElementById('opponent').textContent==='Dan'&&!document.getElementById('room').hidden,{timeout:11000})
   for(const ctx of [a,b,c,d])await ctx.close()
-  console.log('PASS NIGHT Play online TTT: independent clients exchange remote moves; disconnect/reconnect, resume, random matchmaking, and 5 viewport checks')
+  console.log('PASS NIGHT Play online TTT: two-client legal moves and full win/loss, replay waits for another player, outage/reconnect, resume, random matchmaking, and viewport checks')
  }finally{await browser.close();server.closeAllConnections();await new Promise(resolve=>server.close(resolve))}
 })().catch(error=>{console.error(error);server.closeAllConnections();server.close();process.exitCode=1})
