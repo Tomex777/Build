@@ -41,7 +41,7 @@ jobs:
       - run: npm ci
       - name: Regression tests, including existing BLEACH renderer catalogue
         run: npm test
-      - name: Validate verified 23-edition roster and unacquired art gate
+      - name: Validate 82 research candidates and strict art acquisition gate
         run: node bin/manhwa.mjs audit
       - name: Ensure missing art never produces fake cards
         run: |
