@@ -33,6 +33,7 @@ on:
       - ".ci/slumber_113_song_scores/**"
       - ".ci/slumber_114_long_holds/**"
       - ".ci/slumber_115_hold_regression/**"
+      - ".ci/slumber_116_long_hold_stability/**"
   pull_request:
     branches: ["slumber-087-build"]
     paths:
@@ -65,6 +66,7 @@ on:
       - ".ci/slumber_113_song_scores/**"
       - ".ci/slumber_114_long_holds/**"
       - ".ci/slumber_115_hold_regression/**"
+      - ".ci/slumber_116_long_hold_stability/**"
 
 permissions:
   actions: read
@@ -386,6 +388,14 @@ jobs:
           set -euo pipefail
           echo '62f4b9393a6a9b0210acb650d63f8f86c1f36b65e5103660fb750aba7fedb319  .ci/slumber_115_hold_regression/hold-catalog-test.patch' | sha256sum -c -
           patch --fuzz=0 -d /tmp/slumber-088 -p1 < .ci/slumber_115_hold_regression/hold-catalog-test.patch
+
+      - name: Stabilize extended hold-tail visuals and song changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          patch --fuzz=0 -d /tmp/slumber-088 -p1 < .ci/slumber_116_long_hold_stability/hold-visual-and-song-state.patch
+          grep -q 'SlumberTilesChart.heldBounds' /tmp/slumber-088/app/src/main/java/com/night/pianohub/ui/components/SlumberTilesField.kt
+          grep -q 'var started by remember(song.id)' /tmp/slumber-088/app/src/main/java/com/night/pianohub/ui/screens/PlayScreen.kt
 
       - uses: actions/setup-java@v4
         with:
