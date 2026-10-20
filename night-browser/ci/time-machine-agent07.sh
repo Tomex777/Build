@@ -21,22 +21,35 @@ dump_ui() {
 }
 tap_ui() {
   local label="$1"
-  dump_ui
-  local xy
-  xy=$(python3 - "$OUT/ui.xml" "$label" <<'PY'
+  local xy=""
+  # Gecko/Compose startup after process restart and PDF-viewer return is
+  # asynchronous. Poll visible *NIGHT-owned* nodes before declaring a failure.
+  for _ in $(seq 1 12); do
+    dump_ui
+    xy=$(python3 - "$OUT/ui.xml" "$label" "$PKG" <<'PY'
 import re,sys,xml.etree.ElementTree as ET
 root=ET.parse(sys.argv[1]).getroot()
 for node in root.iter('node'):
+    if node.get('package') != sys.argv[3]:
+        continue
     if node.get('content-desc') == sys.argv[2] or node.get('text') == sys.argv[2]:
         b=list(map(int,re.findall(r'\d+',node.get('bounds',''))))
-        if len(b)==4:
+        if len(b)==4 and b[2]>b[0] and b[3]>b[1]:
             print((b[0]+b[2])//2, (b[1]+b[3])//2)
             break
 PY
 )
+    [ -n "$xy" ] && break
+    sleep 1
+  done
   if [ -z "$xy" ]; then
-    echo "UI target absent: $label" >&2
+    echo "NIGHT UI target absent after 12 UI polls: $label" >&2
     cp "$OUT/ui.xml" "$OUT/absent-$(echo "$label" | tr ' ' '-').xml"
+    adb shell dumpsys activity activities > "$OUT/activity-when-$(
+      echo "$label" | tr ' ' '-').txt" || true
+    adb shell screencap -p /sdcard/night-agent7-failure.png || true
+    adb pull /sdcard/night-agent7-failure.png "$OUT/absent-$(
+      echo "$label" | tr ' ' '-').png" >/dev/null 2>&1 || true
     return 1
   fi
   adb shell input tap $xy
@@ -114,8 +127,11 @@ shot "04-open-copy-offline"
 adb shell input keyevent KEYCODE_BACK || true
 sleep 2
 adb shell am force-stop "$PKG"
-adb shell am start -n "$PKG/.MainActivity"
-sleep 7
+# Explicitly foreground NIGHT after the external PDF viewer was opened; an
+# existing third-party viewer must not be mistaken for a missing browser menu.
+adb shell input keyevent KEYCODE_HOME
+adb shell am start -W -n "$PKG/.MainActivity"
+sleep 4
 tap_ui 'More'
 tap_ui 'Time Machine'
 shot "05-after-restart"
@@ -133,8 +149,11 @@ shot "06-after-delete"
 delete_all_test_pdfs
 test "$(pdf_count)" -eq 0
 adb shell am force-stop "$PKG"
-adb shell am start -n "$PKG/.MainActivity"
-sleep 7
+# Explicitly foreground NIGHT after the external PDF viewer was opened; an
+# existing third-party viewer must not be mistaken for a missing browser menu.
+adb shell input keyevent KEYCODE_HOME
+adb shell am start -W -n "$PKG/.MainActivity"
+sleep 4
 tap_ui 'More'
 tap_ui 'Time Machine'
 shot "07-missing-file"
