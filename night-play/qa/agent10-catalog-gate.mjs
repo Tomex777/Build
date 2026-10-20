@@ -151,7 +151,7 @@ async function interaction(page, item, touch) {
   return 'NOT_TESTED: no safe game-specific full-round probe yet';
 }
 try {
-  browser = await chromium.launch({headless:true,args:['--no-sandbox']});
+  browser = await chromium.launch({headless:true,channel:process.env.NIGHT_TEST_CHROME_CHANNEL||'chrome',args:['--no-sandbox']});
   report.browser=browser.version();
   const inventoryPage=await browser.newPage({viewport:{width:390,height:844},isMobile:true,hasTouch:true});
   const home=await inventoryPage.goto(base+'/games',{waitUntil:'domcontentloaded'});
