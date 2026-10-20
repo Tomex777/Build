@@ -6,12 +6,13 @@ const board=$("board"),controls=$("controls"),status=$("status"),help=$("help"),
 const KEY="night-play-club-v1";
 const state={};let active="checkers",timer=null,drawCtx=null;
 let cardMotionBusy=false,cardMotionEpoch=0,pendingWhotDeal=false;
+let checkerMotionBusy=false,checkerMotionEpoch=0,checkerCpuTimer=null;
 // Speed is intentionally unified: interaction should feel immediate,
 // while cards still lift, glide, land and settle.
 const whotMotion={
- player:235,cpu:255,draw:245,cpuDelay:105,
- deal:260,dealDelay:35,dealStagger:36,opponentDeal:260,
- settle:105,recenter:170,drawFlip:290
+ player:175,cpu:185,draw:185,cpuDelay:95,
+ deal:220,dealDelay:15,dealStagger:20,opponentDeal:210,
+ settle:85,recenter:125,drawFlip:195
 };
 const cardMotionMetrics={deals:0,plays:0,cpuPlays:0,draws:0,activeFlights:0,lastFlightDuration:0,lastFlightAction:null};
 const motionEnabled=()=>!matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -38,7 +39,7 @@ function controlsHTML(markup){if(controls.innerHTML!==markup)controls.innerHTML=
 function rules(title,desc){const markup="<h3>"+title+"</h3><p>"+desc+"</p>";if(help.innerHTML!==markup)help.innerHTML=markup;}
 function scoreList(players,getScore){return '<div class="score-list">'+players.map((p,i)=>'<div class="score-row"><span><b style="color:'+h(p.color)+'">●</b> '+h(p.name)+'</span><b>'+h(getScore(p,i))+'</b></div>').join("")+"</div>";}
 function choosePlayers(id,selected,max){return '<label class="small">Players (local, sharing one phone)</label><select class="select" data-players="'+id+'">'+[2,3,4].filter(n=>n<=max).map(n=>'<option value="'+n+'"'+(n===selected?" selected":"")+'>'+n+' players</option>').join("")+"</select>";}
-function pick(id){if(!titles[id])id="checkers";cardMotionEpoch++;cardMotionBusy=false;active=id;if(id==="ludo")window.NightLudo3D?.warmup();document.body.classList.toggle("ludo-mode",id==="ludo");document.body.classList.toggle("checkers-mode",id==="checkers");document.body.classList.toggle("whot-mode",id==="whot");$("whotNewRoundMenu").hidden=id!=="whot";$("whotModeBadge").hidden=id!=="whot";$("ludoTopbar").hidden=id!=="ludo";$("ludoHud").hidden=id!=="ludo";if(id!=="ludo")closeLudoSettings();const d=titles[id];document.title=d[0]+" · NIGHT Play";if($("settingsDialog").open)$("settingsDialog").close();$("gameTitle").textContent=d[0];$("gameSubtitle").textContent=d[1];$("gameCategory").textContent=d[2];[...picks.querySelectorAll("button")].forEach(x=>x.setAttribute("aria-current",String(x.dataset.pick===id)));const url=new URL(location.href);url.searchParams.set("game",id);history.replaceState(null,"",url.pathname+url.search);window.NightLudo.cancel();if(id==="ludo"&&state.ludo)state.ludo=window.NightLudo.resume(state.ludo);if(!state[id])reset(id);else render();whotConfigUI();}
+function pick(id){if(!titles[id])id="checkers";cardMotionEpoch++;cardMotionBusy=false;checkerMotionEpoch++;checkerMotionBusy=false;clearTimeout(checkerCpuTimer);checkerCpuTimer=null;active=id;if(id==="ludo")window.NightLudo3D?.warmup();document.body.classList.toggle("ludo-mode",id==="ludo");document.body.classList.toggle("checkers-mode",id==="checkers");document.body.classList.toggle("whot-mode",id==="whot");$("whotNewRoundMenu").hidden=id!=="whot";$("whotModeBadge").hidden=id!=="whot";$("ludoTopbar").hidden=id!=="ludo";$("ludoHud").hidden=id!=="ludo";if(id!=="ludo")closeLudoSettings();const d=titles[id];document.title=d[0]+" · NIGHT Play";if($("settingsDialog").open)$("settingsDialog").close();$("gameTitle").textContent=d[0];$("gameSubtitle").textContent=d[1];$("gameCategory").textContent=d[2];[...picks.querySelectorAll("button")].forEach(x=>x.setAttribute("aria-current",String(x.dataset.pick===id)));const url=new URL(location.href);url.searchParams.set("game",id);history.replaceState(null,"",url.pathname+url.search);window.NightLudo.cancel();if(id==="ludo"&&state.ludo)state.ludo=window.NightLudo.resume(state.ludo);if(!state[id])reset(id);else render();whotConfigUI();if(id==='checkers'&&state.checkers?.mode==='computer'&&state.checkers.turn==='b')queueCheckerCPU();}
 function reset(id){
 if(id==="ludo"){window.NightLudo.cancel();state.ludo=window.NightLudo.create();}
 if(id==="estate"){state.estate={players:["red","blue"].map(k=>({name:k[0].toUpperCase()+k.slice(1),color:colors[k],cash:1500,pos:0,bankrupt:false})),owners:{},upgrades:{},turn:0,rolled:false,last:0,pending:null,rounds:0,winner:null,msg:"Roll the dice to start buying properties.",inspect:0};}
@@ -46,7 +47,7 @@ if(id==="whot"){state.whot=newShapes();pendingWhotDeal=true;cardMotionEpoch++;ca
 if(id==="colors"){state.colors=newColors();}
 if(id==="draw"){state.draw={players:["Player 1","Player 2"],drawer:0,word:null,mode:"ready",points:[0,0],round:1,seconds:60,log:[]};}
 if(id==="snakes"){state.snakes={players:[{name:"Red",color:colors.red,pos:1},{name:"Blue",color:colors.blue,pos:1}],turn:0,last:0,msg:"Roll to start climbing.",winner:null};}
-if(id==="checkers"){const cells=Array(64).fill(null);for(let r=0;r<8;r++)for(let c=0;c<8;c++)if((r+c)%2===1){if(r<3)cells[r*8+c]="b";if(r>4)cells[r*8+c]="w";}state.checkers={cells,turn:"w",selected:null,forced:null,winner:null,msg:"White moves first."};}
+if(id==="checkers"){checkerMotionEpoch++;checkerMotionBusy=false;clearTimeout(checkerCpuTimer);checkerCpuTimer=null;const mode=state.checkers?.mode==='computer'?'computer':'local';const cells=Array(64).fill(null);for(let r=0;r<8;r++)for(let c=0;c<8;c++)if((r+c)%2===1){if(r<3)cells[r*8+c]="b";if(r>4)cells[r*8+c]="w";}state.checkers={cells,turn:"w",selected:null,forced:null,winner:null,mode,msg:"White moves first."};}
 save();render();
 }
 function render(){if(timer){clearInterval(timer);timer=null;}if(active==="ludo")renderLudo();if(active==="estate")renderEstate();if(active==="whot"){renderCards("whot");$("whotModeBadge").textContent=whotOptions.mode==="career"?whotRank().name.toUpperCase():whotOptions.mode==="tournament"?"TOURNAMENT":"VS CPU";}if(active==="colors")renderCards("colors");if(active==="draw")renderDraw();if(active==="snakes")renderSnakes();if(active==="checkers")renderCheckers();save();}
@@ -759,14 +760,14 @@ function renderCheckers(){
  const valid=s.selected===null?[]:options.filter(m=>m.from===s.selected).map(m=>m.to);
  const whites=s.cells.filter(x=>x&&x.toLowerCase()==="w").length,blacks=s.cells.filter(x=>x&&x.toLowerCase()==="b").length;
  const label=s.winner!==null?(s.winner==="w"?"White wins":"Black wins"):(s.turn==="w"?"White to play":"Black to play");
- let html='<div class="checker-stage"><div class="checker-scoreline"><div class="checker-seat white-seat'+(s.turn==="w"&&s.winner===null?" active":"")+'"><span class="checker-seat-token"></span><span><b>WHITE</b><small>'+whites+' pieces left</small></span></div><div class="checker-game-call"><span class="checker-match-tag">LOCAL · 2 PLAYERS</span><strong>'+label+'</strong></div><div class="checker-seat black-seat'+(s.turn==="b"&&s.winner===null?" active":"")+'"><span class="checker-seat-token"></span><span><b>BLACK</b><small>'+blacks+' pieces left</small></span></div></div><div class="checker-frame"><div class="checkerboard" role="group" aria-label="Eight by eight draughts board">';
+ let html='<div class="checker-stage"><div class="checker-scoreline"><div class="checker-seat white-seat'+(s.turn==="w"&&s.winner===null?" active":"")+'"><span class="checker-seat-token"></span><span><b>WHITE</b><small>'+whites+' pieces left</small></span></div><div class="checker-game-call"><span class="checker-match-tag">'+(s.mode==='computer'?'VS COMPUTER':'LOCAL · 2 PLAYERS')+'</span><strong>'+label+'</strong></div><div class="checker-seat black-seat'+(s.turn==="b"&&s.winner===null?" active":"")+'"><span class="checker-seat-token"></span><span><b>BLACK</b><small>'+blacks+' pieces left</small></span></div></div><div class="checker-frame"><div class="checkerboard" role="group" aria-label="Eight by eight draughts board">';
  for(let i=0;i<64;i++){
   const dark=(Math.floor(i/8)+i%8)%2===1,p=s.cells[i],from=legalFrom.has(i)&&s.selected===null;
   const isTarget=valid.includes(i),isKing=Boolean(p&&p!==p.toLowerCase());
   const piece=p?'<span class="checker-piece '+(p.toLowerCase()==="w"?"white":"black")+(s.selected===i?" selected":"")+(isKing?" king":"")+'">'+(isKing?'<svg class="checker-crown" viewBox="0 0 40 40" aria-hidden="true"><path d="M7 27 4 11l11 9 5-13 6 13 11-9-4 16ZM8 31h24v4H8z"/></svg>':"")+'</span>':"";
   html+='<button type="button" data-checker="'+i+'" class="checker-square '+(dark?"dark":"light")+(isTarget?" target":"")+(from?" movable":"")+(s.selected===i?" origin":"")+'" aria-label="'+(p?(p.toLowerCase()==="w"?"White":"Black")+(isKing?" king":" piece"):"Empty")+' row '+(Math.floor(i/8)+1)+' column '+(i%8+1)+'"'+(!dark?' tabindex="-1"':'')+'>'+piece+'</button>';
  }
- const markup=html+'</div></div><p class="checker-instruction">Tap your piece, then choose a glowing square <span>•</span> Captures are mandatory</p></div>';
+ const markup=html+'</div></div><p class="checker-instruction">Tap your piece, then choose a glowing square <span>•</span> Captures are mandatory</p><button type="button" class="checker-mode-toggle" data-checker-mode="'+(s.mode==='computer'?'local':'computer')+'">'+(s.mode==='computer'?'Switch to 2 players':'Play against computer')+'</button></div>';
  const mounted=board.querySelector(".checker-stage"),oldCells=mounted?.querySelectorAll("[data-checker]");
  if(oldCells?.length===64){
   // Do not destroy/recreate the 64 counters whenever a player selects a square.
@@ -785,16 +786,107 @@ function renderCheckers(){
  }else board.innerHTML=markup;
  setStatus(s.winner!==null?label+"!":label+". "+s.msg);
  controlsHTML('<div class="checker-sidebar-head"><span class="badge">WHITE '+whites+'</span><span class="badge">BLACK '+blacks+'</span></div>');
- rules("Draughts rules","<b>Captures are mandatory.</b> Move diagonally on dark squares; jump an opponent's piece to capture it. When a capture is available, other moves are disabled. Continue a capture chain with the same piece. Reach the opposite edge to crown a king. If the opponent has no moves, you win.");
+ rules("Draughts rules","<b>Captures are mandatory.</b> Move diagonally on dark squares; jump an opponent's piece to capture it. When a capture is available, other moves are disabled. Continue a capture chain with the same piece. Reach the opposite edge to crown a king. If the opponent has no moves, you win. Computer matches use black; two-player matches remain local on one device.");
 }
-function checkerClick(at){const s=state.checkers;if(s.winner!==null)return;const legal=allCheckerMoves(s);
-if(s.selected!==null){const move=legal.find(m=>m.from===s.selected&&m.to===at);if(move){const piece=s.cells[move.from];s.cells[move.from]=null;s.cells[move.to]=piece;if(move.capture!==null)s.cells[move.capture]=null;
-const row=Math.floor(move.to/8);if(row===0&&piece==="w")s.cells[move.to]="W";if(row===7&&piece==="b")s.cells[move.to]="B";
-if(move.capture!==null&&s.cells[move.to]===piece){const follow=checkerOptions(s,move.to,true).filter(m=>m.capture!==null);if(follow.length){s.forced=move.to;s.selected=move.to;s.msg="Capture again with the same piece.";render();return;}}
-s.selected=null;s.forced=null;s.turn=s.turn==="w"?"b":"w";s.msg=move.capture!==null?"Captured!":"Piece moved.";if(!allCheckerMoves(s).length)s.winner=s.turn==="w"?"b":"w";render();return;}}
-if(s.forced!==null)return;
-if(s.cells[at]&&s.cells[at].toLowerCase()===s.turn&&legal.some(m=>m.from===at)){s.selected=at;s.msg="Choose a highlighted destination.";render();}}
- 
+// Animate an actual moving disc in a compositor-only layer, while preserving
+// the mounted board until the flight lands. Rapid taps and branch switches
+// cannot commit a stale move.
+async function checkerFlight(move,epoch){
+ if(!motionEnabled()||typeof document.createElement!=='function')return;
+ const from=board.querySelector('[data-checker="'+move.from+'"] .checker-piece');
+ const to=board.querySelector('[data-checker="'+move.to+'"]');
+ if(!from||!to)return;
+ const a=from.getBoundingClientRect(),b=to.getBoundingClientRect();
+ const ghost=from.cloneNode(true);ghost.classList.add('checker-flying');
+ Object.assign(ghost.style,{position:'fixed',left:a.left+'px',top:a.top+'px',width:a.width+'px',height:a.height+'px',margin:'0',pointerEvents:'none',zIndex:'1000'});
+ document.body.appendChild(ghost);
+ from.style.visibility='hidden';
+ try{
+  const dx=b.left+b.width/2-a.left-a.width/2,dy=b.top+b.height/2-a.top-a.height/2;
+  const flight=ghost.animate([{transform:'translate3d(0,0,0)'},{offset:.6,transform:'translate3d('+(dx*.6)+'px,'+(dy*.6-5)+'px,0)'},{transform:'translate3d('+dx+'px,'+dy+'px,0)'}],
+   {duration:275,easing:'cubic-bezier(.22,.77,.25,1)',fill:'forwards'});
+  await flight.finished.catch(()=>{});
+ }finally{
+  from.style.visibility='';
+  ghost.remove();
+ }
+}
+function checkerCpuChoose(s){
+ const legal=allCheckerMoves(s);
+ if(!legal.length)return null;
+ // Preserve material, prioritize consecutive captures and safe promotions.
+ // Simulate replies on a copy; never mutate the real match for evaluation.
+ return legal.map(m=>{
+  const next={...s,cells:s.cells.slice(),turn:'w',forced:null};
+  const piece=next.cells[m.from];next.cells[m.from]=null;next.cells[m.to]=piece;
+  if(m.capture!==null)next.cells[m.capture]=null;
+  const row=Math.floor(m.to/8),promoted=piece==='b'&&row===7;
+  if(promoted)next.cells[m.to]='B';
+  const enemyReplies=allCheckerMoves(next);
+  const threatened=enemyReplies.some(r=>r.capture===m.to);
+  const covers=next.cells.reduce((n,p,i)=>n+(p?.toLowerCase()==='b'&&i!==m.to?checkerOptions(next,i,true).filter(x=>x.capture!==null).length:0),0);
+  return {m,score:(m.capture!==null?20:0)+(promoted?16:0)-(threatened?25:0)+covers*2+
+   (piece==='b'?row:3)*.28+(3.5-Math.abs(m.to%8-3.5))*.15+Math.random()*.05};
+ }).sort((a,b)=>b.score-a.score)[0].m;
+}
+async function checkerApply(move){
+ const s=state.checkers,epoch=checkerMotionEpoch;
+ if(checkerMotionBusy||!s||s.winner!==null||!allCheckerMoves(s).some(m=>m.from===move.from&&m.to===move.to))return;
+ checkerMotionBusy=true;
+ try{
+  await checkerFlight(move,epoch);
+  if(epoch!==checkerMotionEpoch||active!=='checkers'||state.checkers!==s)return;
+  const piece=s.cells[move.from];
+  s.cells[move.from]=null;s.cells[move.to]=piece;
+  if(move.capture!==null)s.cells[move.capture]=null;
+  const row=Math.floor(move.to/8),promoted=(row===0&&piece==='w')||(row===7&&piece==='b');
+  if(promoted)s.cells[move.to]=piece.toUpperCase();
+  // English draughts rules: crowning ends the move, even after a capture.
+  if(move.capture!==null&&!promoted){
+   const follow=checkerOptions(s,move.to,true).filter(m=>m.capture!==null);
+   if(follow.length){
+    s.forced=move.to;s.selected=s.turn==='w'?move.to:null;
+    s.msg='Capture again with the same piece.';
+    render();
+    return;
+   }
+  }
+  s.selected=null;s.forced=null;s.turn=s.turn==='w'?'b':'w';
+  s.msg=move.capture!==null?'Captured!':'Piece moved.';
+  if(!allCheckerMoves(s).length)s.winner=s.turn==='w'?'b':'w';
+  render();
+ }finally{
+  if(epoch===checkerMotionEpoch){
+   checkerMotionBusy=false;
+   if(s.mode==='computer'&&s.turn==='b'&&s.winner===null)queueCheckerCPU();
+  }
+ }
+}
+function queueCheckerCPU(){
+ const s=state.checkers,epoch=checkerMotionEpoch;
+ if(!s||active!=='checkers'||s.mode!=='computer'||s.turn!=='b'||s.winner!==null||checkerCpuTimer!==null||checkerMotionBusy)return;
+ checkerCpuTimer=setTimeout(()=>{
+  checkerCpuTimer=null;
+  if(epoch!==checkerMotionEpoch||active!=='checkers'||s!==state.checkers||s.turn!=='b')return;
+  const move=checkerCpuChoose(s);
+  if(!move){s.winner='w';render();return}
+  checkerApply(move);
+ },210);
+}
+function checkerClick(at){
+ const s=state.checkers;
+ if(!s||s.winner!==null||checkerMotionBusy||(s.mode==='computer'&&s.turn==='b'))return;
+ const legal=allCheckerMoves(s);
+ if(s.selected!==null){
+  const move=legal.find(m=>m.from===s.selected&&m.to===at);
+  if(move){checkerApply(move);return}
+ }
+ if(s.forced!==null)return;
+ if(s.cells[at]&&s.cells[at].toLowerCase()===s.turn&&legal.some(m=>m.from===at)){
+  s.selected=at;s.msg='Choose a highlighted destination.';render();
+ }
+}
+
 /* Draw & Guess: one phone, one artist, friendly spoken guesses. */
 const words=["football","umbrella","elephant","jollof rice","airplane","bicycle","lion","pineapple","school bag","microphone","volcano","ice cream","traffic light","watermelon","motorbike","headphones","telephone","palm tree","basketball","sunflower","crocodile","laptop","octopus","birthday cake","rainbow","rocket","guitar","market","football boot","computer","mountain","butterfly","camera","book","candle","shark","raincoat","sunglasses","spider","banana"];
 let paintColor="#202f2c",painting=false,lastPoint=null,brushWidth=7;
@@ -829,7 +921,7 @@ function drawReadyToGuess(){
 function drawNext(){const s=state.draw;s.mode="ready";s.word=null;s.drawer=1-s.drawer;s.round++;render();}
 function setBrush(color){paintColor=color;brushWidth=color==="#ffffff"?24:7;}
 document.addEventListener("submit",e=>{if(e.target.id!=="guessForm")return;e.preventDefault();const s=state.draw;if(s.mode!=="guessing")return;const input=$("guessWord");const guess=input.value.toLowerCase().trim().replace(/[^a-z0-9 ]/g,"");const answer=(s.word||"").toLowerCase().trim().replace(/[^a-z0-9 ]/g,"");if(!guess)return;if(guess===answer){s.points[1-s.drawer]++;const who=s.players[1-s.drawer];s.mode="ready";s.drawer=1-s.drawer;s.round++;alert("Correct! "+who+" gets a point. The word was "+s.word+".");s.word=null;render();return;}if($("guessLog"))$("guessLog").insertAdjacentHTML("afterbegin","<li>Not quite: "+h(guess)+"</li>");input.value="";});
-document.addEventListener("click",e=>{const tile=e.target.closest("[data-checker]");if(tile&&active==="checkers")checkerClick(Number(tile.dataset.checker));});
+document.addEventListener("click",e=>{const mode=e.target.closest("[data-checker-mode]");if(mode&&active==="checkers"){const selected=mode.dataset.checkerMode;if(selected!=='computer'&&selected!=='local')return;state.checkers.mode=selected;reset('checkers');return;}const tile=e.target.closest("[data-checker]");if(tile&&active==="checkers")checkerClick(Number(tile.dataset.checker));});
 
 load();picks.addEventListener("click",e=>{const btn=e.target.closest("[data-pick]");if(btn)pick(btn.dataset.pick);});
 $("settingsButton").addEventListener("click",()=>{whotConfigUI();$("settingsDialog").showModal()});
