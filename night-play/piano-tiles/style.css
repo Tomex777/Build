@@ -35,11 +35,23 @@ main{max-width:760px;margin:0 auto;padding:8px 12px 36px;text-align:center}
 @media(max-height:670px){.night-game-intro p{display:none}.night-game-intro{padding:2px 0 4px}main{padding-top:3px}.night-play-hud{margin-bottom:5px}}
 @media(prefers-reduced-motion:reduce){.cover-action:active{transform:none}}
 
-/* Wave 2 player critique: the board must occupy the phone, not a tiny card. */
+/* Use the actual available screen for four readable, thumb-size lanes.
+   The legacy fixed 20/33 aspect ratio squeezed the board to 253px on 320x568. */
 body.is-playing .night-game-intro,body.is-playing .song-selector{display:none}
-body.is-playing main{padding-top:2px;padding-bottom:6px}
-body.is-playing .night-play-hud{margin-bottom:5px}
-body.is-playing .board-shell{width:min(100%,510px,calc((100dvh - 158px)*20/33))}
-@media(max-width:380px){
- body.is-playing .board-shell{width:min(100%,calc((100dvh - 150px)*20/33))}
+body.is-playing main{max-width:none;padding:2px 4px 2px}
+body.is-playing .night-play-hud{width:min(100%,510px);max-width:510px;margin-bottom:4px}
+body.is-playing .night-hud-value{padding:5px 8px 4px}
+body.is-playing .night-hud-value strong{font-size:20px}
+body.is-playing .board-area{width:100%}
+body.is-playing .board-shell{
+  width:min(100%,510px);min-width:0;
+  height:clamp(250px,calc(100dvh - 174px),840px);
+  aspect-ratio:auto;border-radius:8px;
 }
+body.is-playing .game-tools{width:min(100%,510px);padding-top:4px}
+@media(max-height:620px){
+  body.is-playing .night-hud-value{padding:3px 8px 2px}
+  body.is-playing .night-hud-value strong{font-size:18px}
+}
+
+@media(min-width:700px){body.is-playing .board-shell{height:clamp(250px,calc(100dvh - 184px),840px)}}
