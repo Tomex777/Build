@@ -37,6 +37,16 @@ jobs:
             --name EchoSpace-production-native-debug \
             --dir EchoSpace/app/build/outputs/apk/debug
           test -s EchoSpace/app/build/outputs/apk/debug/app-debug.apk
+      - name: Enable KVM acceleration for reliable interactive UI QA
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Without this, the hosted AVD falls back to very slow software
+          # emulation and repeatedly reports "System UI isn't responding".
+          test -c /dev/kvm
+          sudo chmod 666 /dev/kvm
+          test -r /dev/kvm && test -w /dev/kvm
+          ls -l /dev/kvm
       - name: Install and verify real native Android UI
         uses: reactivecircus/android-emulator-runner@v2
         env:
