@@ -228,6 +228,53 @@ try {
  assert.deepEqual(touchQueue.beforeLift,['up'],'Snake responds before finger lifts');
  assert.deepEqual(touchQueue.corners,['up','left'],'Fast swipe corners must queue without dropped inputs');
 
+ // A rejected duplicate must still update the drag anchor. Old behavior let
+ // a repeated upward stroke hide the next left corner until another gesture.
+ await page.evaluate(()=>{clearInterval(snakeTimer);snakeTimer=null;snake.turnQueue=[];snake.dir='right';snake.next='right';gamePaused=false;snake.started=true;});
+ const rejectedStroke=await page.evaluate(()=>{
+  const el=document.getElementById('snakeCanvas');
+  const send=(type,x,y)=>el.dispatchEvent(new PointerEvent(type,{bubbles:true,pointerId:55,pointerType:'touch',clientX:x,clientY:y}));
+  send('pointerdown',160,180);
+  send('pointermove',160,145); // up accepted
+  send('pointermove',160,110); // duplicate up rejected, BUT stroke consumed
+  send('pointermove',125,110); // left must work on the very first try
+  const queued=[...snake.turnQueue];
+  send('pointerup',125,110);
+  return queued;
+ });
+ assert.deepEqual(rejectedStroke,['up','left'],'Duplicate swipe must not hide the next valid corner in the same touch drag');
+
+ // Four rapid real Chromium touchscreen gestures before a single movement tick.
+ // Initialize the exact game state to prevent flaky collisions/timing dependence.
+ await page.evaluate(()=>{
+  snake.body=[{x:8,y:12},{x:7,y:12},{x:6,y:12},{x:5,y:12},{x:4,y:12}];
+  snake.food={x:2,y:2};snake.maze=[];snake.wrap=false;snake.alive=true;
+  snake.dir='right';snake.next='right';snake.turnQueue=[];snake.started=true;gamePaused=false;
+ });
+ const rapidStrokes=[{dx:0,dy:-34},{dx:-34,dy:0},{dx:0,dy:-34},{dx:-34,dy:0}];
+ for(const [index,stroke] of rapidStrokes.entries()){
+  const id=90+index;
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:px,y:py,id}]});
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:px+stroke.dx,y:py+stroke.dy,id}]});
+  await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+ }
+ assert.deepEqual(await page.evaluate(()=>snake.turnQueue),['up','left','up','left'],
+  'Every legal rapid swipe must register on its FIRST gesture, even before the next grid tick');
+ const rapidResult=await page.evaluate(()=>{
+  const trajectory=[];
+  for(let i=0;i<4;i++){stepSnake();trajectory.push({dir:snake.dir,...snake.body[0]});}
+  return {trajectory,alive:snake.alive,remaining:[...snake.turnQueue]};
+ });
+ assert.deepEqual(rapidResult.trajectory,[
+  {dir:'up',x:8,y:11},{dir:'left',x:7,y:11},
+  {dir:'up',x:7,y:10},{dir:'left',x:6,y:10}
+ ],'Buffered turns execute in order, exactly once per grid tick');
+ assert.equal(rapidResult.alive,true,'Rapid swipe buffering must not invent a collision');
+ assert.deepEqual(rapidResult.remaining,[],'No buffered swipes linger once consumed');
+ console.log('NIGHT_SNAKE_RAPID_TOUCH='+JSON.stringify({rejectedStroke,...rapidResult}));
+ await page.evaluate(()=>{snakeTimer=setInterval(stepSnake,snakeTickMs())});
+
+
  await page.locator('#gameSettings').click()
  assert.equal(await page.locator('.snake-mode-preview').count(),5)
  await page.getByRole('button',{name:'Turbo'}).click()
