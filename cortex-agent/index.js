@@ -1220,8 +1220,27 @@ async function setCommandSetting(key, enabled) {
   await fs.mkdir(path.dirname(COMMAND_SETTINGS_FILE), { recursive: true });
   const temp = COMMAND_SETTINGS_FILE + '.cortex-' + crypto.randomUUID() + '.tmp';
   values = { ...values, version: 1, [key]: enabled === true, savedAt: Date.now() };
-  await fs.writeFile(temp, JSON.stringify(values, null, 2), 'utf8');
-  await fs.rename(temp, COMMAND_SETTINGS_FILE);
+  try {
+    await fs.writeFile(temp, JSON.stringify(values, null, 2), 'utf8');
+    await fs.rename(temp, COMMAND_SETTINGS_FILE);
+  } catch (error) {
+    await fs.rm(temp, { force: true }).catch(() => {});
+    // NIGHT owns /var/lib/mscc/data, so the Agent must not be given broad
+    // write permissions just to toggle one allowlisted boolean setting.
+    if (!['EACCES', 'EPERM', 'EROFS'].includes(error?.code)) throw error;
+    await new Promise((resolve, reject) => {
+      const child = spawn('/usr/bin/sudo',
+        ['-n', SERVICE_CONTROL_HELPER, 'setting-set', key],
+        { stdio: ['pipe', 'ignore', 'ignore'] });
+      child.once('error', reject);
+      child.once('exit', (code) => {
+        if (code === 0) resolve();
+        else reject(Object.assign(new Error('Protected setting write is unavailable'), { statusCode: 503 }));
+      });
+      child.stdin.on('error', () => {});
+      child.stdin.end(enabled === true ? 'true' : 'false');
+    });
+  }
   await recordActivity('server:setting.update', { key, enabled: enabled === true });
   return commandSettings();
 }
