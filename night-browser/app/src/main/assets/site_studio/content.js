@@ -13,10 +13,10 @@
     if (!rule || typeof rule !== "object") return;
     // A second origin check: Java validates the trusted Gecko sender URL;
     // this protects against a document redirect while the response is pending.
-    if (rule.origin !== location.origin) {
-      // The browser's origin normalizer removes default ports.
-      if (rule.origin !== location.protocol + "//" + location.host) return;
-    }
+    // Gecko's canonical location.origin includes the effective scheme/host/port.
+    // Never fall back to a reconstructed host: an inconsistent origin must fail
+    // closed, even if the navigation changed during the async native round trip.
+    if (rule.origin !== location.origin) return;
     if (typeof rule.css === "string" && rule.css.length <= 32768 && rule.css) {
       const style = document.createElement("style");
       style.setAttribute("data-night.site_studio", "user-style");
