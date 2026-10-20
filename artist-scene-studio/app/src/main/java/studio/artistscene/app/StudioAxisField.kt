@@ -42,6 +42,9 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTag
+import androidx.compose.ui.semantics.text
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -155,7 +158,6 @@ internal fun StudioAxisField(
         }
 
         val valueModifier = Modifier.weight(1f).height(44.dp)
-            .testTag("numeric-${axis.name.lowercase()}")
         if (!editing) {
             Box(
                 modifier = valueModifier
@@ -165,7 +167,11 @@ internal fun StudioAxisField(
                         draft = AxisNumericDraft.display(value)
                         editing = true
                     }
-                    .semantics { contentDescription = "${axis.name} value" },
+                    .semantics(mergeDescendants = true) {
+                        testTag = "numeric-${axis.name.lowercase()}"
+                        contentDescription = "${axis.name} value"
+                        text = AnnotatedString(AxisNumericDraft.display(value))
+                    },
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
@@ -196,6 +202,7 @@ internal fun StudioAxisField(
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = { commit() }),
                 modifier = valueModifier
+                    .testTag("numeric-${axis.name.lowercase()}")
                     .focusRequester(requestFocus)
                     .onFocusChanged { state ->
                         if (wasFocused && !state.isFocused && editing) {
