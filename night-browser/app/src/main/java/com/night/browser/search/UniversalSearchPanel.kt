@@ -28,6 +28,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
@@ -77,20 +78,16 @@ fun UniversalSearchPanel(
     var generation by remember { mutableIntStateOf(0) }
     var job by remember { mutableStateOf<Job?>(null) }
     val approved = remember(bookmarks, journeys) {
-        // Bound work for large history stores and ensure visited pages are not
-        // crowded out by a long bookmark list.
-        val marks = bookmarks.asSequence().take(35).mapIndexed { i, mark ->
-            SearchSource("B" + (i + 1), mark.title, mark.url, "Bookmark")
-        }
-        val visits = journeys.asSequence()
-            .flatMap { it.nodes.asReversed().asSequence() }
-            .take(120)
-            .mapIndexed { i, node ->
-                SearchSource("V" + (i + 1), node.title, node.url, "Visit")
-            }
-        UniversalSearchPolicy.eligibleCandidates((marks + visits).toList())
+        SearchSourceCatalog.collect(bookmarks, journeys)
     }
     val selected = remember { mutableStateListOf<String>() }
+
+    // A record's title/domain could change after a tick; require selection
+    // again when the actual catalog changes, rather than consent by stale ID.
+    LaunchedEffect(approved) {
+        selected.clear()
+        confirmRequest = false
+    }
 
     fun revoke() {
         generation++
@@ -109,6 +106,10 @@ fun UniversalSearchPanel(
             // A running provider request cannot retract an already transmitted prompt.
             job?.cancel()
         }
+    }
+
+    LaunchedEffect(privateTab) {
+        if (privateTab) revoke()
     }
 
     Column(modifier.fillMaxSize().background(colors.background)) {
@@ -176,6 +177,10 @@ fun UniversalSearchPanel(
                 TextButton(onClick = { showResult = false }) { Text("Change selected pages") }
                 when (val current = outcome) {
                     is AiSearchOutcome.Answer -> {
+                        Text("Based only on approved page titles and domains, not page contents.",
+                            color = colors.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodySmall)
+                        Spacer(Modifier.height(8.dp))
                         Text(current.text, style = MaterialTheme.typography.bodyLarge)
                         Spacer(Modifier.height(14.dp))
                         Text("Cited pages", style = MaterialTheme.typography.titleSmall)
@@ -286,12 +291,31 @@ fun UniversalSearchPanel(
             onDismissRequest = { confirmRequest = false },
             title = { Text("Share selected pages?") },
             text = {
-                Text(
-                    "Send your question plus the titles and domains of " + selected.size +
-                        " explicitly selected pages to OpenAI for this one answer? " +
-                        "NIGHT will not send page text, full URLs, cookies or unselected history. " +
-                        "This cannot be undone after transmission."
-                )
+                val chosen = approved.filter { selected.contains(it.id) }
+                    .take(UniversalSearchPolicy.MAX_SHARED_SOURCES)
+                Column {
+                    Text(
+                        "Send this question and the following page titles/domains to OpenAI once? " +
+                            "The full URLs, page contents, cookies and other history stay on your device. " +
+                            "Once sent, the request cannot be retracted."
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text("Question: " + question.trim(),
+                        maxLines = 3, overflow = TextOverflow.Ellipsis)
+                    chosen.take(5).forEach { source ->
+                        Text(
+                            "• " + source.title.take(100) +
+                                " (" + UniversalSearchPolicy.safeHost(source.url).orEmpty() + ")",
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                    if (chosen.size > 5) {
+                        Text("+ " + (chosen.size - 5) + " more selected pages",
+                            style = MaterialTheme.typography.bodySmall)
+                    }
+                }
             },
             confirmButton = {
                 TextButton(onClick = {
