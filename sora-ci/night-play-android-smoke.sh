@@ -73,6 +73,25 @@ shot() {
 }
 
 tap_text Games
+# One useful game/category filter, without duplicate search/list controls.
+tap_text "Puzzle"
+dump_ui
+if ! find_point "Water Sort" >/dev/null 2>&1; then
+  echo 'Puzzle filter did not expose Water Sort' >&2
+  exit 1
+fi
+if find_point "Snake" >/dev/null 2>&1; then
+  echo 'Puzzle filter incorrectly includes the Arcade-only Snake game' >&2
+  exit 1
+fi
+tap_text "All"
+
+# Verify the embedded engines and authored story are really offline. Internet
+# is disabled after installing the app; screenshots and taps use USB/ADB only.
+adb shell svc wifi disable >/dev/null 2>&1 || true
+adb shell svc data disable >/dev/null 2>&1 || true
+sleep 2
+
 # Each selected game must render via the locally bundled assets, enter its
 # real Canvas/DOM interface, accept a physical tap, then return to Sora.
 while IFS='|' read -r id title; do
