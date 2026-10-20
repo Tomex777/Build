@@ -33,8 +33,11 @@ internal fun normalizeHttpsEndpoint(value: String): String {
         "Server URL contains an invalid port."
     }
 
-    val schemeSeparator = trimmed.indexOf(':')
-    return "https" + trimmed.substring(schemeSeparator)
+    // The Agent API always lives at the HTTPS origin. Older Cortex installs
+    // could save /api/... in the server field, then append a second /api/...
+    // and fail every endpoint. Normalize to the *same host and port* only;
+    // never send the saved bearer credential to a different origin.
+    return URI("https", null, uri.host, uri.port, null, null, null).toASCIIString()
 }
 
 internal fun isValidHttpsEndpoint(value: String): Boolean =
