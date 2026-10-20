@@ -25,6 +25,23 @@ class JourneyStore(context: Context) {
         private set
     var savedPages by mutableStateOf(readSavedPages())
         private set
+    var journeyRecordingEnabled by mutableStateOf(prefs.getBoolean("journey_recording", true))
+        private set
+
+    init {
+        // v1 compatibility: upgrade/redact legacy persisted URLs on first read,
+        // rather than leaving old credentials or fragments in SharedPreferences.
+        if (prefs.contains("journeys") && !prefs.getBoolean("journey_url_migrated_v2", false)) {
+            persist()
+            prefs.edit().putBoolean("journey_url_migrated_v2", true).apply()
+        }
+    }
+
+    fun setJourneyRecordingEnabled(enabled: Boolean) {
+        if (journeyRecordingEnabled == enabled) return
+        journeyRecordingEnabled = enabled
+        prefs.edit().putBoolean("journey_recording", enabled).apply()
+    }
 
     private fun fallbackJourney() =
         Journey(UUID.randomUUID().toString(), "My browsing", emptyList())
@@ -94,6 +111,7 @@ class JourneyStore(context: Context) {
      * Validate parent against this Journey: no cross-Journey or pruned edges.
      */
     fun record(id: String, url: String, title: String, parent: String?): String? {
+        if (!journeyRecordingEnabled) return null
         val safe = JourneyGraph.safeUrl(url) ?: return null
         val journey = journeys.find { it.id == id } ?: return null
         val checkedParent = parent?.takeIf { key -> journey.nodes.any { it.id == key } }
