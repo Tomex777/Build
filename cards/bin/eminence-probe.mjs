@@ -1,0 +1,17 @@
+#!/usr/bin/env node
+const base='https://www.shadow-garden-mog.jp/wp-content/themes/officialsite/partials/page/dmg/assets/images/';
+const art=['img_shadow-adult.png','img_sid-adult.png','img_alpha-adult.png','img_beta-adult.png','img_gamma-adult.png','img_delta-adult.png','img_epsilon-adult.png','img_zeta-adult.png','img_eta-adult.png','img_aurora.png','img_beatrix.png'];
+const more=[
+'https://shadow-garden.jp/2nd/assets/img/character/chara2_alpha__thumb.png',
+'https://shadow-garden.jp/1st/assets/img/character/chara2_thumb.png',
+'https://www.shadow-garden-mog.jp/wp-content/themes/officialsite/images/apocrypha/character1-image1.png'
+];
+for(const url of [...art.map(x=>base+x),...more]){
+  try{
+   const res=await fetch(url,{signal:AbortSignal.timeout(12000)});
+   const mime=res.headers.get('content-type'),length=res.headers.get('content-length'),buf=Buffer.from(await res.arrayBuffer());
+   const png=buf.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]));
+   const info=png&&buf.length>26?{width:buf.readUInt32BE(16),height:buf.readUInt32BE(20),colorType:buf[25]}:{};
+   console.log(JSON.stringify({url,status:res.status,mime,length,bytes:buf.length,png,...info}));
+  }catch(e){console.log(JSON.stringify({url,error:e.message}));}
+}
