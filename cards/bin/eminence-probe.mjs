@@ -22,3 +22,14 @@ for(const edition of ['1st','2nd']){
  const content=await response.text();
  console.log('MODAL SCRIPT',edition,response.status,content.length,content.slice(0,13000));
 }
+
+for(const url of [
+ 'https://shadow-garden.jp/2nd/character/data/chara2_alpha.php',
+ 'https://shadow-garden.jp/2nd/character/data/chara1_cid.php',
+ 'https://shadow-garden.jp/1st/character/chara1.php',
+ 'https://shadow-garden.jp/1st/character/chara2.php'
+]){
+ const response=await fetch(url,{signal:AbortSignal.timeout(15000)});
+ const body=await response.text();
+ console.log('CHARACTER MODAL',url,response.status,body.length,body.slice(0,4300));
+}
