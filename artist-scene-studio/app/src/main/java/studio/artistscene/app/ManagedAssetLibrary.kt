@@ -89,12 +89,34 @@ class ManagedAssetLibrary private constructor(
     private val payloads = File(root, "payloads").apply { mkdirs() }
     private val index = File(root, "library.json")
     private val pendingIndex = File(root, "library.pending")
+    private val backupIndex = File(root, "library.backup")
+    private val pendingBackup = File(root, "library.backup.pending")
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
 
+    /**
+     * Never mistake a damaged index for an empty library when mutating it. A read-only screen
+     * can show an empty state, but a later import/delete must not overwrite the only metadata
+     * that could be recovered. Old app versions had no backup, so that case stays read-only.
+     */
+    private fun readRecordsOrNull(): List<LibraryAsset>? {
+        for (candidate in listOf(index, backupIndex)) {
+            if (!candidate.isFile) continue
+            val records = runCatching {
+                json.decodeFromString(ListSerializer(LibraryAsset.serializer()), candidate.readText())
+            }.getOrNull()
+            if (records != null) return records
+        }
+        return if (!index.exists() && !backupIndex.exists()) emptyList() else null
+    }
+
+    private fun recordsForMutation(): List<LibraryAsset> = readRecordsOrNull()
+        ?: throw IllegalStateException(
+            "The My Assets index could not be read. Its original files were left untouched.",
+        )
+
     @Synchronized
-    fun list(): List<LibraryAsset> = if (!index.isFile) emptyList() else runCatching {
-        json.decodeFromString(ListSerializer(LibraryAsset.serializer()), index.readText())
-    }.getOrDefault(emptyList()).filter { File(appFilesDir, it.relativePath).isFile }
+    fun list(): List<LibraryAsset> = readRecordsOrNull().orEmpty()
+        .filter { File(appFilesDir, it.relativePath).isFile }
         .sortedBy { it.name.lowercase() }
 
     @Synchronized
@@ -165,6 +187,8 @@ class ManagedAssetLibrary private constructor(
     ): LibraryAsset {
         require(format == "glb" || format == "gltf")
         require(byteSize > 0)
+        // Include missing-but-indexed assets in every mutation: they can be repaired by re-import.
+        val current = recordsForMutation()
         val staging = File.createTempFile("install-", ".pending", payloads)
         val checksum = try {
             staging.outputStream().use { output ->
@@ -177,19 +201,23 @@ class ManagedAssetLibrary private constructor(
             staging.delete()
             throw error
         }
+        if (staging.length() != byteSize) {
+            staging.delete()
+            throw IllegalStateException("The selected asset changed while it was being imported.")
+        }
         val fileName = "$checksum.$format"
         val target = File(payloads, fileName)
-        if (!target.exists()) {
-            try {
+        try {
+            if (!target.exists()) {
                 moveAtomically(staging, target, replace = false)
-            } catch (error: Exception) {
-                staging.delete()
-                if (!target.exists()) throw error
+            } else if (!target.isFile || target.length() != byteSize || target.sha256() != checksum) {
+                // A previous import's hashed filename is not proof its bytes remain intact.
+                // Repair it from the newly verified staged copy without changing scene paths.
+                moveAtomically(staging, target, replace = true)
             }
-        } else {
+        } finally {
             staging.delete()
         }
-        val current = list()
         val assetId = "local.$checksum"
         val record = current.firstOrNull { it.assetId == assetId } ?: LibraryAsset(
             assetId = assetId,
@@ -218,7 +246,7 @@ class ManagedAssetLibrary private constructor(
         fingerJointCount: Int = 0,
         morphTargetCount: Int = 0,
     ) {
-        val current = list()
+        val current = recordsForMutation()
         val updated = current.map { asset ->
             if (asset.assetId == assetId) asset.copy(
                 rigCompatibility = compatibility,
@@ -232,7 +260,7 @@ class ManagedAssetLibrary private constructor(
 
     @Synchronized
     fun delete(assetId: String): Boolean {
-        val current = list()
+        val current = recordsForMutation()
         val asset = current.firstOrNull { it.assetId == assetId } ?: return false
         // Library payloads are shared by scenes. Never invalidate a closed project's asset.
         val projects = File(appFilesDir, "projects").listFiles { file ->
@@ -246,7 +274,7 @@ class ManagedAssetLibrary private constructor(
                 }.getOrDefault(true)
             }) return false
         saveIndex(current.filterNot { it.assetId == assetId })
-        val stillUsed = list().any { it.relativePath == asset.relativePath }
+        val stillUsed = recordsForMutation().any { it.relativePath == asset.relativePath }
         if (!stillUsed) File(appFilesDir, asset.relativePath).delete()
         return true
     }
@@ -262,12 +290,16 @@ class ManagedAssetLibrary private constructor(
     }
 
     private fun saveIndex(assets: List<LibraryAsset>) {
-        pendingIndex.writeText(json.encodeToString(ListSerializer(LibraryAsset.serializer()), assets))
+        val content = json.encodeToString(ListSerializer(LibraryAsset.serializer()), assets)
         try {
+            pendingIndex.writeText(content)
+            pendingBackup.writeText(content)
+            // Backup first. If index replacement fails the existing valid index remains primary.
+            moveAtomically(pendingBackup, backupIndex, replace = true)
             moveAtomically(pendingIndex, index, replace = true)
-        } catch (error: Exception) {
+        } finally {
+            pendingBackup.delete()
             pendingIndex.delete()
-            throw error
         }
     }
 }
@@ -283,3 +315,17 @@ private fun InputStream.copyDigestingTo(output: java.io.OutputStream, digest: Me
 }
 
 private fun ByteArray.toHex(): String = joinToString("") { byte -> "%02x".format(byte.toInt() and 0xff) }
+
+/** Verify an existing content-addressed payload before trusting a matching filename. */
+private fun File.sha256(): String {
+    val digest = MessageDigest.getInstance("SHA-256")
+    inputStream().use { input ->
+        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+        while (true) {
+            val count = input.read(buffer)
+            if (count < 0) break
+            digest.update(buffer, 0, count)
+        }
+    }
+    return digest.digest().toHex()
+}
