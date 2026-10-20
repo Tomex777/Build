@@ -45,6 +45,8 @@ for(const url of pages){
     results.push({page:url,htmlBytes:html.length,assets,jsFiles:[...html.matchAll(/<script[^>]+src=["']([^"']+)/ig)].map(m=>new URL(m[1],url).href).slice(0,30)});
     console.log(url,'HTML',html.length,'assets',assets.length);
     console.log('ALL OFFICIAL ASSETS',JSON.stringify(assets.map(x=>x.url)));
+    console.log('JS FILES',JSON.stringify([...html.matchAll(/<script[^>]+src=["']([^"']+)/ig)].map(m=>new URL(m[1],url).href)));
+    console.log('CHARA HTML FOOTER',html.slice(-2000));
     console.log('CHARA HTML HINTS',JSON.stringify([...html.matchAll(/.{0,80}chara1.{0,200}/g)].slice(0,15).map(x=>x[0])));
   }catch(e){results.push({page:url,error:e.message,assets:[]});console.error(url,e.message);}
 }
