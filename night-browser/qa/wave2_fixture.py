@@ -51,6 +51,7 @@ class State:
         self.count = Counter()
         self.cookie_observed = {}
         self.upload_length = 0
+        self.upload_verified = False
         self.form_posted = False
 
     def record(self, path, cookie):
@@ -64,6 +65,7 @@ class State:
             return {"count": dict(self.count),
                     "cookie_seen": dict(self.cookie_observed),
                     "upload_length": self.upload_length,
+                    "upload_verified": self.upload_verified,
                     "form_posted": self.form_posted}
 
 
@@ -148,6 +150,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.state.form_posted = True
             else:
                 self.state.upload_length = len(body)
+                self.state.upload_verified = (b\"NIGHT_QA_UPLOAD_TEST_ONLY\" in body)
         return self.send(self.page("POST COMPLETE"))
 
     @staticmethod
