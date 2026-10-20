@@ -59,9 +59,9 @@ jobs:
         with:
           name: night-browser-real-emulator-screenshots
           path: |
-            night-browser/screenshots/*.png
-            night-browser/screenshots/*.txt
-            night-browser/screenshots/*.xml
+            night-browser/screenshots/omni-ui/*.png
+            night-browser/screenshots/omni-ui/*.txt
+            night-browser/screenshots/omni-ui/*.xml
           if-no-files-found: warn
       - name: Publish real screenshots for viewing
         if: success()
