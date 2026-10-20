@@ -181,7 +181,8 @@ class Handler(BaseHTTPRequestHandler):
                 '<input name="qa" value="testonly"><button type="submit">Send test form</button></form>'))
         if path == "/upload":
             return self.send(self.page("UPLOAD", '<form action="/upload/submit" method="post" enctype="multipart/form-data">'
-                '<input type="file" name="qa-file"><button type="submit">Upload test file</button></form>'))
+                '<label for="qa-file-input">Choose File</label><input id="qa-file-input" type="file" name="qa-file">' +
+                '<button type="submit">Upload test file</button></form>'))
         if path == "/links":
             return self.send(self.page("LINKS", '<a href="/branch/a">Visit A</a>'
                 '<a href="/branch/b">Visit B</a><a href="/redirect">Redirect</a>'))
