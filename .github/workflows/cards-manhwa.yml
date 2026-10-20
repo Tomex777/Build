@@ -6,7 +6,9 @@ on:
     paths:
       - 'cards/catalog/manhwa-*.json'
       - 'cards/src/manhwa.mjs'
+      - 'cards/src/manhwa-review.mjs'
       - 'cards/bin/manhwa.mjs'
+      - 'cards/bin/manhwa-review.mjs'
       - 'cards/tests/manhwa.test.mjs'
       - 'cards/docs/MANHWA.md'
       - '.github/workflows/cards-manhwa.yml'
@@ -14,7 +16,9 @@ on:
     paths:
       - 'cards/catalog/manhwa-*.json'
       - 'cards/src/manhwa.mjs'
+      - 'cards/src/manhwa-review.mjs'
       - 'cards/bin/manhwa.mjs'
+      - 'cards/bin/manhwa-review.mjs'
       - 'cards/tests/manhwa.test.mjs'
       - '.github/workflows/cards-manhwa.yml'
   workflow_dispatch:
@@ -49,3 +53,15 @@ jobs:
           test ! -e catalog/sss-revival.json
           test ! -e catalog/infinite-mage.json
           test ! -e catalog/study-group.json
+      - name: Export research-only spoiler-filtered roster
+        run: |
+          node bin/manhwa-review.mjs
+          test -s dist/manhwa-research/index.html
+          test -s dist/manhwa-research/summary.json
+      - name: Upload NIGHT Manhwa research index (no licensed artwork)
+        uses: actions/upload-artifact@v4
+        with:
+          name: NIGHT-Manhwa-82-Candidate-Roster
+          path: cards/dist/manhwa-research/
+          if-no-files-found: error
+          retention-days: 14
