@@ -1,0 +1,1001 @@
+{
+  "version": 1,
+  "series": "naruto",
+  "name": "Naruto / NIGHT Collection",
+  "dimensions": [
+    3000,
+    4800
+  ],
+  "sourcePage": "https://naruto-game.bngames.net/character/",
+  "rights": "© Masashi Kishimoto / Shueisha, TV Tokyo, Pierrot; © Bandai Namco Entertainment Inc. All rights reserved.",
+  "artworkPolicy": {
+    "distinctPerEdition": true
+  },
+  "gradePolicy": "provisional-in-universe-until-cross-universe-calibration",
+  "sources": [
+    {
+      "id": "naruto-child",
+      "number": 1,
+      "character": "naruto",
+      "name": "Naruto Uzumaki",
+      "title": "Naruto Uzumaki",
+      "form": "Child / Part I",
+      "formId": "child",
+      "continuity": "naruto-storm4",
+      "aliases": [
+        "Naruto Uzumaki",
+        "naruto",
+        "naruto",
+        "Child / Part I"
+      ],
+      "source": {
+        "provider": "bandai-storm4-official",
+        "page": "https://naruto-game.bngames.net/character/09_02.html",
+        "image": "https://naruto-game.bngames.net/images/character/09_02/img_character.png",
+        "credit": "Bandai Namco Naruto Shippuden Ultimate Ninja Storm 4 official site",
+        "rights": "© Masashi Kishimoto / Shueisha, TV Tokyo, Pierrot; © Bandai Namco Entertainment Inc. All rights reserved.",
+        "usage": "reference-only"
+      },
+      "rank": {
+        "letter": "C",
+        "scope": "Naruto Uzumaki — Child / Part I",
+        "basis": "Shadow-clone combat and emerging jinchūriki chakra.",
+        "limits": "No later sage, tailed-beast or Six Paths powers."
+      }
+    },
+    {
+      "id": "naruto-shippuden",
+      "number": 2,
+      "character": "naruto",
+      "name": "Naruto Uzumaki",
+      "title": "Naruto Uzumaki",
+      "form": "Shippuden / standard",
+      "formId": "shippuden",
+      "continuity": "naruto-storm4",
+      "aliases": [
+        "Naruto Uzumaki",
+        "naruto",
+        "naruto",
+        "Shippuden / standard"
+      ],
+      "source": {
+        "provider": "bandai-storm4-official",
+        "page": "https://naruto-game.bngames.net/character/02_01.html",
+        "image": "https://naruto-game.bngames.net/images/character/02_01/img_character.png",
+        "credit": "Bandai Namco Naruto Shippuden Ultimate Ninja Storm 4 official site",
+        "rights": "© Masashi Kishimoto / Shueisha, TV Tokyo, Pierrot; © Bandai Namco Entertainment Inc. All rights reserved.",
+        "usage": "reference-only"
+      },
+      "rank": {
+        "letter": "B",
+        "scope": "Naruto Uzumaki — Shippuden / standard",
+        "basis": "Rasengan, shadow clones and improved taijutsu.",
+        "limits": "Art is ordinary Shippuden Naruto, not Sage Mode or KCM."
+      }
+    },
+    {
+      "id": "naruto-six-paths",
+      "number": 3,
+      "character": "naruto",
+      "name": "Naruto Uzumaki",
+      "title": "Naruto Uzumaki",
+      "form": "Six Paths Sage Mode",
+      "formId": "six-paths",
+      "continuity": "naruto-storm4",
+      "aliases": [
+        "Naruto Uzumaki",
+        "naruto",
+        "naruto",
+        "Six Paths Sage Mode"
+      ],
+      "source": {
+        "provider": "bandai-storm4-official",
+        "page": "https://naruto-game.bngames.net/character/01_01.html",
+        "image": "https://naruto-game.bngames.net/images/character/01_01/img_character.png",
+        "credit": "Bandai Namco Naruto Shippuden Ultimate Ninja Storm 4 official site",
+        "rights": "© Masashi Kishimoto / Shueisha, TV Tokyo, Pierrot; © Bandai Namco Entertainment Inc. All rights reserved.",
+        "usage": "reference-only"
+      },
+      "rank": {
+        "letter": "S",
+        "scope": "Naruto Uzumaki — Six Paths Sage Mode",
+        "basis": "Six Paths chakra and Truth-Seeking Orbs dramatically extend his combat options.",
+        "limits": "Not Baryon Mode, which belongs to later Boruto continuity."
+      }
+    },
+    {
+      "id": "naruto-the-last",
+      "number": 4,
+      "character": "naruto",
+      "name": "Naruto Uzumaki",
+      "title": "Naruto Uzumaki",
+      "form": "The Last",
+      "formId": "the-last",
+      "continuity": "naruto-storm4",
+      "aliases": [
+        "Naruto Uzumaki",
+        "naruto",
+        "naruto",
+        "The Last"
+      ],
+      "source": {
+        "provider": "bandai-storm4-official",
+        "page": "https://naruto-game.bngames.net/character/01_07.html",
+        "image": "https://naruto-game.bngames.net/images/character/01_07/img_character.png",
+        "credit": "Bandai Namco Naruto Shippuden Ultimate Ninja Storm 4 official site",
+        "rights": "© Masashi Kishimoto / Shueisha, TV Tokyo, Pierrot; © Bandai Namco Entertainment Inc. All rights reserved.",
+        "usage": "reference-only"
+      },
+      "rank": {
+        "letter": "S",
+        "scope": "Naruto Uzumaki — The Last",
+        "basis": "Late-series mastery following the Fourth Shinobi War.",
+        "limits": "Costume art does not establish use of an unseen transformation."
+      }
+    },
+    {
+      "id": "sasuke-child",
+      "number": 5,
+      "character": "sasuke",
+      "name": "Sasuke Uchiha",
+      "title": "Sasuke Uchiha",
+      "form": "Child / Part I",
+      "formId": "child",
+      "continuity": "naruto-storm4",
+      "aliases": [
+        "Sasuke Uchiha",
+        "sasuke",
+        "sasuke",
+        "Child / Part I"
+      ],
+      "source": {
+        "provider": "bandai-storm4-official",
+        "page": "https://naruto-game.bngames.net/character/09_12.html",
+        "image": "https://naruto-game.bngames.net/images/character/09_12/img_character.png",
+        "credit": "Bandai Namco Naruto Shippuden Ultimate Ninja Storm 4 official site",
+        "rights": "© Masashi Kishimoto / Shueisha, TV Tokyo, Pierrot; © Bandai Namco Entertainment Inc. All rights reserved.",
+        "usage": "reference-only"
+      },
+      "rank": {
+        "letter": "C",
+        "scope": "Sasuke Uchiha — Child / Part I",
+        "basis": "Sharingan, fire release and growing Chidori control.",
+        "limits": "No Mangekyō, Rinnegan, or advanced Susanoo."
+      }
+    },
+    {
+      "id": "sasuke-shippuden",
+      "number": 6,
+      "character": "sasuke",
+      "name": "Sasuke Uchiha",
+      "title": "Sasuke Uchiha",
+      "form": "Shippuden / standard",
+      "formId": "shippuden",
+      "continuity": "naruto-storm4",
+      "aliases": [
+        "Sasuke Uchiha",
+        "sasuke",
+        "sasuke",
+        "Shippuden / standard"
+      ],
+      "source": {
+        "provider": "bandai-storm4-official",
+        "page": "https://naruto-game.bngames.net/character/07_01.html",
+        "image": "https://naruto-game.bngames.net/images/character/07_01/img_character.png",
+        "credit": "Bandai Namco Naruto Shippuden Ultimate Ninja Storm 4 official site",
+        "rights": "© Masashi Kishimoto / Shueisha, TV Tokyo, Pierrot; © Bandai Namco Entertainment Inc. All rights reserved.",
+        "usage": "reference-only"
+      },
+      "rank": {
+        "letter": "B",
+        "scope": "Sasuke Uchiha — Shippuden / standard",
+        "basis": "Advanced speed, lightning release and sword combat.",
+        "limits": "Do not infer a later eye power from a general portrait."
+      }
+    },
+    {
+      "id": "sasuke-taka",
+      "number": 7,
+      "character": "sasuke",
+      "name": "Sasuke Uchiha",
+      "title": "Sasuke Uchiha",
+      "form": "Taka / Hawk",
+      "formId": "taka",
+      "continuity": "naruto-storm4",
+      "aliases": [
+        "Sasuke Uchiha",
+        "sasuke",
+        "sasuke",
+        "Taka / Hawk"
+      ],
+      "source": {
+        "provider": "bandai-storm4-official",
+        "page": "https://naruto-game.bngames.net/character/07_02.html",
+        "image": "https://naruto-game.bngames.net/images/character/07_02/img_character.png",
+        "credit": "Bandai Namco Naruto Shippuden Ultimate Ninja Storm 4 official site",
+        "rights": "© Masashi Kishimoto / Shueisha, TV Tokyo, Pierrot; © Bandai Namco Entertainment Inc. All rights reserved.",
+        "usage": "reference-only"
+      },
+      "rank": {
+        "letter": "A",
+        "scope": "Sasuke Uchiha — Taka / Hawk",
+        "basis": "Strong Sharingan tactics and lethal close-range lightning techniques.",
+        "limits": "Version-specific equipment and eye abilities require checking."
+      }
+    },
+    {
+      "id": "sasuke-eternal-mangekyo",
+      "number": 8,
+      "character": "sasuke",
+      "name": "Sasuke Uchiha",
+      "title": "Sasuke Uchiha",
+      "form": "Eternal Mangekyō",
+      "formId": "eternal-mangekyo",
+      "continuity": "naruto-storm4",
+      "aliases": [
+        "Sasuke Uchiha",
+        "sasuke",
+        "sasuke",
+        "Eternal Mangekyō"
+      ],
+      "source": {
+        "provider": "bandai-storm4-official",
+        "page": "https://naruto-game.bngames.net/character/07_06.html",
+        "image": "https://naruto-game.bngames.net/images/character/07_06/img_character.png",
+        "credit": "Bandai Namco Naruto Shippuden Ultimate Ninja Storm 4 official site",
+        "rights": "© Masashi Kishimoto / Shueisha, TV Tokyo, Pierrot; © Bandai Namco Entertainment Inc. All rights reserved.",
+        "usage": "reference-only"
+      },
+      "rank": {
+        "letter": "A",
+        "scope": "Sasuke Uchiha — Eternal Mangekyō",
+        "basis": "Amaterasu and Susanoo raise both offence and defence.",
+        "limits": "Not the later Six Paths Rinnegan state."
+      }
+    },
+    {
+      "id": "sasuke-rinne-sharingan",
+      "number": 9,
+      "character": "sasuke",
+      "name": "Sasuke Uchiha",
+      "title": "Sasuke Uchiha",
+      "form": "Rinnegan / Six Paths",
+      "formId": "six-paths-rinnegan",
+      "continuity": "naruto-storm4",
+      "aliases": [
+        "Sasuke Uchiha",
+        "sasuke",
+        "sasuke",
+        "Rinnegan / Six Paths"
+      ],
+      "source": {
+        "provider": "bandai-storm4-official",
+        "page": "https://naruto-game.bngames.net/character/01_02.html",
+        "image": "https://naruto-game.bngames.net/images/character/01_02/img_character.png",
+        "credit": "Bandai Namco Naruto Shippuden Ultimate Ninja Storm 4 official site",
+        "rights": "© Masashi Kishimoto / Shueisha, TV Tokyo, Pierrot; © Bandai Namco Entertainment Inc. All rights reserved.",
+        "usage": "reference-only"
+      },
+      "rank": {
+        "letter": "S",
+        "scope": "Sasuke Uchiha — Rinnegan / Six Paths",
+        "basis": "Six Paths ocular abilities, teleportation and advanced Susanoo.",
+        "limits": "Not a Boruto-era version or a claim of unlimited chakra."
+      }
+    },
+    {
+      "id": "sasuke-five-kage",
+      "number": 10,
+      "character": "sasuke",
+      "name": "Sasuke Uchiha",
+      "title": "Sasuke Uchiha",
+      "form": "Five Kage Summit",
+      "formId": "five-kage-summit",
+      "continuity": "naruto-storm4",
+      "aliases": [
+        "Sasuke Uchiha",
+        "sasuke",
+        "sasuke",
+        "Five Kage Summit"
+      ],
+      "source": {
+        "provider": "bandai-storm4-official",
+        "page": "https://naruto-game.bngames.net/character/07_07.html",
+        "image": "https://naruto-game.bngames.net/images/character/07_07/img_character.png",
+        "credit": "Bandai Namco Naruto Shippuden Ultimate Ninja Storm 4 official site",
+        "rights": "© Masashi Kishimoto / Shueisha, TV Tokyo, Pierrot; © Bandai Namco Entertainment Inc. All rights reserved.",
+        "usage": "reference-only"
+      },
+      "rank": {
+        "letter": "A",
+        "scope": "Sasuke Uchiha — Five Kage Summit",
+        "basis": "Mangekyō abilities and dangerous offensive ninjutsu.",
+        "limits": "Lacks future Eternal Mangekyō and Rinnegan abilities."
+      }
+    },
+    {
+      "id": "sakura-child",
+      "number": 11,
+      "character": "sakura",
+      "name": "Sakura Haruno",
+      "title": "Sakura Haruno",
+      "form": "Child / Part I",
+      "formId": "child",
+      "continuity": "naruto-storm4",
+      "aliases": [
+        "Sakura Haruno",
+        "sakura",
+        "sakura",
+        "Child / Part I"
+      ],
+      "source": {
+        "provider": "bandai-storm4-official",
+        "page": "https://naruto-game.bngames.net/character/09_14.html",
+        "image": "https://naruto-game.bngames.net/images/character/09_14/img_character.png",
+        "credit": "Bandai Namco Naruto Shippuden Ultimate Ninja Storm 4 official site",
+        "rights": "© Masashi Kishimoto / Shueisha, TV Tokyo, Pierrot; © Bandai Namco Entertainment Inc. All rights reserved.",
+        "usage": "reference-only"
+      },
+      "rank": {
+        "letter": "D",
+        "scope": "Sakura Haruno — Child / Part I",
+        "basis": "Precise chakra control and early shinobi training.",
+        "limits": "No later Byakugō seal release or war-era feats."
+      }
+    },
+    {
+      "id": "kakashi-jonin",
+      "number": 12,
+      "character": "kakashi",
+      "name": "Kakashi Hatake",
+      "title": "Kakashi Hatake",
+      "form": "Jōnin / Sharingan",
+      "formId": "jonin",
+      "continuity": "naruto-storm4",
+      "aliases": [
+        "Kakashi Hatake",
+        "kakashi",
+        "kakashi",
+        "Jōnin / Sharingan"
+      ],
+      "source": {
+        "provider": "bandai-storm4-official",
+        "page": "https://naruto-game.bngames.net/character/02_03.html",
+        "image": "https://naruto-game.bngames.net/images/character/02_03/img_character.png",
+        "credit": "Bandai Namco Naruto Shippuden Ultimate Ninja Storm 4 official site",
+        "rights": "© Masashi Kishimoto / Shueisha, TV Tokyo, Pierrot; © Bandai Namco Entertainment Inc. All rights reserved.",
+        "usage": "reference-only"
+      },
+      "rank": {
+        "letter": "A",
+        "scope": "Kakashi Hatake — Jōnin / Sharingan",
+        "basis": "Elite tactical versatility, lightning blade and Sharingan.",
+        "limits": "Not temporary Double Mangekyō Susanoo."
+      }
+    },
+    {
+      "id": "kakashi-child",
+      "number": 13,
+      "character": "kakashi",
+      "name": "Kakashi Hatake",
+      "title": "Kakashi Hatake",
+      "form": "Young shinobi",
+      "formId": "child",
+      "continuity": "naruto-storm4",
+      "aliases": [
+        "Kakashi Hatake",
+        "kakashi",
+        "kakashi",
+        "Young shinobi"
+      ],
+      "source": {
+        "provider": "bandai-storm4-official",
+        "page": "https://naruto-game.bngames.net/character/02_25.html",
+        "image": "https://naruto-game.bngames.net/images/character/02_25/img_character.png",
+        "credit": "Bandai Namco Naruto Shippuden Ultimate Ninja Storm 4 official site",
+        "rights": "© Masashi Kishimoto / Shueisha, TV Tokyo, Pierrot; © Bandai Namco Entertainment Inc. All rights reserved.",
+        "usage": "reference-only"
+      },
+      "rank": {
+        "letter": "C",
+        "scope": "Kakashi Hatake — Young shinobi",
+        "basis": "Precocious ninja skill and early tactical talent.",
+        "limits": "Childhood portrayal is not his adult war-era strength."
+      }
+    },
+    {
+      "id": "itachi-akatsuki",
+      "number": 14,
+      "character": "itachi",
+      "name": "Itachi Uchiha",
+      "title": "Itachi Uchiha",
+      "form": "Akatsuki",
+      "formId": "akatsuki",
+      "continuity": "naruto-storm4",
+      "aliases": [
+        "Itachi Uchiha",
+        "itachi",
+        "itachi",
+        "Akatsuki"
+      ],
+      "source": {
+        "provider": "bandai-storm4-official",
+        "page": "https://naruto-game.bngames.net/character/08_11.html",
+        "image": "https://naruto-game.bngames.net/images/character/08_11/img_character.png",
+        "credit": "Bandai Namco Naruto Shippuden Ultimate Ninja Storm 4 official site",
+        "rights": "© Masashi Kishimoto / Shueisha, TV Tokyo, Pierrot; © Bandai Namco Entertainment Inc. All rights reserved.",
+        "usage": "reference-only"
+      },
+      "rank": {
+        "letter": "A",
+        "scope": "Itachi Uchiha — Akatsuki",
+        "basis": "Tsukuyomi, Amaterasu and Susanoo counterplay.",
+        "limits": "Illness, endurance and chakra costs remain meaningful."
+      }
+    },
+    {
+      "id": "madara-war",
+      "number": 15,
+      "character": "madara",
+      "name": "Madara Uchiha",
+      "title": "Madara Uchiha",
+      "form": "Living / war-era",
+      "formId": "war",
+      "continuity": "naruto-storm4",
+      "aliases": [
+        "Madara Uchiha",
+        "madara",
+        "madara",
+        "Living / war-era"
+      ],
+      "source": {
+        "provider": "bandai-storm4-official",
+        "page": "https://naruto-game.bngames.net/character/08_08.html",
+        "image": "https://naruto-game.bngames.net/images/character/08_08/img_character.png",
+        "credit": "Bandai Namco Naruto Shippuden Ultimate Ninja Storm 4 official site",
+        "rights": "© Masashi Kishimoto / Shueisha, TV Tokyo, Pierrot; © Bandai Namco Entertainment Inc. All rights reserved.",
+        "usage": "reference-only"
+      },
+      "rank": {
+        "letter": "S",
+        "scope": "Madara Uchiha — Living / war-era",
+        "basis": "Exceptional ocular and battlefield control capabilities.",
+        "limits": "Not automatically Juubi-jinchūriki form."
+      }
+    },
+    {
+      "id": "madara-edo",
+      "number": 16,
+      "character": "madara",
+      "name": "Madara Uchiha",
+      "title": "Madara Uchiha",
+      "form": "Reanimated / Edo Tensei",
+      "formId": "edo-tensei",
+      "continuity": "naruto-storm4",
+      "aliases": [
+        "Madara Uchiha",
+        "madara",
+        "madara",
+        "Reanimated / Edo Tensei"
+      ],
+      "source": {
+        "provider": "bandai-storm4-official",
+        "page": "https://naruto-game.bngames.net/character/10_20.html",
+        "image": "https://naruto-game.bngames.net/images/character/10_20/img_character.png",
+        "credit": "Bandai Namco Naruto Shippuden Ultimate Ninja Storm 4 official site",
+        "rights": "© Masashi Kishimoto / Shueisha, TV Tokyo, Pierrot; © Bandai Namco Entertainment Inc. All rights reserved.",
+        "usage": "reference-only"
+      },
+      "rank": {
+        "letter": "S",
+        "scope": "Madara Uchiha — Reanimated / Edo Tensei",
+        "basis": "Immense chakra reserves and Edo Tensei regeneration.",
+        "limits": "This is not Ten-Tails Madara."
+      }
+    },
+    {
+      "id": "obito-war",
+      "number": 17,
+      "character": "obito",
+      "name": "Obito Uchiha",
+      "title": "Obito Uchiha",
+      "form": "Fourth Shinobi War",
+      "formId": "war",
+      "continuity": "naruto-storm4",
+      "aliases": [
+        "Obito Uchiha",
+        "obito",
+        "obito",
+        "Fourth Shinobi War"
+      ],
+      "source": {
+        "provider": "bandai-storm4-official",
+        "page": "https://naruto-game.bngames.net/character/10_24.html",
+        "image": "https://naruto-game.bngames.net/images/character/10_24/img_character.png",
+        "credit": "Bandai Namco Naruto Shippuden Ultimate Ninja Storm 4 official site",
+        "rights": "© Masashi Kishimoto / Shueisha, TV Tokyo, Pierrot; © Bandai Namco Entertainment Inc. All rights reserved.",
+        "usage": "reference-only"
+      },
+      "rank": {
+        "letter": "A",
+        "scope": "Obito Uchiha — Fourth Shinobi War",
+        "basis": "Kamui phasing and powerful strategic versatility.",
+        "limits": "Artwork is not the Ten-Tails host transformation."
+      }
+    },
+    {
+      "id": "hashirama-edo",
+      "number": 18,
+      "character": "hashirama",
+      "name": "Hashirama Senju",
+      "title": "Hashirama Senju",
+      "form": "Edo Tensei",
+      "formId": "edo-tensei",
+      "continuity": "naruto-storm4",
+      "aliases": [
+        "Hashirama Senju",
+        "hashirama",
+        "hashirama",
+        "Edo Tensei"
+      ],
+      "source": {
+        "provider": "bandai-storm4-official",
+        "page": "https://naruto-game.bngames.net/character/10_21.html",
+        "image": "https://naruto-game.bngames.net/images/character/10_21/img_character.png",
+        "credit": "Bandai Namco Naruto Shippuden Ultimate Ninja Storm 4 official site",
+        "rights": "© Masashi Kishimoto / Shueisha, TV Tokyo, Pierrot; © Bandai Namco Entertainment Inc. All rights reserved.",
+        "usage": "reference-only"
+      },
+      "rank": {
+        "letter": "S",
+        "scope": "Hashirama Senju — Edo Tensei",
+        "basis": "Wood release, sage arts and enormous area control.",
+        "limits": "Edo state has distinct constraints from living prime."
+      }
+    },
+    {
+      "id": "minato-hokage",
+      "number": 19,
+      "character": "minato",
+      "name": "Minato Namikaze",
+      "title": "Minato Namikaze",
+      "form": "Fourth Hokage",
+      "formId": "hokage",
+      "continuity": "naruto-storm4",
+      "aliases": [
+        "Minato Namikaze",
+        "minato",
+        "minato",
+        "Fourth Hokage"
+      ],
+      "source": {
+        "provider": "bandai-storm4-official",
+        "page": "https://naruto-game.bngames.net/character/02_20.html",
+        "image": "https://naruto-game.bngames.net/images/character/02_20/img_character.png",
+        "credit": "Bandai Namco Naruto Shippuden Ultimate Ninja Storm 4 official site",
+        "rights": "© Masashi Kishimoto / Shueisha, TV Tokyo, Pierrot; © Bandai Namco Entertainment Inc. All rights reserved.",
+        "usage": "reference-only"
+      },
+      "rank": {
+        "letter": "A",
+        "scope": "Minato Namikaze — Fourth Hokage",
+        "basis": "Flying Raijin, reflexes and Rasengan mastery.",
+        "limits": "Do not include Edo Kurama Chakra Mode without matching art."
+      }
+    },
+    {
+      "id": "neji-shippuden",
+      "number": 20,
+      "character": "neji",
+      "name": "Neji Hyūga",
+      "title": "Neji Hyūga",
+      "form": "Shippuden / Byakugan",
+      "formId": "shippuden",
+      "continuity": "naruto-storm4",
+      "aliases": [
+        "Neji Hyūga",
+        "neji",
+        "neji",
+        "Shippuden / Byakugan"
+      ],
+      "source": {
+        "provider": "bandai-storm4-official",
+        "page": "https://naruto-game.bngames.net/character/02_07.html",
+        "image": "https://naruto-game.bngames.net/images/character/02_07/img_character.png",
+        "credit": "Bandai Namco Naruto Shippuden Ultimate Ninja Storm 4 official site",
+        "rights": "© Masashi Kishimoto / Shueisha, TV Tokyo, Pierrot; © Bandai Namco Entertainment Inc. All rights reserved.",
+        "usage": "reference-only"
+      },
+      "rank": {
+        "letter": "B",
+        "scope": "Neji Hyūga — Shippuden / Byakugan",
+        "basis": "Gentle Fist chakra-point attacks and near-total defence.",
+        "limits": "Rotation and Byakugan have blindspots and stamina costs."
+      }
+    },
+    {
+      "id": "neji-child",
+      "number": 21,
+      "character": "neji",
+      "name": "Neji Hyūga",
+      "title": "Neji Hyūga",
+      "form": "Child / Part I",
+      "formId": "child",
+      "continuity": "naruto-storm4",
+      "aliases": [
+        "Neji Hyūga",
+        "neji",
+        "neji",
+        "Child / Part I"
+      ],
+      "source": {
+        "provider": "bandai-storm4-official",
+        "page": "https://naruto-game.bngames.net/character/09_01.html",
+        "image": "https://naruto-game.bngames.net/images/character/09_01/img_character.png",
+        "credit": "Bandai Namco Naruto Shippuden Ultimate Ninja Storm 4 official site",
+        "rights": "© Masashi Kishimoto / Shueisha, TV Tokyo, Pierrot; © Bandai Namco Entertainment Inc. All rights reserved.",
+        "usage": "reference-only"
+      },
+      "rank": {
+        "letter": "C",
+        "scope": "Neji Hyūga — Child / Part I",
+        "basis": "Prodigious Gentle Fist and Byakugan.",
+        "limits": "Not later Shippuden maturation."
+      }
+    },
+    {
+      "id": "hinata-shippuden",
+      "number": 22,
+      "character": "hinata",
+      "name": "Hinata Hyūga",
+      "title": "Hinata Hyūga",
+      "form": "Shippuden / Byakugan",
+      "formId": "shippuden",
+      "continuity": "naruto-storm4",
+      "aliases": [
+        "Hinata Hyūga",
+        "hinata",
+        "hinata",
+        "Shippuden / Byakugan"
+      ],
+      "source": {
+        "provider": "bandai-storm4-official",
+        "page": "https://naruto-game.bngames.net/character/02_08.html",
+        "image": "https://naruto-game.bngames.net/images/character/02_08/img_character.png",
+        "credit": "Bandai Namco Naruto Shippuden Ultimate Ninja Storm 4 official site",
+        "rights": "© Masashi Kishimoto / Shueisha, TV Tokyo, Pierrot; © Bandai Namco Entertainment Inc. All rights reserved.",
+        "usage": "reference-only"
+      },
+      "rank": {
+        "letter": "C",
+        "scope": "Hinata Hyūga — Shippuden / Byakugan",
+        "basis": "Developing Gentle Fist and Byakugan scouting.",
+        "limits": "No unsupported Six Paths or Hamura chakra claims."
+      }
+    },
+    {
+      "id": "hinata-child",
+      "number": 23,
+      "character": "hinata",
+      "name": "Hinata Hyūga",
+      "title": "Hinata Hyūga",
+      "form": "Child / Part I",
+      "formId": "child",
+      "continuity": "naruto-storm4",
+      "aliases": [
+        "Hinata Hyūga",
+        "hinata",
+        "hinata",
+        "Child / Part I"
+      ],
+      "source": {
+        "provider": "bandai-storm4-official",
+        "page": "https://naruto-game.bngames.net/character/09_04.html",
+        "image": "https://naruto-game.bngames.net/images/character/09_04/img_character.png",
+        "credit": "Bandai Namco Naruto Shippuden Ultimate Ninja Storm 4 official site",
+        "rights": "© Masashi Kishimoto / Shueisha, TV Tokyo, Pierrot; © Bandai Namco Entertainment Inc. All rights reserved.",
+        "usage": "reference-only"
+      },
+      "rank": {
+        "letter": "D",
+        "scope": "Hinata Hyūga — Child / Part I",
+        "basis": "Early Byakugan training and Gentle Fist foundations.",
+        "limits": "Not her adult or The Last version."
+      }
+    },
+    {
+      "id": "shisui-uchiha",
+      "number": 24,
+      "character": "shisui",
+      "name": "Shisui Uchiha",
+      "title": "Shisui Uchiha",
+      "form": "Uchiha / Mangekyō",
+      "formId": "mangekyo",
+      "continuity": "naruto-storm4",
+      "aliases": [
+        "Shisui Uchiha",
+        "shisui",
+        "shisui",
+        "Uchiha / Mangekyō"
+      ],
+      "source": {
+        "provider": "bandai-storm4-official",
+        "page": "https://naruto-game.bngames.net/character/02_22.html",
+        "image": "https://naruto-game.bngames.net/images/character/02_22/img_character.png",
+        "credit": "Bandai Namco Naruto Shippuden Ultimate Ninja Storm 4 official site",
+        "rights": "© Masashi Kishimoto / Shueisha, TV Tokyo, Pierrot; © Bandai Namco Entertainment Inc. All rights reserved.",
+        "usage": "reference-only"
+      },
+      "rank": {
+        "letter": "A",
+        "scope": "Shisui Uchiha — Uchiha / Mangekyō",
+        "basis": "Body Flicker mastery and formidable genjutsu.",
+        "limits": "Kotoamatsukami has significant use restrictions."
+      }
+    },
+    {
+      "id": "gaara-shippuden",
+      "number": 25,
+      "character": "gaara",
+      "name": "Gaara",
+      "title": "Gaara",
+      "form": "Kazekage",
+      "formId": "kazekage",
+      "continuity": "naruto-storm4",
+      "aliases": [
+        "Gaara",
+        "gaara",
+        "gaara",
+        "Kazekage"
+      ],
+      "source": {
+        "provider": "bandai-storm4-official",
+        "page": "https://naruto-game.bngames.net/character/03_03.html",
+        "image": "https://naruto-game.bngames.net/images/character/03_03/img_character.png",
+        "credit": "Bandai Namco Naruto Shippuden Ultimate Ninja Storm 4 official site",
+        "rights": "© Masashi Kishimoto / Shueisha, TV Tokyo, Pierrot; © Bandai Namco Entertainment Inc. All rights reserved.",
+        "usage": "reference-only"
+      },
+      "rank": {
+        "letter": "A",
+        "scope": "Gaara — Kazekage",
+        "basis": "Vast sand control, defence and battlefield sealing.",
+        "limits": "Do not assign One-Tail host strength after extraction."
+      }
+    },
+    {
+      "id": "gaara-child",
+      "number": 26,
+      "character": "gaara",
+      "name": "Gaara",
+      "title": "Gaara",
+      "form": "Child / Jinchūriki",
+      "formId": "child",
+      "continuity": "naruto-storm4",
+      "aliases": [
+        "Gaara",
+        "gaara",
+        "gaara",
+        "Child / Jinchūriki"
+      ],
+      "source": {
+        "provider": "bandai-storm4-official",
+        "page": "https://naruto-game.bngames.net/character/09_06.html",
+        "image": "https://naruto-game.bngames.net/images/character/09_06/img_character.png",
+        "credit": "Bandai Namco Naruto Shippuden Ultimate Ninja Storm 4 official site",
+        "rights": "© Masashi Kishimoto / Shueisha, TV Tokyo, Pierrot; © Bandai Namco Entertainment Inc. All rights reserved.",
+        "usage": "reference-only"
+      },
+      "rank": {
+        "letter": "B",
+        "scope": "Gaara — Child / Jinchūriki",
+        "basis": "Automatic sand defence and Shukaku-linked power.",
+        "limits": "Young Gaara has unstable control and different limits."
+      }
+    },
+    {
+      "id": "tsunade-hokage",
+      "number": 27,
+      "character": "tsunade",
+      "name": "Tsunade",
+      "title": "Tsunade",
+      "form": "Fifth Hokage",
+      "formId": "hokage",
+      "continuity": "naruto-storm4",
+      "aliases": [
+        "Tsunade",
+        "tsunade",
+        "tsunade",
+        "Fifth Hokage"
+      ],
+      "source": {
+        "provider": "bandai-storm4-official",
+        "page": "https://naruto-game.bngames.net/character/02_24.html",
+        "image": "https://naruto-game.bngames.net/images/character/02_24/img_character.png",
+        "credit": "Bandai Namco Naruto Shippuden Ultimate Ninja Storm 4 official site",
+        "rights": "© Masashi Kishimoto / Shueisha, TV Tokyo, Pierrot; © Bandai Namco Entertainment Inc. All rights reserved.",
+        "usage": "reference-only"
+      },
+      "rank": {
+        "letter": "A",
+        "scope": "Tsunade — Fifth Hokage",
+        "basis": "Immense physical power and medical regeneration.",
+        "limits": "Byakugō duration and chakra expenditure limit her."
+      }
+    },
+    {
+      "id": "pain-deva",
+      "number": 28,
+      "character": "pain",
+      "name": "Pain",
+      "title": "Pain",
+      "form": "Deva Path / Six Paths",
+      "formId": "deva-path",
+      "continuity": "naruto-storm4",
+      "aliases": [
+        "Pain",
+        "pain",
+        "pain",
+        "Deva Path / Six Paths"
+      ],
+      "source": {
+        "provider": "bandai-storm4-official",
+        "page": "https://naruto-game.bngames.net/character/08_06.html",
+        "image": "https://naruto-game.bngames.net/images/character/08_06/img_character.png",
+        "credit": "Bandai Namco Naruto Shippuden Ultimate Ninja Storm 4 official site",
+        "rights": "© Masashi Kishimoto / Shueisha, TV Tokyo, Pierrot; © Bandai Namco Entertainment Inc. All rights reserved.",
+        "usage": "reference-only"
+      },
+      "rank": {
+        "letter": "A",
+        "scope": "Pain — Deva Path / Six Paths",
+        "basis": "Gravity manipulation and remote coordinated Rinnegan powers.",
+        "limits": "Distance, timing and Nagato control limit techniques."
+      }
+    },
+    {
+      "id": "sarada-shinobi",
+      "number": 29,
+      "character": "sarada",
+      "name": "Sarada Uchiha",
+      "title": "Sarada Uchiha",
+      "form": "Boruto / young shinobi",
+      "formId": "young-shinobi",
+      "continuity": "boruto-storm4",
+      "aliases": [
+        "Sarada Uchiha",
+        "sarada",
+        "sarada",
+        "Boruto / young shinobi"
+      ],
+      "source": {
+        "provider": "bandai-storm4-official",
+        "page": "https://naruto-game.bngames.net/character/01_11.html",
+        "image": "https://naruto-game.bngames.net/images/character/01_11/img_character.png",
+        "credit": "Bandai Namco Naruto Shippuden Ultimate Ninja Storm 4 official site",
+        "rights": "© Masashi Kishimoto / Shueisha, TV Tokyo, Pierrot; © Bandai Namco Entertainment Inc. All rights reserved.",
+        "usage": "reference-only"
+      },
+      "rank": {
+        "letter": "C",
+        "scope": "Sarada Uchiha — Boruto / young shinobi",
+        "basis": "Sharingan observation and trained ninjutsu.",
+        "limits": "No Two Blue Vortex Mangekyō feats assigned."
+      }
+    }
+  ],
+  "pendingForms": [
+    {
+      "id": "naruto-sage-mode",
+      "character": "naruto",
+      "formId": "sage-mode",
+      "status": "pending-correct-form-art",
+      "reason": "Requires independent verified official source cutout and form-specific feat assessment. Never relabel an existing portrait."
+    },
+    {
+      "id": "naruto-kcm1",
+      "character": "naruto",
+      "formId": "kcm1",
+      "status": "pending-correct-form-art",
+      "reason": "Requires independent verified official source cutout and form-specific feat assessment. Never relabel an existing portrait."
+    },
+    {
+      "id": "naruto-kcm2",
+      "character": "naruto",
+      "formId": "kcm2",
+      "status": "pending-correct-form-art",
+      "reason": "Requires independent verified official source cutout and form-specific feat assessment. Never relabel an existing portrait."
+    },
+    {
+      "id": "naruto-kurama-avatar",
+      "character": "naruto",
+      "formId": "kurama-avatar",
+      "status": "pending-correct-form-art",
+      "reason": "Requires independent verified official source cutout and form-specific feat assessment. Never relabel an existing portrait."
+    },
+    {
+      "id": "naruto-baryon-mode",
+      "character": "naruto",
+      "formId": "baryon-mode",
+      "status": "pending-correct-form-art",
+      "reason": "Requires independent verified official source cutout and form-specific feat assessment. Never relabel an existing portrait."
+    },
+    {
+      "id": "naruto-hokage-boruto",
+      "character": "naruto",
+      "formId": "hokage-boruto",
+      "status": "pending-correct-form-art",
+      "reason": "Requires independent verified official source cutout and form-specific feat assessment. Never relabel an existing portrait."
+    },
+    {
+      "id": "sasuke-complete-susanoo",
+      "character": "sasuke",
+      "formId": "complete-susanoo",
+      "status": "pending-correct-form-art",
+      "reason": "Requires independent verified official source cutout and form-specific feat assessment. Never relabel an existing portrait."
+    },
+    {
+      "id": "kakashi-double-mangekyo",
+      "character": "kakashi",
+      "formId": "double-mangekyo",
+      "status": "pending-correct-form-art",
+      "reason": "Requires independent verified official source cutout and form-specific feat assessment. Never relabel an existing portrait."
+    },
+    {
+      "id": "madara-ten-tails",
+      "character": "madara",
+      "formId": "ten-tails",
+      "status": "pending-correct-form-art",
+      "reason": "Requires independent verified official source cutout and form-specific feat assessment. Never relabel an existing portrait."
+    },
+    {
+      "id": "obito-ten-tails",
+      "character": "obito",
+      "formId": "ten-tails",
+      "status": "pending-correct-form-art",
+      "reason": "Requires independent verified official source cutout and form-specific feat assessment. Never relabel an existing portrait."
+    },
+    {
+      "id": "kaguya-rabbit-goddess",
+      "character": "kaguya",
+      "formId": "rabbit-goddess",
+      "status": "pending-correct-form-art",
+      "reason": "Requires independent verified official source cutout and form-specific feat assessment. Never relabel an existing portrait."
+    },
+    {
+      "id": "jigen-karma",
+      "character": "jigen",
+      "formId": "karma",
+      "status": "pending-correct-form-art",
+      "reason": "Requires independent verified official source cutout and form-specific feat assessment. Never relabel an existing portrait."
+    },
+    {
+      "id": "isshiki-otsutsuki",
+      "character": "isshiki",
+      "formId": "awakened",
+      "status": "pending-correct-form-art",
+      "reason": "Requires independent verified official source cutout and form-specific feat assessment. Never relabel an existing portrait."
+    },
+    {
+      "id": "boruto-karma",
+      "character": "boruto",
+      "formId": "karma",
+      "status": "pending-correct-form-art",
+      "reason": "Requires independent verified official source cutout and form-specific feat assessment. Never relabel an existing portrait."
+    },
+    {
+      "id": "kawaki-karma",
+      "character": "kawaki",
+      "formId": "karma",
+      "status": "pending-correct-form-art",
+      "reason": "Requires independent verified official source cutout and form-specific feat assessment. Never relabel an existing portrait."
+    },
+    {
+      "id": "sarada-two-blue-vortex",
+      "character": "sarada",
+      "formId": "two-blue-vortex",
+      "status": "pending-correct-form-art",
+      "reason": "Requires independent verified official source cutout and form-specific feat assessment. Never relabel an existing portrait."
+    }
+  ]
+}
