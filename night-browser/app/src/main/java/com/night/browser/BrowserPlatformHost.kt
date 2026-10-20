@@ -275,15 +275,58 @@ class BrowserPlatformHost(private val activity: ComponentActivity) :
         session: GeckoSession, prompt: GeckoSession.PromptDelegate.ChoicePrompt
     ): GeckoResult<GeckoSession.PromptDelegate.PromptResponse> {
         val result = GeckoResult<GeckoSession.PromptDelegate.PromptResponse>()
-        val choices = prompt.choices.filter { !it.disabled && !it.separator && it.items == null }
-        if (choices.isEmpty()) { result.complete(prompt.dismiss()); return result }
-        val labels = choices.map { it.label }.toTypedArray()
-        AlertDialog.Builder(activity)
+        val choices = mutableListOf<GeckoSession.PromptDelegate.ChoicePrompt.Choice>()
+        val labels = mutableListOf<String>()
+        fun collect(
+            options: Array<out GeckoSession.PromptDelegate.ChoicePrompt.Choice>,
+            group: String = ""
+        ) {
+            options.forEach { choice ->
+                if (!choice.disabled && !choice.separator) {
+                    val nested = choice.items
+                    if (nested != null) collect(nested, if (group.isBlank())
+                        choice.label else "$"+"{group} / $"+"{choice.label}")
+                    else {
+                        choices.add(choice)
+                        labels.add(if (group.isBlank()) choice.label else "$"+"{group} / $"+"{choice.label}")
+                    }
+                }
+            }
+        }
+        collect(prompt.choices)
+        if (choices.isEmpty()) {
+            result.complete(prompt.dismiss())
+            return result
+        }
+        val builder = AlertDialog.Builder(activity)
             .setTitle(prompt.title ?: prompt.message ?: "Choose")
-            .setItems(labels) { _, index -> result.complete(prompt.confirm(choices[index])) }
             .setNegativeButton("Cancel") { _, _ -> result.complete(prompt.dismiss()) }
             .setOnCancelListener { result.complete(prompt.dismiss()) }
-            .show()
+
+        when (prompt.type) {
+            GeckoSession.PromptDelegate.ChoicePrompt.Type.MULTIPLE -> {
+                val checked = BooleanArray(choices.size) { choices[it].selected }
+                builder.setMultiChoiceItems(labels.toTypedArray(), checked) { _, i, selected ->
+                    checked[i] = selected
+                }.setPositiveButton("Done") { _, _ ->
+                    result.complete(prompt.confirm(
+                        choices.filterIndexed { i, _ -> checked[i] }.toTypedArray()))
+                }
+            }
+            GeckoSession.PromptDelegate.ChoicePrompt.Type.SINGLE -> {
+                var selected = choices.indexOfFirst { it.selected }
+                builder.setSingleChoiceItems(labels.toTypedArray(), selected) { _, i ->
+                    selected = i
+                }.setPositiveButton("Choose") { _, _ ->
+                    if (selected >= 0) result.complete(prompt.confirm(choices[selected]))
+                    else result.complete(prompt.dismiss())
+                }
+            }
+            else -> builder.setItems(labels.toTypedArray()) { _, index ->
+                result.complete(prompt.confirm(choices[index]))
+            }
+        }
+        builder.show()
         return result
     }
 
