@@ -62,7 +62,7 @@ object UniversalSearchPolicy {
         if (uri.rawQuery != null || uri.rawFragment != null || uri.rawUserInfo != null) return true
         return sensitiveTerms.containsMatchIn(source.title) ||
             sensitiveTerms.containsMatchIn(uri.host.orEmpty()) ||
-            sensitiveTerms.containsMatchIn(uri.rawPath.orEmpty())
+            sensitiveTerms.containsMatchIn(uri.path.orEmpty())
     }
 
     /** Local candidate listing does not send any data to a model or network. */
@@ -94,9 +94,10 @@ object UniversalSearchPolicy {
         val sources = eligibleCandidates(eligible).asSequence()
             .filter { selectedIds.contains(it.id) }
             .take(MAX_SHARED_SOURCES)
-            .mapNotNull { source ->
+            .mapIndexedNotNull { index, source ->
                 safeHost(source.url)?.let { host ->
-                    SharedSearchSource(source.id, source.title.trim().take(160), host, source)
+                    // Model-visible aliases are ephemeral, not local URL-derived IDs.
+                    SharedSearchSource("S" + (index + 1), source.title.trim().take(160), host, source)
                 }
             }.toList()
         if (sources.isEmpty()) return SearchPreparation.Rejected("No eligible approved pages were selected.")
