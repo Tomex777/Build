@@ -1,11 +1,6 @@
 name: NIGHT Browser Agent 7 — Time Machine
 
 on:
-  push:
-    branches: [agent/browser-07-time-machine]
-    paths:
-      - 'night-browser/**'
-      - '.github/workflows/night-browser-agent07.yml'
   pull_request:
     branches: [feature/night-browser-multi-agent-20261020]
     paths:
@@ -15,6 +10,12 @@ on:
 
 permissions:
   contents: read
+
+# Multiple browser agents share runner capacity: do not launch two emulator
+# jobs per push, and cancel superseded commits within this PR.
+concurrency:
+  group: night-browser-agent07
+  cancel-in-progress: true
 
 jobs:
   build-and-tests:
