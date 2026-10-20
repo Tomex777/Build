@@ -18,7 +18,7 @@ echo "Installing and running real hymn-text and section-numbering instrumentatio
 test -f ./dist/app-debug-androidTest.apk
 timeout 90s adb install --no-streaming -r ./dist/app-debug-androidTest.apk
 timeout 180s adb shell am instrument -w -r com.night.tachymns.test/androidx.test.runner.AndroidJUnitRunner | tee tac-hymns-device-test-results.txt
-grep -q "OK (3 tests)" tac-hymns-device-test-results.txt
+grep -q "OK (5 tests)" tac-hymns-device-test-results.txt
 
 echo "Opening home"
 timeout 25s adb shell am start -W -n com.night.tachymns/.MainActivity
