@@ -44,7 +44,17 @@ class YomiCiFixtureActivity : Activity() {
             ?.let { runCatching { ReadingMode.valueOf(it) }.getOrNull() }
             ?: ReadingMode.LTR_PAGED
 
-        val target = if (kind == KIND_FOLDER) {
+        val target = if (kind == KIND_FOLDER_ARCHIVE) {
+            // Exercise chapter ZIP files supplied by a SAF tree, which must
+            // be indexed once instead of scanning all previous pages on turns.
+            val archive = File(cacheDir, "yomi-ci-book.cbz")
+            if (!archive.exists() || intent.getBooleanExtra(EXTRA_RESET, false)) writeFixture(archive)
+            val tree = DocumentsContract.buildTreeDocumentUri(
+                packageName + YomiCiDocumentsProvider.AUTHORITY_SUFFIX,
+                YomiCiDocumentsProvider.ARCHIVE_FOLDER_ID,
+            )
+            Triple(tree, "folder", "Yomi CI ZIP Folder")
+        } else if (kind == KIND_FOLDER) {
             val uri = DocumentsContract.buildTreeDocumentUri(
                 packageName + YomiCiDocumentsProvider.AUTHORITY_SUFFIX,
                 YomiCiDocumentsProvider.ROOT_ID,
@@ -92,7 +102,7 @@ class YomiCiFixtureActivity : Activity() {
         LocalLibraryStore(this).upsert(
             uri = target.first,
             title = target.third,
-            locationType = if (kind == KIND_FOLDER) LibraryLocationType.TREE else LibraryLocationType.DOCUMENT,
+            locationType = if (kind == KIND_FOLDER || kind == KIND_FOLDER_ARCHIVE) LibraryLocationType.TREE else LibraryLocationType.DOCUMENT,
             pageCount = when (kind) {
                 KIND_FOLDER -> 4
                 KIND_ANIMATED_GIF -> 1
@@ -108,7 +118,7 @@ class YomiCiFixtureActivity : Activity() {
         if (intent.getBooleanExtra(EXTRA_OPEN_SETTINGS, false)) {
             readerIntent.putExtra(ReaderActivity.EXTRA_CI_OPEN_SETTINGS, true)
         }
-        if (kind == KIND_FOLDER) {
+        if (kind == KIND_FOLDER || kind == KIND_FOLDER_ARCHIVE) {
             // Match ACTION_OPEN_DOCUMENT_TREE: the reader receives the tree URI through
             // ClipData and read/persistable grant flags. A bare URI string is not a valid
             // SAF grant and makes the fixture exercise a permission failure instead of a
@@ -179,6 +189,7 @@ class YomiCiFixtureActivity : Activity() {
         const val EXTRA_OPEN_SETTINGS = "openSettings"
         const val KIND_ARCHIVE = "archive"
         const val KIND_FOLDER = "folder"
+        const val KIND_FOLDER_ARCHIVE = "folder-archive"
         const val KIND_IMPORTED = "imported"
         const val KIND_EXTENSIONLESS = "extensionless"
         const val KIND_ANIMATED_GIF = "animated-gif"
