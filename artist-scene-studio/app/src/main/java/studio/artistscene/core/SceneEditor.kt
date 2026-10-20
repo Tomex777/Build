@@ -1124,7 +1124,11 @@ data class SceneEditorState(
     }
 
     private fun String?.validFor(project: SceneProject): String? =
-        this?.takeIf { id -> project.actors.any { it.id == id } } ?: project.actors.firstOrNull()?.id
+        // Null is the artist's deliberate clear-selection action (Select tool). Do not
+        // silently focus the first actor after an environment edit or undo/redo.
+        if (this == null) null
+        else this.takeIf { id -> project.actors.any { it.id == id } }
+            ?: project.actors.firstOrNull()?.id
 
     /** Reject NaN, infinities and invalid scale before they reach Filament or JSON persistence. */
     private fun Vec3.hasFiniteComponents(): Boolean =
