@@ -276,7 +276,8 @@ function paintSlice(){
  }
  for(const p of state.popups){
   ctx.save();ctx.globalAlpha=Math.max(0,1-p.age/.65);
-  text(p.label||'+'+p.points,p.x,p.y,p.label?17:19,'#fffdf3',850);ctx.restore();
+  // High-contrast forest ink stays readable against the pale playing field.
+  text(p.label||'+'+p.points,p.x,p.y,p.label?17:19,'#244b38',850);ctx.restore();
  }
  for(let i=0;i<5;i++)disk(30+i*21,30,7,i<5-state.misses?'#d87761':'#d7dcd3');
 }
