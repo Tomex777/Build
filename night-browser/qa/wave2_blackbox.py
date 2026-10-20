@@ -486,6 +486,10 @@ class Device:
 
     def time_machine(self):
         self.go("/landing")
+        # An HTTP request hit is not proof Gecko finished committing the document.
+        # Capture only after the real tab title confirms its load, otherwise a
+        # blank/stale previous page PDF can be incorrectly attributed to /landing.
+        self.verify_title("NIGHT QA REDIRECT LANDING")
         self.click("More")
         self.click("Save PDF copy")
         self.click("More")
