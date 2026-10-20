@@ -73,6 +73,7 @@ import studio.artistscene.core.ReferenceImage
 import studio.artistscene.core.RigDefinition
 import studio.artistscene.core.SceneCamera
 import studio.artistscene.core.SceneProject
+import studio.artistscene.core.SkySunMath
 import studio.artistscene.core.Vec3
 
 private const val VIEWPORT_LOG_TAG = "MiseRuntime"
@@ -116,10 +117,25 @@ fun SceneViewport(
     val environmentLoader = rememberEnvironmentLoader(engine)
     val loadedEnvironment = rememberEnvironment(environmentLoader, isOpaque = false)
     val preset = project.world.environmentPreset
-    val skyTexture = remember(engine, preset) {
+    val sun = project.actors.firstOrNull {
+        it.kind == ActorKind.LIGHT && it.visible &&
+            it.light?.type == studio.artistscene.core.LightType.DIRECTIONAL
+    }
+    // The procedural sun must follow the same authored directional light as Filament's shadows.
+    // No visible sun means no painted disk; older scenes without lights keep their studio sun.
+    val fallbackSun = sceneUsesFallbackSun(project.actors)
+    val skyDirection = sun?.light?.direction?.takeIf { direction ->
+        direction.x.isFinite() && direction.y.isFinite() && direction.z.isFinite() &&
+            (direction.x * direction.x + direction.y * direction.y + direction.z * direction.z) > 0.000001f
+    } ?: if (fallbackSun) Vec3(-0.45f, -1f, -0.35f) else Vec3(0f, 1f, 0f)
+    val snappedSkyDirection = remember(skyDirection) {
+        runCatching { SkySunMath.quantizeDirection(skyDirection) }
+            .getOrElse { Vec3(0f, 1f, 0f) }
+    }
+    val skyTexture = remember(engine, preset, snappedSkyDirection) {
         if (preset == EnvironmentPreset.PARK_SHADE) {
             createPhotographicOutdoorSky(engine, context)
-        } else createOutdoorSky(engine, preset)
+        } else createOutdoorSky(engine, preset, snappedSkyDirection)
     }
     val studioSkybox = remember(engine, skyTexture) {
         Skybox.Builder().environment(skyTexture).build(engine)
@@ -148,16 +164,11 @@ fun SceneViewport(
     val renderableActors = project.actors.filter { it.asset != null }
     val modelReadyForFrame = remember(engine) { AtomicBoolean(false) }
 
-    val sun = project.actors.firstOrNull {
-        it.kind == ActorKind.LIGHT && it.visible &&
-            it.light?.type == studio.artistscene.core.LightType.DIRECTIONAL
-    }
     val secondaryLights = project.actors.filter { actor ->
         actor.kind == ActorKind.LIGHT && actor.visible && actor.id != sun?.id && actor.light != null
     }
     // Artists may intentionally hide the sun or light a scene using ONLY spot/point lights.
     // Never replace an authored (possibly hidden) light with a surprise default sunlight.
-    val fallbackSun = sceneUsesFallbackSun(project.actors)
     val activeCamera = project.cameras.firstOrNull { it.id == project.activeCameraId }
         ?: project.cameras.firstOrNull()
         ?: studio.artistscene.core.SceneCamera("camera-main", "Camera")
