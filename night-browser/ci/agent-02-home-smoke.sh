@@ -107,11 +107,28 @@ sleep 7
 ui has "AgentQA"
 capture "04-relaunched-persisted"
 
+# Exercise shortcut editing, then deletion (no second independent delete
+# action is exposed on the normal non-editing tile).
+touch "Edit"
+touch "AgentQA"
+ui has "Edit shortcut"
+tap_editor 0
+adb shell input keyevent 123 # MOVE_END
+for _ in 1 2 3 4 5 6 7; do adb shell input keyevent 67; done
+adb shell input text "AgentEdited"
+touch "Save"
+ui has "AgentEdited"
+capture "05-shortcut-edited"
+touch "Remove AgentEdited"
+ui not "AgentEdited"
+touch "Done"
+capture "06-shortcut-removed"
+
 adb shell wm density 440 # ~393dp
 sleep 3
 ui has "Quick access"
 ui editors "1"
-capture "05-home-393dp"
+capture "07-home-393dp"
 
 # Search on a real Gecko session through the only Home address field.
 touch "Search or enter address"
@@ -119,21 +136,21 @@ adb shell input text "example.com"
 adb shell input keyevent 66
 sleep 12
 ui not "Quick access"
-capture "06-navigated-geckoview"
+capture "08-navigated-geckoview"
 
 # Home -> tab -> home, including simple orientation flow.
 touch "Home"
 ui has "Quick access"
 touch "Tabs"
 ui has "Tabs"
-capture "07-tab-overview"
+capture "09-tab-overview"
 touch "Home"
 ui has "Quick access"
 adb shell settings put system accelerometer_rotation 0
 adb shell settings put system user_rotation 1
 sleep 5
 ui has "Quick access"
-capture "08-landscape-home"
+capture "10-landscape-home"
 
 adb shell settings put system user_rotation 0
 adb shell wm density reset
