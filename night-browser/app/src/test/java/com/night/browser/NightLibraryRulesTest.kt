@@ -26,6 +26,21 @@ class NightLibraryRulesTest {
         assertEquals("download", DownloadFileNames.safe(null, null))
     }
 
+    @Test fun downloadDispositionAndRedactionDoNotLeakSecrets() {
+        assertEquals("my report.pdf", GeckoDownloadNames.fromDisposition(
+            "attachment; filename*=UTF-8''my%20report.pdf"))
+        assertEquals("home page.txt", GeckoDownloadNames.fromDisposition(
+            "attachment; filename=\"home page.txt\""))
+        assertEquals("https://example.com/folder/file.pdf",
+            GeckoDownloadNames.redactUrl(
+                "https://user:password@example.com/folder/file.pdf?access_token=secret#fragment"))
+    }
+
+    @Test fun urlsWithEmbeddedCredentialsAreNotBookmarkable() {
+        assertFalse(LibraryRules.validWebUrl("https://user:password@example.com/private"))
+        assertFalse(LibraryRules.validWebUrl("https:///empty-host"))
+    }
+
     @Test fun folderAndTitleAreBounded() {
         assertEquals("Untitled", LibraryRules.cleanTitle(" Untitled  ", "https://a.org"))
         assertEquals("https://a.org", LibraryRules.cleanTitle("", "https://a.org"))
