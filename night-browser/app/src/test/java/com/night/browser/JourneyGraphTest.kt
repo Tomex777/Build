@@ -47,6 +47,18 @@ class JourneyGraphTest {
         assertEquals(600, JourneyGraph.rows(Journey("deep", "Deep", kept)).size)
     }
 
+    @Test fun singleVisitDeletionSplicesChildrenWithoutLosingHistory() {
+        val removedB = JourneyGraph.removeVisit(journey.nodes, "B")
+        assertEquals(listOf("A", "C", "D"), removedB.map { it.id })
+        assertEquals("A", removedB.single { it.id == "C" }.parent)
+        assertEquals("A", removedB.single { it.id == "D" }.parent)
+        val removedRoot = JourneyGraph.removeVisit(journey.nodes, "A")
+        assertNull(removedRoot.single { it.id == "B" }.parent)
+        assertNull(removedRoot.single { it.id == "D" }.parent)
+        assertEquals("B", removedRoot.single { it.id == "C" }.parent)
+        assertEquals(journey.nodes, JourneyGraph.removeVisit(journey.nodes, "missing"))
+    }
+
     @Test fun deletingSubtreeDoesNotDeleteSibling() {
         assertEquals(setOf("B", "C"), JourneyGraph.subtreeIds(journey.nodes, "B"))
         assertFalse("D" in JourneyGraph.subtreeIds(journey.nodes, "B"))
