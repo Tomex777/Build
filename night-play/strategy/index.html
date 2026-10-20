@@ -11,7 +11,9 @@
  <symbol id="chess-k" viewBox="0 0 64 64"><path d="M29 6h6v10h9v6h-9v6h-6v-6h-9v-6h9zM21 30h22l5 17H16zM15 50h34v6H15z"/></symbol>
 </svg>
 <header class="site-top"><a class="go-back" href="/games" aria-label="Back to games"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 5-7 7 7 7"/></svg><span>Games</span></a><a class="brand" href="/dashboard"><svg width="29" height="29"><use href="#night-mark"/></svg><b>NIGHT <em>PLAY</em></b></a></header>
-<main class="chess-layout"><div class="board-column"><div class="title-row"><div><h1>Chess</h1></div><span id="modeLabel" class="match-label">VS COMPUTER</span></div>
+<main class="chess-layout"><div class="board-column"><div class="title-row"><h1>Chess</h1><button id="chessSettingsOpen" type="button" class="chess-settings-trigger" aria-label="Chess settings" aria-haspopup="dialog" aria-controls="chessSettings">
+<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8.7a3.3 3.3 0 1 0 0 6.6 3.3 3.3 0 0 0 0-6.6Z"/><path d="M19.3 12a7.2 7.2 0 0 0-.1-1.2l1.3-1.1-1.5-2.6-1.6.5a7.9 7.9 0 0 0-2.1-1.2L15 4.7h-3l-.3 1.7a7.9 7.9 0 0 0-2.1 1.2L8 7.1 6.5 9.7l1.3 1.1a7.2 7.2 0 0 0 0 2.4l-1.3 1.1L8 16.9l1.6-.5a7.9 7.9 0 0 0 2.1 1.2l.3 1.7h3l.3-1.7a7.9 7.9 0 0 0 2.1-1.2l1.6.5 1.5-2.6-1.3-1.1c.1-.4.1-.8.1-1.2Z" transform="translate(-1.5 0)"/></svg>
+</button></div>
 <div class="opponent-row"><span class="avatar black-avatar">♟</span><span><strong id="blackName">Computer</strong><small id="blackDetails">BLACK</small></span><span class="turn-led" id="blackTurn">WAITING</span></div>
 <div class="chess-frame" style="position:relative"><div class="chess-board" id="chessBoard" role="grid" aria-label="Chess board, ranks eight through one"></div>
 <div class="chess-finish" id="chessFinish" role="status" aria-live="polite" hidden>
@@ -23,8 +25,31 @@
 </div></div>
 <div class="opponent-row bottom-row"><span class="avatar white-avatar">♙</span><span><strong>White</strong><small id="whiteDetails">YOU</small></span><span class="turn-led" id="whiteTurn">TO PLAY</span></div>
 </div>
-<aside class="match-side"><h2 id="matchStatus" aria-live="polite">White to move</h2><p id="matchMessage" class="message">Select a piece to see legal moves.</p><div class="mode-switch" role="group" aria-label="Game mode"><button id="vsCpu" type="button" aria-pressed="true">Vs computer</button><button id="vsLocal" type="button" aria-pressed="false">Two players</button></div><div id="difficultyRow" class="difficulty-row"><label for="cpuDifficulty">Computer difficulty</label><select id="cpuDifficulty"><option value="easy">Casual</option><option value="normal" selected>Standard</option><option value="hard">Challenging</option></select></div><div class="side-actions"><button type="button" id="newMatch">New match</button><button type="button" id="undo" disabled>Undo</button></div><button type="button" id="chessSound" class="chess-sound" aria-pressed="true">Sound on</button><div class="moves-wrap"><h3>Moves</h3><div class="moves-list" id="moveList" aria-live="off"><span class="empty-moves">First move pending</span></div></div><p class="local-note" id="localNote">Computer plays black.</p></aside>
+
 </main>
+<span id="chessAnnouncer" class="sr-only" role="status" aria-live="polite">White to move</span>
+<dialog id="chessSettings" class="chess-settings-dialog" aria-labelledby="chessSettingsTitle">
+  <div class="chess-settings-head"><h2 id="chessSettingsTitle">Chess settings</h2><button type="button" id="chessSettingsClose" class="chess-settings-close" aria-label="Close settings">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg>
+  </button></div>
+  <div class="chess-settings-body">
+    <section class="chess-setting-group"><h3>Opponent</h3>
+      <div class="mode-switch" role="group" aria-label="Opponent">
+        <button id="vsCpu" type="button" aria-pressed="true">Computer</button>
+        <button id="vsLocal" type="button" aria-pressed="false">Two players</button>
+      </div>
+    </section>
+    <section id="difficultyRow" class="chess-setting-group chess-difficulty"><label for="cpuDifficulty">Difficulty</label>
+      <select id="cpuDifficulty"><option value="easy">Casual</option><option value="normal" selected>Standard</option><option value="hard">Challenging</option></select>
+    </section>
+    <section class="chess-setting-group chess-sound-row">
+      <span>Piece sounds</span><button type="button" id="chessSound" class="chess-sound" aria-pressed="true">Sound on</button>
+    </section>
+    <div class="side-actions chess-settings-actions">
+      <button id="newMatch" type="button">New match</button><button id="undo" type="button" disabled>Undo</button>
+    </div>
+  </div>
+</dialog>
 <div class="promotion-overlay" id="promotionLayer" hidden><div class="promotion-card" role="dialog" aria-modal="true" aria-labelledby="promotionTitle"><h2 id="promotionTitle">Choose promotion</h2><div id="promotionChoices" class="promotion-choices"></div><button type="button" id="promotionCancel">Cancel</button></div></div>
 <script src="/strategy/chess-v0.10.3.js"></script><script src="/strategy/ai.js"></script><script src="/strategy/game.js" defer></script>
 </body></html>
