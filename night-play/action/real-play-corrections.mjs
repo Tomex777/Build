@@ -123,12 +123,20 @@ try{
   assert.equal((await snap(page)).score,0,'a stationary touch on fruit is NOT a blade cut');
   await swipe(55,45,310,45);
   assert.equal((await snap(page)).score,0,'no points for an empty-air slash');
-  // Select the closest still-live fruit, then cut through it with touch input.
-  const active=(await snap(page)).fruits.filter(f=>f.kind!=='bomb'&&!f.hit&&f.y>70&&f.y<440);
-  fruit=active.sort((a,b)=>Math.abs(a.vy)-Math.abs(b.vy))[0];
-  assert.ok(fruit,'the initial fruit is still in reach after tap and miss');
-  await swipe(fruit.x-45,fruit.y,fruit.x+45,fruit.y);
+  // The idle/tap tests take real time. Reacquire a fruit at its apex;
+  // aiming from an older frame makes a swipe miss a fast-moving target.
+  await waitFor(page,()=>window.__nightActionTest.snapshot().fruits.some(f=>
+   f.kind!=='bomb'&&!f.hit&&Math.abs(f.vy)<65&&f.y>100&&f.y<315),5000);
+  fruit=(await snap(page)).fruits.find(f=>
+   f.kind!=='bomb'&&!f.hit&&Math.abs(f.vy)<65&&f.y>100&&f.y<315);
+  assert.ok(fruit,'a fresh reachable fruit reaches its apex');
+  const target={x:fruit.x,y:fruit.y,vy:fruit.vy};
+  await swipe(fruit.x-49,fruit.y,fruit.x+49,fruit.y);
   const result=await snap(page);
+  console.log('NIGHT_FRUIT_TOUCH_DEBUG='+JSON.stringify({
+   target,score:result.score,trail:result.trail,
+   nearby:result.fruits.map(f=>({x:f.x,y:f.y,vy:f.vy,hit:f.hit,kind:f.kind})),
+   halves:result.halves.length}));
   assert.ok(result.score>=10,'an actual finger swipe across a fruit earns points');
   assert.ok(result.halves.length>=2,'a finger slice creates independently falling pieces');
   await page.waitForTimeout(70);
