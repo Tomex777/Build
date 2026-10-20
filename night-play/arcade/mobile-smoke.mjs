@@ -240,7 +240,7 @@ await page.locator('canvas.mode-blocks').evaluate(el=>{
  window.__nightTouchTrace=[];
  for(const kind of ['pointerdown','pointermove','pointerup','pointercancel','lostpointercapture']){
   el.addEventListener(kind,e=>window.__nightTouchTrace.push({kind,x:e.clientX,y:e.clientY,id:e.pointerId,button:e.button,primary:e.isPrimary}),{capture:true});
-  el.addEventListener(kind,e=>window.__nightTouchTrace.push({kind:kind+'-after',gameX:window.__nightArcadeTest.snapshot().cur.x,controls:window.__nightArcadeTest.input()}));
+  el.addEventListener(kind,e=>window.__nightTouchTrace.push({kind:kind+'-after',gameX:window.__nightArcadeTest.snapshot().cur?.x??null,controls:window.__nightArcadeTest.input()}));
  }
 });
 const touchRect=await page.locator('canvas.mode-blocks').boundingBox();
