@@ -15,9 +15,11 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
 import java.io.File
-import java.io.InputStream
+import java.io.InterruptedIOException
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.ConcurrentHashMap
 import android.os.Handler
 import android.os.Looper
 import org.mozilla.geckoview.WebResponse
@@ -75,12 +77,17 @@ class DownloadLibrary private constructor(private val context: Context) {
 
     private val mainThread = Handler(Looper.getMainLooper())
     private val localIds = AtomicLong(-System.currentTimeMillis())
+    private val cancellations = ConcurrentHashMap<Long, AtomicBoolean>()
     private val localDirectory get() = File(context.filesDir, "browser-downloads")
     private fun findLocalFile(record: LibraryDownload): File {
         require(record.localFile.isNotBlank()) { "Missing local file." }
         // Only internally generated UUID-based names are valid, including after JSON reload.
-        require(Regex("[0-9a-f-]{36}_[^/\\\\]{1,110}").matches(record.localFile)) {
-            "Unsafe file name." 
+        require(record.localFile.length in 38..137 &&
+            record.localFile[36] == '_' &&
+            UUID.fromString(record.localFile.substring(0, 36)).toString() ==
+                record.localFile.substring(0, 36) &&
+            !record.localFile.contains('/') && !record.localFile.contains('\\')) {
+            "Unsafe file name."
         }
         return File(localDirectory, record.localFile)
     }
@@ -164,6 +171,7 @@ class DownloadLibrary private constructor(private val context: Context) {
     }
 
     fun remove(record: LibraryDownload): Result<Unit> = runCatching {
+        if (record.localFile.isNotBlank()) cancellations[record.id]?.set(true)
         if (record.localFile.isBlank()) manager.remove(record.id)
         else {
             val file = findLocalFile(record)
@@ -242,6 +250,8 @@ class DownloadLibrary private constructor(private val context: Context) {
 
         val id = localIds.decrementAndGet()
         val storedName = UUID.randomUUID().toString() + "_" + filename
+        val cancelled = AtomicBoolean(false)
+        cancellations[id] = cancelled
         val record = LibraryDownload(id, GeckoDownloadNames.redactUrl(url),
             filename, mime, System.currentTimeMillis(),
             DownloadManager.STATUS_RUNNING, 0, length, localFile = storedName)
@@ -262,6 +272,7 @@ class DownloadLibrary private constructor(private val context: Context) {
                     temp.outputStream().buffered().use { output ->
                         val buffer = ByteArray(64 * 1024)
                         while (true) {
+                            if (cancelled.get()) throw InterruptedIOException("Download cancelled")
                             val n = stream.read(buffer)
                             if (n == -1) break
                             output.write(buffer, 0, n)
@@ -276,15 +287,18 @@ class DownloadLibrary private constructor(private val context: Context) {
                         }
                     }
                 }
+                if (cancelled.get()) throw InterruptedIOException("Download cancelled")
                 if (count == 0L && length > 0) throw IOException("Empty downloaded file.")
                 if (length > 0 && count != length) throw IOException("Incomplete download.")
                 if (!temp.renameTo(destination)) throw IOException("Could not finalize download.")
+                if (cancelled.get()) { destination.delete(); return@Thread }
                 mainThread.post {
                     updateRow(id) {
                         it.copy(bytes = count, totalBytes = if (length > 0) length else count,
                             status = DownloadManager.STATUS_SUCCESSFUL)
                     }
                     onEvent(filename + " downloaded")
+                    cancellations.remove(id)
                 }
             } catch (error: Exception) {
                 // Close the response stream even if opening destination fails.
@@ -292,7 +306,9 @@ class DownloadLibrary private constructor(private val context: Context) {
                 temp.delete()
                 mainThread.post {
                     updateRow(id) { it.copy(status = DownloadManager.STATUS_FAILED) }
-                    onEvent("Download failed: " + (error.message ?: "storage or connection error"))
+                    if (!cancelled.get())
+                        onEvent("Download failed: " + (error.message ?: "storage or connection error"))
+                    cancellations.remove(id)
                 }
             }
         }, "night-gecko-download").start()
