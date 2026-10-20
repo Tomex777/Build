@@ -17,7 +17,8 @@ import java.util.UUID
 class BrowserTab(
     val id: String,
     val session: GeckoSession,
-    val journeyId: String
+    val journeyId: String,
+    val journeyTracker: JourneyVisitTracker
 ) {
     var title by mutableStateOf("New tab")
     var url by mutableStateOf("")
@@ -45,9 +46,21 @@ class BrowserController(private val appContext: Context) {
         newTab()
     }
 
-    fun newTab(url: String? = null, journeyId: String = store.journeys.first().id): BrowserTab {
+    fun newTab(
+        url: String? = null,
+        journeyId: String = store.journeys.first().id,
+        seedNodeId: String? = null
+    ): BrowserTab {
         val session = GeckoSession()
-        val tab = BrowserTab(UUID.randomUUID().toString(), session, journeyId)
+        val tracker = JourneyVisitTracker(
+            lookup = { nodeId -> store.getNode(journeyId, nodeId) },
+            saveVisit = { visitedUrl, title, parentId ->
+                store.record(journeyId, visitedUrl, title, parentId)
+            },
+            seedNodeId = seedNodeId
+        )
+        val tab = BrowserTab(UUID.randomUUID().toString(), session, journeyId, tracker)
+        tab.lastNode = tracker.nodeId
         session.navigationDelegate = object : GeckoSession.NavigationDelegate {
             override fun onLocationChange(
                 session: GeckoSession,
@@ -58,7 +71,11 @@ class BrowserController(private val appContext: Context) {
                 if (url.isNullOrBlank()) return
                 if (tab.url != url) {
                     tab.url = url
-                    store.record(tab.journeyId, url, tab.title, tab.lastNode)?.let { tab.lastNode = it }
+                    // During normal loads this is only a candidate. Saving at
+                    // onPageStop avoids creating nodes for HTTP redirect hops.
+                    if (!tab.isLoading) {
+                        tracker.visited(url, tab.title)?.let { tab.lastNode = it }
+                    }
                 }
             }
 
@@ -71,7 +88,7 @@ class BrowserController(private val appContext: Context) {
             }
 
             override fun onNewSession(session: GeckoSession, uri: String): GeckoResult<GeckoSession> {
-                val popup = newTab(journeyId = tab.journeyId)
+                val popup = newTab(journeyId = tab.journeyId, seedNodeId = tab.lastNode)
                 return GeckoResult.fromValue(popup.session)
             }
         }
@@ -79,7 +96,11 @@ class BrowserController(private val appContext: Context) {
             override fun onTitleChange(session: GeckoSession, title: String?) {
                 if (!title.isNullOrBlank()) {
                     tab.title = title
-                    store.renameNode(tab.journeyId, tab.lastNode, title)
+                    if (store.getNode(tab.journeyId, tab.lastNode)?.url ==
+                        JourneyGraph.safeUrl(tab.url)
+                    ) {
+                        store.renameNode(tab.journeyId, tab.lastNode, title)
+                    }
                 }
             }
 
@@ -102,7 +123,11 @@ class BrowserController(private val appContext: Context) {
             }
             override fun onPageStop(session: GeckoSession, success: Boolean) {
                 tab.isLoading = false
-                if (!success) notice = "This page could not finish loading."
+                if (success) {
+                    tracker.visited(tab.url, tab.title)?.let { tab.lastNode = it }
+                } else {
+                    notice = "This page could not finish loading."
+                }
             }
             override fun onProgressChange(session: GeckoSession, progress: Int) {
                 tab.progress = progress
@@ -138,9 +163,22 @@ class BrowserController(private val appContext: Context) {
         }
     }
 
-    fun goBack() { if (active.canGoBack) active.session.goBack() }
-    fun goForward() { if (active.canGoForward) active.session.goForward() }
-    fun reload() { active.session.reload() }
+    fun goBack() {
+        if (active.canGoBack) {
+            active.journeyTracker.expectBack()
+            active.session.goBack()
+        }
+    }
+    fun goForward() {
+        if (active.canGoForward) {
+            active.journeyTracker.expectForward()
+            active.session.goForward()
+        }
+    }
+    fun reload() {
+        active.journeyTracker.expectReload()
+        active.session.reload()
+    }
     fun bookmark() { store.bookmark(active.url, active.title); notice = "Added to Library" }
 
     fun newPeekSession(url: String): GeckoSession =
