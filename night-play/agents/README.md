@@ -1,3 +1,7 @@
+**AGENT ZERO NOW PRIMARY OWNER:** See [agent-00.md](agent-00.md) for user's latest single-agent end-to-end completion and actual-play-all-games release mandate. It overrides old role division when Agent Zero is active; other agents are optional support only. See `night-play/docs/agent-zero-production-gate.md`. Continue integration and deep QA; don't claim preview or production changes until committed/deployed SHA verified.
+
+---
+
 ## CRITICAL RESUME INSTRUCTION — integration before expansion (20 October 2026)
 
 **If the user says only "Continue", "Resume" or "Keep going" in an existing NIGHT Play Agent chat, treat it as authorization to resume the existing Wave 2 role and the existing unfinished PR**, not a request to start Wave 3 or just write a progress report. Immediately read `night-play/docs/integration-resume.md`, [Issue #459](https://github.com/Tomex777/Build/issues/459) latest comments, your current agent branch/PR and the canonical integration head. **Actions are required:** fix the next integration blocker, rerun genuine tests, deliver a reviewable PR, and hand off concrete evidence. Do not create a new branch when you already have unfinished code in an existing PR. Agent 1 actively merges and stabilizes; Agents 2–9 prioritize fixes to unblock merges; Agent 10 independently tests the combined website. Keep the core ABR and online/backend release restrictions. Separate chats may have stopped and will not restart until a user opens/sends a message in each one.
