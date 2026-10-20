@@ -117,9 +117,6 @@ class MainActivity : ComponentActivity() {
                     } else {
                         key(selected.key) {
                         HymnReader(
-                    } else {
-                        key(selected.key) {
-                        HymnReader(
                             hymn = selected,
                             previous = hymns.lastOrNull { it.collection == selected.collection && it.number < selected.number },
                             next = hymns.firstOrNull { it.collection == selected.collection && it.number > selected.number },
