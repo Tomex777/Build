@@ -6,6 +6,7 @@ on:
     paths:
       - 'cards/catalog/konosuba*'
       - 'cards/bin/seed-konosuba.mjs'
+      - 'cards/src/pipeline.mjs'
       - 'cards/bin/audit-konosuba-game.mjs'
       - 'cards/bin/konosuba-gallery.mjs'
       - 'cards/tests/konosuba-sources.test.mjs'
