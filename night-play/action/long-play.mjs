@@ -79,3 +79,7 @@ try{
  assert.ok(results.some(x=>x.collisions>=1),'actual play must cause a bounce off a landing platform');
  assert.ok(results.find(x=>x.strategy==='steer').maxScore>=80,'skilled touch-guided play must climb at least 80px, not just bounce forever at zero height');
 }finally{await browser.close();await new Promise(resolve=>server.close(resolve))}
+
+// The preview CI already runs this file; execute Agent 3's independent
+// browser collision, touchscreen and viewport suite in the same gate.
+await import('./agent3-play.mjs');
