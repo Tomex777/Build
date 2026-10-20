@@ -87,3 +87,39 @@ body[data-game="wordsearch"] .tiles .cell[data-found="true"]:active{background:#
 body[data-game="checkers"] .tiles .cell svg{width:94%;height:94%;pointer-events:none}
 body[data-game="checkers"] .tiles .cell{border-radius:2px!important}
 @media(prefers-reduced-motion:no-preference){body[data-game="checkers"] .tiles .cell svg{animation:checker-enter 180ms ease-out} @keyframes checker-enter{from{opacity:.55;transform:scale(.87)}to{opacity:1;transform:scale(1)}}}
+
+/* Battleship mobile QA: make the playable enemy waters the primary full-width
+   touch board. Seven columns previously shared ~150px with the spectator board,
+   reducing targets to ~20px and making hits nearly impossible on a phone. */
+@media (max-width: 600px) {
+  body[data-game="battleship"] .battle {
+    display:flex;
+    flex-direction:column;
+    gap:24px;
+    width:100%;
+    max-width:500px;
+    margin-inline:auto;
+  }
+  body[data-game="battleship"] .battle > div:nth-child(2) {order:1}
+  body[data-game="battleship"] .battle > div:nth-child(1) {order:2}
+  body[data-game="battleship"] .battle > div:nth-child(2) .tiles {
+    width:100%;
+    gap:4px;
+    padding:8px;
+    border:1px solid #cfddd2;
+    background:#e8f0eb;
+    border-radius:13px;
+  }
+  body[data-game="battleship"] .battle .cell {
+    border-radius:7px;
+    font-size:clamp(14px,4.5vw,20px);
+  }
+  body[data-game="battleship"] .battle > div:nth-child(1) .tiles {
+    max-width:300px;
+    margin-inline:auto;
+    opacity:.86;
+  }
+  body[data-game="battleship"] .battle > div:nth-child(1) .cell {
+    font-size:13px;
+  }
+}
