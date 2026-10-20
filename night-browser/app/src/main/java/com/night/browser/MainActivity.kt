@@ -154,10 +154,10 @@ private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> U
                         onOpen = { openTab(it) },
                         onClose = { browser.closeTab(it.id) },
                         onNew = { browser.newTab(); page = Page.HOME })
-                    Page.JOURNEYS -> JourneyPanel(browser,
+                    Page.JOURNEYS -> NightJourneysPanel(browser,
                         onNew = { newJourneyDialog = true },
-                        onOpen = { j, url ->
-                            browser.newTab(url, j.id, j.nodes.find { node -> node.url == url }?.id)
+                        onOpen = { j, node ->
+                            browser.newTab(node.url, j.id, node.id)
                             page = Page.WEB
                         },
                         onSelect = { j ->
@@ -382,70 +382,6 @@ private fun PeekDialog(
                 factory = { view.apply { setSession(peek) } },
                 modifier = Modifier.fillMaxSize().background(Color.White)
             )
-        }
-    }
-}
-
-@Composable
-private fun JourneyPanel(
-    browser: BrowserController,
-    onNew: () -> Unit,
-    onOpen: (Journey, String) -> Unit,
-    onSelect: (Journey) -> Unit
-) {
-    Column(Modifier.fillMaxSize()) {
-        PanelHeader("Journeys", action = {
-            ChromeIcon(Icons.Rounded.Add, "New Journey", onClick = onNew)
-        })
-        LazyColumn(
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(18.dp)
-        ) {
-            items(browser.store.journeys, key = { it.id }) { journey ->
-                Column {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(journey.name, color = Bright, fontSize = 19.sp,
-                            fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                        TextButton(onClick = { onSelect(journey) }) { Text("Use") }
-                    }
-                    if (journey.nodes.isEmpty()) {
-                        Text("Open a page in this Journey to grow its tree.",
-                            color = Muted, fontSize = 13.sp,
-                            modifier = Modifier.padding(vertical = 14.dp))
-                    } else {
-                        val map = journey.nodes.associateBy { it.id }
-                        journey.nodes.takeLast(50).forEach { node ->
-                            var depth = 0
-                            var parent = node.parent
-                            val seen = mutableSetOf<String>()
-                            while (parent != null && depth < 5 && seen.add(parent)) {
-                                depth++
-                                parent = map[parent]?.parent
-                            }
-                            Row(
-                                Modifier.fillMaxWidth().clickable { onOpen(journey, node.url) }
-                                    .padding(start = (depth * 12).dp, top = 7.dp, bottom = 7.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(if (depth == 0) "●" else "↳",
-                                    color = if (depth == 0) Accent else Muted,
-                                    modifier = Modifier.width(24.dp))
-                                Column {
-                                    Text(node.title.ifBlank { node.url }, color = Bright,
-                                        fontSize = 14.sp, maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis)
-                                    Text(node.url, color = Muted, fontSize = 11.sp,
-                                        maxLines = 1, overflow = TextOverflow.Ellipsis)
-                                }
-                            }
-                        }
-                    }
-                    HorizontalDivider(color = Border, modifier = Modifier.padding(top = 14.dp))
-                }
-            }
         }
     }
 }
