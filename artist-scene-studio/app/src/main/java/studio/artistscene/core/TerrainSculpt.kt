@@ -1,6 +1,6 @@
 package studio.artistscene.core
 
-import kotlin.math.sqrt
+import kotlin.math.roundToInt
 
 /** A brush operates in the terrain mesh's local X/Z meters, not screen pixels. */
 enum class TerrainBrush { RAISE, LOWER, SMOOTH, FLATTEN }
@@ -94,7 +94,7 @@ object TerrainSculpt {
         require(xMeters.isFinite() && zMeters.isFinite())
         val half = TerrainMesh.EDGE_METERS / 2f
         val col = (((xMeters + half) / TerrainMesh.EDGE_METERS) *
-            TerrainMesh.CELLS).toInt().coerceIn(0, TerrainMesh.CELLS)
+            TerrainMesh.CELLS).roundToInt().coerceIn(0, TerrainMesh.CELLS)
         val row = (((zMeters + half) / TerrainMesh.EDGE_METERS) *
             TerrainMesh.CELLS).toInt().coerceIn(0, TerrainMesh.CELLS)
         return row to col
