@@ -26,7 +26,7 @@ const power={version:1,series:'naruto',universe:'naruto',scope:'in-universe',
  assessments:{}};
 async function get(url) {
  const expected=new URL(url);
- if(expected.origin!==ROOT||!/^\\/images\\/character\\/\\d{2}_\\d{2}\\/img_character\\.png$/.test(expected.pathname))
+ if(expected.origin!==ROOT||!/^\/images\/character\/\d{2}_\d{2}\/img_character\.png$/.test(expected.pathname))
   throw Error('Source is not an approved official Naruto game cutout: '+url);
  const response=await fetch(url,{redirect:'follow',signal:AbortSignal.timeout(45000),
   headers:{'User-Agent':'NIGHT-Naruto-Art-Provenance/1.0'}});
@@ -40,7 +40,7 @@ for(const item of sources.sources){
  if(!/^[a-z0-9-]+$/.test(id)||ids.has(id)||!Number.isInteger(number)||numbers.has(number)||
     urls.has(source.image)||source.provider!=='bandai-storm4-official')throw Error('Duplicate or invalid Naruto identity: '+id);
  ids.add(id);numbers.add(number);urls.add(source.image);
- const code=new URL(source.image).pathname.match(/\\/(\\d{2}_\\d{2})\\/img_character\\.png$/)?.[1];
+ const code=new URL(source.image).pathname.match(/\/(\d{2}_\d{2})\/img_character\.png$/)?.[1];
  if(!code||source.page!==ROOT+'/character/'+code+'.html')throw Error('Source/character page mismatch: '+id);
  const localPath='artwork/naruto/'+id+'.png';
  let bytes;
@@ -67,7 +67,7 @@ for(const item of sources.sources){
   artworkSHA256:sha256,scope:item.rank.scope,basis:item.rank.basis,limits:item.rank.limits,
   references:[source.page,source.image],universe:'naruto',continuity:item.continuity};
  if(writeLock)locked.sources[id]={sha256,width:native.width,height:native.height,image:source.image};
- process.stdout.write(id+' '+native.width+'x'+native.height+' '+sha256+' '+item.rank.letter+' '+design+'\\n');
+ process.stdout.write(id+' '+native.width+'x'+native.height+' '+sha256+' '+item.rank.letter+' '+design+'\n');
 }
 if(Object.keys(locked.sources).some(id=>!ids.has(id)))throw Error('Removed or renamed locked source must be reviewed');
 for(const item of sources.pendingForms??[]){
@@ -77,7 +77,7 @@ for(const item of sources.pendingForms??[]){
   limits:'Do not assign another form image or grade.',references:[sources.sourcePage],
   universe:'naruto',continuity:'naruto-and-boruto'};
 }
-await atomic(inside('catalog/naruto.json'),JSON.stringify(catalogue,null,2)+'\\n');
-await atomic(inside('catalog/power/naruto.json'),JSON.stringify(power,null,2)+'\\n');
-if(writeLock)await atomic(inside('catalog/naruto-source-lock.json'),JSON.stringify(locked,null,2)+'\\n');
+await atomic(inside('catalog/naruto.json'),JSON.stringify(catalogue,null,2)+'\n');
+await atomic(inside('catalog/power/naruto.json'),JSON.stringify(power,null,2)+'\n');
+if(writeLock)await atomic(inside('catalog/naruto-source-lock.json'),JSON.stringify(locked,null,2)+'\n');
 console.log('Naruto: '+catalogue.cards.length+' distinct candidate cutouts, '+catalogue.pendingForms.length+' pending. None visually approved.');
