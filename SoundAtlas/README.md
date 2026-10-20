@@ -5,10 +5,10 @@ Separate Android 8+ acoustic-world builder. EchoSpace continues independently.
 ## Implemented
 - Native immersive Canvas editor with pinch/pan, movable listener and emitters, built-in original SVG vectors, custom controls and no default Android SeekBars.
 - **10 explorable acoustic worlds**, including Storm Cathedral, Ancient Forest, Rain Garden, Village at Dawn, Starship Meridian, and Ocean Cavern.
-- **18 distinct audio types** with fourteen individually credited, offline CC0 field recordings, alongside procedurally varied ambience, blended with seeded irregular event scheduling and peak-safe normalization.
+- **22 distinct audio types** with eighteen individually credited, offline CC0 field recordings, alongside procedurally varied ambience, blended with seeded irregular event scheduling and peak-safe normalization.
 - Material-specific occlusion, distance attenuation and low-pass filtering, room-dependent reverberation, measured seven-direction **MIT KEMAR non-personalized horizontal-plane HRTF** for four prominent sources (asset available), and finite-wall single-bounce reflection delays.
 - Click-resistant gain, pan and HRTF kernel smoothing across editor/listener movement, with lower-cost binaural fallback for more distant voices.
-- A* Explore navigation through real doors/openings, read-only acoustic status panel, live editable wind/rain/storm conditions.
+- A* Explore navigation through real doors/openings, consistent 1.45 m/s walking and smooth facing changes, read-only acoustic status panel, live editable wind/rain/storm conditions.
 - Validated compact versioned JSON environment import/export and secure `.satlas.json` file sharing via scoped Android FileProvider. Offline-first; no account required.
 - Auto-saving and restored worlds, JVM acoustic geometry, image-source reflection, HRTF interpolation, portability and audio-level tests.
 - GitHub workflows for Android builds and screenshot QA, including a PNG System UI modal guard so OS crash dialogs cannot pass unnoticed as valid screenshots.
