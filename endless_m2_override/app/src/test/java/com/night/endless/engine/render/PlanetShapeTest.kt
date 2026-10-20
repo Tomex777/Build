@@ -37,4 +37,34 @@ class PlanetShapeTest {
             assertEquals(body, eq / polar, shaderNormalY / shaderNormalX, 2e-7)
         }
     }
+
+    @Test fun selectionRayMatchesFlattenedGiantDiskAndAxialTilt() {
+        val radius = 2.0
+        val jupiterEq = radius * PlanetShape.equatorialScale("jupiter")
+        val jupiterPolar = radius * PlanetShape.polarScale("jupiter")
+        val alongX = com.night.endless.engine.math.Vec3d(-1.0, 0.0, 0.0)
+        val alongY = com.night.endless.engine.math.Vec3d(0.0, -1.0, 0.0)
+
+        val equatorialHit = PlanetShape.rayHitDistance(
+            "jupiter", com.night.endless.engine.math.Vec3d(6.0, 0.0, 0.0),
+            alongX, radius, 0.0
+        )
+        val polarHit = PlanetShape.rayHitDistance(
+            "jupiter", com.night.endless.engine.math.Vec3d(0.0, 6.0, 0.0),
+            alongY, radius, 0.0
+        )
+        assertEquals(6.0 - jupiterEq, equatorialHit!!, 1e-6)
+        assertEquals(6.0 - jupiterPolar, polarHit!!, 1e-6)
+
+        // A ninety-degree axial tilt rotates the polar axis onto world X.
+        val tiltedHit = PlanetShape.rayHitDistance(
+            "jupiter", com.night.endless.engine.math.Vec3d(6.0, 0.0, 0.0),
+            alongX, radius, 90.0
+        )
+        assertEquals(6.0 - jupiterPolar, tiltedHit!!, 1e-6)
+        assertTrue(PlanetShape.rayHitDistance(
+            "jupiter", com.night.endless.engine.math.Vec3d(6.0, 6.0, 0.0),
+            alongX, radius, 0.0
+        ) == null)
+    }
 }

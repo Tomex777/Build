@@ -1035,16 +1035,15 @@ class EndlessRenderer(
         var best: Pair<CelestialBody, Double>? = null
 
         for (body in bodies) {
-            val oc = origin - body.position
-            val b = oc.dot(dir)
-            val c = oc.dot(oc) - body.radius * body.radius
-            val discriminant = b * b - c
-            if (discriminant < 0.0) continue
-
-            val t = -b - sqrt(discriminant)
-            if (t > 0.0 && (best == null || t < best!!.second)) {
-                best = body to t
-            }
+            if (!isBodyFormed(body.id, deepTimeAgeGa)) continue
+            // Use the rendered oblate ellipsoid rather than the old spherical
+            // approximation; taps at Jupiter's flattened poles must not
+            // select empty sky or another object behind it.
+            val hit = PlanetShape.rayHitDistance(
+                body.id, origin - body.position, dir,
+                body.radius, body.axialTiltDeg
+            ) ?: continue
+            if (best == null || hit < best!!.second) best = body to hit
         }
 
         best?.first?.let { focus(it.id) }
@@ -1120,7 +1119,11 @@ class EndlessRenderer(
         selectedId?.let { id ->
             byId[id]?.let { body ->
                 val radial = cameraPosition - body.position
-                val minDistance = body.radius + cameraRadius + skin
+                // Sphere collision is conservative for a tilted ellipsoid:
+                // enclose its entire equatorial bulge so approach cameras
+                // cannot clip through the actual Jovian cloud boundary.
+                val minDistance = body.radius *
+                    PlanetShape.equatorialScale(body.id) + cameraRadius + skin
                 if (radial.length() < minDistance) {
                     val normal = if (radial.length() < 1e-8) {
                         Vec3d(0.0, 0.0, 1.0)
@@ -1192,7 +1195,10 @@ class EndlessRenderer(
         }
         collision.replaceSpheres(
             bodies.filter { isBodyFormed(it.id, deepTimeAgeGa) }
-                .map { SphereCollider(it.id, it.position, it.radius) }
+                .map { SphereCollider(
+                    it.id, it.position,
+                    it.radius * PlanetShape.equatorialScale(it.id)
+                ) }
         )
     }
 
