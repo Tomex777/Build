@@ -39,6 +39,8 @@ test('Exact form identity is not confused with a future transformation',()=>{
  assert.notEqual(get('obito-masked-persona').source.image,get('madara-edo').source.image);
  assert.notEqual(get('obito-masked-persona').source.image,get('obito-war').source.image);
  assert.ok(data.pendingForms.some(x=>x.id==='madara-living'));
+ assert.equal(get('pain-six-paths').formId,'six-paths-ensemble');
+ assert.ok(!data.sources.some(x=>x.id==='pain-deva'), 'A full Six Paths ensemble image must not be labeled Deva alone');
  for(const expected of ['naruto-baryon-mode','naruto-kcm1','naruto-sage-mode','kakashi-double-mangekyo','madara-ten-tails']){
    assert.ok(data.pendingForms.some(x=>x.id===expected));
    assert.ok(!data.sources.some(x=>x.id===expected));
