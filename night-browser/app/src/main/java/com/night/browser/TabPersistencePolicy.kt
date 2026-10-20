@@ -24,7 +24,7 @@ internal object TabPersistencePolicy {
     fun sanitizeUrl(url: String): String? {
         if (url.isEmpty()) return ""
         if (url.length > MAX_URL_LENGTH) return null
-        if (url.any { it.isISOControl() || it == ' ' }) return null
+        if (url.any { Character.isISOControl(it) || it == ' ' }) return null
         val uri = runCatching { URI(url) }.getOrNull() ?: return null
         val scheme = uri.scheme?.lowercase(Locale.ROOT) ?: return null
         if (scheme != "http" && scheme != "https") return null
