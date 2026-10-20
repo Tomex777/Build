@@ -108,10 +108,12 @@ try{
   const client=await page.context().newCDPSession(page);
   const swipe=async(x1,y1,x2,y2)=>{
    await client.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[coord(x1,y1)]});
-   for(let i=1;i<=8;i++){
+   // A short, deliberate real fingertip flick: do not let browser scheduler
+   // latency move an apex target a full fruit diameter before the cut ends.
+   for(let i=1;i<=4;i++){
     await client.send('Input.dispatchTouchEvent',{type:'touchMove',
-     touchPoints:[coord(x1+(x2-x1)*i/8,y1+(y2-y1)*i/8)]});
-    await page.waitForTimeout(12);
+     touchPoints:[coord(x1+(x2-x1)*i/4,y1+(y2-y1)*i/4)]});
+    await page.waitForTimeout(4);
    }
    await client.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
   };
@@ -203,10 +205,10 @@ try{
   const cdp=await page.context().newCDPSession(page);
   const id=204;
   await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{...coord(left,targetY),id}]});
-  for(let i=1;i<=8;i++){
+  for(let i=1;i<=4;i++){
    await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{
-    ...coord(left+(right-left)*i/8,targetY),id}]});
-   await page.waitForTimeout(6);
+    ...coord(left+(right-left)*i/4,targetY),id}]});
+   await page.waitForTimeout(4);
   }
   await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
   const hit=await snap(page);
