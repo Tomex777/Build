@@ -52,6 +52,7 @@ install -m 0644 "$SCRIPT_DIR/index.js" /opt/cortex-agent/index.js
 install -m 0644 "$SCRIPT_DIR/package.json" /opt/cortex-agent/package.json
 install -m 0644 "$SCRIPT_DIR/cortex-agent.service" /etc/systemd/system/cortex-agent.service
 install -m 0755 "$SCRIPT_DIR/cortex-agent-control" /usr/local/libexec/cortex-agent-control
+install -m 0644 "$SCRIPT_DIR/protected-settings-write.cjs" /usr/local/libexec/cortex-agent-settings-write.cjs
 
 if [ ! -f /etc/cortex-agent.env ]; then
   umask 077
@@ -99,6 +100,7 @@ fi
 cat >/etc/sudoers.d/cortex-agent <<'EOF'
 cortex-agent ALL=(root) NOPASSWD: /usr/local/libexec/cortex-agent-control start, /usr/local/libexec/cortex-agent-control stop, /usr/local/libexec/cortex-agent-control restart, /usr/local/libexec/cortex-agent-control enable, /usr/local/libexec/cortex-agent-control disable
 cortex-agent ALL=(root) NOPASSWD: /usr/local/libexec/cortex-agent-control env-set *
+cortex-agent ALL=(root) NOPASSWD: /usr/local/libexec/cortex-agent-control setting-set *
 cortex-agent ALL=(root) NOPASSWD: /usr/local/libexec/cortex-agent-control runner-start *
 cortex-agent ALL=(root) NOPASSWD: /usr/local/libexec/cortex-agent-control runner-stop
 EOF
