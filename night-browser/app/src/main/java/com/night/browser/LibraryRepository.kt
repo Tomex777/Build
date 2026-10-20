@@ -50,7 +50,7 @@ class LibraryRepository(context: Context, private val journeys: JourneyStore) {
     private val prefs = context.getSharedPreferences("night_library_v1", Context.MODE_PRIVATE)
     var editedBookmarks by mutableStateOf(loadBookmarks())
         private set
-    var readingList by mutableStateOf(loadReading())
+    var readingList by mutableStateOf(loadReading().filter { LibraryRules.validWebUrl(it.url) })
         private set
     // Hides legacy-only bookmarks deleted in the new Library, without mutating Agent 5's store.
     private var hiddenLegacy by mutableStateOf(loadHidden())
@@ -59,11 +59,12 @@ class LibraryRepository(context: Context, private val journeys: JourneyStore) {
         get() {
             val overridden = editedBookmarks.map { it.url }.toSet()
             val legacy = journeys.bookmarks.filter {
-                it.url !in overridden && it.url !in hiddenLegacy
+                LibraryRules.validWebUrl(it.url) && it.url !in overridden && it.url !in hiddenLegacy
             }.map {
                 LibraryBookmark("legacy:" + it.url, it.url, it.title, savedAt = 0L)
             }
-            return (editedBookmarks + legacy).sortedByDescending { it.savedAt }
+            return (editedBookmarks.filter { LibraryRules.validWebUrl(it.url) } + legacy)
+                .sortedByDescending { it.savedAt }
         }
 
     val history: List<HistoryVisit>
