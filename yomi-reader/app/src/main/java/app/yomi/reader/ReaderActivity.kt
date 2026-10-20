@@ -599,7 +599,7 @@ class ReaderActivity : ComponentActivity(), ReaderViewerHost {
                 val bindings = withContext(Dispatchers.IO) {
                     if (kind == "folder") {
                         Log.i(READER_TAG, "tree-discovery-start uri=$uri")
-                        TreeBookCatalog(contentResolver, uri).chapters(bookId, title)
+                        TreeBookCatalog(contentResolver, uri, scratchDir = File(cacheDir, "yomi-chapter-index")).chapters(bookId, title)
                     } else {
                         val chapter = ReaderChapter(
                             id = ReaderChapterId(bookId.value + "#root"),
