@@ -22,7 +22,8 @@ const soundKey='night-play-action-sfx-v1',bestKey=id=>'night-play-v1-action-'+id
 const clamp=(n,a,b)=>Math.min(b,Math.max(a,n)),rand=(a,b)=>a+Math.random()*(b-a);
 let game='slice',state,started=false,over=false,paused=false,frame=0,raf=0,last=0,sfx=true,ctxAudio=null;
 try{sfx=localStorage.getItem(soundKey)!=='off'}catch{}
-const inputs={left:false,right:false,duck:false,drag:false,lastX:0,lastY:0,slicePointerId:null};
+const inputs={left:false,right:false,duck:false,drag:false,lastX:0,lastY:0,slicePointerId:null,
+ pointerId:null,jumpGestureMoved:false,jumpStartX:0,jumpPlayerStartX:0,jumpTargetX:0};
 function audio(type='tap'){
  if(!sfx)return;
  try{ctxAudio=ctxAudio||new (window.AudioContext||window.webkitAudioContext)();
@@ -314,7 +315,7 @@ function tickJump(dt){
  const p=state.player,prev=p.y;
  state.elapsed+=dt;state.bounce=Math.max(0,state.bounce-dt);
  const desired=inputs.left?-285:inputs.right?285:
-   inputs.drag?(inputs.lastX-p.x)*10:0;
+   inputs.drag&&inputs.jumpGestureMoved?(inputs.jumpTargetX-p.x)*10:0;
  p.vx+=(clamp(desired,-310,310)-p.vx)*Math.min(1,dt*14);
  p.x+=p.vx*dt;
  if(p.x>W+18)p.x=-17;if(p.x< -18)p.x=W+17;
@@ -882,6 +883,7 @@ function reset(){
  state=INIT[game]();over=false;paused=false;started=false;frame=0;
  $('message').textContent='';$('pauseButton').setAttribute('aria-label','Pause game');$('pauseButton').querySelector('use').setAttribute('href','#icon-pause');
  inputs.left=inputs.right=inputs.drag=inputs.duck=false;inputs.runnerFingerDuck=false;inputs.runnerGesture=null;
+ inputs.pointerId=null;inputs.jumpGestureMoved=false;inputs.jumpTargetX=0;
  updateHud();overlay('READY TO PLAY',defs[game].title,defs[game].rules,'Start game');
  render();
 }
@@ -916,10 +918,18 @@ function selectGame(type){
 function point(e){const r=canvas.getBoundingClientRect();return {x:clamp((e.clientX-r.left)/r.width*W,0,W),y:clamp((e.clientY-r.top)/r.height*H,0,H)}}
 function down(e){
  if(e.button!==undefined&&e.button!==0)return;
- if(game==='slice'&&inputs.drag)return;
- const p=point(e);inputs.drag=true;inputs.lastX=p.x;inputs.lastY=p.y;inputs.dragStartY=p.y;
+ // One active gesture owns the canvas; ignore accidental second fingers.
+ if(inputs.drag)return;
+ const p=point(e);inputs.drag=true;inputs.pointerId=e.pointerId;
+ inputs.lastX=p.x;inputs.lastY=p.y;inputs.dragStartY=p.y;
  if(game==='slice')inputs.slicePointerId=e.pointerId;
  if(game==='runner')inputs.runnerGesture=null;
+ if(game==='jump'){
+  // A tap or hold must NEVER steer. Swipe motion is relative to where the
+  // player was at touchdown, not the absolute screen location of the finger.
+  inputs.jumpStartX=p.x;inputs.jumpPlayerStartX=state.player.x;
+  inputs.jumpTargetX=state.player.x;inputs.jumpGestureMoved=false;
+ }
  if(started&&!over&&!paused){
   if(game==='bricks')launchBall();
   if(game==='slice'){state.trail.length=0;state.trail.push({x:p.x,y:p.y,a:1})}
@@ -927,7 +937,7 @@ function down(e){
  try{canvas.setPointerCapture(e.pointerId)}catch{}
 }
 function move(e){
- if(!inputs.drag||(game==='slice'&&e.pointerId!==inputs.slicePointerId))return;
+ if(!inputs.drag||e.pointerId!==inputs.pointerId)return;
  const p=point(e);
  if(game==='slice'){
   // Coalesced pointer samples preserve the actual blade path on 120Hz+
@@ -943,6 +953,11 @@ function move(e){
    }
   }
  }else{
+  if(game==='jump'&&started&&!paused&&!over){
+   if(Math.abs(p.x-inputs.jumpStartX)>=8)inputs.jumpGestureMoved=true;
+   if(inputs.jumpGestureMoved)
+    inputs.jumpTargetX=clamp(inputs.jumpPlayerStartX+p.x-inputs.jumpStartX,-16,W+16);
+  }
   if(game==='runner'&&started&&!paused&&!over){
   if(p.y-inputs.dragStartY>26&&inputs.runnerGesture!=='jump'){
    // A held down-swipe must keep the player ducking through a crossing glider.
@@ -955,7 +970,7 @@ function move(e){
  }
 }
 function up(e){
- if(game==='slice'&&e.pointerId!==inputs.slicePointerId)return;
+ if(!inputs.drag||e.pointerId!==inputs.pointerId)return;
  if(game==='slice'&&e.type==='pointerup'&&inputs.drag){
   // Android/browser scheduling can coalesce the last touch movement into
   // pointerup. Do not discard the final real blade segment on finger lift.
@@ -969,9 +984,11 @@ function up(e){
   inputs.runnerFingerDuck=false;state.duckTimer=0;state.player.duck=Boolean(inputs.duck);
  }
  inputs.runnerGesture=null;inputs.drag=false;inputs.slicePointerId=null;
+ inputs.pointerId=null;inputs.jumpGestureMoved=false;
  try{canvas.releasePointerCapture(e.pointerId)}catch{}
 }
 canvas.addEventListener('pointerdown',down);canvas.addEventListener('pointermove',move);canvas.addEventListener('pointerup',up);canvas.addEventListener('pointercancel',up);
+canvas.addEventListener('lostpointercapture',up);
 $('touchControls').addEventListener('pointerdown',e=>{
  const b=e.target.closest('[data-control]');if(!b)return;e.preventDefault();
  const id=b.dataset.control;if(id==='left'||id==='right')inputs[id]=true;
@@ -980,6 +997,17 @@ $('touchControls').addEventListener('pointerdown',e=>{
 });
 $('touchControls').addEventListener('pointerup',e=>{const b=e.target.closest('[data-control]');if(!b)return;const id=b.dataset.control;if(id==='left'||id==='right')inputs[id]=false;if(id==='slide')duckRunner(false)});
 $('touchControls').addEventListener('pointercancel',()=>{inputs.left=inputs.right=false;if(game==='runner')duckRunner(false)});
+$('touchControls').addEventListener('lostpointercapture',e=>{
+ const id=e.target.closest?.('[data-control]')?.dataset.control;
+ if(id==='left'||id==='right')inputs[id]=false;
+ if(id==='slide'&&game==='runner')duckRunner(false);
+});
+window.addEventListener('blur',()=>{
+ inputs.left=inputs.right=false;
+ inputs.drag=false;inputs.pointerId=null;inputs.jumpGestureMoved=false;
+ inputs.runnerFingerDuck=false;
+ if(game==='runner'&&state)state.player.duck=false;
+});
 window.addEventListener('keydown',e=>{
  if($('settingsDialog').open)return;
  const k=e.key.toLowerCase();
