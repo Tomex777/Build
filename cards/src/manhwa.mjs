@@ -37,6 +37,26 @@ export function validateManhwaRoster(data) {
       || card.story.source !== s.source || typeof card.story.spoiler !== 'boolean')
       throw Error('Invalid manhwa edition identity: '+card.id);
     editions.add(card.id);
+    if (!Array.isArray(card.aliases) || card.aliases.some(x=>!nonempty(x))
+      || new Set(card.aliases.map(x=>x.trim().toLowerCase())).size!==card.aliases.length)
+      throw Error('Invalid character name aliases: '+card.id);
+    const research=card.research;
+    if (!research || research.evidenceType!=='publisher-series-plus-community-character-index'
+      || !Array.isArray(research.evidence) || research.evidence.length<2
+      || research.evidence[0]!==s.source || research.evidence.some(url=>!safeURL(url))
+      || !['candidate-not-confirmed','chapter-verified'].includes(research.verification))
+      throw Error('Missing manhwa source research: '+card.id);
+    if (research.verification==='candidate-not-confirmed') {
+      if (research.webcomicAppearance!=='requires-chapter-check'||research.episodeEvidence)
+        throw Error('Unconfirmed manhwa edition cannot claim adaptation evidence: '+card.id);
+    } else {
+      const episode=research.episodeEvidence;
+      if (research.webcomicAppearance!=='confirmed-in-webcomic'
+        || !Number.isInteger(episode?.number)||episode.number<1
+        || !safeURL(episode?.url)||!nonempty(episode?.reviewer)
+        || !/^\\d{4}-\\d{2}-\\d{2}$/.test(episode?.reviewDate??''))
+        throw Error('Chapter-verified manhwa claim needs reviewer and episode proof: '+card.id);
+    }
     if (s.mode === 'character-story-only' && card.family === 'power')
       throw Error('Do not invent a power ladder for '+s.name);
     if (card.family === 'power') {
@@ -109,7 +129,7 @@ export function toRendererCard(edition, art, number) {
   return {
     id: edition.id, number, character: edition.subjects[0].toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,''),
     name: edition.title, title: edition.title.slice(0,36), form: edition.form,
-    formId: edition.id, aliases: [...new Set([edition.title,...edition.subjects])],
+    formId: edition.id, aliases: [...new Set([edition.title,...edition.subjects,...(edition.aliases??[])])],
     designs: [edition.design.finish], status:'candidate',
     source: {page:art.page,image:art.image,sha256:art.sha256,width:art.width,height:art.height,
       localPath:art.localPath,artist:art.credit,credit:art.credit,rights:art.rights,usage:'reference-only'},
