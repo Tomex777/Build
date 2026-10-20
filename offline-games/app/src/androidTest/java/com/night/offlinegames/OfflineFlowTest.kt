@@ -48,64 +48,58 @@ class OfflineFlowTest {
 
             val mines = device.wait(Until.findObject(By.text("Minesweeper")), 7000)
             assertNotNull("Minesweeper missing from hub", mines)
-            mines.click()
-            // WebView accessibility text exposure varies with the Android System WebView
-            // version. Assert on the actual rendered DOM and a complete 81-cell game.
-            val minesReady = awaitJavaScript(scenario, """
-                (function() {
-                    var title = document.getElementById('title');
-                    return !!title && title.textContent === 'Minesweeper' &&
-                        document.querySelectorAll('#mineboard [data-tile]').length === 81;
-                })()
-            """.trimIndent(), 18000)
-            saveScreenshot(device, context, "03-minesweeper.png") // also save the failure state
-            assertEquals("Bundled Minesweeper did not render: ${diagnose(scenario)}", "true", minesReady)
-            assertEquals("Minesweeper does not respond to a click",
-                "true", evaluateJavaScript(scenario, """
-                    (function(){
-                        document.querySelector('#mineboard [data-tile="0"]').click();
-                        return document.querySelectorAll('#mineboard button.revealed').length > 0;
+            mines!!.click()
+            if (WebView.getCurrentWebViewPackage() == null) {
+                // Real Android 8 system images sometimes ship without a WebView provider.
+                // Legacy games must show an explicit native-migration notice, not crash.
+                assertNotNull("Missing-WebView fallback not visible",
+                    device.wait(Until.findObject(By.text("Native version in progress")), 9000))
+                saveScreenshot(device, context, "03-minesweeper-native-pending.png")
+            } else {
+                // Only the old browser titles need this DOM check. Native titles do not.
+                val minesReady = awaitJavaScript(scenario, """
+                    (function() {
+                        var title = document.getElementById('title');
+                        return !!title && title.textContent === 'Minesweeper' &&
+                            document.querySelectorAll('#mineboard [data-tile]').length === 81;
                     })()
-                """.trimIndent()))
-            saveScreenshot(device, context, "03-minesweeper-touched.png")
-
-            device.pressBack()
-            assertNotNull("Did not return from arcade", device.wait(Until.findObject(By.text("Offline collection")), 7000))
-
-            var newGame = device.wait(Until.findObject(By.text("Tic-Tac-Toe")), 1500)
-            var swipes = 0
-            while (newGame == null && swipes < 7) {
-                device.swipe(
-                    device.displayWidth / 2, device.displayHeight * 3 / 4,
-                    device.displayWidth / 2, device.displayHeight / 3, 15
-                )
-                swipes++
-                newGame = device.wait(Until.findObject(By.text("Tic-Tac-Toe")), 1200)
+                """.trimIndent(), 18000)
+                saveScreenshot(device, context, "03-minesweeper.png")
+                assertEquals("Bundled Minesweeper did not render: ${diagnose(scenario)}", "true", minesReady)
+                assertEquals("Minesweeper does not respond to a click", "true",
+                    evaluateJavaScript(scenario, """
+                        (function(){
+                            document.querySelector('#mineboard [data-tile="0"]').click();
+                            return document.querySelectorAll('#mineboard button.revealed').length > 0;
+                        })()
+                    """.trimIndent()))
+                saveScreenshot(device, context, "03-minesweeper-touched.png")
             }
-            assertNotNull("Tic-Tac-Toe not listed after scrolling", newGame)
-            newGame!!.click()
-            val ticTacToeReady = awaitJavaScript(scenario, """
-                (function(){
-                    var title = document.getElementById('title');
-                    var status = document.getElementById('status');
-                    return !!title && !!status && title.textContent === 'Tic-Tac-Toe' &&
-                        document.querySelectorAll('#board button.cell').length === 9 &&
-                        status.textContent === 'Your turn · X';
-                })()
-            """.trimIndent(), 15000)
-            saveScreenshot(device, context, "04-tictactoe.png")
-            assertEquals("Tic-Tac-Toe did not render: ${diagnose(scenario)}", "true", ticTacToeReady)
-            assertEquals("Tic-Tac-Toe move did not reach the game engine", "true",
-                evaluateJavaScript(scenario, """
-                    (function(){
-                        document.querySelector('#board button.cell').click();
-                        return document.querySelectorAll('#board button.cell[disabled]').length >= 2;
-                    })()
-                """.trimIndent()))
-            saveScreenshot(device, context, "04-tictactoe-touched.png")
 
             device.pressBack()
-            assertNotNull("Could not leave the new game", device.wait(Until.findObject(By.text("Offline collection")), 7000))
+            assertNotNull("Did not return from legacy game", device.wait(Until.findObject(By.text("Offline collection")), 7000))
+
+            // This is now a genuine Kotlin/Compose Tic-Tac-Toe screen — not a DOM.
+            val search = device.wait(Until.findObject(By.clazz("android.widget.EditText")), 5000)
+            assertNotNull("Search is not discoverable", search)
+            search!!.text = "Tic-Tac-Toe"
+            val tic = device.wait(Until.findObject(By.text("Tic-Tac-Toe")), 9000)
+            assertNotNull("Native Tic-Tac-Toe absent", tic)
+            tic!!.click()
+            assertNotNull("Native Tic-Tac-Toe didn't display its turn",
+                device.wait(Until.findObject(By.text("Your move")), 8000))
+            assertNotNull("The first native tap cell is missing",
+                device.wait(Until.findObject(By.descContains("Cell 1: empty")), 8000))
+            saveScreenshot(device, context, "04-native-tictactoe.png")
+            device.findObject(By.descContains("Cell 1: empty")).click()
+            assertNotNull("Touch failed to mark X",
+                device.wait(Until.findObject(By.descContains("Cell 1: X")), 8000))
+            assertNotNull("Kotlin opponent did not answer",
+                device.wait(Until.findObject(By.descContains(": O")), 8000))
+            saveScreenshot(device, context, "04-native-tictactoe-touched.png")
+            device.pressBack()
+            assertNotNull("Could not leave the native game",
+                device.wait(Until.findObject(By.text("Offline collection")), 7000))
         }
     }
 
