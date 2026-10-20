@@ -34,3 +34,12 @@ main{max-width:760px;margin:0 auto;padding:8px 12px 36px;text-align:center}
 @media(max-width:380px){main{padding:4px 5px 24px}.night-game-intro{padding-top:3px}.night-game-intro h1{font-size:25px}.night-game-intro p{font-size:11px}.night-play-hud{margin-bottom:7px}.night-hud-value{padding:6px}.night-hud-value strong{font-size:20px}}
 @media(max-height:670px){.night-game-intro p{display:none}.night-game-intro{padding:2px 0 4px}main{padding-top:3px}.night-play-hud{margin-bottom:5px}}
 @media(prefers-reduced-motion:reduce){.cover-action:active{transform:none}}
+
+/* Wave 2 player critique: the board must occupy the phone, not a tiny card. */
+body.is-playing .night-game-intro,body.is-playing .song-selector{display:none}
+body.is-playing main{padding-top:2px;padding-bottom:6px}
+body.is-playing .night-play-hud{margin-bottom:5px}
+body.is-playing .board-shell{width:min(100%,510px,calc((100dvh - 158px)*20/33))}
+@media(max-width:380px){
+ body.is-playing .board-shell{width:min(100%,calc((100dvh - 150px)*20/33))}
+}
