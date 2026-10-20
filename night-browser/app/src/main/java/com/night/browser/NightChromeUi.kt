@@ -30,6 +30,8 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
@@ -487,7 +489,7 @@ internal fun NightMenuSheet(
 /** Familiar Chrome-style outlined tab counter, exactly one switcher control. */
 @Composable
 internal fun NightTabCountIcon(count: Int, onClick: () -> Unit) {
-    IconButton(onClick = onClick, modifier = Modifier.size(48.dp)) {
+    IconButton(onClick = onClick, modifier = Modifier.size(48.dp).semantics { contentDescription = "Tabs" }) {
         Box(
             Modifier.size(25.dp).border(2.dp, White, RoundedCornerShape(6.dp)),
             contentAlignment = Alignment.Center
