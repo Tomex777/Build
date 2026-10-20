@@ -365,7 +365,8 @@ class Device:
         self.click("Downloads")
         if self.find(filename, partial=True) is None:
             raise AssertionError("Byte-verified download missing from Library: " + filename)
-        return "Original Gecko response bytes verified SHA256; Library shows " + filename +             " (" + str(observed[1]) + " bytes)"
+        return ("Original Gecko response bytes verified SHA256; Library shows "
+                + filename + " (" + str(observed[1]) + " bytes)")
 
     def time_machine(self):
         self.go("/landing")
