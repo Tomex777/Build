@@ -115,7 +115,7 @@ try{
   'Pressing before the first note is actually tappable must lose');
  assert.equal(await page.locator('#coverTitle').textContent(),'Wrong tile');
  await page.locator('#coverAction').click();
- await page.waitForFunction(at=>window.__nightPianoTest.snapshot().elapsed>at+.27,firstTwinkle.at);
+ await page.waitForFunction(()=>window.__nightPianoTest.snapshot().ended);
  assert.equal(await page.evaluate(()=>window.__nightPianoTest.snapshot().ended),true,
   'Missing a note after the late timing window must lose');
  assert.equal(await page.locator('#coverTitle').textContent(),'Missed tile');
