@@ -30,3 +30,12 @@
 - Workflow `.github/workflows/night-play-agent9-ui.yml` runs tests for this PR and uploads the screenshots.
 - **Do not mark finished until**: CI reaches successful terminal result, screenshots show no critical clipping, site header is hidden during the game, game controls remain usable, and the coordinator verifies integration into the combined deployed preview.
 - Continue audit in next Agent 9 session: profile connection, game-library filtering/search and card keyboard semantics; inspect full-page screenshots for overflow at narrow widths; report reproducible issues to each owning agent rather than editing their files.
+
+## Agent 9 continuity — 20 October 2026
+
+- **Owner:** Agent 9 UI/UX. **PR:** [#413](https://github.com/Tomex777/Build/pull/413), remains draft until newest CI/browser artifacts are reviewed. **Branch:** `agent9/night-play-site-ux-20261020` from `feature/party-online-rooms-20261019`.
+- **Last verified source revision:** `e99e430`; full NIGHT Play Preview CI and dedicated Agent 9 seven-viewport Chromium tests were green (runs 39350357013 and 39350356989).
+- **Real screenshot QA:** Artifact `night-play-agent9-site-chrome` from run 39350356989 captures 320/360/390/412/640/760/1280. Confirmed game back/settings bar is visible at 320 following sticky-header fix, duplicate bottom Exit is absent, no horizontal overflow from dashboard header. Desktop 1280 screenshot retains approved NIGHT identity. Decorative board illustration contrast was softened on narrow phones.
+- **Newest in-progress source revision:** `17b4c0e`. Adds **actual 2048 key/touch swipe**, settings opening/closing, library visual screenshot/overflow/cards assertion and profile screenshots at all seven widths. Browser and full-preview Actions runs 39350795340 / 39350795341 were queued at the time of writing; check their final state and do not claim they passed yet.
+- **Own editable paths:** `night-play/site-shell.css`, `night-play/ui/` and `.github/workflows/night-play-agent9-ui.yml` only. Do not edit the coordinator-owned `night-play/index.html`, other agents' game modules, or frozen Channels.
+- **Recovery action:** Retrieve the latest completed workflow artifact for run 39350795340; inspect `library-320.png`, `profile-320.png`, `site-320.png`, `game-2048-320.png`, `game-after-move-320.png` and 390/1280 equivalents. If CI fails, fetch its exact failing job log, fix and replay; if green, update the draft PR with evidence and request integration QA. Verify merged combined preview separately before `DONE`.
