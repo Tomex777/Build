@@ -45,6 +45,8 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -164,6 +166,7 @@ fun WaterSortScreen(onExit: () -> Unit) {
                                 addingColour = if (pouring?.into == index) pouring!!.colour else null,
                                 modifier = Modifier.weight(1f)
                                     .graphicsLayer(rotationZ = tilt, translationY = lift)
+                                    .semantics { contentDescription = "Tube ${index + 1}, ${state.tubes[index].size} layers" }
                                     .clickable(enabled = pouring == null) { tap(index) }
                             )
                         } else {
