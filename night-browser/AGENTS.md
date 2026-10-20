@@ -1,5 +1,10 @@
 # NIGHT Browser — Agent Operating Rules (ABR)
 
+## Agent N chat activation
+
+In a NIGHT Browser chat, **"You are Agent N"** (N from 1 to 10) selects `night-browser/agents/agent-NN.md` on branch `feature/night-browser-multi-agent-20261020`. Immediately read `night-browser/agents/README.md`, that role document and `night-browser/docs/agent-backlog.md`, then begin actual work. The user does not need to paste the entire handoff. The chat still needs GitHub access and enough project context to locate the repository. These files do not spawn agent conversations automatically.
+
+
 Scope: `night-browser/**` in `Tomex777/Build`. These instructions also apply to AI/coding agents updating this project's CI workflow. Read `README.md`, `docs/agent-backlog.md`, and the current code before acting.
 
 ## Mission and constraints
