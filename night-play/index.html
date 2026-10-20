@@ -1658,10 +1658,12 @@ function bindSwipeGesture(board,turn,{threshold=10,allowMultiple=false}={}){
   const dx=e.clientX-pointer.x,dy=e.clientY-pointer.y;
   if(Math.max(Math.abs(dx),Math.abs(dy))<threshold)return;
   const dir=Math.abs(dx)>Math.abs(dy)?dx>0?"right":"left":dy>0?"down":"up";
-  if(turn(dir)!==false){
-   if(allowMultiple){pointer.x=e.clientX;pointer.y=e.clientY}
-   else pointer.fired=true;
-  }
+  const accepted=turn(dir)!==false;
+  if(allowMultiple){
+   // Consume the attempted stroke even if it was a duplicate/opposite input.
+   // Otherwise the old anchor can swallow the next valid corner of one drag.
+   pointer.x=e.clientX;pointer.y=e.clientY;
+  }else if(accepted)pointer.fired=true;
  },{passive:true});
  function release(e){
   if(pointer?.id!==e.pointerId)return;
@@ -1710,7 +1712,7 @@ function initSnake(fresh=false){
  shell.appendChild(overlay);root.appendChild(shell);
  snake.canvas=c;snake.food=snake.food||food();drawSnake();gamePaused=true;
  // Respond during the gesture, not when the finger is lifted.
- // A two-turn queue preserves rapid corner gestures at Turbo speed.
+ // Buffer consecutive legal corners that land between grid ticks without losing swipes.
  bindSwipeGesture(c,dir=>snakeTurn(dir),{threshold:9,allowMultiple:true});
 
  snakeTimer=setInterval(stepSnake,snakeTickMs());
@@ -1721,7 +1723,10 @@ function snakeTurn(dir){
  const opposite={up:"down",down:"up",left:"right",right:"left"};
  const queue=snake.turnQueue||(snake.turnQueue=[]);
  const last=queue.length?queue[queue.length-1]:snake.dir;
- if(dir===last||dir===opposite[last]||queue.length>=2)return false;
+ if(dir===last||dir===opposite[last])return false;
+ // Four corner strokes fit fast mobile input bursts while keeping steering bounded.
+ // Never reverse into the tail or execute multiple turns in one grid tick.
+ if(queue.length>=4)return false;
  queue.push(dir);
  snake.next=queue[0];return true;
 }
