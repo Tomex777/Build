@@ -5,6 +5,8 @@ const modes={wyr:'Would You Rather',mlt:'Most Likely To',tot:'This or That',nhie
 const params=new URLSearchParams(location.search);
 let code=params.get('code')?.trim().toUpperCase()||'',mode=params.get('game')||'';
 let room=null,pending=false,refreshTimer=null,lastState='',identity=null;
+let syncing=false,suspended=false,booting=false,retryTimer=null;
+let stateEpoch=0,connectionFailures=0,connectionLost=false;
 const esc=x=>String(x??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const btn=(text,action,style='party-primary')=>'<button type="button" class="'+style+'" data-action="'+action+'">'+text+'</button>';
 function alertUser(s){toast.textContent=s;clearTimeout(alertUser.timer);alertUser.timer=setTimeout(()=>toast.textContent='',5500)}
@@ -12,8 +14,14 @@ function title(t,sub,tag='LIVE PARTY'){$('title').textContent=t;$('subtitle').te
 function panelMessage(head,body,back){panel.innerHTML='<div class="party-panel"><h2>'+esc(head)+'</h2><p>'+esc(body)+'</p>'+(back==='/profile'?'<a class="party-primary party-online-return" href="/profile">Connect WhatsApp</a>':'')+'</div>'}
 const shareLink=c=>location.origin+'/party/room/?code='+encodeURIComponent(c);
 async function request(action,body={}){
-  const response=await fetch('/api/account',{method:'POST',credentials:'same-origin',cache:'no-store',
-    headers:{'content-type':'application/json'},body:JSON.stringify({action, ...body})});
+  let response;
+  try{
+    response=await fetch('/api/account',{method:'POST',credentials:'same-origin',cache:'no-store',
+      headers:{'content-type':'application/json'},body:JSON.stringify({action,...body}),
+      signal:AbortSignal.timeout(12000)});
+  }catch{
+    throw Object.assign(new Error('Connection interrupted. Your game is saved; reconnecting automatically.'),{status:503});
+  }
   const data=await response.json().catch(()=>({error:'Room service did not return a response.'}));
   if(!response.ok)throw Object.assign(new Error(data.error||'Room service temporarily unavailable.'),{status:response.status});
   return data;
@@ -93,19 +101,76 @@ function apply(data){
   lastState=serialized;room=data;mode=data.mode;code=data.code;
   renderRoom();
 }
+function stopRefresh(){
+  if(refreshTimer!==null)clearTimeout(refreshTimer);
+  refreshTimer=null;
+}
+function scheduleRefresh(delay=1750){
+  stopRefresh();
+  if(!suspended&&!document.hidden&&room&&code)
+    refreshTimer=setTimeout(synchronize,delay);
+}
+function scheduleBootRetry(delay=1800){
+  if(retryTimer!==null)clearTimeout(retryTimer);
+  if(!suspended&&!document.hidden&&code&&!room)
+    retryTimer=setTimeout(()=>{retryTimer=null;boot()},delay);
+}
+function recordConnected(){
+  if(connectionLost)alertUser('Connection restored. Your room is up to date.');
+  connectionLost=false;connectionFailures=0;
+}
+function recordDisconnected(){
+  connectionFailures++;
+  if(!connectionLost){
+    connectionLost=true;
+    alertUser('Connection lost. Your room is saved. Reconnecting…');
+  }
+}
 async function synchronize(){
-  if(!code||!room||pending)return;
-  try{const v=await request('party:state',{code});apply(v)}catch(e){
-    if(e.status===410||e.status===404){room=null;clearInterval(refreshTimer);panelMessage('Room unavailable',e.message);}
-    else if(e.status!==503)alertUser(e.message);
+  if(suspended||document.hidden||!code||!room)return;
+  // Only one poll in flight; never overwrite an action with an old response.
+  if(syncing||pending){scheduleRefresh(650);return;}
+  syncing=true;
+  const epoch=stateEpoch;
+  try{
+    const next=await request('party:state',{code});
+    if(epoch===stateEpoch){apply(next);recordConnected();}
+  }catch(e){
+    if(epoch!==stateEpoch)return;
+    if(e.status===410||e.status===404){
+      room=null;stopRefresh();
+      panelMessage('Room unavailable',e.message);
+    }else if(e.status===403){
+      const wasHost=room.host;
+      room=null;stopRefresh();
+      if(wasHost)panelMessage('Room access ended',e.message);
+      else renderJoin();
+    }else if(e.status===503){
+      recordDisconnected();
+    }else alertUser(e.message);
+  }finally{
+    syncing=false;
+    if(room)scheduleRefresh(connectionFailures?Math.min(14000,1750*2**Math.min(3,connectionFailures)):1750);
   }
 }
 async function act(action,details={}){
   if(pending)return;
   pending=true;
-  try{const data=await request('party:'+action,{code,...details});apply(data);if(action==='join'&&!refreshTimer)refreshTimer=setInterval(synchronize,1750)}
-  catch(e){alertUser(e.message)}
-  finally{pending=false}
+  stateEpoch++;stopRefresh();
+  try{
+    const data=await request('party:'+action,{code,...details});
+    apply(data);recordConnected();
+  }catch(e){
+    if(e.status===503){
+      recordDisconnected();
+      // A timed-out join may have reached the server. Recheck before asking
+      // the player to submit a second join or silently creating another room.
+      if(action==='join'&&!room)scheduleBootRetry(1700);
+    }else alertUser(e.message);
+  }finally{
+    pending=false;
+    if(room)scheduleRefresh(200);
+  }
 }
 async function share(){
   const url=shareLink(code);
@@ -134,27 +199,62 @@ panel.addEventListener('submit',e=>{
   act('join',{guestName:name});
 });
 async function boot(){
-  identity=await window.NightPlayerIdentity.refresh();
-  if(code){
-    try{apply(await request('party:state',{code}))}
-    catch(e){if(e.status===403)renderJoin();else panelMessage(e.status===410?'Room expired':'Could not open room',e.message)}
-  }else if(modes[mode]){
-    title('Creating your '+modes[mode]+' room','Your WhatsApp name is taken from NIGHT Play Profile.');
-    if(identity?.status!=='linked'){
-      panelMessage('Connect WhatsApp to host','Open NIGHT Play Profile and connect WhatsApp. Guests can still join your room using a link.','/profile');
-      return;
-    }
-    const questions=questionsForGame(mode);
-    if(!questions){panelMessage('Finish your quiz first','Complete at least three questions in the quiz editor before creating an online invitation.','/party/?game=quiz');return}
-    panel.innerHTML='<div class="party-panel"><h2>Creating your room…</h2><p>Preparing a private invite link.</p></div>';
-    try {
-      const created=await request('party:create',{mode,questions});
-      history.replaceState({},'', '/party/room/?code='+encodeURIComponent(created.code));
-      apply(created);
-    }catch(e){panelMessage('Could not create a room',e.message,'/party/?game='+encodeURIComponent(mode))}
-  }else panelMessage('Choose a party game','Start from the party game library.');
-  if(room)refreshTimer=setInterval(synchronize,1750);
+  if(booting||suspended)return;
+  booting=true;
+  try{
+    identity=await window.NightPlayerIdentity.refresh();
+    if(code){
+      try{
+        apply(await request('party:state',{code}));
+        recordConnected();
+      }catch(e){
+        if(e.status===403)renderJoin();
+        else if(e.status===503){
+          panelMessage('Reconnecting to your room','Your place is preserved. We’ll retry the connection automatically.');
+          recordDisconnected();
+          scheduleBootRetry(Math.min(14000,1800*2**Math.min(3,connectionFailures-1)));
+        }else panelMessage(e.status===410?'Room expired':'Could not open room',e.message);
+      }
+    }else if(modes[mode]){
+      title('Creating your '+modes[mode]+' room','Your WhatsApp name is taken from NIGHT Play Profile.');
+      if(identity?.status!=='linked'){
+        panelMessage('Connect WhatsApp to host','Open NIGHT Play Profile and connect WhatsApp. Guests can still join your room using a link.','/profile');
+        return;
+      }
+      const questions=questionsForGame(mode);
+      if(!questions){
+        panelMessage('Finish your quiz first','Complete at least three questions in the quiz editor before creating an online invitation.','/party/?game=quiz');
+        return;
+      }
+      panel.innerHTML='<div class="party-panel"><h2>Creating your room…</h2><p>Preparing a private invite link.</p></div>';
+      try{
+        const created=await request('party:create',{mode,questions});
+        history.replaceState({},'', '/party/room/?code='+encodeURIComponent(created.code));
+        apply(created);recordConnected();
+      }catch(e){
+        // Never automatically replay create: its response can be lost after
+        // the server committed the room, yielding duplicate active rooms.
+        panelMessage('Could not confirm room creation',e.message,'/party/?game='+encodeURIComponent(mode));
+      }
+    }else panelMessage('Choose a party game','Start from the party game library.');
+  }finally{
+    booting=false;
+    if(room)scheduleRefresh();
+  }
 }
 boot().catch(e=>panelMessage('Could not load this room',e.message));
-window.addEventListener('pagehide',()=>clearInterval(refreshTimer));
+window.addEventListener('pagehide',()=>{
+  suspended=true;stopRefresh();
+  if(retryTimer!==null){clearTimeout(retryTimer);retryTimer=null;}
+});
+window.addEventListener('pageshow',e=>{
+  if(!e.persisted)return;
+  suspended=false;
+  if(room)synchronize();
+  else if(code)boot().catch(error=>alertUser(error.message));
+});
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden){stopRefresh();if(retryTimer!==null){clearTimeout(retryTimer);retryTimer=null;}}
+  else if(!suspended){if(room)synchronize();else if(code)boot().catch(error=>alertUser(error.message));}
+});
 })();
