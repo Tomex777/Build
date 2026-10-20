@@ -302,8 +302,35 @@ class Device:
         raise Blocked("File picker launched: requires OS picker navigation + byte assertion; not a verified upload")
 
     def download(self, path):
+        # Real Gecko response -> native Save dialog -> Library -> actual bytes.
+        # run-as is for a DEBUG APK in a disposable emulator ONLY.
+        # Never dump arbitrary downloaded content into CI logs/artifacts.
+        from wave2_fixture import PNG, PDF
+        expected = {"/file.png": PNG, "/file.pdf": PDF}[path]
+        name = "night-qa" + path[-4:]
         self.go(path)
-        raise Blocked("GET logged, but saved bytes/MIME/open/delete must be verified in app's Library")
+        self.click("Save downloaded file?", timeout=14)
+        self.click("Save file")
+        actual = None
+        for _ in range(22):
+            lines = shell("run-as", PKG, "ls", "files/browser-downloads",
+                          check=False).splitlines()
+            matching = [n for n in lines if n.endswith("_" + name)]
+            if matching:
+                actual = adb("exec-out", "run-as", PKG, "cat",
+                             "files/browser-downloads/" + matching[-1],
+                             binary=True, check=False)
+                if actual == expected:
+                    break
+            time.sleep(.7)
+        if actual != expected:
+            raise AssertionError("Saved app-private download bytes do not match fixture " + name)
+        self.click("More")
+        self.click("Library")
+        self.click("Downloads")
+        if not self.find(name, partial=True):
+            raise AssertionError("Verified downloaded bytes missing from Library Downloads")
+        return name + " bytes verified, sha256=" + hashlib.sha256(actual).hexdigest()[:16]
 
     def time_machine(self):
         self.go("/landing")
@@ -438,9 +465,9 @@ class Device:
                   self._posted()), prerequisites=("C21",))
         self.test("C23", "File upload picker and bytes", self.upload,
                   prerequisites=("C01",))
-        self.test("C24", "PNG download saved/opened", lambda: self.download("/file.png"),
+        self.test("C24", "PNG saved bytes + Library record", lambda: self.download("/file.png"),
                   prerequisites=("C01",))
-        self.test("C25", "PDF download saved/opened", lambda: self.download("/file.pdf"),
+        self.test("C25", "PDF saved bytes + Library record", lambda: self.download("/file.pdf"),
                   prerequisites=("C01",))
         self.test("C26", "Time Machine PDF version saved", self.time_machine,
                   prerequisites=("C01",), screenshot=True)
