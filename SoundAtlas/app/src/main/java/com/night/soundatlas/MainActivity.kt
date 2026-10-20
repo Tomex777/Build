@@ -631,7 +631,7 @@ class MainActivity : Activity() {
                     val start=soundPage*10
                     val pageItems=SoundKind.entries.drop(start).take(10)
                     val cell=(ww-47f)/2f;val gap=7f
-                    // Deliberately paginated: 18 cards never overlap the bottom
+                    // Deliberately paginated: 22 cards never overlap the bottom
                     // edge on smaller devices. Proper 48dp minimum tap targets.
                     pageItems.forEachIndexed { i,kind->
                         val x=20f+(i%2)*(cell+gap)
