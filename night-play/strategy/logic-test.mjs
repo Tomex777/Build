@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
 const require=createRequire(import.meta.url);
 const {Chess}=require('./chess-v0.10.3.js');
+const {chooseMove}=require('./ai.js');
 const piece=(game,at)=>game.get(at);
 
 {
@@ -53,5 +54,19 @@ const piece=(game,at)=>game.get(at);
 {
  const game=new Chess('8/8/8/8/8/5k2/8/4K3 w - - 0 1');
  assert.equal(game.insufficient_material(),true,'lone kings are a draw');
+}
+// The computer must choose legal, tactical moves without mutating the board.
+{
+ const game=new Chess('r3k3/8/8/8/8/8/8/Q3K3 b - - 0 1');
+ const start=game.fen();
+ const choice=chooseMove(game,'normal',{depth:3,time:2200,maxNodes:26000});
+ assert.ok(choice,'AI produces a move for black');
+ assert.ok(game.moves({verbose:true}).some(m=>m.from===choice.from&&m.to===choice.to),'AI proposes a legal move');
+ assert.equal(game.fen(),start,'AI search never changes the live position');
+ assert.equal(choice.from+choice.to,'a8a1','CPU does not ignore a free enemy queen');
+}
+{
+ const game=new Chess();
+ assert.equal(chooseMove(game,'normal'),null,'black bot never controls white human turn');
 }
 console.log('PASS NIGHT Play Chess rules: opening, illegal moves, checkmate, undo, en passant, castling, underpromotion and drawn endings');
