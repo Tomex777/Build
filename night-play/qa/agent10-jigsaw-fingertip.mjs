@@ -10,10 +10,10 @@ await page.locator('#hudMenuButton').click();await page.locator('#hudSettingsBut
 const start=await page.evaluate(()=>{const s=window.__nightJigsawTest.snapshot(),cv=document.querySelector('#puzzleCanvas'),r=cv.getBoundingClientRect(),sx=r.width/cv.width,sy=r.height/cv.height;
 return {pieces:s.pieces.filter(p=>!p.placed).map(p=>({id:p.id,cx:p.correctX,cy:p.correctY,x:r.left+(p.x+s.board.pieceWidth/2)*sx,y:r.top+(p.y+s.board.pieceHeight/2)*sy})).filter(p=>p.x>7&&p.x<innerWidth-7&&p.y>52&&p.y<innerHeight-55),board:s.board,rect:r.toJSON()};});
 const cdp=await page.context().newCDPSession(page);let selected=0,match=0,miss=0,selectionLog=[];
-for(let i=0;i<Math.min(26,start.pieces.length);i++){const p=start.pieces[Math.floor((i+0.5)*start.pieces.length/Math.min(26,start.pieces.length))];
-await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:p.x,y:p.y,id:100+i}]});await page.waitForTimeout(38);
+for(const delta of [{dx:0,dy:0},{dx:10,dy:0},{dx:-10,dy:0},{dx:0,dy:10},{dx:0,dy:-10}]) for(let i=0;i<Math.min(26,start.pieces.length);i++){const p=start.pieces[Math.floor((i+0.5)*start.pieces.length/Math.min(26,start.pieces.length))];const x=p.x+delta.dx,y=p.y+delta.dy;if(x<4||x>width-4||y<42||y>(width===320?700:844)-10)continue;
+await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x,y,id:100+selectionLog.length}]});await page.waitForTimeout(38);
 let s=await page.evaluate(()=>window.__nightJigsawTest.snapshot().selected);await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
-const isMatch=!!s&&s.id===p.id;selected+=!!s;match+=isMatch;miss+=!isMatch;selectionLog.push({target:p.id,got:s?.id,exact:isMatch,x:Math.round(p.x),y:Math.round(p.y)});
+const isMatch=!!s&&s.id===p.id;selected+=!!s;match+=isMatch;miss+=!isMatch;selectionLog.push({target:p.id,got:s?.id,exact:isMatch,x:Math.round(x),y:Math.round(y),dx:delta.dx,dy:delta.dy});
 }
-console.log('FINGER_PRECISION',JSON.stringify({width,total:start.pieces.length,tries:selectionLog.length,selected,correctPiece:match,wrongOrNone:miss,sample:selectionLog.slice(0,15),errors}));await page.close();}
+const breakdown=[...new Set(selectionLog.map(v=>v.dx+','+v.dy))].map(k=>{const rows=selectionLog.filter(v=>v.dx+','+v.dy===k);return {offset:k,tries:rows.length,correct:rows.filter(v=>v.exact).length};});console.log('FINGER_PRECISION',JSON.stringify({width,total:start.pieces.length,tries:selectionLog.length,selected,correctPiece:match,wrongOrNone:miss,breakdown,wrongExamples:selectionLog.filter(v=>!v.exact).slice(0,12),errors}));await page.close();}
 }finally{await b.close();await new Promise(ok=>server.close(ok));}
