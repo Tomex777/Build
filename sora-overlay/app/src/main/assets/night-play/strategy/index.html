@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f4f5f1"><title>Chess · NIGHT Play</title><meta name="description" content="Play a legal chess match against the computer or another player on this device."><link rel="stylesheet" href="/strategy/style.css"></head>
+<body>
+<svg class="chess-assets" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+ <symbol id="night-mark" viewBox="0 0 108 108"><path fill="#0b0f11" d="M0 0h108v108H0z"/><path fill="#f4f5f6" d="M24 54C24 37.43 37.43 24 54 24s30 13.43 30 30H24ZM22 66h64v6H22z"/></symbol>
+ <symbol id="chess-p" viewBox="0 0 64 64"><circle cx="32" cy="18" r="9"/><path d="M24 28h16l3 16H21zM19 47h26l3 7H16z"/></symbol>
+ <symbol id="chess-r" viewBox="0 0 64 64"><path d="M15 10h9v7h7v-7h8v7h7v-7h6v15l-7 4 3 19H16l3-19-7-4V10zm1 40h32v6H16z"/></symbol>
+ <symbol id="chess-n" viewBox="0 0 64 64"><path d="m43 10 4 15-6 10 4 13H19l3-14-9-4 7-15 12-8 7 1 4 2zM16 50h34v6H16z"/><circle class="knight-eye" cx="31" cy="19" r="2.5"/></symbol>
+ <symbol id="chess-b" viewBox="0 0 64 64"><path d="M32 7c-12 9-16 17-15 25l7 12h16l7-12C48 24 44 16 32 7zM17 47h30v7H17z"/><path class="piece-cut" d="m36 14-11 20"/></symbol>
+ <symbol id="chess-q" viewBox="0 0 64 64"><path d="m8 15 12 9 12-13 12 13 12-9-8 31H16L8 15ZM15 49h34v6H15z"/><circle cx="8" cy="12" r="4"/><circle cx="32" cy="8" r="4"/><circle cx="56" cy="12" r="4"/></symbol>
+ <symbol id="chess-k" viewBox="0 0 64 64"><path d="M29 6h6v10h9v6h-9v6h-6v-6h-9v-6h9zM21 30h22l5 17H16zM15 50h34v6H15z"/></symbol>
+</svg>
+<header class="site-top"><a class="go-back" href="/games" aria-label="Back to games"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 5-7 7 7 7"/></svg><span>Games</span></a><a class="brand" href="/dashboard"><svg width="29" height="29"><use href="#night-mark"/></svg><b>NIGHT <em>PLAY</em></b></a></header>
+<main class="chess-layout"><div class="board-column"><div class="title-row"><div><h1>Chess</h1></div><span id="modeLabel" class="match-label">VS COMPUTER</span></div>
+<div class="opponent-row"><span class="avatar black-avatar">♟</span><span><strong id="blackName">Computer</strong><small id="blackDetails">BLACK</small></span><span class="turn-led" id="blackTurn">WAITING</span></div>
+<div class="chess-frame"><div class="chess-board" id="chessBoard" role="grid" aria-label="Chess board, ranks eight through one"></div></div>
+<div class="opponent-row bottom-row"><span class="avatar white-avatar">♙</span><span><strong>White</strong><small id="whiteDetails">YOU</small></span><span class="turn-led" id="whiteTurn">TO PLAY</span></div>
+</div>
+<aside class="match-side"><h2 id="matchStatus" aria-live="polite">White to move</h2><p id="matchMessage" class="message">Select a piece to see legal moves.</p><div class="mode-switch" role="group" aria-label="Game mode"><button id="vsCpu" type="button" aria-pressed="true">Vs computer</button><button id="vsLocal" type="button" aria-pressed="false">Two players</button></div><div class="side-actions"><button type="button" id="newMatch">New match</button><button type="button" id="undo" disabled>Undo</button></div><div class="moves-wrap"><h3>Moves</h3><div class="moves-list" id="moveList" aria-live="off"><span class="empty-moves">First move pending</span></div></div><p class="local-note" id="localNote">Computer plays black.</p></aside>
+</main>
+<div class="promotion-overlay" id="promotionLayer" hidden><div class="promotion-card" role="dialog" aria-modal="true" aria-labelledby="promotionTitle"><h2 id="promotionTitle">Choose promotion</h2><div id="promotionChoices" class="promotion-choices"></div><button type="button" id="promotionCancel">Cancel</button></div></div>
+<script src="/strategy/chess-v0.10.3.js"></script><script src="/strategy/game.js" defer></script>
+</body></html>
