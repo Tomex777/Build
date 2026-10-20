@@ -1,10 +1,10 @@
-name: NIGHT Browser — Emulator Screenshots
+name: NIGHT Browser — Omni UI visual verification
 
 on:
   workflow_dispatch:
   push:
-    branches: [feature/night-browser-prototype-20261019]
-    paths: ['.github/workflows/night-browser-visuals.yml', 'night-browser/ci/**']
+    branches: [feature/night-browser-omni-inspired-ui-20261020]
+    paths: ['.github/workflows/night-browser-visuals.yml', 'night-browser/ci/**', 'night-browser/app/**']
 
 permissions:
   contents: write
@@ -62,4 +62,4 @@ jobs:
           git add night-browser/screenshots
           if git diff --cached --quiet; then exit 0; fi
           git commit -m "test(browser): real Android emulator UI screenshots"
-          git push origin HEAD:feature/night-browser-prototype-20261019
+          git push origin HEAD:feature/night-browser-omni-inspired-ui-20261020
