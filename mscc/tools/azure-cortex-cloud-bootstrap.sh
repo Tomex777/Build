@@ -5,8 +5,8 @@
 set -euo pipefail
 umask 077
 
-readonly SOURCE_SHA=d280c2a67dd8ebce6927962cfb341122447ec777
-readonly AGENT_BLOB=781d3dcd7b35a00e236abd8be70298170928f3c5
+readonly SOURCE_SHA=e8c24ebe7b2cd891e7453a65360cd167966f145a
+readonly AGENT_BLOB=50ba5c50ea9c5dfe40cff51eb5b8c33677e05f75
 readonly PREVIOUS_AGENT_BLOB=558a8394d574aec9b8798e39d9d4475f6b6bf4a9
 readonly HELPER_BLOB=8bc55110b92f60bfe31b8097cbc5dad32ae0a820
 readonly PREVIOUS_HELPER_BLOB=4e0fa0455c604d3793a72254a1c3b4e260b67f4e
@@ -426,6 +426,36 @@ curl -fsS --max-time 12 \
 # Prove the write paths that the phone actually uses. Reapply existing
 # non-secret values only: no MEGA credentials, account state or toggles change.
 # All HTTP responses remain in a private scratch directory, never CI logs.
+# A previous live rollout returned 500 for a Settings write even after a
+# restricted settings helper was installed. Both Settings and ENV append an
+# activity record after their data write. Check and repair ONLY Cortex's own
+# journal ownership (never widen MSCC private-data directory permissions).
+readonly CORTEX_ACTIVITY_LOG=/var/lib/cortex/activity.jsonl
+if sudo -n test -L "$CORTEX_ACTIVITY_LOG" || sudo -n test -L /var/lib/cortex; then
+  echo 'Cortex activity storage contains a symlink; refusing unsafe recovery.' >&2; exit 1
+fi
+sudo -n install -d -o cortex-agent -g cortex-agent -m 0750 /var/lib/cortex
+if sudo -n test -e "$CORTEX_ACTIVITY_LOG"; then
+  sudo -n test -f "$CORTEX_ACTIVITY_LOG" || {
+    echo 'Cortex activity journal is not a regular file.' >&2; exit 1;
+  }
+  if ! sudo -n -u cortex-agent test -w "$CORTEX_ACTIVITY_LOG"; then
+    # Safe, fixed-path repair for the Agent's own append-only journal; keep
+    # existing bytes. Root ownership is not required for this private file.
+    sudo -n chown cortex-agent:cortex-agent "$CORTEX_ACTIVITY_LOG"
+    sudo -n chmod 0600 "$CORTEX_ACTIVITY_LOG"
+  fi
+else
+  sudo -n install -o cortex-agent -g cortex-agent -m 0600 /dev/null "$CORTEX_ACTIVITY_LOG"
+fi
+sudo -n -u cortex-agent test -w "$CORTEX_ACTIVITY_LOG" || {
+  echo 'Cortex activity journal remains unwritable by the Agent.' >&2; exit 1;
+}
+echo 'Cortex private activity journal is writable; no private data exposed.'
+
+curl -fsS --max-time 12 -o "$tmp/activity-before.json" \
+  -H "Authorization: Bearer $TOKEN" \
+  http://127.0.0.1:47831/api/cortex/host/activity?limit=100
 curl -fsS --max-time 12 -o "$tmp/settings-before.json" \
   -H "Authorization: Bearer $TOKEN" \
   http://127.0.0.1:47831/api/cortex/host/settings
@@ -461,6 +491,23 @@ if (matched?.enabled!==expected.enabled ||
   process.exit(2);
 console.log('Cortex protected command-setting write readback passed (no value changed).');
 VERIFY_SETTING
+curl -fsS --max-time 12 -o "$tmp/activity-after.json" \
+  -H "Authorization: Bearer $TOKEN" \
+  http://127.0.0.1:47831/api/cortex/host/activity?limit=100
+node - "$tmp/activity-before.json" "$tmp/activity-after.json" "$settings_same" <<'VERIFY_AUDIT'
+const fs=require('node:fs');
+const previous=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+const current=JSON.parse(fs.readFileSync(process.argv[3],'utf8'));
+const setting=JSON.parse(process.argv[4]);
+const oldIds=new Set((previous.entries||[]).map(x=>x.id));
+if (!(current.entries||[]).some(x=>x.source==='agent' &&
+    !oldIds.has(x.id) && x.action==='server:setting.update' &&
+    x.detail?.key===setting.key && x.detail?.enabled===setting.enabled)) {
+  console.error('Cortex activity journal did not record the completed Settings write.');
+  process.exit(2);
+}
+console.log('Cortex settings write and new audit event both verified.');
+VERIFY_AUDIT
 
 curl -fsS --max-time 12 -o "$tmp/environment-before.json" \
   -H "Authorization: Bearer $TOKEN" \
@@ -493,6 +540,22 @@ if (response.entries?.find(x=>x.key==='LOG_LEVEL')?.value!==process.argv[3]) pro
 if (response.entries?.find(x=>x.key==='MSCC_MEGA_PASSWORD')?.value) process.exit(3);
 console.log('Cortex protected ENV write readback passed with unchanged LOG_LEVEL (secrets hidden).');
 VERIFY_ENV_WRITE
+curl -fsS --max-time 12 -o "$tmp/activity-env-after.json" \
+  -H "Authorization: Bearer $TOKEN" \
+  http://127.0.0.1:47831/api/cortex/host/activity?limit=100
+node - "$tmp/activity-after.json" "$tmp/activity-env-after.json" <<'VERIFY_ENV_AUDIT'
+const fs=require('node:fs');
+const before=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+const after=JSON.parse(fs.readFileSync(process.argv[3],'utf8'));
+const existing=new Set((before.entries||[]).map(x=>x.id));
+if (!(after.entries||[]).some(x=>x.source==='agent' &&
+    !existing.has(x.id) && x.action==='server:environment.update' &&
+    x.detail?.key==='LOG_LEVEL')) {
+  console.error('Cortex activity journal did not record the completed ENV write.');
+  process.exit(2);
+}
+console.log('Cortex ENV write and new audit event both verified.');
+VERIFY_ENV_AUDIT
 
 # Verify route exists; downstream /cloud may remain unavailable until the
 # separately authorized MSCC Cloud release is installed.
