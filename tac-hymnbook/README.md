@@ -173,3 +173,38 @@ The Redemption edition contains **800 distinct hymn numbers**. In this release:
 - A genuine full 800-hymn **Yorùbá + English** text release requires a legitimate digital/photographic source for the remaining TAC words, permission for copyrighted translations, and review against the printed edition. Other denominations' hymn numbers or translations cannot simply be substituted.
 
 Sources: numbered index `https://hymnary.org/hymnal/RH2006?page=2`; historic text provenance in each `data/english-public-domain.json` record.
+
+
+## v0.7.2 — complete English Redemption number/title index (20 October 2026)
+
+- **All 800/800 numbered Redemption hymns now have indexed English first lines**, checked against the `Redemption Hymnal` RH2006 numbered index on Hymnary. They are indexed metadata, **NOT 800 readable hymn texts**. Hymnary itself warns its transcribed index is not yet proofread. Independent checking against the user's printed TAC bilingual edition is still necessary.
+- The known first-line catalogue was expanded from 234 to 800 across the indexed sections 235–800 while keeping the independently numbered **Àkọkún 1–305** separate. Underlying files are `data/redemption-hymnal-catalogue.json` and `android/app/src/main/assets/redemption_index.json`; both must remain identical.
+- **Readable lyrics remain 25/800**: 18 existing working bilingual drafts and 7 public-domain English-only alternate drafts. No additional Yorùbá translation was invented. Completing text requires genuine printed-edition texts plus the necessary permissions to publish translations and arrangements.
+- `tools/redemption_import.py` and `data/approved-redemption.json` now provide an independent **bilingual rights-reviewed bulk-import path** when an approved text source is obtained. The importer rejects duplicate/out-of-range hymn numbers, incomplete language versions, malformed stanzas, decomposed Yorùbá Unicode, undocumented rights or missing printed-edition verification. Existing working drafts may be superseded only by an explicitly reviewed replacement; the compiler includes only approved entries. The manifest is deliberately empty for now.
+- The church-hosted [TAC North America Cincinnati Redemption Hymnal page](https://tacona-cincy.org/tac-redemption-hymnal) links to a **20-page PDF printout of a directory listing** showing hundreds of numbered MP3 filenames (including 001–800 and alternate arrangements). This is a promising **audio source research lead**, NOT a set of authorized files. No source server or permission to redistribute those MP3 recordings is established. See `data/audio-source-candidates.json`. Obtain original hosts, audio rights, and actual performed-verses verification before offering audio downloads.
+- The Android app remains minSdk 26, follows ABR, and contains no third-party recordings represented as bundled vocals.
+
+### Proposed authorised content handoff
+
+For hymn texts provided with express permission, prepare a JSON batch:
+```json
+{
+  "schema_version": 1,
+  "collection": "main",
+  "hymns": [
+    {
+      "number": 350,
+      "title_yo": "Exact photographed Yoruba first line",
+      "title_en": "Exact photographed English first line",
+      "verses_yo": [["Verified Yoruba line 1", "Verified Yoruba line 2"]],
+      "verses_en": [["Verified English line 1", "Verified English line 2"]],
+      "source_pages": [123],
+      "reviewer": "Authorised editorial reviewer",
+      "permission_reference": "Identifier for signed rights-grant or written permission",
+      "rights_verified": true,
+      "printed_edition_verified": true
+    }
+  ]
+}
+```
+The above strings are **schema examples**, not real hymn texts. Run `python3 tac-hymnbook/tools/redemption_import.py batch.json --output tac-hymnbook/data/approved-redemption.json` and `python3 tac-hymnbook/tools/build_asset.py`; all validations are covered by CI. A metadata flag alone does not establish that rights actually exist; retain the signed permission in private project records.
