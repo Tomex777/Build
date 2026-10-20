@@ -38,6 +38,7 @@ class SpatialAudioService : Service() {
     private var stopAtMs = 0L
     private var playing = false
     private var focusRequest: AudioFocusRequest? = null
+    private var resumeOnFocusGain = false
     private var sessionVolume = 0.76f
     private var currentSceneTitle = "Your environment"
     private var noisyRegistered = false
@@ -49,9 +50,33 @@ class SpatialAudioService : Service() {
     }
 
     private val focusListener = AudioManager.OnAudioFocusChangeListener { change ->
-        if (change == AudioManager.AUDIOFOCUS_LOSS ||
-            change == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT ||
-            change == AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK) pause()
+        // Audio-focus callbacks may arrive off the main thread. Keep Android
+        // foreground-service transitions serialized with user Play/Pause.
+        handler.post {
+            when (change) {
+                AudioManager.AUDIOFOCUS_GAIN -> {
+                    if (resumeOnFocusGain && !playing) {
+                        resumeOnFocusGain = false
+                        playing = true
+                        startForeground(NOTIFICATION_ID, notification())
+                        engine?.setPlaying(true)
+                    }
+                }
+                AudioManager.AUDIOFOCUS_LOSS_TRANSIENT,
+                AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
+                    if (playing) {
+                        resumeOnFocusGain = true
+                        playing = false
+                        engine?.setPlaying(false)
+                        // Keep the user-started foreground session visible while
+                        // briefly interrupted. Do not abandon the focus request,
+                        // which would prevent a subsequent AUDIOFOCUS_GAIN.
+                        notificationManager().notify(NOTIFICATION_ID, notification())
+                    }
+                }
+                AudioManager.AUDIOFOCUS_LOSS -> pause()
+            }
+        }
     }
 
     override fun onCreate() {
@@ -123,6 +148,10 @@ class SpatialAudioService : Service() {
     }
 
     private fun requestFocus(): Boolean {
+        // Reuse the original request when the user resumes a transient pause.
+        focusRequest?.let {
+            return audioManager.requestAudioFocus(it) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+        }
         val attrs = AudioAttributes.Builder()
             .setUsage(AudioAttributes.USAGE_MEDIA)
             .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
@@ -163,6 +192,7 @@ class SpatialAudioService : Service() {
             engine?.setHeading(currentHeading)
             engine?.setLiving(currentLiving)
             playing = true
+            resumeOnFocusGain = false
             // Android requires foreground promptly after startForegroundService.
             startForeground(NOTIFICATION_ID, notification())
             engine?.setPlaying(true)
@@ -171,6 +201,7 @@ class SpatialAudioService : Service() {
     }
 
     private fun pause() {
+        resumeOnFocusGain = false
         playing = false
         engine?.setPlaying(false)
         focusRequest?.let(audioManager::abandonAudioFocusRequest)
@@ -192,15 +223,18 @@ class SpatialAudioService : Service() {
             this, 1, Intent(this, SpatialAudioService::class.java).setAction(toggleAction),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-        val detail = if (stopAtMs > 0) "Sleep timer active • Stereo headphones recommended"
-            else "Spatial soundscape • Offline"
+        val detail = when {
+            resumeOnFocusGain -> "Paused for another audio app"
+            stopAtMs > 0 -> "Sleep timer active • Stereo headphones recommended"
+            else -> "Spatial soundscape • Offline"
+        }
         return Notification.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_media_play)
             .setContentTitle("EchoSpace · $currentSceneTitle")
             .setContentText(detail)
             .setContentIntent(open)
             .setOnlyAlertOnce(true)
-            .setOngoing(playing)
+            .setOngoing(playing || resumeOnFocusGain)
             .addAction(Notification.Action.Builder(
                 android.R.drawable.ic_media_pause,
                 if (playing) "Pause" else "Play",
