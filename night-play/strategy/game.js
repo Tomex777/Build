@@ -7,10 +7,9 @@
 const $=id=>document.getElementById(id);
 const board=$('chessBoard'),promotionLayer=$('promotionLayer'),PERSIST='night-chess-match-v1';
 const ICONS={p:'p',r:'r',n:'n',b:'b',q:'q',k:'k'};
-const VALUES={p:100,n:320,b:335,r:510,q:920,k:0};
 const files='abcdefgh';
 let match=new Chess(),mode='computer',selected=null,available=[],lastMove=null;
-let busy=false,epoch=0,cpuTimer=null,promotionPending=null;
+let busy=false,epoch=0,cpuTimer=null,cpuWorker=null,promotionPending=null,difficulty='normal';
 function pieceSVG(p){
  return '<svg class="piece '+p.color+'" viewBox="0 0 64 64" role="img" aria-label="'+(p.color==='w'?'White ':'Black ')+({p:'pawn',r:'rook',n:'knight',b:'bishop',q:'queen',k:'king'}[p.type])+'"><use href="#chess-'+ICONS[p.type]+'"></use></svg>';
 }
@@ -19,6 +18,7 @@ function read(){
   const data=JSON.parse(localStorage.getItem(PERSIST)||'null');
   if(!data||!Array.isArray(data.moves))return;
   if(data.mode==='local'||data.mode==='computer')mode=data.mode;
+  if(['easy','normal','hard'].includes(data.difficulty))difficulty=data.difficulty;
   const test=new Chess();
   for(const u of data.moves){
    if(typeof u!=='string'||!/^[a-h][1-8][a-h][1-8][qrbn]?$/.test(u))throw Error('Bad move');
@@ -32,7 +32,7 @@ function read(){
 }
 function save(){
  try{
-  const data={mode,moves:match.history({verbose:true}).map(m=>m.from+m.to+(m.promotion||''))};
+  const data={mode,difficulty,moves:match.history({verbose:true}).map(m=>m.from+m.to+(m.promotion||''))};
   localStorage.setItem(PERSIST,JSON.stringify(data));
  }catch{}
 }
@@ -77,13 +77,17 @@ function render(){
  $('whiteDetails').textContent=mode==='computer'?'YOU · WHITE':'PLAYER 1 · WHITE';
  $('vsCpu').setAttribute('aria-pressed',String(mode==='computer'));
  $('vsLocal').setAttribute('aria-pressed',String(mode==='local'));
+ $('difficultyRow').hidden=mode!=='computer';
+ $('cpuDifficulty').value=difficulty;
  $('undo').disabled=busy||!match.history().length;
  $('localNote').textContent=mode==='computer'?'Computer plays black.':'Two players on one device.';
  renderMoves();save();
 }
 function cancel(){
  epoch++;busy=false;selected=null;available=[];promotionPending=null;
- clearTimeout(cpuTimer);cpuTimer=null;promotionLayer.hidden=true;
+ clearTimeout(cpuTimer);cpuTimer=null;
+ if(cpuWorker){cpuWorker.terminate();cpuWorker=null}
+ promotionLayer.hidden=true;
 }
 function newMatch(nextMode=mode){
  cancel();mode=nextMode;match=new Chess();lastMove=null;render();
@@ -139,62 +143,54 @@ async function commitMove(move){
   }
  }
 }
-function evaluatePosition(){
- if(match.in_checkmate())return match.turn()==='b'?-99999:99999;
- if(match.in_draw())return 0;
- let score=0;
- const rows=match.board();
- for(let r=0;r<8;r++)for(let c=0;c<8;c++){
-  const p=rows[r][c];if(!p)continue;
-  const center=(3.5-Math.abs(c-3.5))+(3.5-Math.abs(r-3.5));
-  const advance=p.type==='p'?(p.color==='b'?r:7-r)*3:0;
-  const worth=VALUES[p.type]+center*(p.type==='p'?1.6:2.1)+advance;
-  score+=(p.color==='b'?worth:-worth);
- }
- return score;
-}
-function search(depth,alpha,beta){
- if(depth===0||match.game_over())return evaluatePosition();
- const maximize=match.turn()==='b',moves=match.moves({verbose:true});
- moves.sort((a,b)=>(b.captured?VALUES[b.captured]:0)-(a.captured?VALUES[a.captured]:0));
- let best=maximize?-Infinity:Infinity;
- for(const m of moves){
-  match.move(m);
-  const val=search(depth-1,alpha,beta);
-  match.undo();
-  best=maximize?Math.max(best,val):Math.min(best,val);
-  if(maximize)alpha=Math.max(alpha,best);else beta=Math.min(beta,best);
-  if(beta<=alpha)break;
- }
- return best;
-}
-function chooseCPU(){
- const moves=match.moves({verbose:true});
- if(!moves.length)return null;
- // Two-ply tactical minimax (our move + opponent's response). Never make
- // a move before validating it with chess.js, including en passant/castling.
- let chosen=moves[0],best=-Infinity;
- moves.sort((a,b)=>(b.captured?VALUES[b.captured]:0)-(a.captured?VALUES[a.captured]:0));
- for(const m of moves){
-  match.move(m);
-  const score=search(1,-Infinity,Infinity)+(m.promotion?700:0)+Math.random()*.1;
-  match.undo();
-  if(score>best){best=score;chosen=m}
- }
- return {from:chosen.from,to:chosen.to,promotion:chosen.promotion||'q'};
-}
+// The full game-tree calculation lives in a dedicated worker so even a
+// low-end phone can continue drawing frames and accept an Undo immediately.
 function queueCPU(){
- if(mode!=='computer'||match.turn()!=='b'||match.game_over()||busy||cpuTimer!==null)return;
+ if(mode!=='computer'||match.turn()!=='b'||match.game_over()||busy||cpuTimer!==null||cpuWorker)return;
  const token=epoch;
  cpuTimer=setTimeout(()=>{
   cpuTimer=null;
   if(token!==epoch||mode!=='computer'||match.turn()!=='b'||match.game_over())return;
-  const move=chooseCPU();if(move)commitMove(move);
+  const fallback=()=>{
+   if(token!==epoch||mode!=='computer'||match.turn()!=='b'||match.game_over())return;
+   // Worker failures must not leave a player staring at a frozen game.
+   // Limit main-thread fallback to a small, legal, bounded search.
+   const move=window.NightChessAI?.chooseMove(match,'easy',{time:90,maxNodes:1200});
+   if(move)commitMove(move);
+  };
+  if(typeof Worker==='undefined'){fallback();return}
+  let worker;
+  try{
+   worker=new Worker('/strategy/ai-worker.js');
+   cpuWorker=worker;
+   const moves=match.history({verbose:true}).map(m=>m.from+m.to+(m.promotion||''));
+   worker.onmessage=event=>{
+    if(cpuWorker!==worker)return;
+    worker.terminate();cpuWorker=null;
+    if(token!==epoch||mode!=='computer'||match.turn()!=='b')return;
+    if(event.data?.error){fallback();return}
+    const move=event.data?.move;
+    if(!move||!match.moves({verbose:true}).some(m=>m.from===move.from&&m.to===move.to&&(!m.promotion||m.promotion===(move.promotion||'q')))){fallback();return}
+    commitMove(move);
+   };
+   worker.onerror=()=>{if(cpuWorker===worker){worker.terminate();cpuWorker=null;fallback()}};
+   worker.postMessage({job:token,moves,difficulty});
+  }catch{
+   if(worker)worker.terminate();
+   cpuWorker=null;
+   fallback();
+  }
  },160);
 }
 board.addEventListener('click',e=>{const cell=e.target.closest('[data-square]');if(cell)squareClicked(cell.dataset.square)});
 $('vsCpu').addEventListener('click',()=>{if(mode!=='computer')newMatch('computer')});
 $('vsLocal').addEventListener('click',()=>{if(mode!=='local')newMatch('local')});
+$('cpuDifficulty').addEventListener('change',event=>{
+ const next=event.target.value;if(!['easy','normal','hard'].includes(next))return;
+ difficulty=next;
+ if(mode==='computer'&&match.turn()==='b'&&!match.game_over()){cancel();render();queueCPU()}
+ else save();
+});
 $('newMatch').addEventListener('click',()=>newMatch());
 $('undo').addEventListener('click',()=>{
  if(busy||!match.history().length)return;
@@ -208,6 +204,6 @@ $('promotionChoices').addEventListener('click',e=>{
  commitMove({...promotionPending,promotion:button.dataset.promote});
 });
 $('promotionCancel').addEventListener('click',()=>{promotionPending=null;promotionLayer.hidden=true;render()});
-window.__nightChessQA=()=>({fen:match.fen(),turn:match.turn(),moves:match.history(),gameOver:match.game_over(),inCheck:match.in_check(),mode,busy,legalSquares:available.map(m=>m.to),pendingPromotion:!!promotionPending});
+window.__nightChessQA=()=>({fen:match.fen(),turn:match.turn(),moves:match.history(),gameOver:match.game_over(),inCheck:match.in_check(),mode,busy,legalSquares:available.map(m=>m.to),pendingPromotion:!!promotionPending,difficulty,thinking:!!cpuWorker||cpuTimer!==null});
 read();render();if(mode==='computer'&&match.turn()==='b'&&!match.game_over())queueCPU();
 })();
