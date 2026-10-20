@@ -79,8 +79,8 @@ function create({board,tools,status,message,newButton}){
   if(theme==="shapes")return "Shape "+(id+1);
   return art.photos[theme]?.[id]?.[0]||"Picture "+(id+1);
  }
- function cardArtwork(id,theme=state.theme){
-  return art.face(theme,id,true);
+ function cardArtwork(id,theme=state.theme,loadPhoto=true){
+  return art.face(theme,id,loadPhoto);
  }
  function themePreview(theme){
   return '<span class="memory-theme-art">'+[2,1,0].map((id,k)=>'<span class="memory-theme-fan fan-'+k+'">'+cardArtwork(id,theme)+'</span>').join("")+'</span>';
@@ -140,16 +140,44 @@ function create({board,tools,status,message,newButton}){
   state.deck.forEach((id,i)=>{
    const b=document.createElement("button");b.type="button";b.dataset.memory=String(i);b.className="memory-card";
    b.innerHTML='<span class="memory-flip-body"><span class="memory-card-back"><span class="memory-back-mark" aria-hidden="true"><svg viewBox="0 0 108 108"><path fill="currentColor" d="M24 54 C24 37.43 37.43 24 54 24 C70.57 24 84 37.43 84 54 L24 54 Z"/><path fill="currentColor" d="M22 66h64v6H22z"/></svg></span></span>'+
-   '<span class="memory-card-front">'+cardArtwork(id)+'</span></span>';
+   '<span class="memory-card-front"></span></span>';
    fragment.append(b);
   });
   board.replaceChildren(fragment);tools.replaceChildren();
   newButton.hidden=false;updateStatus();syncCards();
  }
+ // The 6×10 board can contain 60 cards. Defer expensive front-face SVGs and
+ // 30 remote photographs until the player actually reveals a face. Repeated
+ // flips reuse the same DOM node, and matched cards render when restoring.
+ // An attempted request is remembered per card so offline failures do not loop
+ // through fresh requests every time another card is flipped.
+ function renderFaceOnce(button,id){
+  if(button.dataset.faceReady==="1")return;
+  const front=button.querySelector(".memory-card-front");
+  if(!front)return;
+  front.innerHTML=cardArtwork(id,state.theme,false);
+  button.dataset.faceReady="1";
+ }
+ function requestVisiblePhoto(button,id){
+  if(button.dataset.photoRequested==="1")return;
+  const url=art.photoUrl(state.theme,id);
+  if(!url)return;
+  const host=button.querySelector(".memory-photo-layer");
+  if(!host)return;
+  button.dataset.photoRequested="1";
+  const img=document.createElement("img");
+  img.alt="";img.draggable=false;img.decoding="async";img.loading="eager";
+  host.append(img);
+  img.src=url;
+ }
  function syncCards(){
   for(let i=0;i<state.deck.length;i++){
    const button=board.children[i];if(!button)continue;
    const matched=state.matched[i],open=flipped.includes(i);
+   if(matched||open){
+    renderFaceOnce(button,state.deck[i]);
+    requestVisiblePhoto(button,state.deck[i]);
+   }
    button.classList.toggle("flipped",open);button.classList.toggle("matched",matched);
    button.disabled=matched||lock||state.done;
    const label="Card "+(i+1)+(matched?", matched: "+faceName(state.deck[i]):open?", revealed: "+faceName(state.deck[i]):", face down");
