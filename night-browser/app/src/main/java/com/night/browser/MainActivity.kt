@@ -6,11 +6,14 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -27,7 +30,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -46,6 +51,7 @@ import org.mozilla.geckoview.GeckoView
 import java.io.File
 import java.text.DateFormat
 import java.util.Date
+import kotlinx.coroutines.delay
 
 private val Ink = Color(0xFF0C1017)
 private val Raised = Color(0xFF171D27)
@@ -352,6 +358,30 @@ private fun WebSurface(tab: BrowserTab) {
             }
         }
     )
+
+    // Capture genuine rendered page pixels, not a fabricated tab mockup.
+    // Scaled previews are kept in memory only; do not persist private page pixels.
+    LaunchedEffect(tab.id, tab.url, tab.isLoading) {
+        if (!tab.isLoading && tab.url.startsWith("http")) {
+            delay(900)
+            if (view.session === tab.session && view.width > 0 && view.height > 0) {
+                runCatching {
+                    view.capturePixels().accept({ bitmap ->
+                        bitmap?.let { pixels ->
+                            if (pixels.width > 0 && pixels.height > 0) {
+                                val width = 260
+                                val height = (pixels.height.toLong() * width / pixels.width)
+                                    .toInt().coerceIn(1, 560)
+                                tab.thumbnail = android.graphics.Bitmap.createScaledBitmap(
+                                    pixels, width, height, true
+                                )
+                            }
+                        }
+                    }, { _ -> /* no preview yet if the compositor isn't ready */ })
+                }
+            }
+        }
+    }
 }
 
 @Composable
@@ -396,38 +426,100 @@ private fun PeekDialog(
     }
 }
 
+private data class StartShortcut(val title: String, val url: String)
+
 @Composable
-private fun HomePanel(browser: BrowserController, onJourney: () -> Unit, onOpen: (String) -> Unit) {
+private fun HomePanel(
+    browser: BrowserController, onJourney: () -> Unit, onOpen: (String) -> Unit
+) {
+    val bookmarks = browser.store.bookmarks
+    val quickSites = if (bookmarks.isNotEmpty()) {
+        bookmarks.take(8).map { StartShortcut(it.title, it.url) }
+    } else listOf(
+        StartShortcut("Google", "https://www.google.com"),
+        StartShortcut("YouTube", "https://www.youtube.com"),
+        StartShortcut("Wikipedia", "https://www.wikipedia.org"),
+        StartShortcut("GitHub", "https://github.com")
+    )
+    val recent = browser.store.journeys.asSequence()
+        .flatMap { it.nodes.asSequence() }.sortedByDescending { it.timestamp }
+        .distinctBy { it.url }.take(4).toList()
+
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState())
             .padding(horizontal = 22.dp)
     ) {
-        Spacer(Modifier.height(46.dp))
-        Text("NIGHT", fontSize = 37.sp, letterSpacing = 6.sp,
-            fontWeight = FontWeight.SemiBold, color = Bright)
-        Text("BROWSER", fontSize = 11.sp, letterSpacing = 4.sp, color = Accent)
-        Spacer(Modifier.height(50.dp))
-        PanelCaption("JOURNEYS")
-        browser.store.journeys.take(3).forEach { journey ->
+        Spacer(Modifier.height(30.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("NIGHT", fontSize = 22.sp, fontWeight = FontWeight.Bold,
+                letterSpacing = 3.sp, color = Bright)
+            Spacer(Modifier.width(9.dp))
+            Box(Modifier.width(3.dp).height(18.dp)
+                .background(Accent, RoundedCornerShape(2.dp)))
+            Spacer(Modifier.width(9.dp))
+            Text("Browser", fontSize = 14.sp, color = Muted)
+        }
+        Spacer(Modifier.height(36.dp))
+        Text("Quick access", fontSize = 21.sp, fontWeight = FontWeight.SemiBold,
+            color = Bright)
+        Spacer(Modifier.height(16.dp))
+        quickSites.chunked(4).forEach { row ->
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                row.forEach { site ->
+                    Column(
+                        Modifier.weight(1f).clickable { onOpen(site.url) },
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Box(
+                            Modifier.fillMaxWidth().aspectRatio(1f)
+                                .background(Raised, RoundedCornerShape(20.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(site.title.take(1).uppercase(), color = Bright,
+                                fontSize = 26.sp, fontWeight = FontWeight.Medium)
+                        }
+                        Spacer(Modifier.height(9.dp))
+                        Text(site.title, color = Muted, fontSize = 11.sp,
+                            maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+                repeat(4 - row.size) { Spacer(Modifier.weight(1f)) }
+            }
+            Spacer(Modifier.height(20.dp))
+        }
+
+        Spacer(Modifier.height(18.dp))
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text("Journeys", fontSize = 20.sp, fontWeight = FontWeight.SemiBold,
+                color = Bright, modifier = Modifier.weight(1f))
+            TextButton(onClick = onJourney) { Text("See all") }
+        }
+        browser.store.journeys.firstOrNull { it.nodes.isNotEmpty() }?.let { journey ->
             RowCard(
                 title = journey.name,
-                subtitle = if (journey.nodes.isEmpty()) "No pages yet"
-                    else "${journey.nodes.size} visits · Last: ${journey.nodes.last().title}",
+                subtitle = journey.nodes.last().title.ifBlank { journey.nodes.last().url },
                 icon = { Icon(Icons.Rounded.AccountTree, null, tint = Accent) },
-                onClick = onJourney
+                onClick = { onOpen(journey.nodes.last().url) }
             )
         }
-        Spacer(Modifier.height(28.dp))
-        PanelCaption("LIBRARY")
-        if (browser.store.bookmarks.isEmpty()) {
-            Text("Pages you bookmark appear here.", color = Muted, fontSize = 13.sp)
-        } else {
-            browser.store.bookmarks.take(4).forEach { mark ->
-                RowCard(mark.title, mark.url,
-                    { Icon(Icons.Rounded.BookmarkBorder, null, tint = Accent) },
-                    { onOpen(mark.url) })
+        if (recent.isNotEmpty()) {
+            Spacer(Modifier.height(24.dp))
+            Text("Recently visited", fontSize = 20.sp, fontWeight = FontWeight.SemiBold,
+                color = Bright)
+            Spacer(Modifier.height(14.dp))
+            recent.forEach { node ->
+                RowCard(
+                    title = node.title.ifBlank { node.url },
+                    subtitle = node.url,
+                    icon = { Icon(Icons.Rounded.History, null, tint = Accent) },
+                    onClick = { onOpen(node.url) }
+                )
             }
         }
+        Spacer(Modifier.height(35.dp))
     }
 }
 
@@ -439,30 +531,71 @@ private fun TabPanel(
     onNew: () -> Unit
 ) {
     Column(Modifier.fillMaxSize()) {
-        PanelHeader("Tabs", action = {
+        Row(
+            Modifier.fillMaxWidth().padding(start = 20.dp, end = 10.dp, top = 15.dp, bottom = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("Tabs", fontSize = 25.sp, fontWeight = FontWeight.SemiBold,
+                color = Bright)
+            Text("  ${browser.tabs.size}", color = Muted, fontSize = 15.sp)
+            Spacer(Modifier.weight(1f))
             ChromeIcon(Icons.Rounded.Add, "New tab", onClick = onNew)
-        })
-        LazyColumn(contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            items(browser.tabs.toList(), key = { it.id }) { tab ->
+        }
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(2),
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = 14.dp, end = 14.dp, bottom = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            items(browser.tabs.size, key = { browser.tabs[it].id }) { index ->
+                val tab = browser.tabs[index]
+                val selected = tab.id == browser.activeId
                 Surface(
-                    color = if (tab.id == browser.activeId) Color(0xFF20293A) else Raised,
-                    shape = RoundedCornerShape(15.dp),
-                    border = BorderStroke(1.dp, Border)
+                    modifier = Modifier.fillMaxWidth().height(248.dp)
+                        .clickable { onOpen(tab) },
+                    shape = RoundedCornerShape(16.dp),
+                    color = Raised,
+                    border = BorderStroke(if (selected) 2.dp else 1.dp,
+                        if (selected) Accent else Border)
                 ) {
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Column(
-                            Modifier.weight(1f).clickable { onOpen(tab) }.padding(17.dp)
+                    Column {
+                        Row(
+                            Modifier.fillMaxWidth().height(51.dp)
+                                .padding(start = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(tab.title, color = Bright, maxLines = 1,
-                                overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.Medium)
-                            Spacer(Modifier.height(4.dp))
-                            Text(tab.url.ifBlank { "New tab" }, color = Muted,
-                                fontSize = 12.sp, maxLines = 1,
-                                overflow = TextOverflow.Ellipsis)
+                            Text(tab.title, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                color = Bright, fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.weight(1f))
+                            ChromeIcon(Icons.Rounded.Close, "Close ${tab.title}") {
+                                onClose(tab)
+                            }
                         }
-                        ChromeIcon(Icons.Rounded.Close, "Close tab") { onClose(tab) }
-                        Spacer(Modifier.width(6.dp))
+                        Box(
+                            Modifier.fillMaxWidth().weight(1f).background(Ink),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            val preview = tab.thumbnail
+                            if (preview != null) {
+                                Image(
+                                    bitmap = preview.asImageBitmap(),
+                                    contentDescription = "Preview of ${tab.title}",
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop
+                                )
+                            } else {
+                                Icon(Icons.Rounded.Public, null, tint = Muted,
+                                    modifier = Modifier.size(36.dp))
+                            }
+                        }
+                        Text(
+                            tab.url.ifBlank { "New tab" },
+                            modifier = Modifier.fillMaxWidth().padding(9.dp),
+                            color = Muted, fontSize = 10.sp,
+                            maxLines = 1, overflow = TextOverflow.Ellipsis
+                        )
                     }
                 }
             }
