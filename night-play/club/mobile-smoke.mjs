@@ -494,7 +494,8 @@ try{
   assert.equal(await page.evaluate(()=>window.__nightInitialCheckerSquare===document.querySelector('[data-checker="40"]')),true,'Checkers keeps original square on selection');
   assert.ok(await page.locator(".checker-square.target").count(),"legal move highlighted");
   await page.locator(".checker-square.target").first().click();
-  assert.equal(await page.locator(".checker-piece").count(),24);
+  await page.waitForFunction(()=>window.__nightCheckersQA().busy===false&&window.__nightCheckersQA().moving===0);
+  assert.equal(await page.locator(".checkerboard .checker-piece").count(),24,'a finished legal move preserves 24 pieces');
   // A second *actual* match versus CPU: check its move, not just its label.
   await page.locator('[data-checker-mode="computer"]').click();
   assert.equal(await page.evaluate(()=>window.__nightCheckersQA().mode),'computer');
