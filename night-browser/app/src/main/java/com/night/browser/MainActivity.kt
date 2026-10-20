@@ -594,7 +594,7 @@ private fun TabPanel(
                 selected = privateGrid,
                 onClick = { privateGrid = true },
                 leadingIcon = {
-                    Icon(Icons.Rounded.LockOutline, null,
+                    Icon(Icons.Rounded.Lock, null,
                         modifier = Modifier.size(16.dp))
                 },
                 label = { Text("Private  " + privateCount) }
@@ -604,7 +604,7 @@ private fun TabPanel(
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(
-                        if (privateGrid) Icons.Rounded.LockOutline else Icons.Rounded.Tab,
+                        if (privateGrid) Icons.Rounded.Lock else Icons.Rounded.Tab,
                         null, tint = Muted, modifier = Modifier.size(42.dp)
                     )
                     Spacer(Modifier.height(16.dp))
@@ -666,7 +666,7 @@ private fun TabPanel(
                                     )
                                 } else {
                                     Icon(
-                                        if (tab.isPrivate) Icons.Rounded.LockOutline
+                                        if (tab.isPrivate) Icons.Rounded.Lock
                                         else Icons.Rounded.Public,
                                         null, tint = Muted, modifier = Modifier.size(36.dp)
                                     )
