@@ -32,12 +32,15 @@ export function parseNumberSelection(value, entries = [], {
   const selected = []
   const seen = new Set()
   const requested = []
+  const parsedLimit = Number(maxSelected)
+  const limit = Number.isFinite(parsedLimit) ? Math.max(0, Math.floor(parsedLimit)) : 250
 
   const add = row => {
     const key = row.index + '|' + row.raw
-    if (seen.has(key)) return
+    if (seen.has(key)) return true
     seen.add(key)
     selected.push(row.entry)
+    return selected.length <= limit
   }
 
   for (const rawPart of text.split(',')) {
@@ -46,7 +49,9 @@ export function parseNumberSelection(value, entries = [], {
       const n = numeric(part)
       requested.push({ type:'number', start:n, end:n })
       const exact = normalized.find(row => row.n === n)
-      if (exact) add(exact)
+      if (exact && !add(exact)) {
+        return { ok:false, error:'too-many', selected:[], requested }
+      }
       continue
     }
 
@@ -60,8 +65,7 @@ export function parseNumberSelection(value, entries = [], {
     requested.push({ type:'range', start, end })
 
     for (const row of normalized) {
-      if (row.n >= start && row.n <= end) add(row)
-      if (selected.length > maxSelected) {
+      if (row.n >= start && row.n <= end && !add(row)) {
         return { ok:false, error:'too-many', selected:[], requested }
       }
     }

@@ -88,6 +88,8 @@ import { ludoRecordAcceptsInput } from './utils/ludo-game.js'
 import { partyInputDestination } from './utils/party-games.js'
 import { wordChainInputDestination } from './utils/word-chain.js'
 import { createJosiahAssistant } from './josiah-assistant.js'
+import { assistantInputPolicy } from './assistant-media-policy.js'
+import { createAssistantTyping } from './assistant-typing.js'
 import { createNamiAssistant } from './nami-assistant.js'
 import { createMiMiAssistant } from './mimi-assistant.js'
 import { chooseProfileAsset, groupIntro, presentationFor, profileHeader, readProfileAsset } from './profile-presentation.js'
@@ -1308,10 +1310,8 @@ async function assistantQuote(account, msg) {
   }, msg?.key?.remoteJid)
 
   let text = directText || commandText(cached?.message)
-  if (!text && info?.quotedMessage) {
-    const media = conversationMediaType(info.quotedMessage)
-    if (media) text = '[' + media + ']'
-  }
+  const media = conversationMediaType(info.quotedMessage || cached?.message)
+  if (media) text = '[' + media + ']' + (text ? ' ' + text : '')
 
   const profile = sharedStorage?.profileForAccount(account.id)
   let speaker = ''
@@ -1482,6 +1482,14 @@ async function sendAssistantReply(account, msg, text, {
 }
 
 async function handleProfileAssistant(account, msg, authority, rawText) {
+  // Uncaptioned image/sticker/video/audio replies are not conversational
+  // text. Do not feed their quoted bot message back as an empty AI request.
+  // Explicit media commands have already been dispatched separately.
+  const input = assistantInputPolicy({
+    text:rawText,
+    mediaType:conversationMediaType(msg?.message),
+  })
+  if (!input.respond) return false
   // Passive mentions/replies must remain silent when no AI key is configured.
   // Other commands and personality routing continue to work normally.
   if (!smartAI.enabled) return false
@@ -1497,59 +1505,72 @@ async function handleProfileAssistant(account, msg, authority, rawText) {
   const groupName = await assistantGroupName(account, chat)
   const presence = await groupPersonalityPresence(account, chat)
   const senderPersonality = senderPersonalityFromPresence(authority, presence)
-  const text = stripAssistantAddress(rawText, profile?.displayName || assistant.displayName || 'Personality')
-    || 'You were mentioned. Respond naturally.'
+  const text = stripAssistantAddress(input.text, profile?.displayName || assistant.displayName || 'Personality')
+    || 'Someone addressed you by name.'
   const aiStartedAt = Date.now()
-
-  const result = await assistant.answer({
-    chatJid:chat,
-    text,
-    senderName:String(msg.pushName || '').trim() || authority.senderNumber || 'User',
-    quotedText:quote.text,
-    quotedSpeaker:quote.speaker,
-    groupName,
-    isGroup:isGroup(chat),
-    groupPersonalities:presence,
-    senderPersonality,
-    // No extra model call: this is a small optional instruction in the existing reply.
-    reactionSoundPolicy:isGroup(chat) && !senderPersonality ? await reactionSounds.promptFor(chat) : '',
+  const typingSocket = account.sock
+  const typing = createAssistantTyping({
+    sock:typingSocket,
+    chat,
+    canSignal:() => account.sock === typingSocket && account.connected === true,
   })
-  if (!result?.ok || !result.text) {
-    // A provider failure is NOT a successful AI response. Cortex can now
-    // distinguish rate limits, cooldowns, auth failures and timeouts without
-    // recording prompt text, phone numbers, or private credentials.
-    const reason = String(result?.reason || 'unavailable').slice(0, 64)
-    await recordActivity('ai.failed', {
+  typing.start()
+  try {
+    const result = await assistant.answer({
+      chatJid:chat,
+      text,
+      senderName:String(msg.pushName || '').trim() || authority.senderNumber || 'User',
+      quotedText:quote.text,
+      quotedSpeaker:quote.speaker,
+      attachmentType:input.attachmentType,
+      groupName,
+      isGroup:isGroup(chat),
+      groupPersonalities:presence,
+      senderPersonality,
+      // No extra model call: this is a small optional instruction in the existing reply.
+      reactionSoundPolicy:isGroup(chat) && !senderPersonality ? await reactionSounds.promptFor(chat) : '',
+    })
+    if (!result?.ok || !result.text) {
+      // A provider failure is NOT a successful AI response. Cortex can now
+      // distinguish rate limits, cooldowns, auth failures and timeouts without
+      // recording prompt text, phone numbers, or private credentials.
+      const reason = String(result?.reason || 'unavailable').slice(0, 64)
+      await recordActivity('ai.failed', {
+        account:account.id,
+        profile:profile?.id || assistant.profileId || '',
+        group:isGroup(chat),
+        activation:activation.reason,
+        reason,
+        durationMs:Date.now() - aiStartedAt,
+      })
+      // Silent failure: retain only internal diagnostics for troubleshooting.
+      return true
+    }
+    const reaction = parseReactionSoundDirective(result.text)
+    if (!reaction.text) return false
+
+    await typing.beforeSend(reaction.text)
+    await sendAssistantReply(account, msg, reaction.text, {
+      presence,
+      allowPersonalityMentions:!senderPersonality,
+    })
+    typing.stop() // WhatsApp must stop showing "typing..." once the text lands.
+    // Only one sound after the normal text, never on AI-to-AI replies.
+    if (reaction.id && isGroup(chat) && !senderPersonality) {
+      await reactionSounds.play(account.sock, chat, reaction.id, { automatic:true })
+    }
+    await recordActivity('ai.responded', {
       account:account.id,
       profile:profile?.id || assistant.profileId || '',
       group:isGroup(chat),
       activation:activation.reason,
-      reason,
+      usedWeb:result.usedWeb === true,
       durationMs:Date.now() - aiStartedAt,
     })
-    // Silent failure: retain only internal diagnostics for troubleshooting.
     return true
+  } finally {
+    typing.stop()
   }
-  const reaction = parseReactionSoundDirective(result.text)
-  if (!reaction.text) return false
-
-  await sendAssistantReply(account, msg, reaction.text, {
-    presence,
-    allowPersonalityMentions:!senderPersonality,
-  })
-  // Only one sound after the normal text, never on AI-to-AI replies.
-  if (reaction.id && isGroup(chat) && !senderPersonality) {
-    await reactionSounds.play(account.sock, chat, reaction.id, { automatic:true })
-  }
-  await recordActivity('ai.responded', {
-    account:account.id,
-    profile:profile?.id || assistant.profileId || '',
-    group:isGroup(chat),
-    activation:activation.reason,
-    usedWeb:result.usedWeb === true,
-    durationMs:Date.now() - aiStartedAt,
-  })
-  return true
 }
 
 function publicSudoNumbers() {

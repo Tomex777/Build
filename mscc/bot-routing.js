@@ -27,9 +27,16 @@ export async function chooseGroupExecutor({
     // Most linked bots aren't eligible for this capability. Avoid requesting
     // their WhatsApp group metadata (remote network I/O) just to discard them.
     const score = scoreFor(account.id, cap)
-    if (score === null || score === undefined) continue
-    if (!(await isMember(account, groupJid))) continue
-    candidates.push({ id: account.id, score: Number(score) })
+    // Invalid/disabled capabilities must not poison the best-score choice.
+    const numericScore = Number(score)
+    if (score == null || score === '' || typeof score === 'boolean' || !Number.isFinite(numericScore)) continue
+    // A single account with a broken group-metadata call must not block others.
+    try {
+      if (!(await isMember(account, groupJid))) continue
+    } catch {
+      continue
+    }
+    candidates.push({ id: account.id, score: numericScore })
   }
 
   if (!candidates.length) return ''
@@ -47,5 +54,5 @@ export async function chooseGroupExecutor({
 
 export function canExecuteDirect({ accountId, capability = 'general', scoreFor }) {
   const score = scoreFor(accountId, normalizeCapability(capability))
-  return score !== null && score !== undefined
+  return score != null && score !== '' && typeof score !== 'boolean' && Number.isFinite(Number(score))
 }

@@ -104,4 +104,14 @@ assert.equal(warningState(storage,group,'2348012345678').count,2)
 assert(_test.URL_RE.test('example.com'))
 assert(_test.GROUP_MENTION_RE.test('@everyone hello'))
 
-console.log('PASS group moderation, warnings, anti-link, and personal mention mute reconstruction')
+// Three repeated messages 17s apart (within the promised 20s window) are spam.
+assert.equal(_test.spamViolation('test@g.us', 'repeat', 'same', 100_000), '')
+assert.equal(_test.spamViolation('test@g.us', 'repeat', 'same', 109_000), '')
+assert.equal(_test.spamViolation('test@g.us', 'repeat', 'same', 117_000), 'repeated-message-spam')
+assert.equal(_test.spamViolation('test@g.us', 'fresh', 'same', 100_000), '')
+assert.equal(_test.spamViolation('test@g.us', 'fresh', 'same', 121_000), '')
+// Thousands of one-time senders must not leak moderation history indefinitely.
+for (let i = 0; i < 4500; i++) _test.spamViolation('large@g.us', 'member-' + i, 'hi', 300_000 + i)
+assert(_test.spamWindowSize() <= 4096, 'anti-spam history grew without bounds')
+
+console.log('PASS group moderation, bounded anti-spam history, warnings and mention mute')
