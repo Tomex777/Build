@@ -1,7 +1,9 @@
 name: Cortex Android
 
 concurrency:
-  group: cortex-android-live-v2
+  # Isolate pull-request acceptance runs: a different Cortex PR must not
+  # cancel an in-flight API 26/API 36 device test.
+  group: cortex-android-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 on:
