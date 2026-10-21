@@ -1,3 +1,9 @@
+# NIGHT Play — REQUIRED WBR + main combined preview (21 October 2026)
+
+**FIRST, BEFORE ANY NIGHT Play website work:** read [`night-play/WBR.md`](WBR.md) and follow it as a hard design, implementation, test and deployment rule. All agents (0–10 and future collaborators) must work towards the **ONE main combined-preview website**, **https://night-play-combined-preview.vercel.app/**. Isolated branches and local test previews are permitted for debugging only; the finished feature must be integrated into the shared NIGHT Play site, deployed to that project's main combined-preview alias, and tested in the actual running game. Do not present standalone game previews, `night-play.vercel.app` or a Vercel lab as the owner-facing NIGHT Play preview. Check the alias's **real Git commit SHA** before saying a change is live. Follow all WBR requirements (no redundant controls, proper SVGs, approved UI, custom inputs and real interactive/mobile playtesting); do not bypass older design locks.
+
+---
+
 # Agent Zero — overriding NIGHT Play end-to-end product-completion assignment (2026-10-20)
 
 **If the user activates "Agent Zero", "Agent 0" or says "Continue" inside that role:** prioritize `night-play/agents/agent-00.md` and `night-play/docs/agent-zero-production-gate.md`. Agent Zero **owns ALL outstanding NIGHT Play engineering work and actual QA**, not just a coordinator role, with **one shared integrated codebase** at `feature/party-online-rooms-20261019`. It can ask specialist agents for review but must not depend on them being online. Preserve ABR, all existing games and site flows. Do not confuse a deployed preview with production. User explicitly wants **production after all critical real-world tests pass**; prepare/safely stage release when gates pass, never publish a known P0/P1 or fake unverified online functionality. Do not claim work continues after this chat session stops.
