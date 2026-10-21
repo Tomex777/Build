@@ -204,7 +204,11 @@ fun NightStartPage(
                         singleLine = true,
                         textStyle = TextStyle(color = HomeText, fontSize = 15.sp),
                         cursorBrush = SolidColor(HomeAccent),
-                        keyboardOptions = KeyboardOptions(autoCorrect = false, imeAction = ImeAction.Go),
+                        keyboardOptions = KeyboardOptions(
+                            autoCorrect = false,
+                            keyboardType = KeyboardType.Uri,
+                            imeAction = ImeAction.Go
+                        ),
                         keyboardActions = KeyboardActions(onGo = { submit() }),
                         decorationBox = { inner ->
                             Box(contentAlignment = Alignment.CenterStart) {
