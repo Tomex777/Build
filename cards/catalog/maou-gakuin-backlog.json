@@ -1,0 +1,427 @@
+{
+  "version": 1,
+  "series": "maou-gakuin",
+  "note": "Backlog, NOT cards. Characters here are NOT in the rendered gallery. Each needs source-bound transparent artwork, proper source permissions, individual power review and QA. Anoshu is removed from backlog because its anime edition is rendered. Suggested endgame ranks are provisional.",
+  "pending": [
+    {
+      "number": 1,
+      "character": "Anos Voldigoad",
+      "form": "Late novel / full potential",
+      "suggestedTier": "EX",
+      "status": "needs-matching-licensed-art-and-feat-review"
+    },
+    {
+      "number": 2,
+      "character": "Amur Veewither",
+      "form": "Abyss Magic",
+      "suggestedTier": "EX",
+      "status": "needs-matching-licensed-art-and-feat-review"
+    },
+    {
+      "number": 3,
+      "character": "Zinnia Shivaheld",
+      "form": "Prime Great Demon King",
+      "suggestedTier": "EX",
+      "status": "needs-matching-licensed-art-and-feat-review"
+    },
+    {
+      "number": 4,
+      "character": "Noah",
+      "form": "Two-Laws Usurper",
+      "suggestedTier": "SSS",
+      "status": "needs-matching-licensed-art-and-feat-review"
+    },
+    {
+      "number": 5,
+      "character": "Duelniga",
+      "form": "Faint Shining Star",
+      "suggestedTier": "SSS",
+      "status": "needs-matching-licensed-art-and-feat-review"
+    },
+    {
+      "number": 6,
+      "character": "Aizel",
+      "form": "Embodiment of Justice",
+      "suggestedTier": "SSS",
+      "status": "needs-matching-licensed-art-and-feat-review"
+    },
+    {
+      "number": 7,
+      "character": "Aisha Necron",
+      "form": "Sasha + Misha fusion",
+      "suggestedTier": "SSS",
+      "status": "needs-matching-licensed-art-and-feat-review"
+    },
+    {
+      "number": 8,
+      "character": "Izark",
+      "form": "Abyss-empowered",
+      "suggestedTier": "SSS",
+      "status": "needs-matching-licensed-art-and-feat-review"
+    },
+    {
+      "number": 9,
+      "character": "Costoria Atzenon",
+      "form": "Perfected Lion of Ruin",
+      "suggestedTier": "SSS",
+      "status": "needs-matching-licensed-art-and-feat-review"
+    },
+    {
+      "number": 10,
+      "character": "Muto",
+      "form": "Second Demon King",
+      "suggestedTier": "SSS",
+      "status": "needs-matching-licensed-art-and-feat-review"
+    },
+    {
+      "number": 11,
+      "character": "Ordov Heinriel",
+      "form": "Prime",
+      "suggestedTier": "SSS",
+      "status": "needs-matching-licensed-art-and-feat-review"
+    },
+    {
+      "number": 12,
+      "character": "Lay Grandsley",
+      "form": "Late novel",
+      "suggestedTier": "SSS",
+      "status": "needs-matching-licensed-art-and-feat-review"
+    },
+    {
+      "number": 13,
+      "character": "Shin Reglia",
+      "form": "Late novel",
+      "suggestedTier": "SSS",
+      "status": "needs-matching-licensed-art-and-feat-review"
+    },
+    {
+      "number": 14,
+      "character": "Heath Tonia",
+      "form": "Third Demon King",
+      "suggestedTier": "SS",
+      "status": "needs-matching-licensed-art-and-feat-review"
+    },
+    {
+      "number": 15,
+      "character": "Holsefi",
+      "form": "Fifth Demon King",
+      "suggestedTier": "SS",
+      "status": "needs-matching-licensed-art-and-feat-review"
+    },
+    {
+      "number": 16,
+      "character": "Azemi Rizetsu",
+      "form": "Fourth Demon King",
+      "suggestedTier": "SS",
+      "status": "needs-matching-licensed-art-and-feat-review"
+    },
+    {
+      "number": 17,
+      "character": "Vlad",
+      "form": "Righteous Emperor",
+      "suggestedTier": "SS",
+      "status": "needs-matching-licensed-art-and-feat-review"
+    },
+    {
+      "number": 18,
+      "character": "Gigi Janes",
+      "form": "Muto-empowered",
+      "suggestedTier": "SS",
+      "status": "needs-matching-licensed-art-and-feat-review"
+    },
+    {
+      "number": 19,
+      "character": "Sasha Necron",
+      "form": "Awakened destruction",
+      "suggestedTier": "SS",
+      "status": "needs-matching-licensed-art-and-feat-review"
+    },
+    {
+      "number": 20,
+      "character": "Misha Necron",
+      "form": "Awakened creation",
+      "suggestedTier": "SS",
+      "status": "needs-matching-licensed-art-and-feat-review"
+    },
+    {
+      "number": 21,
+      "character": "Naga Atzenon",
+      "form": "Late novel",
+      "suggestedTier": "SS",
+      "status": "needs-matching-licensed-art-and-feat-review"
+    },
+    {
+      "number": 22,
+      "character": "Misa Ilioroagu",
+      "form": "Avos Dilhevia",
+      "suggestedTier": "SS",
+      "status": "needs-matching-licensed-art-and-feat-review"
+    },
+    {
+      "number": 23,
+      "character": "Graham",
+      "form": "Source of Nihility",
+      "suggestedTier": "S",
+      "status": "needs-matching-licensed-art-and-feat-review"
+    },
+    {
+      "number": 24,
+      "character": "Equis",
+      "form": "God of Cogs",
+      "suggestedTier": "S",
+      "status": "needs-matching-licensed-art-and-feat-review"
+    },
+    {
+      "number": 25,
+      "character": "Celis Voldigoad",
+      "form": "Mythical Age",
+      "suggestedTier": "S",
+      "status": "needs-matching-licensed-art-and-feat-review"
+    },
+    {
+      "number": 26,
+      "character": "Anos Voldigoad",
+      "form": "Venuzdonoa sword",
+      "suggestedTier": "SSS",
+      "status": "needs-matching-licensed-art-and-feat-review"
+    },
+    {
+      "number": 27,
+      "character": "Anos Voldigoad",
+      "form": "Silverwater Sea",
+      "suggestedTier": "SSS",
+      "status": "needs-matching-licensed-art-and-feat-review"
+    },
+    {
+      "number": 28,
+      "character": "Lay Glanzudlii",
+      "form": "Hero Kanon / past incarnation",
+      "suggestedTier": "S",
+      "status": "needs-matching-licensed-art-and-feat-review"
+    },
+    {
+      "number": 29,
+      "character": "Avos Dilhevia",
+      "form": "Great Spirit of Demon King legends (Misa)",
+      "suggestedTier": null,
+      "status": "needs-verified-unique-original-art-and-feat-review",
+      "note": "Planned only: missing separate accurately matched portrait. Do not promote to finished or reuse another edition."
+    },
+    {
+      "number": 30,
+      "character": "Ivis Necron",
+      "form": "Seven Elder Demon Emperors",
+      "suggestedTier": null,
+      "status": "needs-verified-unique-original-art-and-feat-review",
+      "note": "Planned only: missing separate accurately matched portrait. Do not promote to finished or reuse another edition."
+    },
+    {
+      "number": 31,
+      "character": "Melheis Boran",
+      "form": "Seven Elder Demon Emperors",
+      "suggestedTier": null,
+      "status": "needs-verified-unique-original-art-and-feat-review",
+      "note": "Planned only: missing separate accurately matched portrait. Do not promote to finished or reuse another edition."
+    },
+    {
+      "number": 32,
+      "character": "Jerga",
+      "form": "Hero King / humanity's hatred",
+      "suggestedTier": null,
+      "status": "needs-verified-unique-original-art-and-feat-review",
+      "note": "Planned only: missing separate accurately matched portrait. Do not promote to finished or reuse another edition."
+    },
+    {
+      "number": 33,
+      "character": "Leorg Indu",
+      "form": "Academy Royal demon",
+      "suggestedTier": null,
+      "status": "needs-verified-unique-original-art-and-feat-review",
+      "note": "Planned only: missing separate accurately matched portrait. Do not promote to finished or reuse another edition."
+    },
+    {
+      "number": 34,
+      "character": "Zepes Indu",
+      "form": "Academy Royal demon",
+      "suggestedTier": null,
+      "status": "needs-verified-unique-original-art-and-feat-review",
+      "note": "Planned only: missing separate accurately matched portrait. Do not promote to finished or reuse another edition."
+    },
+    {
+      "number": 35,
+      "character": "Menou Historia",
+      "form": "Demon King Academy teacher",
+      "suggestedTier": null,
+      "status": "needs-verified-unique-original-art-and-feat-review",
+      "note": "Planned only: missing separate accurately matched portrait. Do not promote to finished or reuse another edition."
+    },
+    {
+      "number": 36,
+      "character": "Eges Code",
+      "form": "Curse King / Four Evil Royals",
+      "suggestedTier": null,
+      "status": "needs-verified-unique-original-art-and-feat-review",
+      "note": "Planned only: missing separate accurately matched portrait. Do not promote to finished or reuse another edition."
+    },
+    {
+      "number": 37,
+      "character": "Gilysiris Dello",
+      "form": "Four Evil Royals / Crimson Monument",
+      "suggestedTier": null,
+      "status": "needs-verified-unique-original-art-and-feat-review",
+      "note": "Planned only: missing separate accurately matched portrait. Do not promote to finished or reuse another edition."
+    },
+    {
+      "number": 38,
+      "character": "Kyhilam Jiste",
+      "form": "Four Evil Royals / Shadow King",
+      "suggestedTier": null,
+      "status": "needs-verified-unique-original-art-and-feat-review",
+      "note": "Planned only: missing separate accurately matched portrait. Do not promote to finished or reuse another edition."
+    },
+    {
+      "number": 39,
+      "character": "Ellen Miheis",
+      "form": "Anos Fan Union / choir",
+      "suggestedTier": null,
+      "status": "needs-verified-unique-original-art-and-feat-review",
+      "note": "Planned only: missing separate accurately matched portrait. Do not promote to finished or reuse another edition."
+    },
+    {
+      "number": 40,
+      "character": "Jessica Arnet",
+      "form": "Anos Fan Union / choir",
+      "suggestedTier": null,
+      "status": "needs-verified-unique-original-art-and-feat-review",
+      "note": "Planned only: missing separate accurately matched portrait. Do not promote to finished or reuse another edition."
+    },
+    {
+      "number": 41,
+      "character": "Maia Zemt",
+      "form": "Anos Fan Union / choir",
+      "suggestedTier": null,
+      "status": "needs-verified-unique-original-art-and-feat-review",
+      "note": "Planned only: missing separate accurately matched portrait. Do not promote to finished or reuse another edition."
+    },
+    {
+      "number": 42,
+      "character": "Nono Inota",
+      "form": "Anos Fan Union / choir",
+      "suggestedTier": null,
+      "status": "needs-verified-unique-original-art-and-feat-review",
+      "note": "Planned only: missing separate accurately matched portrait. Do not promote to finished or reuse another edition."
+    },
+    {
+      "number": 43,
+      "character": "Xia Minsheng",
+      "form": "Anos Fan Union / choir",
+      "suggestedTier": null,
+      "status": "needs-verified-unique-original-art-and-feat-review",
+      "note": "Planned only: missing separate accurately matched portrait. Do not promote to finished or reuse another edition."
+    },
+    {
+      "number": 44,
+      "character": "Himka Houra",
+      "form": "Anos Fan Union / choir",
+      "suggestedTier": null,
+      "status": "needs-verified-unique-original-art-and-feat-review",
+      "note": "Planned only: missing separate accurately matched portrait. Do not promote to finished or reuse another edition."
+    },
+    {
+      "number": 45,
+      "character": "Carsa Kurnoah",
+      "form": "Anos Fan Union / choir",
+      "suggestedTier": null,
+      "status": "needs-verified-unique-original-art-and-feat-review",
+      "note": "Planned only: missing separate accurately matched portrait. Do not promote to finished or reuse another edition."
+    },
+    {
+      "number": 46,
+      "character": "Shelia Nijem",
+      "form": "Anos Fan Union / choir",
+      "suggestedTier": null,
+      "status": "needs-verified-unique-original-art-and-feat-review",
+      "note": "Planned only: missing separate accurately matched portrait. Do not promote to finished or reuse another edition."
+    },
+    {
+      "number": 47,
+      "character": "Ledriano Azeschen",
+      "form": "Hero Academy / upperclassman",
+      "suggestedTier": null,
+      "status": "needs-verified-unique-original-art-and-feat-review",
+      "note": "Planned only: missing separate accurately matched portrait. Do not promote to finished or reuse another edition."
+    },
+    {
+      "number": 48,
+      "character": "Laos Jilfor",
+      "form": "Hero Academy / upperclassman",
+      "suggestedTier": null,
+      "status": "needs-verified-unique-original-art-and-feat-review",
+      "note": "Planned only: missing separate accurately matched portrait. Do not promote to finished or reuse another edition."
+    },
+    {
+      "number": 49,
+      "character": "Heine Iorg",
+      "form": "Hero Academy / upperclassman",
+      "suggestedTier": null,
+      "status": "needs-verified-unique-original-art-and-feat-review",
+      "note": "Planned only: missing separate accurately matched portrait. Do not promote to finished or reuse another edition."
+    },
+    {
+      "number": 50,
+      "character": "Gaios Anzem",
+      "form": "Seven Elder Demon Emperors",
+      "suggestedTier": null,
+      "status": "needs-verified-unique-original-art-and-feat-review",
+      "note": "Planned only: missing separate accurately matched portrait. Do not promote to finished or reuse another edition."
+    },
+    {
+      "number": 51,
+      "character": "Zorro Angart",
+      "form": "Seven Elder Demon Emperors",
+      "suggestedTier": null,
+      "status": "needs-verified-unique-original-art-and-feat-review",
+      "note": "Planned only: missing separate accurately matched portrait. Do not promote to finished or reuse another edition."
+    },
+    {
+      "number": 52,
+      "character": "Eldora Zaia",
+      "form": "Seven Elder Demon Emperors",
+      "suggestedTier": null,
+      "status": "needs-verified-unique-original-art-and-feat-review",
+      "note": "Planned only: missing separate accurately matched portrait. Do not promote to finished or reuse another edition."
+    },
+    {
+      "number": 53,
+      "character": "Ydol Anzeo",
+      "form": "Seven Elder Demon Emperors",
+      "suggestedTier": null,
+      "status": "needs-verified-unique-original-art-and-feat-review",
+      "note": "Planned only: missing separate accurately matched portrait. Do not promote to finished or reuse another edition."
+    },
+    {
+      "number": 54,
+      "character": "Enyunien",
+      "form": "Great Spirit Tree",
+      "suggestedTier": null,
+      "status": "needs-verified-unique-original-art-and-feat-review",
+      "note": "Planned only: missing separate accurately matched portrait. Do not promote to finished or reuse another edition."
+    },
+    {
+      "number": 55,
+      "character": "Lena",
+      "form": "Spirit of the mother of spirits' legend",
+      "suggestedTier": null,
+      "status": "needs-verified-unique-original-art-and-feat-review",
+      "note": "Planned only: missing separate accurately matched portrait. Do not promote to finished or reuse another edition."
+    },
+    {
+      "number": 56,
+      "character": "Kanon",
+      "form": "Mythical Age original hero version (Lay identity)",
+      "suggestedTier": null,
+      "status": "needs-verified-unique-original-art-and-feat-review",
+      "note": "Planned only: missing separate accurately matched portrait. Do not promote to finished or reuse another edition."
+    }
+  ]
+}
