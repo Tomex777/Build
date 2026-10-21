@@ -61,15 +61,21 @@ jobs:
         run: |
           npm run gallery -- --series konosuba --out dist/konosuba --file dist/KonoSuba-Collection.html
           node bin/konosuba-gallery.mjs dist/KonoSuba-Collection.html
+      - name: Stage standalone candidate gallery as deployable static site
+        run: |
+          mkdir -p preview/konosuba
+          cp dist/KonoSuba-Collection.html preview/konosuba/index.html
+          test -s preview/konosuba/index.html
+          ! grep -q 'NIGHT / BLEACH' preview/konosuba/index.html
       - name: Pin acquired artworks and proposed assessments (never auto-approve)
         if: success() && github.event_name == 'push'
         working-directory: .
         run: |
           git config user.name 'NIGHT Cards Provenance'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add cards/catalog/konosuba.json cards/catalog/konosuba-source-lock.json cards/catalog/konosuba-artwork-audit.json cards/catalog/konosuba-game-audit.json cards/catalog/power/konosuba.json
+          git add cards/catalog/konosuba.json cards/catalog/konosuba-source-lock.json cards/catalog/konosuba-artwork-audit.json cards/catalog/konosuba-game-audit.json cards/catalog/power/konosuba.json cards/preview/konosuba/index.html
           if ! git diff --cached --quiet; then
-            git commit -m "cards(konosuba): pin official source checksums and form assessments"
+            git commit -m "cards(konosuba): publish source-backed preview snapshot (unapproved)"
             git push origin "HEAD:$GITHUB_REF_NAME"
           fi
       - name: Candidate images, 320px phone checks, galleries and audit
