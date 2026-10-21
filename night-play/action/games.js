@@ -403,6 +403,60 @@ function paintJump(){
  }
 }
 
+// NIGHT original SVG hazard sprites are cached by the browser, and painted in
+// one drawImage each. They have clear silhouettes at 320px phone widths.
+const RUNNER_ART_BASE='/action/art/';
+const runnerArt={};
+for(const key of ['flyer-up','flyer-down','glider','pillar','stone','barrel']){
+ const img=new Image();img.decoding='async';img.src=RUNNER_ART_BASE+key+'.svg';
+ runnerArt[key]=img;
+}
+function runnerObstacleSprite(o){
+ if(o.kind==='flying')return runnerArt[Math.floor(state.clock*10)%2?'flyer-up':'flyer-down'];
+ return runnerArt[o.kind];
+}
+function paintRunnerObstacle(o){
+ const bounds=runnerBounds(o),airborne=o.kind==='flying'||o.kind==='glider';
+ const w=o.w,h=airborne?(o.kind==='flying'?47:58):o.h;
+ const y=airborne?(o.kind==='flying'?392:346):442-o.h;
+ ctx.save();
+ // Light pools and ground shadows indicate the obstacle's actual lane.
+ ctx.fillStyle=airborne?'#224a5035':'#1a374a54';ctx.beginPath();
+ ctx.ellipse(o.x+w*.5,446,airborne?w*.39:w*.53,airborne?3:2.6,0,0,TAU);ctx.fill();
+ if(airborne){
+  // Short afterimage tails communicate leftward motion without concealing
+  // the collider; artwork stays fixed to its collision rectangle.
+  const trailY=o.kind==='flying'?bounds.top+19:bounds.top+28;
+  ctx.lineCap='round';ctx.strokeStyle=o.kind==='flying'?'#b66e6890':'#5f96a987';
+  for(let i=0;i<2;i++){ctx.globalAlpha=.43-i*.18;ctx.lineWidth=2.2-i*.3;
+   ctx.beginPath();ctx.moveTo(o.x+w+6+i*9,trailY+i*4);
+   ctx.lineTo(o.x+w+14+i*10,trailY+i*4);ctx.stroke();}
+  ctx.globalAlpha=1;
+ }
+ const sprite=runnerObstacleSprite(o);
+ if(sprite.complete&&sprite.naturalWidth){
+  ctx.drawImage(sprite,o.x,y,w,h);
+ }else{
+  // Small accessible silhouette while the SVG finishes its first load.
+  const tint=o.kind==='flying'?'#995362':o.kind==='glider'?'#4a7184':o.kind==='pillar'?'#df925d':o.kind==='barrel'?'#b76b63':'#7b939d';
+  fill(o.x+1,y+3,w-2,h-4,tint,4);
+ }
+ if(o.kind==='glider'){
+  const spin=Math.sin(state.clock*43);
+  ctx.strokeStyle='#f7f2e0b8';ctx.lineWidth=1.6;ctx.lineCap='round';
+  for(const offset of [.19,.81]){
+   const centerX=o.x+w*offset;
+   ctx.beginPath();ctx.moveTo(centerX-6,359+spin*1.5);
+   ctx.lineTo(centerX+6,359-spin*1.5);ctx.stroke();
+  }
+ }else if(o.kind==='pillar'){
+  // The warning lamp also makes the narrow barrier visible at full speed.
+  ctx.fillStyle=Math.floor(state.clock*3)%2?'#fff3bb':'#eab279';
+  ctx.beginPath();ctx.arc(o.x+w*.5,y+7,2.1,0,TAU);ctx.fill();
+ }
+ ctx.restore();
+}
+
 function initRunner(){return {score:0,speed:220,player:{x:88,y:442,vy:0,duck:false},obstacles:[],spawn:1.25,distance:0,passed:0,duckTimer:0,clock:0,nearMisses:0};}
 function jumpRunner(){
  const p=state.player;if(!started||paused||over)return;
@@ -497,34 +551,7 @@ function paintRunner(){
   fill(x,454+(i%2)*3,8,2,'#d3ddb6',1);
  }
  text(''+Math.floor(state.distance/10)+' m',W-13,29,13,'#29564f',850,'right');
- for(const o of state.obstacles){
-  if(o.kind==='flying'){ // A low flying dinosaur sweeps its wings and talons across the runner's lane.
-   ctx.save();ctx.translate(o.x,0);
-   const wing=Math.sin(state.clock*18+o.x*.014)*7;
-   ctx.fillStyle='#a25c61';ctx.beginPath();ctx.moveTo(7,412);ctx.lineTo(19,396+wing);
-   ctx.lineTo(27,413);ctx.lineTo(42,395-wing);ctx.lineTo(39,422);
-   ctx.lineTo(24,431);ctx.lineTo(12,427);ctx.closePath();ctx.fill();
-   disk(29,411,11,'#ce8e75');disk(37,408,2,'#253a37');
-   ctx.strokeStyle='#654344';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(13,427);ctx.lineTo(10,437);
-   ctx.moveTo(27,427);ctx.lineTo(24,437);ctx.stroke();ctx.restore();
-  }else if(o.kind==='glider'){
-   ctx.save();ctx.translate(o.x,0);
-   const wing=Math.sin(state.clock*15+o.x*.012)*7;
-   ctx.fillStyle='#815a78';ctx.beginPath();ctx.moveTo(4,383);ctx.lineTo(12,349+wing);
-   ctx.lineTo(25,381);ctx.lineTo(43,348-wing);ctx.lineTo(47,392);
-   ctx.lineTo(28,397);ctx.lineTo(12,393);ctx.closePath();ctx.fill();
-   disk(29,389,9,'#a5738b');disk(35,384,2,'#fff4e3');ctx.restore();
-  }else if(o.kind==='pillar'){
-   fill(o.x,442-o.h,o.w,o.h,'#93676c',5);
-   fill(o.x+6,442-o.h+9,7,8,'#d3a198');
-  }else if(o.kind==='barrel'){
-    fill(o.x,442-o.h,o.w,o.h,'#9f6b56',7);
-    fill(o.x+3,442-o.h+7,o.w-6,5,'#ddb083',2);
-    fill(o.x+3,442-11,o.w-6,5,'#ddb083',2);
-    disk(o.x+o.w*.5,442-o.h*.5,7,'#bd9171');
-   }else{fill(o.x,442-o.h,o.w,o.h,'#aa8170',10);
-   fill(o.x+7,442-o.h+6,19,7,'#e1b7a1',4)}
- }
+ for(const o of state.obstacles)paintRunnerObstacle(o);
  const p=state.player,ducking=p.duck&&p.y>=441,airborne=p.y<441;
  const stride=Math.sin(state.clock*21);
  // The shadow separates the playable character from the ground while jumping.
