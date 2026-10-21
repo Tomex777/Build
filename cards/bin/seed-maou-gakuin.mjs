@@ -26,7 +26,7 @@ const power={version:1,series:'maou-gakuin',universe:'maou-gakuin',scope:'in-uni
 const seenIds=new Set(), seenNums=new Set(), seenImages=new Set(), seenSHA=new Set();
 async function getImage(url) {
   const target=new URL(url);
-  if(target.origin!==ROOT||!(target.pathname.startsWith('/assets/img/character/img_') && target.pathname.endsWith('.png')))
+  if(target.origin!==ROOT||!((target.pathname.startsWith('/assets/img/character/img_') || target.pathname.startsWith('/1st/assets/img/chara/img_')) && target.pathname.endsWith('.png')))
     throw Error('Source URL is not a vetted official character cutout: '+url);
   const res=await fetch(url,{redirect:'follow',signal:AbortSignal.timeout(55000),headers:{'User-Agent':'NIGHT-CardResearch/1.0'}});
   if(!res.ok||new URL(res.url).origin!==ROOT)throw Error('Official image unavailable: '+url+' '+res.status);
@@ -48,7 +48,13 @@ for(const item of sources.sources) {
   const original=await fs.readFile(inside(originalFile)).catch(async error=>{if(error.code!=='ENOENT')throw error;const downloaded=await getImage(item.source.image);await atomic(inside(originalFile),downloaded);return downloaded;});
   const originalSha256=digest(original), originalInfo=await sharp(original,{limitInputPixels:30e6}).metadata();
   if(originalInfo.format!=='png'||!originalInfo.hasAlpha||originalInfo.width<350||originalInfo.height<650)throw Error('No adequate transparent native illustration: '+item.id);
-  const bytes=await sharp(original).resize({width:1440,height:1760,kernel:'lanczos3'}).png().toBuffer();
+  // Preserve first-season composition: unlike the second-season 720×880
+  // cutouts, the 2020 artwork can have a different original aspect ratio.
+  const seasonOne=item.source.provider==='maou-gakuin-2020-official';
+  const resized=seasonOne
+    ? sharp(original).resize({height:Math.max(1800,originalInfo.height*2),kernel:'lanczos3'})
+    : sharp(original).resize({width:1440,height:1760,kernel:'lanczos3'});
+  const bytes=await resized.png().toBuffer();
   const sha=digest(bytes), info=await sharp(bytes).metadata();
   await atomic(inside(file),bytes);
   const alpha=(await sharp(bytes).ensureAlpha().stats()).channels[3];
@@ -64,11 +70,11 @@ for(const item of sources.sources) {
   // Keep authentic body alpha intact and let NIGHT's global renderer
   // implement foreground frame crossing and glass tier lettering.
   const crop=[0,0,info.width,info.height];
-  const needsBreakout=new Set(['leno-spirit','sasha-ruin','misha-creation','misa-spirit','eleonore-magic']);
+  const needsBreakout=new Set(['leno-spirit','sasha-ruin','misha-creation','misa-spirit','eleonore-magic','gusta-s1','izabella-s1','misha-s1','sasha-s1','misa-s1','eleonore-s1','emilia-s1','ahide-oracle','anoshu-child']);
   const pose=needsBreakout.has(item.id)?{x:-175,y:-170,width:1350}:{x:0,y:15,width:1000};
   const record={id:item.id,character:item.character,name:item.name,title:item.title,form:item.form,formId:item.formId,
     number:item.number,aliases:[...new Set(item.aliases)],designs:[design],status:'candidate',
-    source:{...item.source,localPath:file,sha256:sha,width:info.width,height:info.height,originalSha256,originalWidth:originalInfo.width,originalHeight:originalInfo.height,processing:'Lanczos3 2x upscale of original official alpha cutout; no added character details'},
+    source:{...item.source,localPath:file,sha256:sha,width:info.width,height:info.height,originalSha256,originalWidth:originalInfo.width,originalHeight:originalInfo.height,processing:seasonOne?'Aspect-preserving Lanczos3 resample of official 2020 art, no new details':'Lanczos3 2x upscale of original official alpha cutout; no added character details'},
     recipe:{crop,bottomPadding:0.16,edgeFade:0.005,bottomFade:0.02,focal:[0.5,0.34],
       artworkPlacement:{[design]:pose}}};
   catalogue.cards.push(record);
@@ -82,4 +88,4 @@ if(Object.keys(lock.sources).some(k=>!seenIds.has(k)))throw Error('Stale source 
 await atomic(inside('catalog/maou-gakuin.json'),JSON.stringify(catalogue,null,2)+'\n');
 await atomic(inside('catalog/power/maou-gakuin.json'),JSON.stringify(power,null,2)+'\n');
 if(writeLock)await atomic(inside('catalog/maou-gakuin-source-lock.json'),JSON.stringify(lock,null,2)+'\n');
-console.log('13 source-bound card candidates; none artistically approved for commercial release.');
+console.log(catalogue.cards.length+' source-bound card candidates; none artistically approved for commercial release.');
