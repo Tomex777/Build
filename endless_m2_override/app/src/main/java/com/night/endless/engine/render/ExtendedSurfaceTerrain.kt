@@ -40,6 +40,10 @@ internal class ExtendedSurfaceTerrain(private val context: Context, private val 
         detail.prepare(0.0, 0.0)
     }
 
+    /** Eye clearance tracks the actual triangulated terrain, not an idealized
+     * height function with relief missing from the displayed foreground. */
+    fun groundHeightAt(x: Double, z: Double): Double = detail.groundHeightAt(x, z)
+
     fun draw(vp: FloatArray, offsetX: Float, offsetZ: Float) {
         GLES30.glUseProgram(program)
         GLES30.glUniformMatrix4fv(GLES30.glGetUniformLocation(program, "uVp"), 1, false, vp, 0)
