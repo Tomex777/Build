@@ -38,29 +38,29 @@ export function manhwaGalleryHtml({roster,visuals,rosterUrl='./roster.html'}){
   const duo=item.shape==='separate-pair';
   const img=htmlEscape(item.image),second=htmlEscape(item.secondImage??'');
   const shape=htmlEscape(item.shape);
-  return \`<article class="card-wrap" data-universe="\${htmlEscape(item.series)}" data-family="\${htmlEscape(item.family)}" data-idx="\${index}">
-    <button class="open-card" type="button" aria-label="Enlarge \${htmlEscape(item.title)} — \${htmlEscape(item.edition)}" data-open="\${index}">
-     <div class="collectible \${htmlEscape(item.finish)} \${shape}" style="--metal:\${htmlEscape(item.color)};--aurora:\${htmlEscape(item.glow)};--portrait-position:\${htmlEscape(item.crop||'50% 35%')}">
+  return `<article class="card-wrap" data-universe="${htmlEscape(item.series)}" data-family="${htmlEscape(item.family)}" data-idx="${index}">
+    <button class="open-card" type="button" aria-label="Enlarge ${htmlEscape(item.title)} — ${htmlEscape(item.edition)}" data-open="${index}">
+     <div class="collectible ${htmlEscape(item.finish)} ${shape}" style="--metal:${htmlEscape(item.color)};--aurora:${htmlEscape(item.glow)};--portrait-position:${htmlEscape(item.crop||'50% 35%')}">
        <div class="plate"><span class="plate-filigree"></span><span class="plate-circle"></span><span class="plate-grain"></span></div>
-       <div class="soft-background" style="background-image:url('\${img}')"></div>
+       <div class="soft-background" style="background-image:url('${img}')"></div>
        <div class="inner-rail"></div><div class="frame-corners"></div>
-       \${duo?\`<img class="portrait-art portrait-left" src="\${img}" loading="\${index<4?'eager':'lazy'}" decoding="async" referrerpolicy="no-referrer" alt="">
-                     <img class="portrait-art portrait-right" src="\${second}" loading="lazy" decoding="async" referrerpolicy="no-referrer" alt="">\`
-           :\`<img class="portrait-art portrait-main" src="\${img}" loading="\${index<4?'eager':'lazy'}" decoding="async" referrerpolicy="no-referrer" alt="">\`}
+       ${duo?`<img class="portrait-art portrait-left" src="${img}" loading="${index<4?'eager':'lazy'}" decoding="async" referrerpolicy="no-referrer" alt="">
+                     <img class="portrait-art portrait-right" src="${second}" loading="lazy" decoding="async" referrerpolicy="no-referrer" alt="">`
+           :`<img class="portrait-art portrait-main" src="${img}" loading="${index<4?'eager':'lazy'}" decoding="async" referrerpolicy="no-referrer" alt="">`}
        <div class="foil-sheen"></div><div class="bottom-veil"></div>
-       <div class="card-top"><span>NIGHT <small>COLLECTIBLES</small></span><span class="card-number">M / \${String(i).padStart(3,'0')}</span></div>
-       <div class="card-type"><span>\${htmlEscape(title[item.series])}</span><b>\${item.family==='romance'?'♡':item.family==='power'?'✧':'◇'}</b></div>
-       <div class="card-bottom"><div class="eyebrow">\${htmlEscape(item.tag)}</div>
-         <strong class="card-title">\${htmlEscape(item.title)}</strong>
-         <div class="card-form">\${htmlEscape(item.edition)}</div>
-         <div class="fine"><span>\${htmlEscape(item.finish.toUpperCase())}</span><span>\${item.family==='romance'?'BOND':item.family==='power'?'POWER · UNRANKED':'STORY'}</span></div>
+       <div class="card-top"><span>NIGHT <small>COLLECTIBLES</small></span><span class="card-number">M / ${String(i).padStart(3,'0')}</span></div>
+       <div class="card-type"><span>${htmlEscape(title[item.series])}</span><b>${item.family==='romance'?'♡':item.family==='power'?'✧':'◇'}</b></div>
+       <div class="card-bottom"><div class="eyebrow">${htmlEscape(item.tag)}</div>
+         <strong class="card-title">${htmlEscape(item.title)}</strong>
+         <div class="card-form">${htmlEscape(item.edition)}</div>
+         <div class="fine"><span>${htmlEscape(item.finish.toUpperCase())}</span><span>${item.family==='romance'?'BOND':item.family==='power'?'POWER · UNRANKED':'STORY'}</span></div>
        </div>
      </div></button>
-     <div class="under-card"><span class="under-name">\${htmlEscape(item.title)}</span><span class="under-tag">\${htmlEscape(item.edition)}</span></div>
-  </article>\`;
+     <div class="under-card"><span class="under-name">${htmlEscape(item.title)}</span><span class="under-tag">${htmlEscape(item.edition)}</span></div>
+  </article>`;
  }).join('\\n');
  const details=JSON.stringify(visuals.entries.map(a=>({name:a.title,form:a.edition,source:a.source,credit:a.credit,id:a.id,series:a.series,image:a.image,secondImage:a.secondImage??null}))).replace(/</g,'\\\\u003c');
- return \`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+ return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>NIGHT / Manhwa Cards — Visual Gallery</title>
 <meta name="description" content="NIGHT manhwa collectible card visual studies for SSS-Class Revival Hunter, The Infinite Mage and Study Group.">
 <style>
@@ -167,26 +167,26 @@ header nav{gap:16px}.hero{padding:49px 19px 15px}h1{font-size:clamp(43px,13vw,75
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 </style>
 </head><body><header><a class="logo" href="./index.html" style="text-decoration:none">NIGHT<small>THE CARD LIBRARY</small></a>
-<nav><a href="#collection">Collection</a><a href="\${htmlEscape(rosterUrl)}">82-character roster ↗</a></nav></header>
+<nav><a href="#collection">Collection</a><a href="${htmlEscape(rosterUrl)}">82-character roster ↗</a></nav></header>
 <section class="hero"><div class="kicker">MANHWA · VISUAL EDITIONS</div>
 <h1>Stories worth<br><em>collecting.</em></h1>
 <p class="intro">Actual manhwa imagery inside NIGHT collectible card compositions. Explore visual studies from three worlds, including romance and grounded story cards. Tap any card to see it enlarged.</p>
-<div class="metrics"><div class="metric"><b>\${visuals.entries.length}</b><span>Visual studies</span></div>
-<div class="metric"><b>\${roster.series.length}</b><span>Universes</span></div><div class="metric"><b>\${total}</b><span>Roster candidates</span></div></div>
+<div class="metrics"><div class="metric"><b>${visuals.entries.length}</b><span>Visual studies</span></div>
+<div class="metric"><b>${roster.series.length}</b><span>Universes</span></div><div class="metric"><b>${total}</b><span>Roster candidates</span></div></div>
 <div class="loading-note">Visual references are externally linked from their credited sources. Artwork rights and final cutout approval remain pending.</div></section>
 <div class="divider"></div><main class="gallery" id="collection"><div class="controls">
 <h2>Collectible gallery</h2><div class="filters" role="group" aria-label="Filter manhwa">
-<button class="filter" data-filter="all" aria-pressed="true">All · \${visuals.entries.length}</button>
-<button class="filter" data-filter="sss-revival" aria-pressed="false">SSS Revival · \${counts['sss-revival']}</button>
-<button class="filter" data-filter="infinite-mage" aria-pressed="false">Infinite Mage · \${counts['infinite-mage']}</button>
-<button class="filter" data-filter="study-group" aria-pressed="false">Study Group · \${counts['study-group']}</button>
+<button class="filter" data-filter="all" aria-pressed="true">All · ${visuals.entries.length}</button>
+<button class="filter" data-filter="sss-revival" aria-pressed="false">SSS Revival · ${counts['sss-revival']}</button>
+<button class="filter" data-filter="infinite-mage" aria-pressed="false">Infinite Mage · ${counts['infinite-mage']}</button>
+<button class="filter" data-filter="study-group" aria-pressed="false">Study Group · ${counts['study-group']}</button>
 <button class="filter" data-filter="romance" aria-pressed="false">Romance</button></div></div>
-<div class="gallery-grid" id="card-grid">\${cards}</div>
+<div class="gallery-grid" id="card-grid">${cards}</div>
 <p class="empty" id="nothing" hidden>No matching cards.</p></main>
-<div class="endcap"><div><strong>NIGHT / MANHWA</strong><p>Visual compositions for review, not a release of licensed collectible merchandise. No speculative power tier, no generated images. Image references retain their original source links. Finished collectible masters require approved art rights, source-byte locking, silhouette separation, and full-resolution inspection.</p></div><a href="\${htmlEscape(rosterUrl)}">Browse the full 82-character research roster ↗</a></div>
+<div class="endcap"><div><strong>NIGHT / MANHWA</strong><p>Visual compositions for review, not a release of licensed collectible merchandise. No speculative power tier, no generated images. Image references retain their original source links. Finished collectible masters require approved art rights, source-byte locking, silhouette separation, and full-resolution inspection.</p></div><a href="${htmlEscape(rosterUrl)}">Browse the full 82-character research roster ↗</a></div>
 <dialog class="viewer" id="viewer" aria-label="Enlarged card preview"><button type="button" class="close" id="close" aria-label="Close card">✕ CLOSE</button><div class="viewer-inner"><div id="view-card" class="viewer-photo"></div><div class="viewer-copy"><small>NIGHT — VISUAL STUDY</small><h3 id="view-title"></h3><div class="badge">SOURCE-LINKED ART</div><p id="view-credit"></p><a id="view-source" href="#" target="_blank" rel="noopener noreferrer">Original reference ↗</a><p>Use the full-size card to judge spacing, typographic hierarchy and the frame breakout before final art approval.</p></div></div></dialog>
 <script>
-const details=\${details};
+const details=${details};
 const cards=[...document.querySelectorAll('.card-wrap')];
 const buttons=[...document.querySelectorAll('.filter')];
 const dialog=document.querySelector('#viewer');
@@ -209,5 +209,5 @@ document.querySelectorAll('[data-open]').forEach(b=>b.addEventListener('click',(
 }));
 document.querySelector('#close').addEventListener('click',()=>dialog.close());
 dialog.addEventListener('click',e=>{if(e.target===dialog)dialog.close()});
-</script></body></html>\`;
+</script></body></html>`;
 }
