@@ -33,6 +33,7 @@ const server = createServer((req, res) => {
   }
   if (['/','/games','/welcome','/dashboard','/profile','/updates','/terms','/privacy'].includes(pathname)
       || /^\/play\/(snake|2048|ttt)$/.test(pathname)) pathname='/index.html';
+  else if (pathname==='/sling-siege') pathname='/sling-siege/index.html';
   else if (pathname.endsWith('/')) pathname+='index.html';
   const filename = path.resolve(root, '.'+pathname);
   if (!filename.startsWith(root+path.sep)) {
@@ -95,6 +96,31 @@ async function interaction(page, item, touch) {
     if(touch) await actualTouch(page,box);
     else await page.keyboard.press('ArrowDown');
     return 'REAL_INPUT: directional input sent (death/restart not tested)';
+  }
+  if(item.href==='/sling-siege') {
+    const start=page.locator('#overlayAction');
+    await start.waitFor({timeout:4000});
+    touch?await start.tap():await start.click();
+    const canvas=page.locator('#game');
+    await canvas.waitFor({timeout:4000});
+    const rect=await canvas.boundingBox();
+    assert.ok(rect?.width>100 && rect?.height>150,'Sling Siege canvas visible');
+    if(touch) {
+      const session=await page.context().newCDPSession(page);
+      try {
+        const sx=rect.x+(140/720)*rect.width,sy=rect.y+(362/540)*rect.height;
+        await session.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{id:9,x:sx,y:sy}]});
+        await session.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{id:9,x:sx-32,y:sy+36}]});
+        await session.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+      } finally { await session.detach(); }
+    } else {
+      await canvas.focus();
+      await page.keyboard.press('ArrowLeft');
+      await page.keyboard.press('ArrowDown');
+      await page.keyboard.press('Space');
+    }
+    assert.equal(await page.evaluate(()=>window.__slingTest.state.used),1,'Sling Siege first shot registered');
+    return 'REAL_INPUT: slingshot pulled and fired; see dedicated six-stage game test for full rounds';
   }
   if(item.href?.includes('/action/')) {
     const start=page.locator('#overlayStart');
@@ -209,6 +235,9 @@ try {
           catch(err){ result.warnings.push('Interaction incomplete: '+String(err)); }
         } else if(item.href?.includes('/party/')) {
           result.interaction='BLOCKED: real signed host and server-side guests unavailable in anonymous source QA';
+        }
+        if(width===390&&item.href==='/sling-siege') {
+          assert.ok(result.interaction.startsWith('REAL_INPUT'),'Sling Siege must pass real pointer launch');
         }
         if(width===390) {
           const filename='live-'+String(item.index).padStart(2,'0')+'-'+item.name.toLowerCase().replace(/[^a-z0-9]+/g,'-')+'.jpg';
