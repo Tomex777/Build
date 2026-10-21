@@ -58,7 +58,7 @@ test('two graphic layers produce a true transparent paired montage with measurab
   const meta=await image.metadata();
   assert.deepEqual([meta.width,meta.height],[ROMANCE_STAGE.width,ROMANCE_STAGE.height]);
   assert.ok(meta.hasAlpha);
-  const read=async(x,y)=>[...await image.extract({left:x,top:y,width:1,height:1}).raw().toBuffer()];
+  const read=async(x,y)=>[...await sharp(buf).extract({left:x,top:y,width:1,height:1}).raw().toBuffer()];
   const leftPixel=await read(280,450),rightPixel=await read(1050,450),bottomPixel=await read(900,2100);
   assert.ok(leftPixel[0]>leftPixel[2], 'left figure is red');
   assert.ok(rightPixel[2]>rightPixel[0], 'right figure is blue');
