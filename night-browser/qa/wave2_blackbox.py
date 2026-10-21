@@ -312,8 +312,12 @@ class Device:
         skip profile restoration or count a test of the wrong profile as PASS.
         """
         self.click("Tabs")
-        regular = next((n for n in self.ui() if re.fullmatch(
-            r"Regular\s+\d+", n.get("text", "") or n.get("content-desc", ""))), None)
+        regular = next((n for n in self.ui() if re.search(
+            r"\bRegular\s+\d+\b", n.get("text", "") or n.get("content-desc", ""))), None)
+        # Different API-level accessibility trees can append role/selection
+        # descriptions to FilterChips; still touch the actual Regular control.
+        if regular is None:
+            regular = self.find("Regular", partial=True)
         if regular is None:
             raise AssertionError("Regular tab filter absent; cannot verify normal downloads")
         label = regular.get("text", "") or regular.get("content-desc", "")
