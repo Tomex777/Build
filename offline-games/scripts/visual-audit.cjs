@@ -24,7 +24,7 @@ const safe=s=>s.replace(/[^a-z0-9_-]/gi,'_');
 const delay=t=>new Promise(resolve=>setTimeout(resolve,t));
 async function audit(browser,serverPort,entry,worker){
  const id=entry.id;
- if(['2048','ttt','colorsort','shark','snake','reversi'].includes(id))return{id,name:entry.name,category:entry.category,level:'native-app-pending',notes:['Native Compose game cannot be played in a browser; must test in emulator/device.']};
+ if(['2048','mines','lights','sliding','ttt','colorsort','shark','snake','reversi'].includes(id))return{id,name:entry.name,category:entry.category,level:'native-app-pending',notes:['Native Compose game cannot be played in a browser; must test in emulator/device.']};
  const dir=allow.has(id)?'arcade':puzzle.has(id)?'puzzles':'classics';
  const page=await browser.newPage({viewport:{width:390,height:844},deviceScaleFactor:1,isMobile:true,hasTouch:true});
  const errors=[],failedRequests=[];let interacted=false,action='',statusBefore='',statusAfter='',firstSnap='',lastSnap='',measures={};
@@ -136,5 +136,5 @@ async function audit(browser,serverPort,entry,worker){
  fs.writeFileSync(path.join(out,'summary.md'),'# NIGHT Offline Games · browser interaction audit\n\n'+Object.entries(totals).map(([k,v])=>'- '+k+': '+v).join('\n')+'\n\n**This is automated input+visual capture, not human play-to-completion. Android emulator still required.**\n');
  console.log('QA_TOTALS '+JSON.stringify(totals));
  if(results.length!==entries.length)process.exitCode=3;
- if(totals.browserPlayed<entries.length-6)process.exitCode=2;
+ if(totals.browserPlayed<entries.length-totals.nativePending)process.exitCode=2;
 })().catch(err=>{console.error(err);process.exitCode=3;serve.close()});

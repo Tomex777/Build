@@ -4,10 +4,12 @@
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
 const root=__dirname,java=path.join(root,'app/src/main/java/com/night/offlinegames');
 const main=fs.readFileSync(path.join(java,'MainActivity.kt'),'utf8');
+const hub=fs.readFileSync(path.join(java,'OfflineHub.kt'),'utf8');
 const entries=[...main.matchAll(/GameEntry\("([^"]+)"/g)].map(m=>m[1]);
 const native=[
  ['2048','Game2048Screen','Game2048Screen.kt','Board2048.kt'],
  ['mines','NativeMinesScreen','NativeMinesScreen.kt','NativeMinesEngine.kt'],
+ ['sliding','NativeSlidingScreen','NativeSlidingScreen.kt','NativeSlidingEngine.kt'],
  ['lights','NativeLightsScreen','NativeLightsScreen.kt','NativeLightsEngine.kt'],
  ['snake','NativeSnakeScreen','NativeSnakeScreen.kt','NativeSnakeEngine.kt'],
  ['reversi','NativeReversiScreen','NativeReversiScreen.kt','NativeReversiEngine.kt'],
@@ -17,8 +19,8 @@ const native=[
 ];
 for(const [id,route,screen,engine] of native){
  assert(entries.includes(id),'Native title not registered: '+id);
- assert(main.includes('selected == "'+id+'"'),'Missing native route '+id);
- assert(main.includes(route+'(onExit'),'Native route points to wrong Composable: '+id);
+ assert(hub.includes('selected == "'+id+'"'),'Missing native route '+id);
+ assert(hub.includes(route+'(onExit'),'Native route points to wrong Composable: '+id);
  for(const file of [screen,engine]){
    const source=fs.readFileSync(path.join(java,file),'utf8');
    assert(!/import android\.webkit|\bWebView\s*\(|\bAndroidView\s*\(|javaScriptEnabled/.test(source),
