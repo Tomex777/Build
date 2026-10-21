@@ -8,11 +8,11 @@ import {chromium} from 'playwright';
 // Browser gameplay regressions: REAL input, collision, restart, five viewports.
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const routes={'/action/':'action/index.html','/action/style.css':'action/style.css',
- '/action/games.js':'action/games.js','/game-shell.css':'game-shell.css'};
+ '/action/games.js':'action/games.js','/game-shell.css':'game-shell.css','/action/art/flyer-up.svg':'action/art/flyer-up.svg','/action/art/flyer-down.svg':'action/art/flyer-down.svg','/action/art/glider.svg':'action/art/glider.svg','/action/art/pillar.svg':'action/art/pillar.svg','/action/art/stone.svg':'action/art/stone.svg','/action/art/barrel.svg':'action/art/barrel.svg'};
 const server=createServer((req,res)=>{
  const f=routes[new URL(req.url,'http://localhost').pathname];
  if(!f){res.writeHead(404);res.end('Missing');return;}
- res.writeHead(200,{'content-type':f.endsWith('.css')?'text/css':f.endsWith('.js')?'text/javascript':'text/html'});
+ res.writeHead(200,{'content-type':f.endsWith('.css')?'text/css':f.endsWith('.js')?'text/javascript':f.endsWith('.svg')?'image/svg+xml':'text/html'});
  res.end(readFileSync(path.join(root,f)));
 });
 await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
