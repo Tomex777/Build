@@ -1,0 +1,406 @@
+{
+  "version": 1,
+  "series": "dmc-netflix",
+  "name": "Devil May Cry (Netflix) / NIGHT",
+  "dimensions": [
+    3000,
+    4800
+  ],
+  "artworkPolicy": {
+    "distinctPerEdition": true
+  },
+  "tierPolicy": {
+    "mode": "power-selects-design"
+  },
+  "rightsNote": "Netflix/Capcom/Studio Mir retain all copyrights. Images are not licensed for public distribution or merchandise.",
+  "cards": [
+    {
+      "id": "dante-hunter",
+      "number": 9,
+      "character": "dante",
+      "name": "Dante",
+      "title": "Dante",
+      "form": "Demon hunter · base",
+      "formId": "hunter-base",
+      "aliases": [
+        "Dante",
+        "Dante",
+        "dante"
+      ],
+      "designs": [
+        "emberglass"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "netflix-animation-reference",
+        "page": "https://vsbattles.fandom.com/wiki/Dante_(Netflix_DMC)",
+        "image": "https://static.wikia.nocookie.net/vsbattles/images/6/6c/Dante-DevilMayCry2025.png/revision/latest?cb=20250530143031",
+        "rights": "Netflix/Capcom/Studio Mir retain all copyrights. Images are not licensed for public distribution or merchandise.",
+        "usage": "private-reference-only",
+        "credit": "Netflix/Capcom/Studio Mir visual, mirrored by a fan-wiki for source checking",
+        "artist": "Studio Mir / Netflix",
+        "localPath": "artwork/dmc-netflix/dante-hunter.png",
+        "sha256": "b354d8445e34b4ede81bca2478deb0ed95e807f696463d2d4a2fbf4b5dc4854d",
+        "width": 1104,
+        "height": 1750,
+        "originalSha256": "e2d0f4b72f0dc5d4a64f437e8eb11fe3324762eb7f8136a48fd391a4b1d1c240",
+        "originalWidth": 874,
+        "originalHeight": 1386,
+        "processing": "Retained original transparent illustration; height resample only"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          1104,
+          1750
+        ],
+        "bottomPadding": 0.13,
+        "edgeFade": 0.002,
+        "bottomFade": 0.008,
+        "focal": [
+          0.5,
+          0.37
+        ],
+        "artworkPlacement": {
+          "emberglass": {
+            "x": -130,
+            "y": -125,
+            "width": 1260
+          }
+        }
+      }
+    },
+    {
+      "id": "lady-darkcom",
+      "number": 24,
+      "character": "lady",
+      "name": "Mary Ann Arkham",
+      "title": "Lady",
+      "form": "DARKCOM lieutenant",
+      "formId": "lady-darkcom",
+      "aliases": [
+        "Mary Ann Arkham",
+        "Lady",
+        "lady"
+      ],
+      "designs": [
+        "tidelight"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "netflix-animation-reference",
+        "page": "https://devilmaycry.fandom.com/wiki/Mary_Arkham_(Netflix)",
+        "image": "https://static.wikia.nocookie.net/devilmaycry/images/1/16/Lady_Mary_Ann_Arkham_%28Netflix%29.png/revision/latest?cb=20251018210824",
+        "rights": "Netflix/Capcom/Studio Mir retain all copyrights. Images are not licensed for public distribution or merchandise.",
+        "usage": "private-reference-only",
+        "credit": "Netflix/Capcom/Studio Mir visual, mirrored by a fan-wiki for source checking",
+        "artist": "Studio Mir / Netflix",
+        "localPath": "artwork/dmc-netflix/lady-darkcom.png",
+        "sha256": "f7be2f71ad0c2d98ddbcbf2a6269745ba22bc31fd0d37de386f674c2d7e12162",
+        "width": 727,
+        "height": 1884,
+        "originalSha256": "67fa7d823ae7059b1134aeba4f57897a8e36e10ccc27f44dfcccc7710cd6dbbf",
+        "originalWidth": 727,
+        "originalHeight": 1884,
+        "processing": "Retained original transparent illustration; height resample only"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          727,
+          1884
+        ],
+        "bottomPadding": 0.13,
+        "edgeFade": 0.002,
+        "bottomFade": 0.008,
+        "focal": [
+          0.5,
+          0.37
+        ],
+        "artworkPlacement": {
+          "tidelight": {
+            "x": -80,
+            "y": -95,
+            "width": 1020
+          }
+        }
+      }
+    }
+  ],
+  "pendingForms": [
+    {
+      "id": "mundus-king",
+      "character": "mundus",
+      "name": "Mundus",
+      "form": "Ruler of Makai",
+      "continuity": "dmc-netflix-s2",
+      "status": "artwork-pending"
+    },
+    {
+      "id": "sparda-dark-knight",
+      "character": "sparda",
+      "name": "Sparda",
+      "form": "The Dark Knight · historical",
+      "continuity": "dmc-netflix-s2",
+      "status": "artwork-pending"
+    },
+    {
+      "id": "argosax-returned",
+      "character": "argosax",
+      "name": "Argosax",
+      "form": "The Chaos · awakened",
+      "continuity": "dmc-netflix-s2",
+      "status": "artwork-pending"
+    },
+    {
+      "id": "arius-argosax-vessel",
+      "character": "arius",
+      "name": "Arius von Enhrenberg",
+      "form": "Host of Argosax",
+      "continuity": "dmc-netflix-s2",
+      "status": "artwork-pending"
+    },
+    {
+      "id": "vergil-nelo-angelo",
+      "character": "vergil",
+      "name": "Vergil",
+      "form": "Nelo Angelo",
+      "continuity": "dmc-netflix-s1-s2",
+      "status": "artwork-pending"
+    },
+    {
+      "id": "dante-devil-trigger",
+      "character": "dante",
+      "name": "Dante",
+      "form": "Devil Trigger",
+      "continuity": "dmc-netflix-s1-s2",
+      "status": "artwork-pending"
+    },
+    {
+      "id": "vergil-devil-trigger",
+      "character": "vergil",
+      "name": "Vergil",
+      "form": "Demonic transformation",
+      "continuity": "dmc-netflix-s2",
+      "status": "artwork-pending"
+    },
+    {
+      "id": "beowulf-chimera",
+      "character": "beowulf",
+      "name": "Beowulf",
+      "form": "Makai chimera",
+      "continuity": "dmc-netflix-s2",
+      "status": "artwork-pending"
+    },
+    {
+      "id": "vergil-swordsman",
+      "character": "vergil",
+      "name": "Vergil",
+      "form": "Yamato swordsman",
+      "continuity": "dmc-netflix-s2",
+      "status": "artwork-pending"
+    },
+    {
+      "id": "white-rabbit-mutated",
+      "character": "white-rabbit",
+      "name": "White Rabbit",
+      "form": "Blood-fueled monster",
+      "continuity": "dmc-netflix-s1",
+      "status": "artwork-pending"
+    },
+    {
+      "id": "jester-demon",
+      "character": "arkham",
+      "name": "John Arkham",
+      "form": "Jester",
+      "continuity": "dmc-netflix-s2",
+      "status": "artwork-pending"
+    },
+    {
+      "id": "lady-specialist",
+      "character": "lady",
+      "name": "Mary Ann Arkham",
+      "form": "Lady · anti-demon specialist",
+      "continuity": "dmc-netflix-s1-s2",
+      "status": "artwork-pending"
+    },
+    {
+      "id": "cavaliere-knight",
+      "character": "cavaliere",
+      "name": "Cavaliere",
+      "form": "Demon knight",
+      "continuity": "dmc-netflix-s1",
+      "status": "artwork-pending"
+    },
+    {
+      "id": "lucan-arcane",
+      "character": "lucan",
+      "name": "Lucan",
+      "form": "Demonic magic",
+      "continuity": "dmc-netflix-s2",
+      "status": "artwork-pending"
+    },
+    {
+      "id": "arius-sorcerer",
+      "character": "arius",
+      "name": "Arius von Enhrenberg",
+      "form": "Uroboros sorcerer",
+      "continuity": "dmc-netflix-s2",
+      "status": "artwork-pending"
+    },
+    {
+      "id": "trismagia-oracle",
+      "character": "trismagia",
+      "name": "Trismagia",
+      "form": "Three-faced oracle",
+      "continuity": "dmc-netflix-s2",
+      "status": "artwork-pending"
+    },
+    {
+      "id": "echidna-demon",
+      "character": "echidna",
+      "name": "Echidna",
+      "form": "Serpent demon",
+      "continuity": "dmc-netflix-s1",
+      "status": "artwork-pending"
+    },
+    {
+      "id": "agni-fire",
+      "character": "agni",
+      "name": "Agni",
+      "form": "Fire twin",
+      "continuity": "dmc-netflix-s1",
+      "status": "artwork-pending"
+    },
+    {
+      "id": "rudra-wind",
+      "character": "rudra",
+      "name": "Rudra",
+      "form": "Wind twin",
+      "continuity": "dmc-netflix-s1",
+      "status": "artwork-pending"
+    },
+    {
+      "id": "plasma-shifter",
+      "character": "plasma",
+      "name": "Plasma",
+      "form": "Shapeshifter",
+      "continuity": "dmc-netflix-s1",
+      "status": "artwork-pending"
+    },
+    {
+      "id": "bloodstrike-lieutenant",
+      "character": "bloodstrike",
+      "name": "Bloodstryke",
+      "form": "Rabbit's lieutenant",
+      "continuity": "dmc-netflix-s1",
+      "status": "artwork-pending"
+    },
+    {
+      "id": "white-rabbit-masked",
+      "character": "white-rabbit",
+      "name": "White Rabbit",
+      "form": "Masked strategist",
+      "continuity": "dmc-netflix-s1",
+      "status": "artwork-pending"
+    },
+    {
+      "id": "chi-darkcom",
+      "character": "chi",
+      "name": "Chi",
+      "form": "DARKCOM second-in-command",
+      "continuity": "dmc-netflix-s2",
+      "status": "artwork-pending"
+    },
+    {
+      "id": "ninja-darkcom",
+      "character": "ninja",
+      "name": "Ninja",
+      "form": "DARKCOM elite",
+      "continuity": "dmc-netflix-s1",
+      "status": "artwork-pending"
+    },
+    {
+      "id": "king-darkcom",
+      "character": "king",
+      "name": "King",
+      "form": "DARKCOM elite",
+      "continuity": "dmc-netflix-s1",
+      "status": "artwork-pending"
+    },
+    {
+      "id": "sentry-darkcom",
+      "character": "sentry",
+      "name": "Sentry",
+      "form": "DARKCOM elite",
+      "continuity": "dmc-netflix-s1",
+      "status": "artwork-pending"
+    },
+    {
+      "id": "patriot-darkcom",
+      "character": "patriot",
+      "name": "Patriot",
+      "form": "DARKCOM elite",
+      "continuity": "dmc-netflix-s1",
+      "status": "artwork-pending"
+    },
+    {
+      "id": "anders-darkcom",
+      "character": "anders",
+      "name": "Anders",
+      "form": "DARKCOM survivor",
+      "continuity": "dmc-netflix-s1",
+      "status": "artwork-pending"
+    },
+    {
+      "id": "nell-engineer",
+      "character": "nell",
+      "name": "Nell Goldstein",
+      "form": "Weapons engineer",
+      "continuity": "dmc-netflix-s2",
+      "status": "artwork-pending"
+    },
+    {
+      "id": "enzo-broker",
+      "character": "enzo",
+      "name": "Enzo Ferino",
+      "form": "Information broker",
+      "continuity": "dmc-netflix-s1",
+      "status": "artwork-pending"
+    },
+    {
+      "id": "baines-vp",
+      "character": "baines",
+      "name": "William Baines",
+      "form": "Vice President",
+      "continuity": "dmc-netflix-s1-s2",
+      "status": "artwork-pending"
+    },
+    {
+      "id": "eva-human",
+      "character": "eva",
+      "name": "Eva",
+      "form": "Mother of the twins",
+      "continuity": "dmc-netflix-s1-s2",
+      "status": "artwork-pending"
+    },
+    {
+      "id": "arkham-human",
+      "character": "arkham",
+      "name": "John Arkham",
+      "form": "Human researcher",
+      "continuity": "dmc-netflix-s1",
+      "status": "artwork-pending"
+    },
+    {
+      "id": "sly-mercenary",
+      "character": "sly",
+      "name": "Sly",
+      "form": "Disguised demon mercenary",
+      "continuity": "dmc-netflix-s1",
+      "status": "artwork-pending"
+    }
+  ]
+}

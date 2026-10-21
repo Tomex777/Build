@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "series": "dmc-netflix",
+  "status": "candidate-acquisition-not-approval",
+  "rights": "Netflix/Capcom/Studio Mir retain all copyrights. Images are not licensed for public distribution or merchandise.",
+  "assets": [
+    {
+      "id": "dante-hunter",
+      "number": 9,
+      "character": "dante",
+      "name": "Dante",
+      "title": "Dante",
+      "form": "Demon hunter · base",
+      "formId": "hunter-base",
+      "continuity": "dmc-netflix-s1-s2",
+      "url": "https://static.wikia.nocookie.net/vsbattles/images/6/6c/Dante-DevilMayCry2025.png/revision/latest?cb=20250530143031",
+      "page": "https://vsbattles.fandom.com/wiki/Dante_(Netflix_DMC)",
+      "rank": "S"
+    },
+    {
+      "id": "lady-darkcom",
+      "number": 24,
+      "character": "lady",
+      "name": "Mary Ann Arkham",
+      "title": "Lady",
+      "form": "DARKCOM lieutenant",
+      "formId": "lady-darkcom",
+      "continuity": "dmc-netflix-s1",
+      "url": "https://static.wikia.nocookie.net/devilmaycry/images/1/16/Lady_Mary_Ann_Arkham_%28Netflix%29.png/revision/latest?cb=20251018210824",
+      "page": "https://devilmaycry.fandom.com/wiki/Mary_Arkham_(Netflix)",
+      "rank": "B"
+    }
+  ]
+}

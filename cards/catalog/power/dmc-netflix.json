@@ -1,0 +1,606 @@
+{
+  "version": 1,
+  "series": "dmc-netflix",
+  "universe": "dmc-netflix",
+  "scope": "in-universe",
+  "scale": "night-universe-power-v1",
+  "status": "editorial-proposal",
+  "notes": "Netflix 2025–26 S1–S2 ONLY, independent from Capcom game canon, 2007 anime and unfilmed plot; editorial—not official—ranks.",
+  "assessments": {
+    "dante-hunter": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "S",
+      "universe": "dmc-netflix",
+      "continuity": "dmc-netflix-s1-s2",
+      "formId": "hunter-base",
+      "artworkSHA256": "b354d8445e34b4ede81bca2478deb0ed95e807f696463d2d4a2fbf4b5dc4854d",
+      "scope": "Dante / Demon hunter · base",
+      "basis": "Surhuman combatant with extreme speed, resilience and weapons skill.",
+      "limits": "Base humanlike appearance, excluding Devil Trigger feats.",
+      "references": [
+        "https://www.netflix.com/tudum/devil-may-cry",
+        "https://en.wikipedia.org/wiki/Devil_May_Cry_(TV_series)",
+        "https://www.whats-on-netflix.com/news/devil-may-cry-season-2-ending-explained/"
+      ]
+    },
+    "lady-darkcom": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "B",
+      "universe": "dmc-netflix",
+      "continuity": "dmc-netflix-s1",
+      "formId": "lady-darkcom",
+      "artworkSHA256": "f7be2f71ad0c2d98ddbcbf2a6269745ba22bc31fd0d37de386f674c2d7e12162",
+      "scope": "Mary Ann Arkham / DARKCOM lieutenant",
+      "basis": "Elite acrobat, marksman and commander who subdues Dante with preparation.",
+      "limits": "Her anti-demon weapons matter; not physically stronger than Devil Trigger Dante.",
+      "references": [
+        "https://www.netflix.com/tudum/devil-may-cry",
+        "https://en.wikipedia.org/wiki/Devil_May_Cry_(TV_series)"
+      ]
+    },
+    "mundus-king": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "dmc-netflix",
+      "continuity": "dmc-netflix-s2",
+      "formId": "Ruler of Makai",
+      "artworkSHA256": null,
+      "scope": "Mundus / Ruler of Makai",
+      "basis": "Defeats the resurrected Argosax in Makai; is left fighting Vergil after the portal is sealed.",
+      "limits": "No matching verified Netflix artwork. Proposed tier in roster only.",
+      "references": [
+        "https://www.netflix.com/tudum/devil-may-cry",
+        "https://en.wikipedia.org/wiki/Devil_May_Cry_(TV_series)",
+        "https://www.whats-on-netflix.com/news/devil-may-cry-season-2-ending-explained/"
+      ]
+    },
+    "sparda-dark-knight": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "dmc-netflix",
+      "continuity": "dmc-netflix-s2",
+      "formId": "The Dark Knight · historical",
+      "artworkSHA256": null,
+      "scope": "Sparda / The Dark Knight · historical",
+      "basis": "Historically matches Mundus and uses his sword and the amulet to divide Makai and Earth.",
+      "limits": "No matching verified Netflix artwork. Proposed tier in roster only.",
+      "references": [
+        "https://www.netflix.com/tudum/devil-may-cry",
+        "https://en.wikipedia.org/wiki/Devil_May_Cry_(TV_series)",
+        "https://www.whats-on-netflix.com/news/devil-may-cry-season-2-ending-explained/"
+      ]
+    },
+    "argosax-returned": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "dmc-netflix",
+      "continuity": "dmc-netflix-s2",
+      "formId": "The Chaos · awakened",
+      "artworkSHA256": null,
+      "scope": "Argosax / The Chaos · awakened",
+      "basis": "Dante and Vergil cannot subdue this revived threat directly and send it to Mundus.",
+      "limits": "No matching verified Netflix artwork. Proposed tier in roster only.",
+      "references": [
+        "https://www.netflix.com/tudum/devil-may-cry",
+        "https://en.wikipedia.org/wiki/Devil_May_Cry_(TV_series)",
+        "https://www.whats-on-netflix.com/news/devil-may-cry-season-2-ending-explained/"
+      ]
+    },
+    "arius-argosax-vessel": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "dmc-netflix",
+      "continuity": "dmc-netflix-s2",
+      "formId": "Host of Argosax",
+      "artworkSHA256": null,
+      "scope": "Arius von Enhrenberg / Host of Argosax",
+      "basis": "Releases Argosax through the Arcana and becomes its human host.",
+      "limits": "No matching verified Netflix artwork. Proposed tier in roster only.",
+      "references": [
+        "https://www.netflix.com/tudum/devil-may-cry",
+        "https://en.wikipedia.org/wiki/Devil_May_Cry_(TV_series)",
+        "https://www.whats-on-netflix.com/news/devil-may-cry-season-2-ending-explained/"
+      ]
+    },
+    "vergil-nelo-angelo": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "dmc-netflix",
+      "continuity": "dmc-netflix-s1-s2",
+      "formId": "Nelo Angelo",
+      "artworkSHA256": null,
+      "scope": "Vergil / Nelo Angelo",
+      "basis": "Demonic knight form, attacks the detention facility and fights for Mundus.",
+      "limits": "No matching verified Netflix artwork. Proposed tier in roster only.",
+      "references": [
+        "https://www.netflix.com/tudum/devil-may-cry",
+        "https://en.wikipedia.org/wiki/Devil_May_Cry_(TV_series)",
+        "https://www.whats-on-netflix.com/news/devil-may-cry-season-2-ending-explained/"
+      ]
+    },
+    "dante-devil-trigger": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "dmc-netflix",
+      "continuity": "dmc-netflix-s1-s2",
+      "formId": "Devil Trigger",
+      "artworkSHA256": null,
+      "scope": "Dante / Devil Trigger",
+      "basis": "Awakens demonic form and fights powerful opponents, including season-two threats.",
+      "limits": "No matching verified Netflix artwork. Proposed tier in roster only.",
+      "references": [
+        "https://www.netflix.com/tudum/devil-may-cry",
+        "https://en.wikipedia.org/wiki/Devil_May_Cry_(TV_series)",
+        "https://www.whats-on-netflix.com/news/devil-may-cry-season-2-ending-explained/"
+      ]
+    },
+    "vergil-devil-trigger": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "dmc-netflix",
+      "continuity": "dmc-netflix-s2",
+      "formId": "Demonic transformation",
+      "artworkSHA256": null,
+      "scope": "Vergil / Demonic transformation",
+      "basis": "Vergil's demonic power and swordplay stand among Makai's strongest warriors.",
+      "limits": "No matching verified Netflix artwork. Proposed tier in roster only.",
+      "references": [
+        "https://www.netflix.com/tudum/devil-may-cry",
+        "https://en.wikipedia.org/wiki/Devil_May_Cry_(TV_series)",
+        "https://www.whats-on-netflix.com/news/devil-may-cry-season-2-ending-explained/"
+      ]
+    },
+    "beowulf-chimera": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "dmc-netflix",
+      "continuity": "dmc-netflix-s2",
+      "formId": "Makai chimera",
+      "artworkSHA256": null,
+      "scope": "Beowulf / Makai chimera",
+      "basis": "Powerful monster serving Mundus; far above ordinary DARKCOM troops.",
+      "limits": "No matching verified Netflix artwork. Proposed tier in roster only.",
+      "references": [
+        "https://www.netflix.com/tudum/devil-may-cry",
+        "https://en.wikipedia.org/wiki/Devil_May_Cry_(TV_series)",
+        "https://www.whats-on-netflix.com/news/devil-may-cry-season-2-ending-explained/"
+      ]
+    },
+    "vergil-swordsman": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "dmc-netflix",
+      "continuity": "dmc-netflix-s2",
+      "formId": "Yamato swordsman",
+      "artworkSHA256": null,
+      "scope": "Vergil / Yamato swordsman",
+      "basis": "Elite combatant with sword skill and peer status to Dante.",
+      "limits": "No matching verified Netflix artwork. Proposed tier in roster only.",
+      "references": [
+        "https://www.netflix.com/tudum/devil-may-cry",
+        "https://en.wikipedia.org/wiki/Devil_May_Cry_(TV_series)",
+        "https://www.whats-on-netflix.com/news/devil-may-cry-season-2-ending-explained/"
+      ]
+    },
+    "white-rabbit-mutated": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "dmc-netflix",
+      "continuity": "dmc-netflix-s1",
+      "formId": "Blood-fueled monster",
+      "artworkSHA256": null,
+      "scope": "White Rabbit / Blood-fueled monster",
+      "basis": "After consuming Bloodstrike's blood, becomes a huge demonic threat before Dante defeats him.",
+      "limits": "No matching verified Netflix artwork. Proposed tier in roster only.",
+      "references": [
+        "https://www.netflix.com/tudum/devil-may-cry",
+        "https://en.wikipedia.org/wiki/Devil_May_Cry_(TV_series)"
+      ]
+    },
+    "jester-demon": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "dmc-netflix",
+      "continuity": "dmc-netflix-s2",
+      "formId": "Jester",
+      "artworkSHA256": null,
+      "scope": "John Arkham / Jester",
+      "basis": "Demon-transformed manipulator and Mundus insider.",
+      "limits": "No matching verified Netflix artwork. Proposed tier in roster only.",
+      "references": [
+        "https://www.netflix.com/tudum/devil-may-cry",
+        "https://en.wikipedia.org/wiki/Devil_May_Cry_(TV_series)",
+        "https://www.whats-on-netflix.com/news/devil-may-cry-season-2-ending-explained/"
+      ]
+    },
+    "lady-specialist": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "dmc-netflix",
+      "continuity": "dmc-netflix-s1-s2",
+      "formId": "Lady · anti-demon specialist",
+      "artworkSHA256": null,
+      "scope": "Mary Ann Arkham / Lady · anti-demon specialist",
+      "basis": "Peak trained human with anti-demon equipment and elite tactical performance.",
+      "limits": "No matching verified Netflix artwork. Proposed tier in roster only.",
+      "references": [
+        "https://www.netflix.com/tudum/devil-may-cry",
+        "https://en.wikipedia.org/wiki/Devil_May_Cry_(TV_series)",
+        "https://www.whats-on-netflix.com/news/devil-may-cry-season-2-ending-explained/"
+      ]
+    },
+    "cavaliere-knight": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "dmc-netflix",
+      "continuity": "dmc-netflix-s1",
+      "formId": "Demon knight",
+      "artworkSHA256": null,
+      "scope": "Cavaliere / Demon knight",
+      "basis": "Significant enforcer wielding supernatural weapons against DARKCOM.",
+      "limits": "No matching verified Netflix artwork. Proposed tier in roster only.",
+      "references": [
+        "https://www.netflix.com/tudum/devil-may-cry",
+        "https://en.wikipedia.org/wiki/Devil_May_Cry_(TV_series)"
+      ]
+    },
+    "lucan-arcane": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "dmc-netflix",
+      "continuity": "dmc-netflix-s2",
+      "formId": "Demonic magic",
+      "artworkSHA256": null,
+      "scope": "Lucan / Demonic magic",
+      "basis": "Older scholar with demonstrated acquired demon powers and specialist knowledge.",
+      "limits": "No matching verified Netflix artwork. Proposed tier in roster only.",
+      "references": [
+        "https://www.netflix.com/tudum/devil-may-cry",
+        "https://en.wikipedia.org/wiki/Devil_May_Cry_(TV_series)",
+        "https://www.whats-on-netflix.com/news/devil-may-cry-season-2-ending-explained/"
+      ]
+    },
+    "arius-sorcerer": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "dmc-netflix",
+      "continuity": "dmc-netflix-s2",
+      "formId": "Uroboros sorcerer",
+      "artworkSHA256": null,
+      "scope": "Arius von Enhrenberg / Uroboros sorcerer",
+      "basis": "Employs ritual magic and a long-running Arcana plan.",
+      "limits": "No matching verified Netflix artwork. Proposed tier in roster only.",
+      "references": [
+        "https://www.netflix.com/tudum/devil-may-cry",
+        "https://en.wikipedia.org/wiki/Devil_May_Cry_(TV_series)",
+        "https://www.whats-on-netflix.com/news/devil-may-cry-season-2-ending-explained/"
+      ]
+    },
+    "trismagia-oracle": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "dmc-netflix",
+      "continuity": "dmc-netflix-s2",
+      "formId": "Three-faced oracle",
+      "artworkSHA256": null,
+      "scope": "Trismagia / Three-faced oracle",
+      "basis": "Makai oracle of supernatural influence.",
+      "limits": "No matching verified Netflix artwork. Proposed tier in roster only.",
+      "references": [
+        "https://www.netflix.com/tudum/devil-may-cry",
+        "https://en.wikipedia.org/wiki/Devil_May_Cry_(TV_series)",
+        "https://www.whats-on-netflix.com/news/devil-may-cry-season-2-ending-explained/"
+      ]
+    },
+    "echidna-demon": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "dmc-netflix",
+      "continuity": "dmc-netflix-s1",
+      "formId": "Serpent demon",
+      "artworkSHA256": null,
+      "scope": "Echidna / Serpent demon",
+      "basis": "Supernatural snake-plant demon and Rabbit ally.",
+      "limits": "No matching verified Netflix artwork. Proposed tier in roster only.",
+      "references": [
+        "https://www.netflix.com/tudum/devil-may-cry",
+        "https://en.wikipedia.org/wiki/Devil_May_Cry_(TV_series)"
+      ]
+    },
+    "agni-fire": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "dmc-netflix",
+      "continuity": "dmc-netflix-s1",
+      "formId": "Fire twin",
+      "artworkSHA256": null,
+      "scope": "Agni / Fire twin",
+      "basis": "One of the paired blade-wielding demons in Rabbit's forces.",
+      "limits": "No matching verified Netflix artwork. Proposed tier in roster only.",
+      "references": [
+        "https://www.netflix.com/tudum/devil-may-cry",
+        "https://en.wikipedia.org/wiki/Devil_May_Cry_(TV_series)"
+      ]
+    },
+    "rudra-wind": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "dmc-netflix",
+      "continuity": "dmc-netflix-s1",
+      "formId": "Wind twin",
+      "artworkSHA256": null,
+      "scope": "Rudra / Wind twin",
+      "basis": "Counterpart of Agni in the Rabbit's demonic contingent.",
+      "limits": "No matching verified Netflix artwork. Proposed tier in roster only.",
+      "references": [
+        "https://www.netflix.com/tudum/devil-may-cry",
+        "https://en.wikipedia.org/wiki/Devil_May_Cry_(TV_series)"
+      ]
+    },
+    "plasma-shifter": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "dmc-netflix",
+      "continuity": "dmc-netflix-s1",
+      "formId": "Shapeshifter",
+      "artworkSHA256": null,
+      "scope": "Plasma / Shapeshifter",
+      "basis": "Impersonates Vergil and other targets to infiltrate Dante's life.",
+      "limits": "No matching verified Netflix artwork. Proposed tier in roster only.",
+      "references": [
+        "https://www.netflix.com/tudum/devil-may-cry",
+        "https://en.wikipedia.org/wiki/Devil_May_Cry_(TV_series)"
+      ]
+    },
+    "bloodstrike-lieutenant": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "dmc-netflix",
+      "continuity": "dmc-netflix-s1",
+      "formId": "Rabbit's lieutenant",
+      "artworkSHA256": null,
+      "scope": "Bloodstryke / Rabbit's lieutenant",
+      "basis": "A dangerous demon subordinate whose blood later fuels Rabbit's mutation.",
+      "limits": "No matching verified Netflix artwork. Proposed tier in roster only.",
+      "references": [
+        "https://www.netflix.com/tudum/devil-may-cry",
+        "https://en.wikipedia.org/wiki/Devil_May_Cry_(TV_series)"
+      ]
+    },
+    "white-rabbit-masked": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "dmc-netflix",
+      "continuity": "dmc-netflix-s1",
+      "formId": "Masked strategist",
+      "artworkSHA256": null,
+      "scope": "White Rabbit / Masked strategist",
+      "basis": "Fights Dante and directs demonic insurgents using an amulet plan.",
+      "limits": "No matching verified Netflix artwork. Proposed tier in roster only.",
+      "references": [
+        "https://www.netflix.com/tudum/devil-may-cry",
+        "https://en.wikipedia.org/wiki/Devil_May_Cry_(TV_series)"
+      ]
+    },
+    "chi-darkcom": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "dmc-netflix",
+      "continuity": "dmc-netflix-s2",
+      "formId": "DARKCOM second-in-command",
+      "artworkSHA256": null,
+      "scope": "Chi / DARKCOM second-in-command",
+      "basis": "Trained tactical leader serving Arius.",
+      "limits": "No matching verified Netflix artwork. Proposed tier in roster only.",
+      "references": [
+        "https://www.netflix.com/tudum/devil-may-cry",
+        "https://en.wikipedia.org/wiki/Devil_May_Cry_(TV_series)",
+        "https://www.whats-on-netflix.com/news/devil-may-cry-season-2-ending-explained/"
+      ]
+    },
+    "ninja-darkcom": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "dmc-netflix",
+      "continuity": "dmc-netflix-s1",
+      "formId": "DARKCOM elite",
+      "artworkSHA256": null,
+      "scope": "Ninja / DARKCOM elite",
+      "basis": "Member of Mary's specially trained demon-hunting team.",
+      "limits": "No matching verified Netflix artwork. Proposed tier in roster only.",
+      "references": [
+        "https://www.netflix.com/tudum/devil-may-cry",
+        "https://en.wikipedia.org/wiki/Devil_May_Cry_(TV_series)"
+      ]
+    },
+    "king-darkcom": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "dmc-netflix",
+      "continuity": "dmc-netflix-s1",
+      "formId": "DARKCOM elite",
+      "artworkSHA256": null,
+      "scope": "King / DARKCOM elite",
+      "basis": "Member of Mary's trained DARKCOM squad.",
+      "limits": "No matching verified Netflix artwork. Proposed tier in roster only.",
+      "references": [
+        "https://www.netflix.com/tudum/devil-may-cry",
+        "https://en.wikipedia.org/wiki/Devil_May_Cry_(TV_series)"
+      ]
+    },
+    "sentry-darkcom": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "dmc-netflix",
+      "continuity": "dmc-netflix-s1",
+      "formId": "DARKCOM elite",
+      "artworkSHA256": null,
+      "scope": "Sentry / DARKCOM elite",
+      "basis": "Trained operative capable of engaging supernatural threats with weapons.",
+      "limits": "No matching verified Netflix artwork. Proposed tier in roster only.",
+      "references": [
+        "https://www.netflix.com/tudum/devil-may-cry",
+        "https://en.wikipedia.org/wiki/Devil_May_Cry_(TV_series)"
+      ]
+    },
+    "patriot-darkcom": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "dmc-netflix",
+      "continuity": "dmc-netflix-s1",
+      "formId": "DARKCOM elite",
+      "artworkSHA256": null,
+      "scope": "Patriot / DARKCOM elite",
+      "basis": "Part of the anti-demon specialist unit.",
+      "limits": "No matching verified Netflix artwork. Proposed tier in roster only.",
+      "references": [
+        "https://www.netflix.com/tudum/devil-may-cry",
+        "https://en.wikipedia.org/wiki/Devil_May_Cry_(TV_series)"
+      ]
+    },
+    "anders-darkcom": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "dmc-netflix",
+      "continuity": "dmc-netflix-s1",
+      "formId": "DARKCOM survivor",
+      "artworkSHA256": null,
+      "scope": "Anders / DARKCOM survivor",
+      "basis": "One of the surviving anti-demon operators under Mary's command.",
+      "limits": "No matching verified Netflix artwork. Proposed tier in roster only.",
+      "references": [
+        "https://www.netflix.com/tudum/devil-may-cry",
+        "https://en.wikipedia.org/wiki/Devil_May_Cry_(TV_series)"
+      ]
+    },
+    "nell-engineer": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "dmc-netflix",
+      "continuity": "dmc-netflix-s2",
+      "formId": "Weapons engineer",
+      "artworkSHA256": null,
+      "scope": "Nell Goldstein / Weapons engineer",
+      "basis": "Legendary weapons engineer who supports combatants.",
+      "limits": "No matching verified Netflix artwork. Proposed tier in roster only.",
+      "references": [
+        "https://www.netflix.com/tudum/devil-may-cry",
+        "https://en.wikipedia.org/wiki/Devil_May_Cry_(TV_series)",
+        "https://www.whats-on-netflix.com/news/devil-may-cry-season-2-ending-explained/"
+      ]
+    },
+    "enzo-broker": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "dmc-netflix",
+      "continuity": "dmc-netflix-s1",
+      "formId": "Information broker",
+      "artworkSHA256": null,
+      "scope": "Enzo Ferino / Information broker",
+      "basis": "Dante's human contact and information broker.",
+      "limits": "No matching verified Netflix artwork. Proposed tier in roster only.",
+      "references": [
+        "https://www.netflix.com/tudum/devil-may-cry",
+        "https://en.wikipedia.org/wiki/Devil_May_Cry_(TV_series)"
+      ]
+    },
+    "baines-vp": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "dmc-netflix",
+      "continuity": "dmc-netflix-s1-s2",
+      "formId": "Vice President",
+      "artworkSHA256": null,
+      "scope": "William Baines / Vice President",
+      "basis": "Political and military authority over DARKCOM.",
+      "limits": "No matching verified Netflix artwork. Proposed tier in roster only.",
+      "references": [
+        "https://www.netflix.com/tudum/devil-may-cry",
+        "https://en.wikipedia.org/wiki/Devil_May_Cry_(TV_series)",
+        "https://www.whats-on-netflix.com/news/devil-may-cry-season-2-ending-explained/"
+      ]
+    },
+    "eva-human": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "dmc-netflix",
+      "continuity": "dmc-netflix-s1-s2",
+      "formId": "Mother of the twins",
+      "artworkSHA256": null,
+      "scope": "Eva / Mother of the twins",
+      "basis": "Human mother of Dante and Vergil.",
+      "limits": "No matching verified Netflix artwork. Proposed tier in roster only.",
+      "references": [
+        "https://www.netflix.com/tudum/devil-may-cry",
+        "https://en.wikipedia.org/wiki/Devil_May_Cry_(TV_series)",
+        "https://www.whats-on-netflix.com/news/devil-may-cry-season-2-ending-explained/"
+      ]
+    },
+    "arkham-human": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "dmc-netflix",
+      "continuity": "dmc-netflix-s1",
+      "formId": "Human researcher",
+      "artworkSHA256": null,
+      "scope": "John Arkham / Human researcher",
+      "basis": "Mary's human father before his transformation.",
+      "limits": "No matching verified Netflix artwork. Proposed tier in roster only.",
+      "references": [
+        "https://www.netflix.com/tudum/devil-may-cry",
+        "https://en.wikipedia.org/wiki/Devil_May_Cry_(TV_series)"
+      ]
+    },
+    "sly-mercenary": {
+      "scale": "night-universe-power-v1",
+      "status": "pending",
+      "rank": null,
+      "universe": "dmc-netflix",
+      "continuity": "dmc-netflix-s1",
+      "formId": "Disguised demon mercenary",
+      "artworkSHA256": null,
+      "scope": "Sly / Disguised demon mercenary",
+      "basis": "Infiltrating demon briefly operating among human bounty hunters.",
+      "limits": "No matching verified Netflix artwork. Proposed tier in roster only.",
+      "references": [
+        "https://www.netflix.com/tudum/devil-may-cry",
+        "https://en.wikipedia.org/wiki/Devil_May_Cry_(TV_series)"
+      ]
+    }
+  }
+}
