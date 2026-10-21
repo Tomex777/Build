@@ -532,11 +532,11 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
                 val result = withContext(Dispatchers.IO) {
                     val client = api()
                     val environment = runCatching { client.environment() }
+                    // Never implicitly sign in to MEGA merely because
+                    // Cortex opens or refreshes the Cloud tab. Login is an
+                    // explicit, user-initiated folder discovery / verify step.
                     val cloud = runCatching { client.cloudDashboard() }
-                    val mounts = if (cloud.getOrNull()?.configured == true) {
-                        runCatching { client.cloudMounts() }.getOrNull()
-                    } else emptyList()
-                    Triple(environment, cloud, mounts)
+                    Pair(environment, cloud)
                 }
                 val environmentIssue = result.first.exceptionOrNull()?.let(::cloudEnvironmentIssue)
                 val serviceIssue = result.second.exceptionOrNull()?.let(::cloudDashboardIssue)
@@ -546,8 +546,8 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
                     cloudConnectionFailed = result.second.isFailure,
                     cloudSetupIssue = environmentIssue,
                     cloudServiceIssue = serviceIssue,
-                    cloudMounts = result.third ?: emptyList(),
-                    cloudMountsLoaded = result.third != null,
+                    cloudMounts = emptyList(),
+                    cloudMountsLoaded = false,
                 )
                 // A failed ENV+Cloud pair must not be reported as a successful
                 // Agent refresh: identify lost auth or transport explicitly.
@@ -559,6 +559,23 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
                         throw failure
                     }
                 }
+            }
+        }
+    }
+
+    fun discoverCloudMounts() {
+        if (!_state.value.configured || _state.value.loading ||
+            _state.value.cloudCredentialsPendingRestart) return
+        viewModelScope.launch {
+            busy {
+                // Explicit tap: this request signs in to MEGA from Azure.
+                // Avoid unrequested retries after the user's security lock.
+                val mounts = withContext(Dispatchers.IO) { api().cloudMounts() }
+                _state.value = _state.value.copy(
+                    cloudMounts = mounts,
+                    cloudMountsLoaded = true,
+                    message = "MEGA sign-in completed. ${mounts.size} shared folders found.",
+                )
             }
         }
     }
