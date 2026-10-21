@@ -1554,6 +1554,7 @@ async function handleProfileAssistant(account, msg, authority, rawText) {
       presence,
       allowPersonalityMentions:!senderPersonality,
     })
+    typing.stop() // WhatsApp must stop showing "typing..." once the text lands.
     // Only one sound after the normal text, never on AI-to-AI replies.
     if (reaction.id && isGroup(chat) && !senderPersonality) {
       await reactionSounds.play(account.sock, chat, reaction.id, { automatic:true })
