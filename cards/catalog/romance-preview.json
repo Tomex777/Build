@@ -1,0 +1,116 @@
+{
+  "family": "romance",
+  "artworkPolicy": "Original source-pinned character illustrations; no image generation",
+  "cards": [
+    {
+      "id": "taiki-chinatsu-romance",
+      "name": "Taiki & Chinatsu",
+      "number": "R-002",
+      "series": "Blue Box",
+      "bond": "GROWING TOGETHER",
+      "design": "tidelight",
+      "subjects": [
+        {
+          "id": "taiki",
+          "x": 110,
+          "y": 130,
+          "width": 400
+        },
+        {
+          "id": "chinatsu",
+          "x": 510,
+          "y": 149,
+          "width": 385
+        }
+      ]
+    }
+  ],
+  "pending": [
+    {
+      "id": "gongja-raviel-romance",
+      "name": "Gong-ja & Raviel",
+      "series": "SSS-Class Revival Hunter",
+      "reason": "Matching original romance-arc artwork must be source-pinned; never substitute generated or unrelated artwork."
+    },
+    {
+      "id": "tomo-jun-romance",
+      "name": "Tomo & Jun",
+      "series": "Tomo-chan Is a Girl!",
+      "reason": "Source host is under scheduled maintenance; original illustrations awaiting recovery."
+    },
+    {
+      "id": "rintaro-kaoruko-romance",
+      "name": "Rintaro & Kaoruko",
+      "series": "The Fragrant Flower Blooms with Dignity",
+      "reason": "Source host is under scheduled maintenance; original illustrations awaiting recovery."
+    }
+  ],
+  "requestedCards": [
+    {
+      "id": "tomo-jun-romance",
+      "name": "Tomo & Jun",
+      "number": "R-001",
+      "series": "Tomo-chan Is a Girl!",
+      "bond": "CHILDHOOD FRIENDS",
+      "design": "tidelight",
+      "subjects": [
+        {
+          "id": "jun",
+          "x": 510,
+          "y": 130,
+          "width": 390
+        },
+        {
+          "id": "tomo",
+          "x": 110,
+          "y": 147,
+          "width": 400
+        }
+      ]
+    },
+    {
+      "id": "taiki-chinatsu-romance",
+      "name": "Taiki & Chinatsu",
+      "number": "R-002",
+      "series": "Blue Box",
+      "bond": "GROWING TOGETHER",
+      "design": "tidelight",
+      "subjects": [
+        {
+          "id": "taiki",
+          "x": 110,
+          "y": 130,
+          "width": 400
+        },
+        {
+          "id": "chinatsu",
+          "x": 510,
+          "y": 149,
+          "width": 385
+        }
+      ]
+    },
+    {
+      "id": "rintaro-kaoruko-romance",
+      "name": "Rintaro & Kaoruko",
+      "number": "R-003",
+      "series": "The Fragrant Flower Blooms with Dignity",
+      "bond": "FIRST BLOOM",
+      "design": "tidelight",
+      "subjects": [
+        {
+          "id": "rintaro",
+          "x": 115,
+          "y": 100,
+          "width": 405
+        },
+        {
+          "id": "kaoruko",
+          "x": 515,
+          "y": 245,
+          "width": 370
+        }
+      ]
+    }
+  ]
+}

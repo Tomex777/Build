@@ -1,0 +1,60 @@
+[
+  {
+    "id": "taiki",
+    "character": "Taiki Inomata",
+    "page": "https://aonohako-anime.com/",
+    "image": "https://aonohako-anime.com/assets/img/top/chara/chara1_img.png",
+    "localPath": "artwork/romance/taiki.png",
+    "sha256": "77e94544e94388e358052cae7cf5dbd11709fab0e02bbd76c59a02bf50124191",
+    "width": 532,
+    "height": 1438,
+    "mime": "image/png",
+    "alphaBBox": [
+      0,
+      0,
+      530,
+      1438
+    ],
+    "crop": [
+      0,
+      0,
+      530,
+      1438
+    ],
+    "rights": "Artwork rights reserved; personal design study",
+    "licenseUrl": "https://aonohako-anime.com/",
+    "usage": "Personal design study",
+    "originalBytesPreserved": true,
+    "retrieved": "2026-10-21",
+    "credit": "\u00a9 Kouji Miura / SHUEISHA / Blue Box Film Partners"
+  },
+  {
+    "id": "chinatsu",
+    "character": "Chinatsu Kano",
+    "page": "https://aonohako-anime.com/",
+    "image": "https://aonohako-anime.com/assets/img/top/chara/chara2_img.png",
+    "localPath": "artwork/romance/chinatsu.png",
+    "sha256": "db955db4b88c14d4d58da0dbf873c66beac5f990d6b2ec2e78764fdd9c295e36",
+    "width": 532,
+    "height": 1438,
+    "mime": "image/png",
+    "alphaBBox": [
+      20,
+      53,
+      528,
+      1435
+    ],
+    "crop": [
+      20,
+      53,
+      508,
+      1382
+    ],
+    "rights": "Artwork rights reserved; personal design study",
+    "licenseUrl": "https://aonohako-anime.com/",
+    "usage": "Personal design study",
+    "originalBytesPreserved": true,
+    "retrieved": "2026-10-21",
+    "credit": "\u00a9 Kouji Miura / SHUEISHA / Blue Box Film Partners"
+  }
+]
