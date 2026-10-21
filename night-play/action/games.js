@@ -449,31 +449,54 @@ function tickRunner(dt){
  updateHud();
 }
 function paintRunner(){
- bg('#bfdce7','#deede1');
- // Separate layers travel at different speeds, so the sprint has real depth.
- for(let i=0;i<6;i++){
-  const x=((i*123-state.distance*.055)%(W+160)+(W+160))%(W+160)-75;
-  const y=68+(i%3)*61;
-  ctx.fillStyle='#ffffff86';ctx.beginPath();
-  ctx.ellipse(x,y,29,10,0,0,TAU);
-  ctx.ellipse(x+17,y-7,22,13,0,0,TAU);ctx.fill();
+ bg('#b6d8e6','#f7e5bd');
+ // Original layered landscape: slow cloud bank, distant ridge, rooftops,
+ // near track and foreground markings, each scrolling at its own speed.
+ const drift=reducedEffects?0:state.distance;
+ const sun=ctx.createRadialGradient(306,96,6,306,96,99);
+ sun.addColorStop(0,'#fff6d6');sun.addColorStop(.35,'#ffefb780');
+ sun.addColorStop(1,'#ffe7b600');ctx.fillStyle=sun;ctx.fillRect(206,-3,200,208);
+ disk(306,96,26,'#fff6d3');
+ for(let i=0;i<5;i++){
+  const x=((i*147-drift*.032)%(W+215)+(W+215))%(W+215)-75,y=80+(i%3)*56;
+  ctx.fillStyle='#ffffff9e';ctx.beginPath();ctx.ellipse(x,y,29,10,0,0,TAU);
+  ctx.ellipse(x+18,y-7,24,12,0,0,TAU);ctx.ellipse(x-17,y+1,19,8,0,0,TAU);ctx.fill();
  }
- ctx.fillStyle='#96bab22c';ctx.beginPath();ctx.moveTo(0,440);
- for(let x=0;x<=W+12;x+=12){
-  ctx.lineTo(x,375+19*Math.sin(x*.015+state.distance*.00025)+
-    11*Math.sin(x*.037+1.5));
+ ctx.fillStyle='#94b9b18d';ctx.beginPath();ctx.moveTo(0,357);
+ for(let x=0;x<=W+8;x+=8){
+  const u=x+drift*.042;
+  ctx.lineTo(x,340+23*Math.sin(u*.012)+13*Math.cos(u*.033));
  }
- ctx.lineTo(W,440);ctx.closePath();ctx.fill();
- const offset=state.distance*.23;
+ ctx.lineTo(W,447);ctx.lineTo(0,447);ctx.fill();
+ ctx.fillStyle='#78a5a193';ctx.beginPath();ctx.moveTo(0,406);
+ for(let x=0;x<=W+9;x+=9)ctx.lineTo(x,381+21*Math.sin((x+drift*.077)*.017)+12*Math.cos((x+drift*.077)*.035));
+ ctx.lineTo(W,446);ctx.lineTo(0,446);ctx.fill();
+ const offset=drift*.17;
  for(let i=0;i<12;i++){
-  const x=((i*95-offset*.5)%490+490)%490-40;
-  const roof=300+(i%4)*13;
-  fill(x,roof,52,143,'#a6bfc3',6);
-  fill(x+12,roof+15,7,13,'#edf1eb');
-  fill(x+31,roof+31,6,12,'#edf1ebad');
+  const x=((i*76-offset)%(W+146)+(W+146))%(W+146)-54;
+  const towerHeight=65+(i*37)%83,roof=443-towerHeight,wide=38+(i*11)%25;
+  fill(x,roof,wide,towerHeight,'#829b9c',3);
+  fill(x+3,roof+3,wide-6,4,'#aec4bb');
+  if(i%3===0){fill(x+wide/2-3,roof-15,6,15,'#779696',2);
+    fill(x+wide/2-10,roof-18,20,5,'#668787',2);}
+  if(i%4===1){fill(x-7,roof+12,7,8,'#9bb2ad',2);}
+  for(let row=0;row<3;row++)for(let col=0;col<2;col++){
+   const wx=x+9+col*17,wy=roof+16+row*18;
+   if(wy<435&&wx<x+wide-3)fill(wx,wy,7,10,(i+col+row)%3?'#dce8dd':'#f1d4a4',1);
+  }
  }
- fill(0,442,W,108,'#426956');fill(0,440,W,5,'#98c8a6');
- for(let i=0;i<22;i++){const x=((i*41-state.distance)%W+W)%W;fill(x,463+(i%3)*21,25,2,'#6d9e7a')}
+ // Track has readable near-surface depth but keeps collision plane at y=442.
+ fill(0,439,W,5,'#b3d29d');fill(0,444,W,12,'#436f64');
+ fill(0,456,W,94,'#325449');
+ for(let i=0;i<15;i++){
+  const x=((i*39-drift*.83)%(W+42)+(W+42))%(W+42)-10;
+  fill(x,475+(i%3)*18,21,3,'#7ca58c',1);
+ }
+ for(let i=0;i<8;i++){
+  const x=((i*87-drift*1.1)%(W+94)+(W+94))%(W+94)-31;
+  fill(x,454+(i%2)*3,8,2,'#d3ddb6',1);
+ }
+ text(''+Math.floor(state.distance/10)+' m',W-13,29,13,'#29564f',850,'right');
  for(const o of state.obstacles){
   if(o.kind==='flying'){ // A low flying dinosaur sweeps its wings and talons across the runner's lane.
    ctx.save();ctx.translate(o.x,0);
