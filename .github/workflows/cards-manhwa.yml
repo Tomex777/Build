@@ -72,6 +72,7 @@ jobs:
       - name: Export research-only spoiler-filtered roster
         run: |
           node bin/manhwa-review.mjs
+          node bin/manhwa-showcase.mjs
           test -s dist/manhwa-research/index.html
           test -s dist/manhwa-research/summary.json
       - name: Upload NIGHT Manhwa research index (no licensed artwork)
