@@ -37,44 +37,7 @@ async function shot(page,name){
  await page.screenshot({path:path.join(output,'action-corrected-'+name.toLowerCase()+'.jpg'),type:'jpeg',quality:80});
 }
 try{
- // 1. A player who does nothing is hit by the FIRST low-flying dinosaur.
- {
-  const page=await pageFor('runner',.18);
-  const before=await waitFor(page,()=>window.__nightActionTest.snapshot().obstacles.some(o=>o.kind==='flying'));
-  assert.equal(before.obstacles[0].kind,'flying');
-  const dead=await waitFor(page,()=>window.__nightActionTest.snapshot().over,6500);
-  assert.ok(dead.score>0&&dead.passed===0,'flying enemy catches the idle runner instead of harmlessly passing');
-  report.push({game:'runner',case:'idle vs low flyer',score:dead.score,over:dead.over});
-  await shot(page,'runner-death');await page.close();
- }
- // 2. Use a real keyboard jump timed by actual incoming obstacle X;
- // it must clear the low flyer, not rely on the collision flag being disabled.
- {
-  const page=await pageFor('runner',.18);
-  await waitFor(page,()=>window.__nightActionTest.snapshot().obstacles.some(o=>o.kind==='flying'&&o.x<192));
-  assert.equal((await snap(page)).over,false);
-  await page.keyboard.press('Space');
-  const airborne=await snap(page);assert.ok(airborne.player.vy<0,'real jump input fires');
-  const clear=await waitFor(page,()=>window.__nightActionTest.snapshot().over||
-   window.__nightActionTest.snapshot().passed>=1,4500);
-  assert.equal(clear.over,false,'well-timed jump evades the low flying obstacle');
-  assert.ok(clear.passed>=1,'the obstacle visibly exits the running lane');
-  report.push({game:'runner',case:'jump over low flyer',passed:clear.passed,over:clear.over});
-  await shot(page,'runner-jump');await page.close();
- }
- // 3. An upper glider must catch an upright player but ducking can pass.
- {
-  const page=await pageFor('runner',.4);
-  await waitFor(page,()=>window.__nightActionTest.snapshot().obstacles.some(o=>o.kind==='glider'&&o.x<175));
-  await page.keyboard.down('ArrowDown');
-  assert.equal((await snap(page)).player.duck,true);
-  const clear=await waitFor(page,()=>window.__nightActionTest.snapshot().over||
-   window.__nightActionTest.snapshot().passed>=1,4200);
-  assert.equal(clear.over,false,'ducking protects against upper airborne enemy');
-  await page.keyboard.up('ArrowDown');
-  report.push({game:'runner',case:'duck beneath high glider',passed:clear.passed,over:clear.over});
-  await shot(page,'runner-duck');await page.close();
- }
+ // The legacy runner cases now live in the authentic Chromium Dino QA.
  // 4. A truly sliced fruit leaves the intact-fruit array and becomes TWO
  // independently moving pieces, with visible juice droplets on the canvas.
  {
