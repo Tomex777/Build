@@ -2748,9 +2748,4 @@
     };
 })();
 
-
-function onDocumentLoad() {
-    new Runner('.interstitial-wrapper');
-}
-
-document.addEventListener('DOMContentLoaded', onDocumentLoad);
+// NIGHT Play bridge.js performs controlled initialization after asset loading.
