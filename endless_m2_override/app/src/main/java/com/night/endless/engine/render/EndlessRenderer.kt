@@ -530,7 +530,11 @@ class EndlessRenderer(
         val h = max(1, viewportHeight)
         if (isSurfaceMode()) {
             yaw += dx.coerceIn(-120f, 120f) * (2.0 * PI / h.toDouble()) * 0.22
-            pitch = (pitch - dy.coerceIn(-120f, 120f) * (2.0 * PI / h.toDouble()) * 0.22).coerceIn(-0.42, 0.42)
+            // A 24° pitch limit made the sky overhead impossible to inspect
+            // and nearly hid Tycho's Earth (~45° up). Allow a natural
+            // first-person view without crossing the 90° gimbal pole.
+            pitch = (pitch - dy.coerceIn(-120f, 120f) *
+                (2.0 * PI / h.toDouble()) * 0.22).coerceIn(-1.30, 1.30)
             return
         }
         val speed = if (overview) rotateSpeedOverview else rotateSpeedFocused
@@ -881,6 +885,13 @@ class EndlessRenderer(
         GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, parent)
         GLES30.glUniform1i(uniformLocation(marsSkyProgram, "uParentTexture"), 3)
         GLES30.glUniform1i(uniformLocation(marsSkyProgram, "uHasParentTexture"), if (parent == 0) 0 else 1)
+        if (skyWorld == 3) {
+            val earthDirection = MoonEarthSky.tychoDirection
+            GLES30.glUniform3f(
+                uniformLocation(marsSkyProgram, "uEarthDirection"),
+                earthDirection[0], earthDirection[1], earthDirection[2]
+            )
+        }
         GLES30.glDrawArrays(GLES30.GL_TRIANGLES, 0, 3)
         GLES30.glActiveTexture(GLES30.GL_TEXTURE3)
         GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, 0)
@@ -2332,6 +2343,7 @@ uniform float uPitch;
 uniform float uYaw;
 uniform float uAspect;
 uniform int uSkyWorld; // 0 Mars, 1 Titan, 2 Europa, 3 Moon
+uniform vec3 uEarthDirection; // local +X east, +Y up, +Z north at Tycho
 uniform sampler2D uParentTexture;
 uniform int uHasParentTexture;
 out vec4 fragColor;
@@ -2439,10 +2451,10 @@ void main() {
         }
     } else if (uSkyWorld == 3 && uHasParentTexture == 1 && ray.y > 0.0) {
         // Near-side Moon (Tycho): Earth is approximately 1.9 degrees
-        // across and rises high above the local horizon. The direction
-        // approximates the landing site's fixed selenographic location;
-        // precise Earth libration/rotation are not modelled.
-        vec3 towardEarth = normalize(vec3(.62, .71, -.34));
+        // across, at ~45 degrees elevation toward north-northeast. The
+        // actual vector is derived from Tycho's -43.31°,348.64°E site
+        // and the mean sub-Earth point (no time-dependent libration).
+        vec3 towardEarth = normalize(uEarthDirection);
         vec3 east = normalize(cross(vec3(0.0, 1.0, 0.0), towardEarth));
         vec3 north = normalize(cross(towardEarth, east));
         vec2 p = vec2(dot(ray, east), dot(ray, north)) /
