@@ -8,7 +8,7 @@
   ],
   "status": "artwork-acquisition-candidates",
   "sourcePage": "https://maohgakuin.com/",
-  "rights": "Official character cutouts are rights reserved; reference-only candidate artworks, not licensed for commercial redistribution.",
+  "rights": "Artwork for both seasons remains rights reserved; preview only, no license for commercial redistribution.",
   "sources": [
     {
       "id": "anos-academy",
@@ -449,6 +449,411 @@
         "references": [
           "https://maohgakuin.com/",
           "https://demonkingacademy-anime.com/"
+        ]
+      }
+    },
+    {
+      "id": "nousgallia-god",
+      "character": "nousgallia",
+      "name": "Nousgalia",
+      "title": "Nousgalia",
+      "form": "Heavenly Father God / true form",
+      "formId": "heavenly-father",
+      "number": 14,
+      "continuity": "maou-gakuin-anime-s2",
+      "aliases": [
+        "Nousgalia",
+        "nousgallia"
+      ],
+      "source": {
+        "provider": "maohgakuin-anime-official",
+        "page": "https://maohgakuin.com/",
+        "image": "https://maohgakuin.com/assets/img/character/img_nousgallia.png",
+        "rights": "©2023 Shu/KADOKAWA/Demon King Academy II. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "The Misfit of Demon King Academy II official character illustration",
+        "artist": "SILVER LINK."
+      },
+      "rank": {
+        "letter": "S",
+        "scope": "Nousgalia — Heavenly Father God / true form",
+        "basis": "Heavenly Father God, who governs the order that gives birth to gods; formidable divine authority.",
+        "limits": "His authority is a specialized divine order, not proof of being above the Demon King.",
+        "references": [
+          "https://maohgakuin.com/",
+          "https://demonkingacademy-anime.com/"
+        ]
+      }
+    },
+    {
+      "id": "ahide-oracle",
+      "character": "ahide",
+      "name": "Ahide Alobo Agatze",
+      "title": "Ahide",
+      "form": "Giordal cardinal / oracle",
+      "formId": "cardinal-oracle",
+      "number": 15,
+      "continuity": "maou-gakuin-anime-s2",
+      "aliases": [
+        "Ahide Alobo Agatze",
+        "Ahide",
+        "ahide"
+      ],
+      "source": {
+        "provider": "maohgakuin-anime-official",
+        "page": "https://maohgakuin.com/",
+        "image": "https://maohgakuin.com/assets/img/character/img_ahide.png",
+        "rights": "©2023 Shu/KADOKAWA/Demon King Academy II. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "The Misfit of Demon King Academy II official character illustration",
+        "artist": "SILVER LINK."
+      },
+      "rank": {
+        "letter": "A",
+        "scope": "Ahide Alobo Agatze — Giordal cardinal / oracle",
+        "basis": "A divine-selection oracle with a pact to Arcana; combines magical technique and religious authority.",
+        "limits": "A pact and political office do not directly translate to Anos-level destructive power.",
+        "references": [
+          "https://maohgakuin.com/",
+          "https://demonkingacademy-anime.com/"
+        ]
+      }
+    },
+    {
+      "id": "anoshu-child",
+      "character": "anos",
+      "name": "Anoshu Polticoal",
+      "title": "Anoshu",
+      "form": "Reverse Growth / six-year-old guise",
+      "formId": "reverse-growth",
+      "number": 16,
+      "continuity": "maou-gakuin-anime-s2",
+      "aliases": [
+        "Anoshu Polticoal",
+        "Anoshu",
+        "anos"
+      ],
+      "source": {
+        "provider": "maohgakuin-anime-official",
+        "page": "https://maohgakuin.com/",
+        "image": "https://maohgakuin.com/assets/img/character/img_anoshu.png",
+        "rights": "©2023 Shu/KADOKAWA/Demon King Academy II. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "The Misfit of Demon King Academy II official character illustration",
+        "artist": "SILVER LINK."
+      },
+      "rank": {
+        "letter": "SS",
+        "scope": "Anoshu Polticoal — Reverse Growth / six-year-old guise",
+        "basis": "Anos's Reverse Growth disguise is a temporary appearance change, not the ordinary strength of a six-year-old.",
+        "limits": "This form must not be ranked as physically ordinary or portrayed as a separate person.",
+        "references": [
+          "https://maohgakuin.com/",
+          "https://demonkingacademy-anime.com/"
+        ]
+      }
+    },
+    {
+      "id": "gusta-s1",
+      "character": "gusta",
+      "name": "Gusta",
+      "title": "Gusta",
+      "form": "Father / blacksmith",
+      "formId": "blacksmith",
+      "number": 17,
+      "continuity": "maou-gakuin-anime-s1",
+      "aliases": [
+        "Gusta",
+        "gusta"
+      ],
+      "source": {
+        "provider": "maou-gakuin-2020-official",
+        "page": "https://maohgakuin.com/1st/character/?chara=gusta",
+        "image": "https://maohgakuin.com/1st/assets/img/chara/img_gusta.png",
+        "rights": "©2019 Shu/KADOKAWA/Demon King Academy. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "The Misfit of Demon King Academy 2020 official character illustration",
+        "artist": "SILVER LINK."
+      },
+      "rank": {
+        "letter": "F",
+        "scope": "Gusta — Father / blacksmith",
+        "basis": "Anos's adoptive father is a skilled blacksmith, not a demonstrated supernatural combatant.",
+        "limits": "His parenting and crafting skill do not establish combat superiority.",
+        "references": [
+          "https://maohgakuin.com/1st/character/?chara=gusta",
+          "https://demonkingacademy-anime.com/1st/character/"
+        ]
+      }
+    },
+    {
+      "id": "izabella-s1",
+      "character": "izabella",
+      "name": "Izabella",
+      "title": "Izabella",
+      "form": "Mother / Sun of Wind",
+      "formId": "mother",
+      "number": 18,
+      "continuity": "maou-gakuin-anime-s1",
+      "aliases": [
+        "Izabella",
+        "izabella"
+      ],
+      "source": {
+        "provider": "maou-gakuin-2020-official",
+        "page": "https://maohgakuin.com/1st/character/?chara=izabella",
+        "image": "https://maohgakuin.com/1st/assets/img/chara/img_izabella.png",
+        "rights": "©2019 Shu/KADOKAWA/Demon King Academy. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "The Misfit of Demon King Academy 2020 official character illustration",
+        "artist": "SILVER LINK."
+      },
+      "rank": {
+        "letter": "F",
+        "scope": "Izabella — Mother / Sun of Wind",
+        "basis": "Anos's adoptive mother has no demonstrated supernatural fighting feats.",
+        "limits": "Family importance is not a battle feat.",
+        "references": [
+          "https://maohgakuin.com/1st/character/?chara=izabella",
+          "https://demonkingacademy-anime.com/1st/character/"
+        ]
+      }
+    },
+    {
+      "id": "anos-s1",
+      "character": "anos",
+      "name": "Anos Voldigoad",
+      "title": "Anos",
+      "form": "First-season academy / founding ancestor",
+      "formId": "first-season-academy",
+      "number": 19,
+      "continuity": "maou-gakuin-anime-s1",
+      "aliases": [
+        "Anos Voldigoad",
+        "Anos",
+        "anos"
+      ],
+      "source": {
+        "provider": "maou-gakuin-2020-official",
+        "page": "https://maohgakuin.com/1st/character/?chara=anos",
+        "image": "https://maohgakuin.com/1st/assets/img/chara/img_anos.png",
+        "rights": "©2019 Shu/KADOKAWA/Demon King Academy. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "The Misfit of Demon King Academy 2020 official character illustration",
+        "artist": "SILVER LINK."
+      },
+      "rank": {
+        "letter": "SS",
+        "scope": "Anos Voldigoad — First-season academy / founding ancestor",
+        "basis": "In the first season, Anos demonstrably overwhelms the academy era's demons and wields extraordinary source magic.",
+        "limits": "This early depiction does not certify final light-novel Abyss feats.",
+        "references": [
+          "https://maohgakuin.com/1st/character/?chara=anos",
+          "https://demonkingacademy-anime.com/1st/character/"
+        ]
+      }
+    },
+    {
+      "id": "misha-s1",
+      "character": "misha",
+      "name": "Misha Necron",
+      "title": "Misha",
+      "form": "First-season ice creation",
+      "formId": "first-season-ice",
+      "number": 20,
+      "continuity": "maou-gakuin-anime-s1",
+      "aliases": [
+        "Misha Necron",
+        "Misha",
+        "misha"
+      ],
+      "source": {
+        "provider": "maou-gakuin-2020-official",
+        "page": "https://maohgakuin.com/1st/character/?chara=misha",
+        "image": "https://maohgakuin.com/1st/assets/img/chara/img_misha.png",
+        "rights": "©2019 Shu/KADOKAWA/Demon King Academy. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "The Misfit of Demon King Academy 2020 official character illustration",
+        "artist": "SILVER LINK."
+      },
+      "rank": {
+        "letter": "B",
+        "scope": "Misha Necron — First-season ice creation",
+        "basis": "Exceptional first-season creation and ice spells, especially in collaborative combat.",
+        "limits": "Not the awakened goddess or Aisha fusion.",
+        "references": [
+          "https://maohgakuin.com/1st/character/?chara=misha",
+          "https://demonkingacademy-anime.com/1st/character/"
+        ]
+      }
+    },
+    {
+      "id": "sasha-s1",
+      "character": "sasha",
+      "name": "Sasha Necron",
+      "title": "Sasha",
+      "form": "First-season Witch of Destruction",
+      "formId": "first-season-witch",
+      "number": 21,
+      "continuity": "maou-gakuin-anime-s1",
+      "aliases": [
+        "Sasha Necron",
+        "Sasha",
+        "sasha"
+      ],
+      "source": {
+        "provider": "maou-gakuin-2020-official",
+        "page": "https://maohgakuin.com/1st/character/?chara=sasha",
+        "image": "https://maohgakuin.com/1st/assets/img/chara/img_sasha.png",
+        "rights": "©2019 Shu/KADOKAWA/Demon King Academy. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "The Misfit of Demon King Academy 2020 official character illustration",
+        "artist": "SILVER LINK."
+      },
+      "rank": {
+        "letter": "B",
+        "scope": "Sasha Necron — First-season Witch of Destruction",
+        "basis": "First-season Magic Eyes of Destruction and destructive spellcasting.",
+        "limits": "Not her later awakened goddess form or Aisha.",
+        "references": [
+          "https://maohgakuin.com/1st/character/?chara=sasha",
+          "https://demonkingacademy-anime.com/1st/character/"
+        ]
+      }
+    },
+    {
+      "id": "lay-s1",
+      "character": "lay",
+      "name": "Lay Glanzudlii",
+      "title": "Lay",
+      "form": "First-season Sword Saint",
+      "formId": "first-season-sword-saint",
+      "number": 22,
+      "continuity": "maou-gakuin-anime-s1",
+      "aliases": [
+        "Lay Glanzudlii",
+        "Lay",
+        "lay"
+      ],
+      "source": {
+        "provider": "maou-gakuin-2020-official",
+        "page": "https://maohgakuin.com/1st/character/?chara=lay",
+        "image": "https://maohgakuin.com/1st/assets/img/chara/img_lay.png",
+        "rights": "©2019 Shu/KADOKAWA/Demon King Academy. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "The Misfit of Demon King Academy 2020 official character illustration",
+        "artist": "SILVER LINK."
+      },
+      "rank": {
+        "letter": "S",
+        "scope": "Lay Glanzudlii — First-season Sword Saint",
+        "basis": "Swordsman and Hero Kanon's reincarnation with the holy sword Evansmana and exceptional source manipulation.",
+        "limits": "Later novel equipment or Silverwater powers are excluded.",
+        "references": [
+          "https://maohgakuin.com/1st/character/?chara=lay",
+          "https://demonkingacademy-anime.com/1st/character/"
+        ]
+      }
+    },
+    {
+      "id": "misa-s1",
+      "character": "misa",
+      "name": "Misa Ilioroagu",
+      "title": "Misa",
+      "form": "First-season Unitarian / half-spirit",
+      "formId": "first-season-half-spirit",
+      "number": 23,
+      "continuity": "maou-gakuin-anime-s1",
+      "aliases": [
+        "Misa Ilioroagu",
+        "Misa",
+        "misa"
+      ],
+      "source": {
+        "provider": "maou-gakuin-2020-official",
+        "page": "https://maohgakuin.com/1st/character/?chara=misa",
+        "image": "https://maohgakuin.com/1st/assets/img/chara/img_misa.png",
+        "rights": "©2019 Shu/KADOKAWA/Demon King Academy. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "The Misfit of Demon King Academy 2020 official character illustration",
+        "artist": "SILVER LINK."
+      },
+      "rank": {
+        "letter": "B",
+        "scope": "Misa Ilioroagu — First-season Unitarian / half-spirit",
+        "basis": "Half-spirit with spirit magic and fighting support, as seen in the early academy story.",
+        "limits": "Not Avos Dilhevia's spirit transformation.",
+        "references": [
+          "https://maohgakuin.com/1st/character/?chara=misa",
+          "https://demonkingacademy-anime.com/1st/character/"
+        ]
+      }
+    },
+    {
+      "id": "eleonore-s1",
+      "character": "eleonore",
+      "name": "Eleonore Bianca",
+      "title": "Eleonore",
+      "form": "First-season Hero Academy / magic",
+      "formId": "first-season-hero-academy",
+      "number": 24,
+      "continuity": "maou-gakuin-anime-s1",
+      "aliases": [
+        "Eleonore Bianca",
+        "Eleonore",
+        "eleonore"
+      ],
+      "source": {
+        "provider": "maou-gakuin-2020-official",
+        "page": "https://maohgakuin.com/1st/character/?chara=eleonore",
+        "image": "https://maohgakuin.com/1st/assets/img/chara/img_eleonore.png",
+        "rights": "©2019 Shu/KADOKAWA/Demon King Academy. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "The Misfit of Demon King Academy 2020 official character illustration",
+        "artist": "SILVER LINK."
+      },
+      "rank": {
+        "letter": "B",
+        "scope": "Eleonore Bianca — First-season Hero Academy / magic",
+        "basis": "Self-aware Origin Magic Eleonore can generate clones and support large-scale combat.",
+        "limits": "Individual dueling skill and collective clone output should not be conflated.",
+        "references": [
+          "https://maohgakuin.com/1st/character/?chara=eleonore",
+          "https://demonkingacademy-anime.com/1st/character/"
+        ]
+      }
+    },
+    {
+      "id": "emilia-s1",
+      "character": "emilia",
+      "name": "Emilia Ludowell",
+      "title": "Emilia",
+      "form": "First-season Demon Royal teacher",
+      "formId": "first-season-royal",
+      "number": 25,
+      "continuity": "maou-gakuin-anime-s1",
+      "aliases": [
+        "Emilia Ludowell",
+        "Emilia",
+        "emilia"
+      ],
+      "source": {
+        "provider": "maou-gakuin-2020-official",
+        "page": "https://maohgakuin.com/1st/character/?chara=emilia",
+        "image": "https://maohgakuin.com/1st/assets/img/chara/img_emilia.png",
+        "rights": "©2019 Shu/KADOKAWA/Demon King Academy. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "The Misfit of Demon King Academy 2020 official character illustration",
+        "artist": "SILVER LINK."
+      },
+      "rank": {
+        "letter": "C",
+        "scope": "Emilia Ludowell — First-season Demon Royal teacher",
+        "basis": "Experienced Demon Royal teacher with developed spellcasting.",
+        "limits": "Not her later reincarnated Hero Academy form.",
+        "references": [
+          "https://maohgakuin.com/1st/character/?chara=emilia",
+          "https://demonkingacademy-anime.com/1st/character/"
         ]
       }
     }
