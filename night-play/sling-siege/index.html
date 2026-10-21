@@ -72,21 +72,52 @@ const levels=[
  {shots:5,b:[[586,443,32,47,'stone'],[693,443,32,47,'stone'],[581,420,150,23,'wood'],[601,382,30,38,'glass'],[678,382,30,38,'glass'],[595,357,121,25,'wood'],[785,445,34,45,'wood']],e:[[650,398],[653,334],[801,424]]},
  {shots:5,b:[[559,443,28,47,'glass'],[643,443,28,47,'glass'],[553,419,124,24,'wood'],[565,379,27,40,'wood'],[637,379,27,40,'wood'],[560,355,110,24,'stone'],[733,447,32,43,'wood'],[798,447,32,43,'wood'],[728,421,108,26,'glass']],e:[[612,397],[616,332],[781,398],[821,427]]}
 ];
+// 94 additional deterministic constructions: alternating tower types, target
+// positions, material compositions, and upper-storey weaknesses. Authoring seed
+// is stable so a level doesn't change on reload or across device widths.
+function siegeStage(n){
+ let seed=(0x9e3779b9^(n*2654435761))>>>0;
+ const roll=()=>{seed=(1664525*seed+1013904223)>>>0;return seed/4294967296};
+ const b=[],e=[],tier=Math.min(3,1+Math.floor((n-1)/30));
+ const dual=n>14&&n%5!==0;
+ const material=(t,kind)=>{if(kind==='roof')return roll()<.20?'glass':(n>38&&roll()<.35?'stone':'wood');
+  if(t===0&&n>25&&roll()<.26)return 'stone';return roll()<.36?'glass':'wood';};
+ function tower(x,width,stories){
+  let deck=490;
+  for(let t=0;t<stories;t++){
+   const h=t===0?48:46,postW=t===0?28:24,y=deck-h;
+   b.push([x,y,postW,h,material(t,'post')],[x+width-postW,y,postW,h,material(t,'post')]);
+   const roofY=y-24;
+   b.push([x-4,roofY,width+8,24,material(t,'roof')]);
+   e.push([x+width/2+(roll()-.5)*16,roofY-20]);
+   deck=roofY;
+  }
+ }
+ const x=555+Math.floor(roll()*29),w=114+Math.floor(roll()*25);
+ tower(x,w,1+(n>22&&n%3===0?1:0)+(n>65&&n%13===0?1:0));
+ if(dual){const bx=731+Math.floor(roll()*13),bw=91+Math.floor(roll()*12);
+  tower(bx,bw,1+(n>43&&n%4===1?1:0));}
+ if(n>39&&n%7===0)b.push([x+w+27,446,29,44,'stone']);
+ return {shots:dual?5:4,b,e};
+}
+for(let n=7;n<=100;n++)levels.push(siegeStage(n));
 const mats={wood:{hp:2,color:'#bd8d52',line:'#7c5937',mass:2.8},glass:{hp:1,color:'#a9e6db',line:'#4d9895',mass:1.8},stone:{hp:4,color:'#9babb1',line:'#61767b',mass:5.2}};
 let levelIdx=0,level=null,shots=0,used=0,score=0,camera=0,viewW=900,cssScale=1,sound=true,paused=false,dragging=false,gameState='intro',charge={x:SLING.x,y:SLING.y},ball=null,particles=[],tickId=0,last=0,acc=0,settle=0,follow=0,aimKeyboard=false,audioCtx=null;
 let bests={};try{bests=JSON.parse(localStorage.getItem('night-play-sling-siege-bests')||'{}')}catch{bests={}}
+let unlocked=1,aimGuide=true;
+try{unlocked=clamp(Number(localStorage.getItem('night-play-sling-siege-unlocked'))||1,1,levels.length);aimGuide=localStorage.getItem('night-play-sling-siege-guide')!=='off'}catch{}
 try{sound=localStorage.getItem('night-play-sling-siege-sound')!=='off'}catch{}
 function sfx(freq=370,life=.12,type='sine'){if(!sound)return;try{audioCtx=audioCtx||new(window.AudioContext||window.webkitAudioContext)();if(audioCtx.state==='suspended')audioCtx.resume();let a=audioCtx.createOscillator(),g=audioCtx.createGain(),t=audioCtx.currentTime;a.type=type;a.frequency.setValueAtTime(freq,t);a.frequency.exponentialRampToValueAtTime(Math.max(80,freq*.65),t+life);g.gain.setValueAtTime(.05,t);g.gain.exponentialRampToValueAtTime(.0001,t+life);a.connect(g);g.connect(audioCtx.destination);a.start(t);a.stop(t+life)}catch{}}
 function box(x,y,w,h,material){const m=mats[material];return {kind:'block',x,y,w,h,vx:0,vy:0,mass:m.mass,hp:m.hp,maxHp:m.hp,material,cool:0,alive:true};}
 function enemy(x,y){return {kind:'enemy',x,y,r:20,vx:0,vy:0,mass:1.25,hp:1,alive:true,cool:0};}
-function overlay(tag,title,description,action,stars=''){$('overlayTag').textContent=tag;$('overlayTitle').textContent=title;$('overlayDescription').textContent=description;$('overlayAction').textContent=action;$('stars').textContent=stars;$('overlay').hidden=false}
+function overlay(tag,title,description,action,stars=''){$('overlayTag').textContent=tag;$('overlayTitle').textContent=title;$('overlayDescription').textContent=description;$('overlayAction').textContent=action;$('stars').textContent=stars;$('overlayRetry').hidden=!paused;$('overlay').hidden=false}
 function hideOverlay(){$('overlay').hidden=true}
 function status(s){$('status').textContent=s}
-function ui(){$('level').textContent=(levelIdx+1)+'/'+levels.length;$('shots').textContent=shots;$('score').textContent=score;$('best').textContent=bests[levelIdx]||0;$('pause').textContent=paused?'Resume':'Pause';$('pause').setAttribute('aria-pressed',String(paused));$('sound').textContent=sound?'Sound on':'Sound off';$('sound').setAttribute('aria-pressed',String(sound));}
+function ui(){$('level').textContent=(levelIdx+1)+' / '+levels.length;$('shots').textContent=shots;$('score').textContent=score;$('best').textContent=bests[levelIdx]||0;$('pause').setAttribute('aria-pressed',String(paused));$('pause').setAttribute('aria-label',paused?'Resume game':'Pause game');$('pause').querySelector('use').setAttribute('href',paused?'#icon-play':'#icon-pause');$('sound').textContent='Sound effects · '+(sound?'On':'Off');$('sound').setAttribute('aria-pressed',String(sound));$('aimGuide').textContent='Trajectory guide · '+(aimGuide?'On':'Off');$('aimGuide').setAttribute('aria-pressed',String(aimGuide));}
 function reset(show=true){let l=levels[levelIdx],compact=window.innerWidth<600,sceneX=x=>compact?320+(x-320)*.74:x;level={blocks:l.b.map(([x,y,w,h,mat])=>box(sceneX(x),y,w,h,mat)),enemies:l.e.map(([x,y])=>enemy(sceneX(x),y))};shots=l.shots;score=0;used=0;ball=null;charge={x:SLING.x,y:SLING.y};dragging=false;aimKeyboard=false;gameState='ready';camera=0;particles=[];paused=false;settle=0;follow=0;ui();status('Pull the orb backward to aim.');if(show)overlay('LEVEL '+(levelIdx+1),'Find the weak point',level.enemies.length+' sentinels guard this fort. You have '+shots+' shots.','Play level');else hideOverlay();draw();}
 function start(){hideOverlay();paused=false;if(gameState==='ready')status('Aim carefully.');ui();draw();canvas.focus({preventScroll:true})}
-function next(){levelIdx=(levelIdx+1)%levels.length;reset(true);}
-function complete(){if(gameState==='won')return;gameState='won';const stars=used<=2?3:used<=3?2:1;score+=shots*120;if(score>(bests[levelIdx]||0)){bests[levelIdx]=score;try{localStorage.setItem('night-play-sling-siege-bests',JSON.stringify(bests))}catch{}}ui();sfx(870,.3,'triangle');status('Fortress cleared!');overlay('LEVEL CLEARED','Excellent shot'+(used===1?'!':'s!'),'Score '+score+' · '+used+' shots used · '+shots+' unused shots',levelIdx===levels.length-1?'Play from level one':'Next level','★'.repeat(stars)+'☆'.repeat(3-stars));}
+function next(){levelIdx=Math.min(levels.length-1,levelIdx+1);reset(true);}
+function complete(){if(gameState==='won')return;gameState='won';unlocked=Math.max(unlocked,Math.min(levels.length,levelIdx+2));try{localStorage.setItem('night-play-sling-siege-unlocked',String(unlocked))}catch{}const stars=used<=2?3:used<=3?2:1;score+=shots*120;if(score>(bests[levelIdx]||0)){bests[levelIdx]=score;try{localStorage.setItem('night-play-sling-siege-bests',JSON.stringify(bests))}catch{}}ui();sfx(870,.3,'triangle');status('Fortress cleared!');overlay('LEVEL CLEARED','Excellent shot'+(used===1?'!':'s!'),'Score '+score+' · '+used+' shots used · '+shots+' unused shots',levelIdx===levels.length-1?'Choose a level':'Next level','★'.repeat(stars)+'☆'.repeat(3-stars));}
 function failure(){if(gameState==='lost'||gameState==='won')return;gameState='lost';ui();status('Out of shots. Try a new approach.');sfx(130,.25,'sawtooth');overlay('NO SHOTS LEFT','Try a different angle','You knocked down '+(levels[levelIdx].e.length-level.enemies.filter(e=>e.alive).length)+' of '+levels[levelIdx].e.length+' sentinels. Target the supports.','Try again');}
 function fragment(x,y,color,n=8){for(let i=0;i<n;i++)particles.push({x,y,vx:rand(-150,150),vy:rand(-210,-40),life:rand(.28,.7),color,r:rand(2,6)});if(particles.length>140)particles.splice(0,particles.length-140)}
 function kill(o){if(!o.alive)return;o.alive=false;score+=o.kind==='enemy'?200:30;fragment(o.x+(o.w||0)/2,o.y+(o.h||0)/2,o.kind==='enemy'?'#ae8edc':mats[o.material].color,o.kind==='enemy'?22:12);sfx(o.kind==='enemy'?570:210,.13,o.kind==='enemy'?'triangle':'square');ui()}
@@ -128,7 +159,7 @@ if(b.material==='glass'){ctx.fillStyle='#e0fff4a8';ctx.fillRect(6,4,Math.max(2,b
 if(b.material==='stone'){ctx.strokeStyle='#dae6e4aa';ctx.beginPath();ctx.moveTo(6,b.h*.56);ctx.lineTo(b.w*.56,b.h*.56);ctx.moveTo(b.w*.5,b.h*.57);ctx.lineTo(b.w*.5,b.h-4);ctx.stroke()}
 if(b.hp<b.maxHp){ctx.strokeStyle=m.line;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(b.w*.4,4);ctx.lineTo(b.w*.62,b.h*.5);ctx.lineTo(b.w*.53,b.h-4);ctx.stroke()}ctx.restore()}
 function drawEnemy(e){ctx.save();ctx.translate(e.x,e.y);ctx.shadowColor='#38295b65';ctx.shadowBlur=8;ctx.fillStyle='#8767b5';ctx.beginPath();for(let i=0;i<6;i++){let a=-Math.PI/2+i*TAU/6;ctx.lineTo(Math.cos(a)*e.r,Math.sin(a)*e.r)}ctx.closePath();ctx.fill();ctx.strokeStyle='#514578';ctx.lineWidth=2;ctx.stroke();ctx.shadowBlur=0;ctx.fillStyle='#dcd4ff';ctx.beginPath();ctx.arc(-6,-2,3.8,0,TAU);ctx.arc(6,-2,3.8,0,TAU);ctx.fill();ctx.fillStyle='#3f315a';ctx.fillRect(-7,-2,2.5,3);ctx.fillRect(5,-2,2.5,3);ctx.strokeStyle='#392952';ctx.lineWidth=1.7;ctx.beginPath();ctx.arc(0,6,5,.15,Math.PI-.15);ctx.stroke();ctx.restore();}
-function paintAim(){if(gameState!=='ready')return;const vx=(SLING.x-charge.x)*7.7,vy=(SLING.y-charge.y)*7.7;if(Math.hypot(vx,vy)<4)return;ctx.fillStyle='#fff7df';ctx.strokeStyle='#346a58';ctx.lineWidth=1;for(let i=1;i<=22;i++){const t=i*.075,x=charge.x+vx*t,y=charge.y+vy*t+.5*GRAVITY*t*t;if(y>GROUND-19||x>BOARD_W)break;ctx.globalAlpha=.8-i*.03;ctx.beginPath();ctx.arc(x,y,Math.max(1.8,4-i*.07),0,TAU);ctx.fill()}ctx.globalAlpha=1}
+function paintAim(){if(gameState!=='ready'||!aimGuide)return;const vx=(SLING.x-charge.x)*7.7,vy=(SLING.y-charge.y)*7.7;if(Math.hypot(vx,vy)<4)return;ctx.fillStyle='#fff7df';ctx.strokeStyle='#346a58';ctx.lineWidth=1;for(let i=1;i<=22;i++){const t=i*.075,x=charge.x+vx*t,y=charge.y+vy*t+.5*GRAVITY*t*t;if(y>GROUND-19||x>BOARD_W)break;ctx.globalAlpha=.8-i*.03;ctx.beginPath();ctx.arc(x,y,Math.max(1.8,4-i*.07),0,TAU);ctx.fill()}ctx.globalAlpha=1}
 function draw(){if(!level)return;let bounds=canvas.getBoundingClientRect(),w=bounds.width||900;viewW=w<600?720:900;let h=w*BOARD_H/viewW;canvas.style.height=h+'px';let dpr=Math.min(window.devicePixelRatio||1,2);const pw=Math.max(1,Math.round(w*dpr)),ph=Math.max(1,Math.round(h*dpr));if(canvas.width!==pw||canvas.height!==ph){canvas.width=pw;canvas.height=ph}cssScale=w/viewW;ctx.setTransform(canvas.width/viewW,0,0,canvas.height/BOARD_H,0,0);const wanted=gameState==='flying'&&ball?clamp(ball.x-viewW*.53,0,BOARD_W-viewW):0;camera+=(wanted-camera)*.15;if(!Number.isFinite(camera))camera=0;
 ctx.save();ctx.translate(-camera,0);paintBackdrop();drawSlingBack();drawBand();for(const b of level.blocks)if(b.alive)drawBlock(b);for(const e of level.enemies)if(e.alive)drawEnemy(e);paintAim();if(gameState==='ready')orb(charge.x,charge.y,19);else if(ball&&ball.alive)orb(ball.x,ball.y,19);drawSlingFront();
 for(let i=particles.length-1;i>=0;i--){let p=particles[i];ctx.globalAlpha=clamp(p.life/.65,0,1);rect(p.x,p.y,p.r,p.r,p.color,1)}ctx.globalAlpha=1;ctx.restore();
@@ -140,15 +171,45 @@ canvas.addEventListener('pointerdown',e=>{if(gameState!=='ready'||paused||!$('ov
 canvas.addEventListener('pointermove',e=>{if(!dragging)return;e.preventDefault();pull(pointer(e))});
 function release(e){if(!dragging)return;e.preventDefault();dragging=false;$('board').classList.remove('aiming');if(!fire()){charge={x:SLING.x,y:SLING.y}}draw()}
 canvas.addEventListener('pointerup',release);canvas.addEventListener('pointercancel',release);
-document.addEventListener('keydown',e=>{if(!$('overlay').hidden){if(e.key==='Enter'){e.preventDefault();$('overlayAction').click()}return}if(e.key==='p'||e.key==='P'){e.preventDefault();$('pause').click();return}if(paused||gameState!=='ready')return;if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown',' '].includes(e.key)){e.preventDefault();if(e.key===' '){fire();return}aimKeyboard=true;let off={x:charge.x-SLING.x,y:charge.y-SLING.y};if(Math.hypot(off.x,off.y)<10)off={x:-45,y:25};if(e.key==='ArrowLeft')off.x-=8;if(e.key==='ArrowRight')off.x+=8;if(e.key==='ArrowUp')off.y-=8;if(e.key==='ArrowDown')off.y+=8;pull({x:SLING.x+off.x,y:SLING.y+off.y})}});
+document.addEventListener('keydown',e=>{if(!$('overlay').hidden){if(e.key==='Enter'){e.preventDefault();$('overlayAction').click()}return}if(e.key==='p'||e.key==='P'){e.preventDefault();if(!paused||!$('overlay').hidden)togglePause();return}if(paused||gameState!=='ready')return;if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown',' '].includes(e.key)){e.preventDefault();if(e.key===' '){fire();return}aimKeyboard=true;let off={x:charge.x-SLING.x,y:charge.y-SLING.y};if(Math.hypot(off.x,off.y)<10)off={x:-45,y:25};if(e.key==='ArrowLeft')off.x-=8;if(e.key==='ArrowRight')off.x+=8;if(e.key==='ArrowUp')off.y-=8;if(e.key==='ArrowDown')off.y+=8;pull({x:SLING.x+off.x,y:SLING.y+off.y})}});
 function frame(t){if(!last)last=t;const elapsed=clamp((t-last)/1000,0,.04);last=t;if(!paused&&gameState==='flying'){acc+=elapsed;let n=0;while(acc>=1/120&&n++<6){physics(1/120);acc-=1/120;}if(n>=6)acc=0}
 if(!paused)for(let i=particles.length-1;i>=0;i--){let p=particles[i];p.x+=p.vx*elapsed;p.y+=p.vy*elapsed;p.vy+=GRAVITY*.5*elapsed;p.life-=elapsed;if(p.life<0)particles.splice(i,1)}draw();tickId=requestAnimationFrame(frame)}
-$('overlayAction').addEventListener('click',()=>{if(gameState==='won')next();else if(gameState==='lost')reset(false);else start()});
-$('restart').addEventListener('click',()=>reset(true));
-$('pause').addEventListener('click',()=>{if(['intro','won','lost'].includes(gameState))return;if(!$('overlay').hidden)return;paused=!paused;status(paused?'Paused':'Aim and launch');ui()});
+function togglePause(){
+ if(!['ready','flying'].includes(gameState))return;
+ paused=!paused;
+ if(paused)overlay('PAUSED','Sling Siege','Your current shot is saved. Resume or restart this level.','Resume');
+ else hideOverlay();
+ ui();
+}
+function openLevelChooser(){
+ const grid=$('levelGrid');grid.replaceChildren();
+ for(let i=0;i<levels.length;i++){
+  const button=document.createElement('button');button.type='button';button.textContent=String(i+1);
+  button.disabled=i>=unlocked;button.setAttribute('aria-label','Level '+(i+1)+(i>=unlocked?', locked':''));
+  button.setAttribute('aria-current',String(levelIdx===i));
+  button.addEventListener('click',()=>{levelIdx=i;$('levelDialog').close();reset(true)});
+  grid.append(button);
+ }
+ $('levelDialog').showModal();
+}
+$('overlayAction').addEventListener('click',()=>{
+ if(paused){togglePause();return}
+ if(gameState==='won'){
+  if(levelIdx===levels.length-1)openLevelChooser();else next();
+ }else if(gameState==='lost')reset(false);
+ else start();
+});
+$('overlayRetry').addEventListener('click',()=>reset(false));
+$('pause').addEventListener('click',togglePause);
+$('levelButton').addEventListener('click',openLevelChooser);
+$('levelClose').addEventListener('click',()=>$('levelDialog').close());
+$('settingsButton').addEventListener('click',()=>{if(!paused&&['ready','flying'].includes(gameState)&&$('overlay').hidden)togglePause();$('settingsDialog').showModal()});
+$('settingsClose').addEventListener('click',()=>$('settingsDialog').close());
 $('sound').addEventListener('click',()=>{sound=!sound;try{localStorage.setItem('night-play-sling-siege-sound',sound?'on':'off')}catch{}ui()});
+$('aimGuide').addEventListener('click',()=>{aimGuide=!aimGuide;try{localStorage.setItem('night-play-sling-siege-guide',aimGuide?'on':'off')}catch{}ui()});
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&!paused&&$('overlay').hidden)togglePause()});
 window.addEventListener('resize',draw);
-window.__slingTest={get state(){return {gameState,levelIdx,shots,used,score,ball:ball?{...ball}:null,enemies:level.enemies.map(e=>({...e})),blocks:level.blocks.map(b=>({...b})),camera}},reset:()=>reset(false),fireAt:(dx,dy)=>{if(gameState!=='ready')return false;pull({x:SLING.x-dx,y:SLING.y-dy});return fire()},next:()=>next(),step:(n=1)=>{for(let i=0;i<n;i++)physics(1/120);draw()},pointer,pull};
+window.__slingTest={get state(){return {gameState,levelIdx,levelCount:levels.length,unlocked,paused,shots,used,score,ball:ball?{...ball}:null,enemies:level.enemies.map(e=>({...e})),blocks:level.blocks.map(b=>({...b})),camera}},reset:()=>reset(false),fireAt:(dx,dy)=>{if(gameState!=='ready')return false;pull({x:SLING.x-dx,y:SLING.y-dy});return fire()},next:()=>next(),step:(n=1)=>{for(let i=0;i<n;i++)physics(1/120);draw()},pointer,pull};
 reset(true);tickId=requestAnimationFrame(frame);
 })();
 </script>
