@@ -378,7 +378,12 @@ class Device:
         expected_sha = hashlib.sha256(UPLOAD_BYTES).hexdigest()
         actual_sha = fixture().get("upload_sha256")
         if actual_sha != expected_sha:
-            raise AssertionError("SAF upload payload SHA256 mismatch or no file uploaded")
+            observation = fixture()
+            raise AssertionError(
+                "SAF multipart bytes mismatch: expected=" + expected_sha[:12]
+                + " actual=" + str(actual_sha)[:12]
+                + " payload-bytes=" + str(observation.get("upload_length"))
+                + " submits=" + str(observation.get("count", {}).get("/upload/submit", 0)))
         return "Gecko/SAF multipart upload bytes matched SHA256 on fixture server"
 
     @staticmethod
@@ -723,17 +728,17 @@ class Device:
                   self.click("Send test form"),
                   self._posted()), prerequisites=("C21",))
         self.test("C23", "File upload picker and bytes", self.upload,
-                  prerequisites=("C01",))
+                  prerequisites=("C01",), screenshot=True)
         self.test("C24", "PNG response bytes and Library entry", lambda: self.download("/file.png"),
-                  prerequisites=("C01",))
+                  prerequisites=("C01",), screenshot=True)
         self.test("C25", "PDF response bytes and Library entry", lambda: self.download("/file.pdf"),
-                  prerequisites=("C01",))
+                  prerequisites=("C01",), screenshot=True)
         self.test("C40", "Repeat PNG download confirmation and cancel",
                   self.duplicate_download, prerequisites=("C24",))
         self.test("C41", "Repeat warning survives application restart",
                   self.duplicate_after_restart, prerequisites=("C40",))
         self.test("C42", "Repeat WAV media download confirmation",
-                  self.media_duplicate, prerequisites=("C01",))
+                  self.media_duplicate, prerequisites=("C01",), screenshot=True)
         self.test("C26", "Time Machine PDF version saved", self.time_machine,
                   prerequisites=("C01",), screenshot=True)
         self.test("C27", "Peek link long-press dismiss", self.peek,
