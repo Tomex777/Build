@@ -1,0 +1,478 @@
+{
+  "version": 1,
+  "series": "shieldhero",
+  "name": "The Rising of the Shield Hero / NIGHT Collection",
+  "dimensions": [
+    3000,
+    4800
+  ],
+  "sourcePage": "https://shieldhero-anime.jp/en/3rd/",
+  "rights": "Official anime character illustrations; rights reserved. Candidate rendering for private artistic evaluation only; public distribution and sales require permissions.",
+  "status": "artwork-acquisition-candidates",
+  "sources": [
+    {
+      "id": "naofumi-shield-hero",
+      "number": 1,
+      "character": "naofumi",
+      "name": "Naofumi Iwatani",
+      "title": "Naofumi",
+      "form": "Shield Hero / four-hero alliance",
+      "formId": "shield-hero-alliance",
+      "source": {
+        "provider": "shieldhero-official-anime",
+        "page": "https://shieldhero-anime.jp/en/3rd/",
+        "image": "https://shieldhero-anime.jp/assets/img/3rd/char/detail/naofumi.png",
+        "rights": "© Aneko Yusagi, Seira Minami / KADOKAWA / Shield Hero S3 Project. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Shield Hero anime site; no independent card distribution license"
+      },
+      "rank": {
+        "letter": "S",
+        "scope": "Naofumi Iwatani — Shield Hero / four-hero alliance",
+        "basis": "Highly developed Legendary Shield defense, binding and counterattacks; sustained front-line protection in major battles.",
+        "limits": "Offensive output is restricted; Wrath Shield attack modes, late-novel weapons and 0 Series are not depicted."
+      },
+      "continuity": "shieldhero-anime",
+      "aliases": [
+        "Naofumi Iwatani",
+        "Naofumi",
+        "naofumi"
+      ]
+    },
+    {
+      "id": "raphtalia-katana-hero",
+      "number": 2,
+      "character": "raphtalia",
+      "name": "Raphtalia",
+      "title": "Raphtalia",
+      "form": "Vassal Katana Hero",
+      "formId": "katana-hero",
+      "source": {
+        "provider": "shieldhero-official-anime",
+        "page": "https://shieldhero-anime.jp/en/3rd/",
+        "image": "https://shieldhero-anime.jp/assets/img/3rd/char/detail/raphtalia.png",
+        "rights": "© Aneko Yusagi, Seira Minami / KADOKAWA / Shield Hero S3 Project. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Shield Hero anime site; no independent card distribution license"
+      },
+      "rank": {
+        "letter": "S",
+        "scope": "Raphtalia — Vassal Katana Hero",
+        "basis": "Chosen Vassal Katana wielder, with lethal close combat, mobility and illusion techniques.",
+        "limits": "This image does not depict an unverified later heavenly-emperor power state."
+      },
+      "continuity": "shieldhero-anime",
+      "aliases": [
+        "Raphtalia",
+        "Raphtalia",
+        "raphtalia"
+      ]
+    },
+    {
+      "id": "filo-filolial-queen",
+      "number": 3,
+      "character": "filo",
+      "name": "Filo",
+      "title": "Filo",
+      "form": "Filolial Queen / human form",
+      "formId": "filolial-queen-human",
+      "source": {
+        "provider": "shieldhero-official-anime",
+        "page": "https://shieldhero-anime.jp/en/3rd/",
+        "image": "https://shieldhero-anime.jp/assets/img/3rd/char/detail/filo.png",
+        "rights": "© Aneko Yusagi, Seira Minami / KADOKAWA / Shield Hero S3 Project. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Shield Hero anime site; no independent card distribution license"
+      },
+      "rank": {
+        "letter": "B",
+        "scope": "Filo — Filolial Queen / human form",
+        "basis": "Transformed queen candidate with major physical strength, speed and wind magic.",
+        "limits": "Human form pictured; not proof of Fitoria-level power or a distinct beast-form card."
+      },
+      "continuity": "shieldhero-anime",
+      "aliases": [
+        "Filo",
+        "Filo",
+        "filo"
+      ]
+    },
+    {
+      "id": "rishia-projectile-hero",
+      "number": 4,
+      "character": "rishia",
+      "name": "Rishia Ivyred",
+      "title": "Rishia",
+      "form": "Hengen Muso / Projectile Hero",
+      "formId": "projectile-hero",
+      "source": {
+        "provider": "shieldhero-official-anime",
+        "page": "https://shieldhero-anime.jp/en/3rd/",
+        "image": "https://shieldhero-anime.jp/assets/img/3rd/char/detail/rishia.png",
+        "rights": "© Aneko Yusagi, Seira Minami / KADOKAWA / Shield Hero S3 Project. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Shield Hero anime site; no independent card distribution license"
+      },
+      "rank": {
+        "letter": "A",
+        "scope": "Rishia Ivyred — Hengen Muso / Projectile Hero",
+        "basis": "Mastered Hengen Muso and a Projectile Vassal Weapon recognizes her in combat.",
+        "limits": "Requires combat focus; does not automatically outrank every Cardinal Hero."
+      },
+      "continuity": "shieldhero-anime",
+      "aliases": [
+        "Rishia Ivyred",
+        "Rishia",
+        "rishia"
+      ]
+    },
+    {
+      "id": "ren-sword-hero",
+      "number": 5,
+      "character": "ren",
+      "name": "Ren Amaki",
+      "title": "Ren",
+      "form": "Sword Hero / recovered",
+      "formId": "sword-hero-recovered",
+      "source": {
+        "provider": "shieldhero-official-anime",
+        "page": "https://shieldhero-anime.jp/en/3rd/",
+        "image": "https://shieldhero-anime.jp/assets/img/3rd/char/detail/ren.png",
+        "rights": "© Aneko Yusagi, Seira Minami / KADOKAWA / Shield Hero S3 Project. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Shield Hero anime site; no independent card distribution license"
+      },
+      "rank": {
+        "letter": "A",
+        "scope": "Ren Amaki — Sword Hero / recovered",
+        "basis": "Legendary Sword wielder; improves through physical sword training and weapon mastery.",
+        "limits": "Not the strongest novel-era Ren, and no cursed-Greed form is shown."
+      },
+      "continuity": "shieldhero-anime",
+      "aliases": [
+        "Ren Amaki",
+        "Ren",
+        "ren"
+      ]
+    },
+    {
+      "id": "motoyasu-empowered",
+      "number": 6,
+      "character": "motoyasu",
+      "name": "Motoyasu Kitamura",
+      "title": "Motoyasu",
+      "form": "Spear Hero / enhanced",
+      "formId": "spear-hero-enhanced",
+      "source": {
+        "provider": "shieldhero-official-anime",
+        "page": "https://shieldhero-anime.jp/en/3rd/",
+        "image": "https://shieldhero-anime.jp/assets/img/3rd/char/detail/motoyasu.png",
+        "rights": "© Aneko Yusagi, Seira Minami / KADOKAWA / Shield Hero S3 Project. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Shield Hero anime site; no independent card distribution license"
+      },
+      "rank": {
+        "letter": "S",
+        "scope": "Motoyasu Kitamura — Spear Hero / enhanced",
+        "basis": "Legendary Spear Hero using additional enhancement methods, giving overwhelming offensive power.",
+        "limits": "Conditions and unstable decision-making still affect real-world fights."
+      },
+      "continuity": "shieldhero-anime",
+      "aliases": [
+        "Motoyasu Kitamura",
+        "Motoyasu",
+        "motoyasu"
+      ]
+    },
+    {
+      "id": "itsuki-bow-hero",
+      "number": 7,
+      "character": "itsuki",
+      "name": "Itsuki Kawasumi",
+      "title": "Itsuki",
+      "form": "Bow Hero / curse recovery",
+      "formId": "bow-hero-recovering",
+      "source": {
+        "provider": "shieldhero-official-anime",
+        "page": "https://shieldhero-anime.jp/en/3rd/",
+        "image": "https://shieldhero-anime.jp/assets/img/3rd/char/detail/itsuki.png",
+        "rights": "© Aneko Yusagi, Seira Minami / KADOKAWA / Shield Hero S3 Project. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Shield Hero anime site; no independent card distribution license"
+      },
+      "rank": {
+        "letter": "B",
+        "scope": "Itsuki Kawasumi — Bow Hero / curse recovery",
+        "basis": "Legendary Bow enables versatile long-range attacks and hero skills.",
+        "limits": "Still recovering from curse consequences; not his strongest later state."
+      },
+      "continuity": "shieldhero-anime",
+      "aliases": [
+        "Itsuki Kawasumi",
+        "Itsuki",
+        "itsuki"
+      ]
+    },
+    {
+      "id": "melty-water-magic",
+      "number": 8,
+      "character": "melty",
+      "name": "Melty Q Melromarc",
+      "title": "Melty",
+      "form": "Water magic",
+      "formId": "water-magic",
+      "source": {
+        "provider": "shieldhero-official-anime",
+        "page": "https://shieldhero-anime.jp/en/3rd/",
+        "image": "https://shieldhero-anime.jp/assets/img/3rd/char/detail/melty.png",
+        "rights": "© Aneko Yusagi, Seira Minami / KADOKAWA / Shield Hero S3 Project. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Shield Hero anime site; no independent card distribution license"
+      },
+      "rank": {
+        "letter": "C",
+        "scope": "Melty Q Melromarc — Water magic",
+        "basis": "Trained royal water magician who supports allies and employs ranged magic.",
+        "limits": "Political authority is not combat power; no speculative advanced spells."
+      },
+      "continuity": "shieldhero-anime",
+      "aliases": [
+        "Melty Q Melromarc",
+        "Melty",
+        "melty"
+      ]
+    },
+    {
+      "id": "eclair-swordswoman",
+      "number": 9,
+      "character": "eclair",
+      "name": "Eclair Seaetto",
+      "title": "Eclair",
+      "form": "Seyaette swordmaster",
+      "formId": "swordmaster",
+      "source": {
+        "provider": "shieldhero-official-anime",
+        "page": "https://shieldhero-anime.jp/en/3rd/",
+        "image": "https://shieldhero-anime.jp/assets/img/3rd/char/detail/eclair.png",
+        "rights": "© Aneko Yusagi, Seira Minami / KADOKAWA / Shield Hero S3 Project. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Shield Hero anime site; no independent card distribution license"
+      },
+      "rank": {
+        "letter": "C",
+        "scope": "Eclair Seaetto — Seyaette swordmaster",
+        "basis": "Disciplined sword fighter and instructor with documented victory over a weakened Ren.",
+        "limits": "Sword skill in a duel does not make her stronger than late-story Ren."
+      },
+      "continuity": "shieldhero-anime",
+      "aliases": [
+        "Eclair Seaetto",
+        "Eclair",
+        "eclair"
+      ]
+    },
+    {
+      "id": "myne-fire-magic",
+      "number": 10,
+      "character": "myne",
+      "name": "Malty S Melromarc",
+      "title": "Myne",
+      "form": "Fire magic / adventurer",
+      "formId": "fire-mage",
+      "source": {
+        "provider": "shieldhero-official-anime",
+        "page": "https://shieldhero-anime.jp/en/3rd/",
+        "image": "https://shieldhero-anime.jp/assets/img/3rd/char/detail/myne.png",
+        "rights": "© Aneko Yusagi, Seira Minami / KADOKAWA / Shield Hero S3 Project. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Shield Hero anime site; no independent card distribution license"
+      },
+      "rank": {
+        "letter": "D",
+        "scope": "Malty S Melromarc — Fire magic / adventurer",
+        "basis": "Uses fire magic and deception, but limited direct battle performance.",
+        "limits": "Manipulation, status and treachery are not supernatural fighting feats."
+      },
+      "continuity": "shieldhero-anime",
+      "aliases": [
+        "Malty S Melromarc",
+        "Myne",
+        "myne"
+      ]
+    },
+    {
+      "id": "sadeena-orca-warrior",
+      "number": 11,
+      "character": "sadeena",
+      "name": "Sadeena",
+      "title": "Sadeena",
+      "form": "Orca warrior / lightning",
+      "formId": "orca-harpoon-warrior",
+      "source": {
+        "provider": "shieldhero-official-anime",
+        "page": "https://shieldhero-anime.jp/en/3rd/",
+        "image": "https://shieldhero-anime.jp/assets/img/3rd/char/detail/sadeena.png",
+        "rights": "© Aneko Yusagi, Seira Minami / KADOKAWA / Shield Hero S3 Project. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Shield Hero anime site; no independent card distribution license"
+      },
+      "rank": {
+        "letter": "A",
+        "scope": "Sadeena — Orca warrior / lightning",
+        "basis": "Expert harpoon fighter with exceptional close-quarters skill and lightning magic.",
+        "limits": "This costume portrays the arena-era warrior, not the later Vassal Harpoon Hero."
+      },
+      "continuity": "shieldhero-anime",
+      "aliases": [
+        "Sadeena",
+        "Sadeena",
+        "sadeena"
+      ]
+    },
+    {
+      "id": "fohl-hakuko-fighter",
+      "number": 12,
+      "character": "fohl",
+      "name": "Fohl Fayon",
+      "title": "Fohl",
+      "form": "Hakuko warrior",
+      "formId": "hakuko-fighter",
+      "source": {
+        "provider": "shieldhero-official-anime",
+        "page": "https://shieldhero-anime.jp/en/3rd/",
+        "image": "https://shieldhero-anime.jp/assets/img/3rd/char/detail/fohl.png",
+        "rights": "© Aneko Yusagi, Seira Minami / KADOKAWA / Shield Hero S3 Project. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Shield Hero anime site; no independent card distribution license"
+      },
+      "rank": {
+        "letter": "B",
+        "scope": "Fohl Fayon — Hakuko warrior",
+        "basis": "Dangerous demi-human brawler with formidable Hakuko strength and arena experience.",
+        "limits": "Vassal Gauntlet Hero abilities require a separate matching artwork."
+      },
+      "continuity": "shieldhero-anime",
+      "aliases": [
+        "Fohl Fayon",
+        "Fohl",
+        "fohl"
+      ]
+    },
+    {
+      "id": "atla-hengen-muso",
+      "number": 13,
+      "character": "atla",
+      "name": "Atla Fayon",
+      "title": "Atla",
+      "form": "Hengen Muso practitioner",
+      "formId": "hengen-muso",
+      "source": {
+        "provider": "shieldhero-official-anime",
+        "page": "https://shieldhero-anime.jp/en/3rd/",
+        "image": "https://shieldhero-anime.jp/assets/img/3rd/char/detail/atla.png",
+        "rights": "© Aneko Yusagi, Seira Minami / KADOKAWA / Shield Hero S3 Project. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Shield Hero anime site; no independent card distribution license"
+      },
+      "rank": {
+        "letter": "A",
+        "scope": "Atla Fayon — Hengen Muso practitioner",
+        "basis": "Exceptional sense of ki and precise Hengen Muso strikes able to challenge stronger opponents.",
+        "limits": "Physical fragility and short-range conditions remain relevant."
+      },
+      "continuity": "shieldhero-anime",
+      "aliases": [
+        "Atla Fayon",
+        "Atla",
+        "atla"
+      ]
+    },
+    {
+      "id": "syne-sewing-hero",
+      "number": 14,
+      "character": "syne",
+      "name": "S'yne",
+      "title": "S'yne",
+      "form": "Vassal Sewing Set Hero",
+      "formId": "sewing-set-hero",
+      "source": {
+        "provider": "shieldhero-official-anime",
+        "page": "https://shieldhero-anime.jp/en/3rd/",
+        "image": "https://shieldhero-anime.jp/assets/img/3rd/char/detail/syne.png",
+        "rights": "© Aneko Yusagi, Seira Minami / KADOKAWA / Shield Hero S3 Project. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Shield Hero anime site; no independent card distribution license"
+      },
+      "rank": {
+        "letter": "A",
+        "scope": "S'yne — Vassal Sewing Set Hero",
+        "basis": "Versatile interworld hero who fights with scissors, thread, traps and her Sewing Set.",
+        "limits": "Damaged weapon and uncertain energy reserves limit comparisons."
+      },
+      "continuity": "shieldhero-anime",
+      "aliases": [
+        "S'yne",
+        "S'yne",
+        "syne"
+      ]
+    },
+    {
+      "id": "werner-shusaku",
+      "number": 15,
+      "character": "werner",
+      "name": "Werner",
+      "title": "Werner",
+      "form": "Shusaku representative",
+      "formId": "shusaku-representative",
+      "source": {
+        "provider": "shieldhero-official-anime",
+        "page": "https://shieldhero-anime.jp/en/4th/",
+        "image": "https://shieldhero-anime.jp/assets/img/4th/char/detail/werner.png",
+        "rights": "© Aneko Yusagi, Seira Minami / KADOKAWA / Shield Hero S4 Project. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Shield Hero anime site; no independent card distribution license"
+      },
+      "rank": {
+        "letter": "C",
+        "scope": "Werner — Shusaku representative",
+        "basis": "Powerful avian demi-human lineage and impressive physical presence.",
+        "limits": "Official profile emphasizes diplomacy; no confirmed high-level combat display."
+      },
+      "continuity": "shieldhero-anime",
+      "aliases": [
+        "Werner",
+        "Werner",
+        "werner"
+      ]
+    },
+    {
+      "id": "jaralis-laio",
+      "number": 16,
+      "character": "jaralis",
+      "name": "Jaralis",
+      "title": "Jaralis",
+      "form": "Laio representative",
+      "formId": "laio-representative",
+      "source": {
+        "provider": "shieldhero-official-anime",
+        "page": "https://shieldhero-anime.jp/en/4th/",
+        "image": "https://shieldhero-anime.jp/assets/img/4th/char/detail/jaralis.png",
+        "rights": "© Aneko Yusagi, Seira Minami / KADOKAWA / Shield Hero S4 Project. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "Official Shield Hero anime site; no independent card distribution license"
+      },
+      "rank": {
+        "letter": "B",
+        "scope": "Jaralis — Laio representative",
+        "basis": "Force-oriented lion demi-human leader with significant physical potential.",
+        "limits": "No reliable evidence here for Guardian Beast-level or awakened-form power."
+      },
+      "continuity": "shieldhero-anime",
+      "aliases": [
+        "Jaralis",
+        "Jaralis",
+        "jaralis"
+      ]
+    }
+  ]
+}

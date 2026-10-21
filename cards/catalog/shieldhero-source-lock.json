@@ -1,0 +1,101 @@
+{
+  "version": 1,
+  "sources": {
+    "naofumi-shield-hero": {
+      "sha256": "93a25dd8c71a1fa32f5304e32398f86e25d37f5de826c0bd2400d0aa35c751b8",
+      "width": 1052,
+      "height": 1756,
+      "image": "https://shieldhero-anime.jp/assets/img/3rd/char/detail/naofumi.png"
+    },
+    "raphtalia-katana-hero": {
+      "sha256": "ca24a40093390bfe4ddd5257376eeba83051d5f65bcaeb91ecc9b2bde83e810f",
+      "width": 1052,
+      "height": 1756,
+      "image": "https://shieldhero-anime.jp/assets/img/3rd/char/detail/raphtalia.png"
+    },
+    "filo-filolial-queen": {
+      "sha256": "e45b4fa4d412cdffe3b36188b3bc291bda4f7819698994740a2e2190da69cdd0",
+      "width": 1052,
+      "height": 1756,
+      "image": "https://shieldhero-anime.jp/assets/img/3rd/char/detail/filo.png"
+    },
+    "rishia-projectile-hero": {
+      "sha256": "57f07074cb6a86ffa81bb32dea560acdc13a49ef1d886e482f67357c8241e762",
+      "width": 1052,
+      "height": 1756,
+      "image": "https://shieldhero-anime.jp/assets/img/3rd/char/detail/rishia.png"
+    },
+    "ren-sword-hero": {
+      "sha256": "255e821f76812318beb94a781792e9f986109a7ab12e87a02f3642af6e806946",
+      "width": 1052,
+      "height": 1756,
+      "image": "https://shieldhero-anime.jp/assets/img/3rd/char/detail/ren.png"
+    },
+    "motoyasu-empowered": {
+      "sha256": "f583e6f2becfeb1506633692752e52689c4a7f924f9b067ab578e5079731f7dd",
+      "width": 1052,
+      "height": 1756,
+      "image": "https://shieldhero-anime.jp/assets/img/3rd/char/detail/motoyasu.png"
+    },
+    "itsuki-bow-hero": {
+      "sha256": "bf9dca0ed742e000542e13737667b0813d7d6ba4ec4b1c33cf6ec456c3160960",
+      "width": 1052,
+      "height": 1756,
+      "image": "https://shieldhero-anime.jp/assets/img/3rd/char/detail/itsuki.png"
+    },
+    "melty-water-magic": {
+      "sha256": "5ff35424c3b1033e546f7bf2246a038f83040003db275336958af9f57e846df0",
+      "width": 1052,
+      "height": 1756,
+      "image": "https://shieldhero-anime.jp/assets/img/3rd/char/detail/melty.png"
+    },
+    "eclair-swordswoman": {
+      "sha256": "6a481dcd7684a9829ab469a0e6bd9743a02152e0133ed83edcac0e433be6cb7c",
+      "width": 1052,
+      "height": 1756,
+      "image": "https://shieldhero-anime.jp/assets/img/3rd/char/detail/eclair.png"
+    },
+    "myne-fire-magic": {
+      "sha256": "f8381c2fd2a0fcde42dcea10018e178ffbb4d56a1aa3f2face90c31cbfafbbc5",
+      "width": 1052,
+      "height": 1756,
+      "image": "https://shieldhero-anime.jp/assets/img/3rd/char/detail/myne.png"
+    },
+    "sadeena-orca-warrior": {
+      "sha256": "09315bddb23bb54915a4dd358faf2e09e1d720d00a8e6fcdc2ae8f22066f7380",
+      "width": 1052,
+      "height": 1920,
+      "image": "https://shieldhero-anime.jp/assets/img/3rd/char/detail/sadeena.png"
+    },
+    "fohl-hakuko-fighter": {
+      "sha256": "19a72758cf6e5616cdc1a6d30f8a1c3837d489b58ace022a0b1c55708c65de3a",
+      "width": 1052,
+      "height": 1756,
+      "image": "https://shieldhero-anime.jp/assets/img/3rd/char/detail/fohl.png"
+    },
+    "atla-hengen-muso": {
+      "sha256": "e21671f7f38860a5a87b6004c092a38e563e6922b3b53ac658cbd7f30e19bbbf",
+      "width": 1052,
+      "height": 1756,
+      "image": "https://shieldhero-anime.jp/assets/img/3rd/char/detail/atla.png"
+    },
+    "syne-sewing-hero": {
+      "sha256": "7bebdff5ba55f99245705e25bb8023551696f48866ab7de8b043d0b51ac82ea5",
+      "width": 1052,
+      "height": 1756,
+      "image": "https://shieldhero-anime.jp/assets/img/3rd/char/detail/syne.png"
+    },
+    "werner-shusaku": {
+      "sha256": "95dd76a1db2aa8df2a32602d4ba12fd1bb1937071f8df338ecd86992d4f17da0",
+      "width": 1288,
+      "height": 1756,
+      "image": "https://shieldhero-anime.jp/assets/img/4th/char/detail/werner.png"
+    },
+    "jaralis-laio": {
+      "sha256": "3434ac9a2a62d24ed277b6a5296fa41714a36e2d0cc04f798467b46a3f187f3e",
+      "width": 1052,
+      "height": 1756,
+      "image": "https://shieldhero-anime.jp/assets/img/4th/char/detail/jaralis.png"
+    }
+  }
+}
