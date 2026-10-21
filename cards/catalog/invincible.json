@@ -63,10 +63,20 @@
         ],
         "artworkPlacement": {
           "emberglass": {
-            "x": -110,
-            "y": -145,
-            "width": 1230
+            "x": 23,
+            "y": 87,
+            "width": 953
           }
+        },
+        "placementAudit": {
+          "subjectBounds": [
+            25,
+            7,
+            861,
+            1788
+          ],
+          "visibleTop": 95,
+          "sourceAspect": 0.49166666666666664
         }
       }
     },
@@ -119,10 +129,20 @@
         ],
         "artworkPlacement": {
           "nocturne": {
-            "x": -140,
-            "y": -150,
-            "width": 1260
+            "x": 32,
+            "y": 85,
+            "width": 933
           }
+        },
+        "placementAudit": {
+          "subjectBounds": [
+            25,
+            13,
+            1241,
+            1774
+          ],
+          "visibleTop": 95,
+          "sourceAspect": 0.7005555555555556
         }
       }
     },
@@ -175,10 +195,20 @@
         ],
         "artworkPlacement": {
           "nocturne": {
-            "x": -130,
-            "y": -120,
-            "width": 1190
+            "x": 21,
+            "y": 71,
+            "width": 965
           }
+        },
+        "placementAudit": {
+          "subjectBounds": [
+            23,
+            19,
+            724,
+            1784
+          ],
+          "visibleTop": 95,
+          "sourceAspect": 0.4177777777777778
         }
       }
     },
@@ -230,10 +260,20 @@
         ],
         "artworkPlacement": {
           "emberglass": {
-            "x": -120,
-            "y": -145,
-            "width": 1220
+            "x": 13,
+            "y": 89,
+            "width": 963
           }
+        },
+        "placementAudit": {
+          "subjectBounds": [
+            46,
+            7,
+            1176,
+            1772
+          ],
+          "visibleTop": 95,
+          "sourceAspect": 0.6716666666666666
         }
       }
     },
@@ -286,10 +326,20 @@
         ],
         "artworkPlacement": {
           "crimson": {
-            "x": -100,
-            "y": -105,
-            "width": 1180
+            "x": 39,
+            "y": 82,
+            "width": 923
           }
+        },
+        "placementAudit": {
+          "subjectBounds": [
+            12,
+            14,
+            970,
+            1775
+          ],
+          "visibleTop": 95,
+          "sourceAspect": 0.5455555555555556
         }
       }
     },
@@ -342,10 +392,20 @@
         ],
         "artworkPlacement": {
           "eclipse": {
-            "x": -255,
-            "y": -190,
-            "width": 1470
+            "x": -34,
+            "y": 88,
+            "width": 1066
           }
+        },
+        "placementAudit": {
+          "subjectBounds": [
+            32,
+            11,
+            1730,
+            1762
+          ],
+          "visibleTop": 95,
+          "sourceAspect": 0.9766666666666667
         }
       }
     },
@@ -398,10 +458,20 @@
         ],
         "artworkPlacement": {
           "obsidian": {
-            "x": -125,
-            "y": -170,
-            "width": 1240
+            "x": 41,
+            "y": 86,
+            "width": 917
           }
+        },
+        "placementAudit": {
+          "subjectBounds": [
+            11,
+            12,
+            1156,
+            1777
+          ],
+          "visibleTop": 95,
+          "sourceAspect": 0.6477777777777778
         }
       }
     },
@@ -454,10 +524,20 @@
         ],
         "artworkPlacement": {
           "vanguard": {
-            "x": -130,
-            "y": -90,
-            "width": 1200
+            "x": 51,
+            "y": 72,
+            "width": 1100
           }
+        },
+        "placementAudit": {
+          "subjectBounds": [
+            31,
+            19,
+            699,
+            1776
+          ],
+          "visibleTop": 95,
+          "sourceAspect": 0.49722222222222223
         }
       }
     },
@@ -510,10 +590,20 @@
         ],
         "artworkPlacement": {
           "tidelight": {
-            "x": -250,
-            "y": -125,
-            "width": 1480
+            "x": -24,
+            "y": 61,
+            "width": 1056
           }
+        },
+        "placementAudit": {
+          "subjectBounds": [
+            15,
+            58,
+            1798,
+            1737
+          ],
+          "visibleTop": 95,
+          "sourceAspect": 1.0155555555555555
         }
       }
     },
@@ -566,10 +656,20 @@
         ],
         "artworkPlacement": {
           "tidelight": {
-            "x": -140,
-            "y": -120,
-            "width": 1210
+            "x": 6,
+            "y": 83,
+            "width": 1100
           }
+        },
+        "placementAudit": {
+          "subjectBounds": [
+            85,
+            8,
+            591,
+            1794
+          ],
+          "visibleTop": 95,
+          "sourceAspect": 0.4177777777777778
         }
       }
     },
@@ -621,10 +721,20 @@
         ],
         "artworkPlacement": {
           "tidelight": {
-            "x": -130,
-            "y": -100,
-            "width": 1320
+            "x": -24,
+            "y": 66,
+            "width": 1043
           }
+        },
+        "placementAudit": {
+          "subjectBounds": [
+            88,
+            34,
+            1152,
+            1726
+          ],
+          "visibleTop": 95,
+          "sourceAspect": 0.685
         }
       }
     },
@@ -676,10 +786,20 @@
         ],
         "artworkPlacement": {
           "emberglass": {
-            "x": -125,
-            "y": -145,
-            "width": 1200
+            "x": 25,
+            "y": 82,
+            "width": 952
           }
+        },
+        "placementAudit": {
+          "subjectBounds": [
+            20,
+            10,
+            731,
+            1792
+          ],
+          "visibleTop": 95,
+          "sourceAspect": 0.4177777777777778
         }
       }
     },
@@ -731,10 +851,20 @@
         ],
         "artworkPlacement": {
           "emberglass": {
-            "x": -115,
-            "y": -150,
-            "width": 1220
+            "x": 35,
+            "y": 91,
+            "width": 935
           }
+        },
+        "placementAudit": {
+          "subjectBounds": [
+            19,
+            5,
+            1152,
+            1789
+          ],
+          "visibleTop": 95,
+          "sourceAspect": 0.6538888888888889
         }
       }
     },
@@ -787,10 +917,20 @@
         ],
         "artworkPlacement": {
           "tidelight": {
-            "x": -120,
-            "y": -90,
-            "width": 1190
+            "x": 0,
+            "y": 78,
+            "width": 1001
           }
+        },
+        "placementAudit": {
+          "subjectBounds": [
+            54,
+            18,
+            1031,
+            1782
+          ],
+          "visibleTop": 95,
+          "sourceAspect": 0.6038888888888889
         }
       }
     },
@@ -843,10 +983,20 @@
         ],
         "artworkPlacement": {
           "crimson": {
-            "x": -100,
-            "y": -110,
-            "width": 1180
+            "x": 23,
+            "y": 90,
+            "width": 950
           }
+        },
+        "placementAudit": {
+          "subjectBounds": [
+            38,
+            7,
+            1304,
+            1794
+          ],
+          "visibleTop": 95,
+          "sourceAspect": 0.7422222222222222
         }
       }
     },
@@ -899,10 +1049,20 @@
         ],
         "artworkPlacement": {
           "obsidian": {
-            "x": -140,
-            "y": -150,
-            "width": 1270
+            "x": 41,
+            "y": 86,
+            "width": 920
           }
+        },
+        "placementAudit": {
+          "subjectBounds": [
+            12,
+            12,
+            1242,
+            1779
+          ],
+          "visibleTop": 95,
+          "sourceAspect": 0.6988888888888889
         }
       }
     },
@@ -954,10 +1114,20 @@
         ],
         "artworkPlacement": {
           "crimson": {
-            "x": -90,
-            "y": -105,
-            "width": 1210
+            "x": 39,
+            "y": 84,
+            "width": 930
           }
+        },
+        "placementAudit": {
+          "subjectBounds": [
+            10,
+            10,
+            842,
+            1793
+          ],
+          "visibleTop": 95,
+          "sourceAspect": 0.4777777777777778
         }
       }
     },
@@ -1009,10 +1179,20 @@
         ],
         "artworkPlacement": {
           "obsidian": {
-            "x": -145,
-            "y": -155,
-            "width": 1270
+            "x": 38,
+            "y": 73,
+            "width": 928
           }
+        },
+        "placementAudit": {
+          "subjectBounds": [
+            14,
+            25,
+            1031,
+            1789
+          ],
+          "visibleTop": 95,
+          "sourceAspect": 0.5827777777777777
         }
       }
     },
@@ -1064,10 +1244,20 @@
         ],
         "artworkPlacement": {
           "nocturne": {
-            "x": -135,
-            "y": -135,
-            "width": 1250
+            "x": 33,
+            "y": 92,
+            "width": 965
           }
+        },
+        "placementAudit": {
+          "subjectBounds": [
+            25,
+            4,
+            1388,
+            1780
+          ],
+          "visibleTop": 95,
+          "sourceAspect": 0.8116666666666666
         }
       }
     },
@@ -1120,10 +1310,20 @@
         ],
         "artworkPlacement": {
           "nocturne": {
-            "x": -115,
-            "y": -115,
-            "width": 1190
+            "x": 32,
+            "y": 81,
+            "width": 969
           }
+        },
+        "placementAudit": {
+          "subjectBounds": [
+            16,
+            12,
+            800,
+            1788
+          ],
+          "visibleTop": 95,
+          "sourceAspect": 0.4688888888888889
         }
       }
     },
@@ -1175,10 +1375,20 @@
         ],
         "artworkPlacement": {
           "nocturne": {
-            "x": -150,
-            "y": -140,
-            "width": 1290
+            "x": -51,
+            "y": 57,
+            "width": 1100
           }
+        },
+        "placementAudit": {
+          "subjectBounds": [
+            77,
+            77,
+            2179,
+            1765
+          ],
+          "visibleTop": 95,
+          "sourceAspect": 1.25
         }
       }
     }
