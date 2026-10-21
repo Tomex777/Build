@@ -1,4 +1,4 @@
-// Sling Siege: full source page, real Chromium input, score and six-stage route regression.
+// Sling Siege: full source page, real Chromium input, score and 100-stage route regression.
 // Run: node night-play/sling-siege/mobile-smoke.mjs (npm i --no-save playwright@1.56.1)
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
@@ -18,6 +18,7 @@ try{
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto(gameUrl);
   assert.equal(await page.locator('#overlay').isVisible(),true,'start overlay');
+  assert.equal((await page.evaluate(()=>window.__slingTest.state)).levelCount,100,'100 levels are available');
   await page.locator('#overlayAction').click();
   assert.equal((await page.evaluate(()=>window.__slingTest.state)).gameState,'ready');
   const overflow=await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth);
@@ -28,7 +29,8 @@ try{
   if(width===320||width===390){
    // Native CDP touch stream, not a JS function simulating a touch.
    const cd=await page.context().newCDPSession(page);
-   const fx=box.x+(140/720)*box.width,fy=box.y+(362/540)*box.height;
+   const xScale=box.width/720,skyPad=box.height-box.width*540/720;
+   const fx=box.x+140*xScale,fy=box.y+skyPad+362*xScale;
    await cd.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:fx,y:fy}]});
    await cd.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:fx-32,y:fy+36}]});
    assert.equal(await page.locator('#board').evaluate(e=>e.classList.contains('aiming')),true,'real touch pulls sling');
@@ -58,14 +60,18 @@ try{
    await page.keyboard.press('ArrowDown');
    await page.keyboard.press('Space');
    assert.equal((await page.evaluate(()=>window.__slingTest.state)).used,1,'keyboard fired real projectile');
-   await page.locator('#restart').click();
-   await page.locator('#overlayAction').click();
    await page.locator('#pause').click();
    assert.equal(await page.locator('#pause').getAttribute('aria-pressed'),'true','pause works');
+   await page.locator('#overlayRetry').click();
+   assert.equal((await page.evaluate(()=>window.__slingTest.state)).used,0,'pause can restart level');
    await page.locator('#pause').click();
+   await page.locator('#overlayAction').click();
    assert.equal(await page.locator('#pause').getAttribute('aria-pressed'),'false','resume works');
+   await page.locator('#settingsButton').click();
+   assert.equal(await page.locator('#settingsDialog').evaluate(e=>e.open),true,'settings opens');
    await page.locator('#sound').click();
    assert.equal(await page.locator('#sound').getAttribute('aria-pressed'),'false','sound toggle');
+   await page.locator('#settingsClose').click();
    await page.reload();
    assert.equal(await page.locator('#sound').getAttribute('aria-pressed'),'false','sound setting persists');
   }
