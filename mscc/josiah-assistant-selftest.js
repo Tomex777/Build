@@ -85,11 +85,12 @@ assert(prompt.includes('REPLYING TO: Josia: Saturday works.'))
 assert(prompt.includes('Teddy: We should meet Saturday evening.'))
 assert(prompt.includes('CURRENT MESSAGE:\nBut what did you mean?'))
 assert(prompt.includes('mention token: [[mention:nami]]'))
-assert(prompt.includes('.ping'))
+assert(!prompt.includes('.ping'))
+assert(prompt.length < 5000)
 assert(!prompt.includes('.anime'))
 assert(!prompt.includes('.movie'))
 assert.equal(calls.at(-1).allowWeb, false)
-assert(String(calls.at(-1).system).includes('Never call yourself a bot'))
+assert(String(calls.at(-1).system).includes('WhatsApp group'))
 
 
 {
@@ -101,9 +102,31 @@ assert(String(calls.at(-1).system).includes('Never call yourself a bot'))
     usage:'.tool' + i + ' <args>',
   }))
   const compact = compactCommandReference(largeCatalog, null, 'How do I use .tool184?')
-  assert(compact.length <= 8500)
+  assert(compact.length <= 1900)
+  assert.equal(compactCommandReference(largeCatalog, null, 'How are you?'), '')
+  let lookups = 0
+  const lazy = () => { lookups += 1; return largeCatalog }
+  for (const casual of ['Hey Josia, how are you?', 'Send me a joke', 'I downloaded a great game yesterday']) {
+    assert.equal(compactCommandReference(lazy, null, casual), '')
+  }
+  assert.equal(lookups, 0, 'ordinary chat must not even inspect the command registry')
+  assert(compactCommandReference(lazy, null, 'How do I use .tool184?').includes('.tool184 <args>'))
+  assert.equal(lookups, 1, 'real command questions should query the registry once')
   assert(compact.includes('.tool184 <args>'))
-  assert(compact.includes('COMMAND INDEX'))
+  assert(!compact.includes('COMMAND INDEX'))
+  const all = compactCommandReference(largeCatalog, null, 'List all commands')
+  assert(all.includes('.tool256'))
+  const media = compactCommandReference([
+    { name:'dl', capability:'media', description:'Download videos from a link.', usage:'.dl <url>' },
+    { name:'ping', capability:'general', description:'Check connection.', usage:'.ping' },
+  ], null, 'Can you download a video?')
+  assert(media.includes('.dl <url>'))
+  assert(!media.includes('.ping'))
+  const how = compactCommandReference([
+    { name:'dl', capability:'media', description:'Download videos from a link.', usage:'.dl <url>' },
+  ], null, 'How can I download a video with NIGHT?')
+  assert(how.includes('.dl <url>'))
+  assert.equal(compactCommandReference(lazy, null, 'Can you send me a joke?'), '')
   assert(!compact.includes('Perform a long operational tool function. '.repeat(12) + '\nPerform'))
 }
 
