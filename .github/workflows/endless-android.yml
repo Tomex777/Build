@@ -338,6 +338,10 @@ jobs:
         shell: bash
         run: python3 endless_ci/check_extended_surface_visuals.py artifacts/endless-m5-runtime/screenshots
 
+      - name: Detect Titan terrain LOD pinhole regression in real pixels
+        shell: bash
+        run: python3 endless_ci/check_titan_foreground_seam.py artifacts/endless-m5-runtime/screenshots
+
       - name: Validate real Jupiter and Saturn orbital renders
         shell: bash
         run: python3 endless_ci/check_gas_giant_visuals.py artifacts/endless-m5-runtime/screenshots
