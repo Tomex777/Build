@@ -803,6 +803,71 @@ jobs:
           trap - EXIT
           echo 'PASS: both committed mutations return HTTP 200 despite a failed secondary activity append'
 
+      - name: Verify private ENV overlay saves without privileged filesystem writes
+        shell: bash
+        run: |
+          set -euo pipefail
+          kill "$(cat /tmp/cortex-agent.pid)"
+          for i in {1..24}; do
+            if ! kill -0 "$(cat /tmp/cortex-agent.pid)" 2>/dev/null; then break; fi
+            sleep 0.25
+          done
+          CI_USER="$(id -un)"
+          # No sudo privilege for ENV writes; the Agent process owns its
+          # dedicated overlay, while the base /etc-style file stays unchanged.
+          rm -f /tmp/cortex-state/mscc-overrides.env
+          CORTEX_AGENT_TOKEN='test-token-12345678901234567890' \
+          NIGHT_ROOT=/tmp/night \
+          NIGHT_SERVICE=night.service \
+          CORTEX_STATE_DIR=/tmp/cortex-state \
+          CORTEX_COMMAND_SETTINGS_FILE=/tmp/cortex-settings/settings.json \
+          CORTEX_COMMAND_SETTINGS_SCHEMA_FILE=/tmp/cortex-settings/schema.json \
+          CORTEX_MSCC_ENV_FILE=/tmp/mscc.env \
+          CORTEX_MSCC_ENV_OVERLAY_FILE=/tmp/cortex-state/mscc-overrides.env \
+          CORTEX_MSCC_ENV_READER_USER="$CI_USER" \
+          CORTEX_PRIVATE_BACKUP_PATHS=/tmp/cortex-private \
+          HOST=127.0.0.1 PORT=47831 \
+          node cortex-agent/index.js >/tmp/cortex-agent-overlay.log 2>&1 &
+          echo $! >/tmp/cortex-agent.pid
+          for i in {1..40}; do
+            if curl -fsS -H 'Authorization: Bearer test-token-12345678901234567890' \
+              http://127.0.0.1:47831/api/cortex/host/status >/dev/null 2>&1; then break; fi
+            sleep 0.25
+          done
+          AUTH='Authorization: Bearer test-token-12345678901234567890'
+          before="$(sha256sum /tmp/mscc.env | cut -d' ' -f1)"
+          curl -fsS -H "$AUTH" -H 'Content-Type: application/json' \
+            -d '{"key":"LOG_LEVEL","value":"silent"}' \
+            http://127.0.0.1:47831/api/cortex/host/environment \
+            > /tmp/cortex-overlay-response.json
+          curl -fsS -H "$AUTH" -H 'Content-Type: application/json' \
+            -d '{"key":"MSCC_MEGA_EMAIL","value":"dummy@example.invalid"}' \
+            http://127.0.0.1:47831/api/cortex/host/environment \
+            >/dev/null
+          curl -fsS -H "$AUTH" -H 'Content-Type: application/json' \
+            -d '{"key":"MSCC_MEGA_PASSWORD","value":"not-a-real-password"}' \
+            http://127.0.0.1:47831/api/cortex/host/environment \
+            >/tmp/cortex-overlay-secret-response.json
+          test "$before" = "$(sha256sum /tmp/mscc.env | cut -d' ' -f1)"
+          test -f /tmp/cortex-state/mscc-overrides.env
+          node - <<'NODE'
+          const assert=require('node:assert/strict')
+          const fs=require('node:fs')
+          const env=fs.readFileSync('/tmp/cortex-state/mscc-overrides.env','utf8')
+          assert.match(env,/^LOG_LEVEL=silent$/m)
+          assert.match(env,/^MSCC_MEGA_EMAIL="dummy@example.invalid"$/m)
+          assert.match(env,/^MSCC_MEGA_PASSWORD="not-a-real-password"$/m)
+          const response=fs.readFileSync('/tmp/cortex-overlay-secret-response.json','utf8')
+          assert.ok(!response.includes('not-a-real-password'))
+          const fields=JSON.parse(response).entries
+          const pass=fields.find(e=>e.key==='MSCC_MEGA_PASSWORD')
+          assert.equal(pass.hasValue,true)
+          assert.equal(pass.value,'')
+          assert.equal(fields.find(e=>e.key==='MSCC_MEGA_EMAIL').value,'dummy@example.invalid')
+          NODE
+          test "$(stat -c %a /tmp/cortex-state/mscc-overrides.env | tail -c 2)" != "7"
+          test "$(getfacl -cp /tmp/cortex-state/mscc-overrides.env | grep -c "^user:$CI_USER:r--")" -gt 0
+          echo 'PASS Cortex MEGA + LOG_LEVEL overlay: 3 writes, masked secrets, base file unchanged, restricted reader ACL'
       - name: Reject unauthenticated requests
         shell: bash
         run: |
