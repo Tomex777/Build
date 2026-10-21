@@ -197,6 +197,14 @@ jobs:
               await rename(file+'.tmp', file)
               return res.end(JSON.stringify({ok:true}))
             }
+            if (req.method === 'POST' && url.pathname === '/cloud/discover/explicit') {
+              res.setHeader('content-type','application/json')
+              return res.end(JSON.stringify({mounts:[{nodeId:'mockMEGAnode123',label:'CI Shared Folder'}]}))
+            }
+            if (req.method === 'GET' && url.pathname === '/cloud/discover') {
+              res.statusCode=503
+              return res.end(JSON.stringify({error:'old implicit sign-in must never happen'}))
+            }
             if (req.method === 'GET' && url.pathname === '/activity') {
               res.setHeader('content-type','application/json')
               return res.end(JSON.stringify({
@@ -315,6 +323,28 @@ jobs:
           done
           cat /tmp/cortex-agent.log
           exit 1
+      - name: MEGA Cloud legacy refresh cannot silently sign in
+        shell: bash
+        run: |
+          set -euo pipefail
+          AUTH='Authorization: Bearer test-token-12345678901234567890'
+          passive=$(curl -fsS -H "$AUTH" http://127.0.0.1:47831/api/cortex/host/cloud/discover)
+          PASSIVE_RESPONSE="$passive" node - <<'NODE'
+          const assert = require('node:assert/strict')
+          const reply = JSON.parse(process.env.PASSIVE_RESPONSE)
+          assert.equal(reply.signInRequired, true)
+          assert.deepEqual(reply.mounts, [])
+          NODE
+          # Only the explicit new POST invokes the test-only MEGA stub.
+          explicit=$(curl -fsS -H "$AUTH" -H 'Content-Type: application/json' \
+            -d '{}' http://127.0.0.1:47831/api/cortex/host/cloud/discover)
+          EXPLICIT_RESPONSE="$explicit" node - <<'NODE'
+          const assert = require('node:assert/strict')
+          const reply = JSON.parse(process.env.EXPLICIT_RESPONSE)
+          assert.equal(reply.mounts.length, 1)
+          assert.equal(reply.mounts[0].nodeId, 'mockMEGAnode123')
+          NODE
+          echo 'PASS: legacy GET is passive; only explicit POST discovers MEGA folders'
       - name: Exercise Cortex Start Stop Restart against disposable systemd unit
         shell: bash
         run: |
