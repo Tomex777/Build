@@ -180,12 +180,18 @@ export async function megaStorageDashboard(options = {}) {
   const env = options.env || process.env
   const config = megaConfig(env)
   const shares = megaSharedFolders(env)
-  if (!config.configured) {
+  if (!config.configured || options.passive === true) {
+    // The dashboard is read-only configuration. Opening it MUST NOT start a
+    // password-based MEGA session: Cortex may refresh repeatedly and MEGA can
+    // treat repeated Azure/third-party logins as suspicious. Only an explicit
+    // Verify / Discover request (or actual media operation) may sign in.
     return {
-      provider:'MEGA', configured:false, used:null, total:null,
+      provider:'MEGA', configured:config.configured, connected:false, used:null, total:null,
       targets:[{ id:'primary', label:config.folder, type:'primary', detected:false, uploadEnabled:false },
-        ...shares.map(({ id, label, uploadEnabled, mediaTypes }) => ({ id, label, type:'contributed', detected:false, uploadEnabled, mediaTypes }))],
-      note:'Contributed folders require a MEGA invitation with permission; no quota is assumed.',
+        ...shares.map(({ id, label, mediaTypes }) => ({ id, label, type:'contributed', detected:false, uploadEnabled:false, mediaTypes }))],
+      note:config.configured
+        ? 'Credentials stored; MEGA sign-in was not attempted. Check connection explicitly after securing your account.'
+        : 'Contributed folders require a MEGA invitation with permission; no quota is assumed.',
     }
   }
   return withMegaSession(async client => {
