@@ -104,6 +104,14 @@ assert(String(calls.at(-1).system).includes('WhatsApp group'))
   const compact = compactCommandReference(largeCatalog, null, 'How do I use .tool184?')
   assert(compact.length <= 1900)
   assert.equal(compactCommandReference(largeCatalog, null, 'How are you?'), '')
+  let lookups = 0
+  const lazy = () => { lookups += 1; return largeCatalog }
+  for (const casual of ['Hey Josia, how are you?', 'Send me a joke', 'I downloaded a great game yesterday']) {
+    assert.equal(compactCommandReference(lazy, null, casual), '')
+  }
+  assert.equal(lookups, 0, 'ordinary chat must not even inspect the command registry')
+  assert(compactCommandReference(lazy, null, 'How do I use .tool184?').includes('.tool184 <args>'))
+  assert.equal(lookups, 1, 'real command questions should query the registry once')
   assert(compact.includes('.tool184 <args>'))
   assert(!compact.includes('COMMAND INDEX'))
   const all = compactCommandReference(largeCatalog, null, 'List all commands')
