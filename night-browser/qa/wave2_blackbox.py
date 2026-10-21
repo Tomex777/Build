@@ -707,7 +707,7 @@ class Device:
                   prerequisites=("C09",))
         self.test("C11", "Back returns to branch A", lambda: (
                   self.click("Back"), self.verify_title("NIGHT QA BRANCH A")),
-                  prerequisites=("C10",))
+                  prerequisites=("C10",), screenshot=True)
         self.test("C12", "Forward returns to branch C", lambda: (
                   self.click("Forward"), self.verify_title("NIGHT QA BRANCH C")),
                   prerequisites=("C11",))
@@ -720,7 +720,7 @@ class Device:
         self.test("C15", "Journeys history access", lambda: (
                   self.click("More"), self.click("Journeys"),
                   "Journeys panel visible" if self.find("Journeys", partial=True)
-                  else self._missing("Journeys panel")), prerequisites=("C13",))
+                  else self._missing("Journeys panel")), prerequisites=("C13",), screenshot=True)
         self.test("C16", "10 tabs via touch", self.ten_tabs, prerequisites=("C01",), screenshot=True)
         self.test("C17", "Landscape UI still interactive", self.rotate,
                   prerequisites=("C16",), screenshot=True)
