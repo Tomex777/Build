@@ -10,11 +10,11 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const output = path.join(root, 'visual-output');
 mkdirSync(output, { recursive:true });
 const assets = {'/action/':'action/index.html','/action/style.css':'action/style.css',
-  '/action/games.js':'action/games.js','/game-shell.css':'game-shell.css'};
+  '/action/games.js':'action/games.js','/game-shell.css':'game-shell.css','/action/art/flyer-up.svg':'action/art/flyer-up.svg','/action/art/flyer-down.svg':'action/art/flyer-down.svg','/action/art/glider.svg':'action/art/glider.svg','/action/art/pillar.svg':'action/art/pillar.svg','/action/art/stone.svg':'action/art/stone.svg','/action/art/barrel.svg':'action/art/barrel.svg'};
 const server = createServer((req,res) => {
   const route = new URL(req.url,'http://127.0.0.1').pathname, file = assets[route];
   if (!file) { res.writeHead(404); res.end('Missing '+route); return; }
-  res.writeHead(200,{'content-type':file.endsWith('.css')?'text/css':file.endsWith('.js')?'text/javascript':'text/html'});
+  res.writeHead(200,{'content-type':file.endsWith('.css')?'text/css':file.endsWith('.js')?'text/javascript':file.endsWith('.svg')?'image/svg+xml':'text/html'});
   res.end(readFileSync(path.join(root,file)));
 });
 await new Promise(resolve => server.listen(0,'127.0.0.1',resolve));
