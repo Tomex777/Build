@@ -22,6 +22,8 @@ const soundKey='night-play-action-sfx-v1',bestKey=id=>'night-play-v1-action-'+id
 const clamp=(n,a,b)=>Math.min(b,Math.max(a,n)),rand=(a,b)=>a+Math.random()*(b-a);
 let game='slice',state,started=false,over=false,paused=false,frame=0,raf=0,last=0,sfx=true,ctxAudio=null;
 try{sfx=localStorage.getItem(soundKey)!=='off'}catch{}
+let showTouch=true,reducedEffects=false;
+try{showTouch=localStorage.getItem('night-play-action-touch')!=='off';reducedEffects=localStorage.getItem('night-play-action-motion')==='reduced'}catch{}
 const inputs={left:false,right:false,duck:false,drag:false,lastX:0,lastY:0,slicePointerId:null,
  pointerId:null,jumpGestureMoved:false,jumpStartX:0,jumpPlayerStartX:0,jumpTargetX:0};
 function audio(type='tap'){
@@ -44,6 +46,7 @@ function updateHud(){
  $('score').textContent=String(Math.floor(state?.score||0));
  $('best').textContent=String(Math.floor(Math.max(readBest(),state?.score||0)));
  $('statLabel').textContent=defs[game].label;
+ $('scoreLabel').textContent=game==='jump'?'DISTANCE':'SCORE';$('bestLabel').textContent=game==='jump'?'BEST HEIGHT':'PERSONAL BEST';
  let value=0;
  if(state){if(game==='slice')value=Math.max(0,5-state.misses);
  if(game==='jump')value=Math.floor(state.score);
@@ -75,20 +78,21 @@ function bg(top,bottom){
 
 // The launch arc is solved from a target apex, rather than increasing velocity
 // blindly. Nearly every throw crosses the centre and upper-middle touch area.
-const SLICE_GRAVITY=980;
+const SLICE_GRAVITY=1170;
 function initSlice(){return {score:0,misses:0,spawn:.55,fruits:[],halves:[],splashes:[],trail:[],popups:[],clock:0,combo:0,comboClock:0};}
 function addFruit(){
  const level=Math.min(8,Math.floor(state.score/100));
- const count=Math.random()<Math.min(.59,.26+level*.045)?(level>=3&&Math.random()<.22?3:2):1;
+ const waveChance=Math.min(.82,.36+level*.055);
+ const count=Math.random()<waveChance?(level>=5&&Math.random()<.28?4:level>=2&&Math.random()<.42?3:2):1;
  const bombChance=Math.min(.19,.075+level*.014);
  for(let i=0;i<count;i++){
   const kind=Math.random()<bombChance?'bomb':Math.floor(rand(0,5));
   // Distinct launch lanes keep two/three fruit visible as separate targets.
   // Independent random X used to stack fruit ON bombs, creating unavoidable
   // deaths and invisible multi-fruit combos on high-density phone screens.
-  const lanes=count===2?[.28,.72]:count===3?[.22,.5,.78]:null;
-  const x=lanes?W*lanes[i]+rand(-17,17):rand(65,W-65);
-  const y=H+24+rand(0,26),apex=rand(137,233);
+  const lanes=count===2?[.24,.76]:count===3?[.16,.5,.84]:count===4?[.13,.37,.63,.87]:null;
+  const x=lanes?W*lanes[i]+rand(-9,9):rand(62,W-62);
+  const y=H+21+rand(0,36),apex=rand(53,247);
   const rise=Math.sqrt(2*SLICE_GRAVITY*(y-apex)),timeToApex=rise/SLICE_GRAVITY;
   // Prevent the apex from being outside the screen, even for edge launches.
   const vx=clamp(rand(-65,65)+(W*.5-x)*.16,
@@ -134,7 +138,7 @@ function sliceMove(x1,y1,x2,y2){
    vx:f.vx+nx*side*170,vy:f.vy+ny*side*140-25,r:f.r,kind:f.kind,
    angle,cutRotation:f.rotation,rotation:f.rotation,spin:side*rand(2.7,4.5),
    side,age:0});
-  for(let i=0;i<20;i++){
+  for(let i=0;i<(reducedEffects?7:20);i++){
    const a=rand(0,TAU),speed=rand(50,270);
    state.splashes.push({x:f.x,y:f.y,vx:Math.cos(a)*speed,vy:Math.sin(a)*speed-45,
     age:0,life:rand(.29,.63),r:rand(1.5,4),color:juice});
@@ -239,7 +243,7 @@ function drawHalf(h){
 }
 function tickSlice(dt){
  state.clock+=dt;state.spawn-=dt;
- if(state.spawn<0){addFruit();state.spawn=rand(.72,1.02)*Math.max(.54,1-state.score/1100);}
+ if(state.spawn<0){addFruit();state.spawn=rand(.51,.86)*Math.max(.70,1-state.score/1500);}
  for(const f of state.fruits){
   f.x+=f.vx*dt;f.y+=f.vy*dt;f.vy+=SLICE_GRAVITY*dt;f.rotation+=f.spin*dt;
   if(f.vy>0&&f.y>H+f.r+4&&!f.hit&&f.kind!=='bomb'){f.hit=true;state.misses++;audio('bad')}
@@ -296,20 +300,26 @@ function jumpPlatform(x,y,w,moving=false){
  return {x:center,y,w,moving,baseX:center,phase:rand(0,TAU),
    range,pace:rand(.8,1.45)};
 }
+// Generate reachable but genuinely lateral routes, rather than auto-climb columns.
+function nextJumpPlatform(previous,step,difficulty,direction){
+ const width=rand(74-14*difficulty,99-15*difficulty),gap=rand(68+8*difficulty,80+10*difficulty);
+ const center=previous.x+previous.w/2,margin=14+width/2;
+ const left=center-(86+18*difficulty)>margin,right=center+(86+18*difficulty)<W-margin;
+ let nextDir=direction;
+ if(!left)nextDir=1;else if(!right)nextDir=-1;else if(Math.random()<.82)nextDir=-direction;
+ const shift=rand(93+8*difficulty,125+13*difficulty);
+ const x=clamp(center+nextDir*shift,margin,W-margin)-width/2;
+ const moving=step>=5&&Math.random()<.20+.22*difficulty;
+ return {platform:jumpPlatform(x,previous.y-gap,width,moving),direction:nextDir};
+}
 function initJump(){
- const platforms=[jumpPlatform(120,505,133)];
- let last=platforms[0];
- for(let y=428,i=0;y>=-90;y-=rand(65,78),i++){
-   const w=i<4?rand(84,106):rand(69,96);
-   // Keep a reachable stepping route rather than independent random Xs.
-   const earlyStep=i<4?88:112;
-   const x=clamp(last.x+rand(-earlyStep,earlyStep),12,W-w-12);
-   // Ease in with four permanent wide platforms before moving targets.
-   const plat=jumpPlatform(x,y,w,i===4||(i>4&&Math.random()<.19));
-   platforms.push(plat);last=plat;
+ const platforms=[jumpPlatform(120,505,133)];let previous=platforms[0],direction=Math.random()<.5?-1:1;
+ for(let step=0;step<9;step++){
+  const generated=nextJumpPlatform(previous,step,Math.min(1,step/20),direction);
+  platforms.push(generated.platform);previous=generated.platform;direction=generated.direction;
  }
  return {score:0,elapsed:0,bounce:0,player:{x:180,y:460,vy:-575,vx:0},
-   platforms,scroll:0};
+  platforms,scroll:0,platformDirection:direction,platformStep:9};
 }
 function tickJump(dt){
  const p=state.player,prev=p.y;
@@ -334,25 +344,23 @@ function tickJump(dt){
  }
  if(p.y<185){
    const shift=185-p.y;p.y=185;state.scroll+=shift;
-   state.score=Math.max(state.score,Math.floor(state.scroll));
+   state.score=Math.max(state.score,Math.floor(state.scroll/10)); // measured vertical metres
    for(const plat of state.platforms)plat.y+=shift;
  }
  // Scrolling out of sight is the only reason to cull a platform.
  state.platforms=state.platforms.filter(plat=>plat.y<H+30);
- const difficulty=Math.min(1,state.score/4000);
+ const difficulty=Math.min(1,state.scroll/2300);
  while(state.platforms.length<11){
    const last=state.platforms.reduce((top,plat)=>plat.y<top.y?plat:top);
-   const gap=rand(67+5*difficulty,81+9*difficulty);
-   const w=rand(70-12*difficulty,92-11*difficulty);
-   const x=clamp(last.baseX+rand(-110-18*difficulty,110+18*difficulty),12,W-w-12);
-   const moving=Math.random()<.16+.20*difficulty;
-   state.platforms.push(jumpPlatform(x,last.y-gap,w,moving));
+   const generated=nextJumpPlatform(last,state.platformStep++,difficulty,state.platformDirection);
+   state.platformDirection=generated.direction;state.platforms.push(generated.platform);
  }
  if(p.y>H+35)end('You fell!');
  updateHud();
 }
 function paintJump(){
  bg('#bedcef','#f2f0d8');
+ text(state.score+' m',W-17,31,14,'#275b58',850,'right');
  // Subtle distant cloud layers: intentionally soft, not repeated white blobs.
  for(let i=0;i<8;i++){
    const x=(i*127+46)%W,y=((i*121+30)+state.scroll*.12)%(H+110)-65;
@@ -906,10 +914,10 @@ function selectGame(type){
  const url=new URL(location.href);url.searchParams.set('game',game);history.replaceState({},'',url.pathname+url.search);
  const def=defs[game];$('title').textContent=def.title;$('subtitle').textContent=def.subtitle;
  $('rules').textContent=def.rules;document.title=def.title+' · NIGHT Play';
- for(const el of $('gamePicks').querySelectorAll('[data-game]'))el.setAttribute('aria-current',String(el.dataset.game===game));
+ $('touchToggle').hidden=!(game==='jump'||game==='runner');
  $('touchControls').replaceChildren();$('touchControls').hidden=true;
  if(game==='jump'||game==='runner'){
-  $('touchControls').hidden=false;
+  $('touchControls').hidden=!showTouch;
   const buttons=game==='jump'?[['left','◀'],['right','▶']]:[['jump','JUMP'],['slide','SLIDE']];
   for(const [command,label] of buttons){const btn=document.createElement('button');btn.type='button';btn.dataset.control=command;btn.textContent=label;btn.setAttribute('aria-label',command);$('touchControls').append(btn)}
  }
@@ -1025,9 +1033,13 @@ $('restart').addEventListener('click',reset);
 $('settingsButton').addEventListener('click',()=>{$('settingsDialog').showModal();if(started&&!paused)pause()});
 $('settingsClose').addEventListener('click',()=>$('settingsDialog').close());
 $('settingsDialog').addEventListener('click',e=>{if(e.target===$('settingsDialog'))$('settingsDialog').close()});
-$('gamePicks').addEventListener('click',e=>{const b=e.target.closest('[data-game]');if(b)selectGame(b.dataset.game)});
+
 $('soundToggle').addEventListener('click',()=>{sfx=!sfx;$('soundToggle').setAttribute('aria-pressed',String(sfx));$('soundToggle').textContent='Sound effects · '+(sfx?'On':'Off');try{localStorage.setItem(soundKey,sfx?'on':'off')}catch{}});
 $('soundToggle').setAttribute('aria-pressed',String(sfx));$('soundToggle').textContent='Sound effects · '+(sfx?'On':'Off');
+function option(id,on,label){$(id).setAttribute('aria-pressed',String(on));$(id).textContent=label+' · '+(on?'On':'Off')}
+option('touchToggle',showTouch,'On-screen controls');option('motionToggle',reducedEffects,'Reduced effects');
+$('touchToggle').addEventListener('click',()=>{showTouch=!showTouch;option('touchToggle',showTouch,'On-screen controls');$('touchControls').hidden=!showTouch;try{localStorage.setItem('night-play-action-touch',showTouch?'on':'off')}catch{}});
+$('motionToggle').addEventListener('click',()=>{reducedEffects=!reducedEffects;option('motionToggle',reducedEffects,'Reduced effects');try{localStorage.setItem('night-play-action-motion',reducedEffects?'reduced':'full')}catch{}});
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&started&&!paused)pause()});
 window.__nightActionTest={snapshot:()=>JSON.parse(JSON.stringify({game,started,paused,over,frame,...state})),selectGame,reset,start};
 selectGame(new URLSearchParams(location.search).get('game')||'slice');
