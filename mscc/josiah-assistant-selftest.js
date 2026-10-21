@@ -122,6 +122,11 @@ assert(String(calls.at(-1).system).includes('WhatsApp group'))
   ], null, 'Can you download a video?')
   assert(media.includes('.dl <url>'))
   assert(!media.includes('.ping'))
+  const how = compactCommandReference([
+    { name:'dl', capability:'media', description:'Download videos from a link.', usage:'.dl <url>' },
+  ], null, 'How can I download a video with NIGHT?')
+  assert(how.includes('.dl <url>'))
+  assert.equal(compactCommandReference(lazy, null, 'Can you send me a joke?'), '')
   assert(!compact.includes('Perform a long operational tool function. '.repeat(12) + '\nPerform'))
 }
 
