@@ -1,3 +1,9 @@
+# NIGHT Play preview + WBR rule — mandatory (21 October 2026)
+
+For **all** NIGHT Play agents, including coordinators and QA: read `night-play/WBR.md` and `night-play/AGENTS.md` before website work. **Always use the existing main combined-preview website, https://night-play-combined-preview.vercel.app/, for final integration, owner review and real browser gameplay verification.** Keep a single integrated website; no independent game/lab preview is the final delivery. Test local/isolated PR previews only as diagnostics; merge safely into the latest shared NIGHT Play integration source, deploy to the **same** `night-play-combined-preview` Vercel project, inspect the actual alias→commit mapping, then real-playtest the whole site before declaring a fix deployed. Enforce WBR: approved flat visual system, authentic SVGs, no redundant UI, no default-looking inputs, honest online/identity states and real mobile gameplay QA. This rule applies to all NIGHT Play work, **not other projects**.
+
+---
+
 # NIGHT Play Wave 2 — current routing (20 October 2026)
 
 If the current user message says **"You are NIGHT Play Agent N"**, **"You are Agent N"** in NIGHT Play context, or **"Continue"** to an existing NIGHT Play agent, immediately read `night-play/agents/README.md`, `night-play/agents/agent-NN.md`, `night-play/AGENTS.md`, `night-play/docs/wave2-quality-gate.md`, `docs/agent-backlog.md`, the latest `feature/party-online-rooms-20261019` source, and **GitHub issue #459 latest comments**. Source is already integrated via PR #436; work on improvements and real QA, not repeat the first wave. Shared source locks and truthful session limits still apply. Other projects' own AGENTS files remain separate.
