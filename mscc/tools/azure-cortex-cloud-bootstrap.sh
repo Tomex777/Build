@@ -253,9 +253,9 @@ console.log('Cortex Agent -> MSCC passive Cloud endpoint verified (no MEGA login
 VERIFY_CLOUD_RESPONSE
 # Old Android versions still send GET discovery on Refresh. The new Agent
 # must treat that method as inert; never test POST discovery automatically.
-discover_code="$(curl --silent --show-error --max-time 12 \\
-  --output "$cloud_probe_dir/discover.json" --write-out '%{http_code}' \\
-  -H "Authorization: Bearer $CLOUD_TOKEN" \\
+discover_code="$(curl --silent --show-error --max-time 12 \
+  --output "$cloud_probe_dir/discover.json" --write-out '%{http_code}' \
+  -H "Authorization: Bearer $CLOUD_TOKEN" \
   http://127.0.0.1:47831/api/cortex/host/cloud/discover)" || {
     echo 'Cortex legacy MEGA discovery GET failed.' >&2; exit 1;
   }

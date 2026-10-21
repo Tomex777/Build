@@ -57,6 +57,21 @@ grep -Fq 'readonly NIGHT_PROJECT=/opt/mscc/current' "$UPGRADE"
 grep -Fq 'Protected passive MEGA server release is not installed; refusing Agent upgrade before any Cloud request.' "$UPGRADE"
 grep -Fq 'signInRequired: true' "$UPGRADE"
 grep -Fq 'Legacy Cortex MEGA discovery GET verified inert; no sign-in requested.' "$UPGRADE"
+# The old GET probe must be one curl invocation. A doubled continuation
+# backslash executes --output/-H as shell commands and rolls Azure back.
+node - "$UPGRADE" <<'VERIFY_DISCOVER_CURL_CONTINUATION'
+const fs = require('node:fs');
+const source = fs.readFileSync(process.argv[2], 'utf8');
+const start = source.indexOf('discover_code="$(curl');
+const end = source.indexOf('/api/cortex/host/cloud/discover)', start);
+if (start < 0 || end < start) throw new Error('Legacy Cloud GET probe missing');
+const probe = source.slice(start, end);
+const continued = probe.split('\n').slice(0, -1);
+if (continued.length !== 3 ||
+    continued.some(line => !line.endsWith('\\') || line.endsWith('\\\\'))) {
+  throw new Error('Legacy GET curl must use single shell line continuations');
+}
+VERIFY_DISCOVER_CURL_CONTINUATION
 grep -Fq 'Legacy MEGA discovery GET is not safely passive.' "$UPGRADE"
 passive_guard_line="$(grep -nF 'readonly NIGHT_PROJECT=/opt/mscc/current' "$UPGRADE" | head -n 1 | cut -d: -f1)"
 cloud_probe_line="$(grep -nF 'CLOUD_TOKEN="$(sudo -n sed -n' "$UPGRADE" | head -n 1 | cut -d: -f1)"
