@@ -88,6 +88,7 @@ import { ludoRecordAcceptsInput } from './utils/ludo-game.js'
 import { partyInputDestination } from './utils/party-games.js'
 import { wordChainInputDestination } from './utils/word-chain.js'
 import { createJosiahAssistant } from './josiah-assistant.js'
+import { assistantInputPolicy } from './assistant-media-policy.js'
 import { createNamiAssistant } from './nami-assistant.js'
 import { createMiMiAssistant } from './mimi-assistant.js'
 import { chooseProfileAsset, groupIntro, presentationFor, profileHeader, readProfileAsset } from './profile-presentation.js'
@@ -1308,10 +1309,8 @@ async function assistantQuote(account, msg) {
   }, msg?.key?.remoteJid)
 
   let text = directText || commandText(cached?.message)
-  if (!text && info?.quotedMessage) {
-    const media = conversationMediaType(info.quotedMessage)
-    if (media) text = '[' + media + ']'
-  }
+  const media = conversationMediaType(info.quotedMessage || cached?.message)
+  if (media) text = '[' + media + ']' + (text ? ' ' + text : '')
 
   const profile = sharedStorage?.profileForAccount(account.id)
   let speaker = ''
@@ -1482,6 +1481,14 @@ async function sendAssistantReply(account, msg, text, {
 }
 
 async function handleProfileAssistant(account, msg, authority, rawText) {
+  // Uncaptioned image/sticker/video/audio replies are not conversational
+  // text. Do not feed their quoted bot message back as an empty AI request.
+  // Explicit media commands have already been dispatched separately.
+  const input = assistantInputPolicy({
+    text:rawText,
+    mediaType:conversationMediaType(msg?.message),
+  })
+  if (!input.respond) return false
   // Passive mentions/replies must remain silent when no AI key is configured.
   // Other commands and personality routing continue to work normally.
   if (!smartAI.enabled) return false
@@ -1497,8 +1504,8 @@ async function handleProfileAssistant(account, msg, authority, rawText) {
   const groupName = await assistantGroupName(account, chat)
   const presence = await groupPersonalityPresence(account, chat)
   const senderPersonality = senderPersonalityFromPresence(authority, presence)
-  const text = stripAssistantAddress(rawText, profile?.displayName || assistant.displayName || 'Personality')
-    || 'You were mentioned. Respond naturally.'
+  const text = stripAssistantAddress(input.text, profile?.displayName || assistant.displayName || 'Personality')
+    || 'Someone addressed you by name.'
   const aiStartedAt = Date.now()
 
   const result = await assistant.answer({
@@ -1507,6 +1514,7 @@ async function handleProfileAssistant(account, msg, authority, rawText) {
     senderName:String(msg.pushName || '').trim() || authority.senderNumber || 'User',
     quotedText:quote.text,
     quotedSpeaker:quote.speaker,
+    attachmentType:input.attachmentType,
     groupName,
     isGroup:isGroup(chat),
     groupPersonalities:presence,
