@@ -497,7 +497,7 @@ class CortexServerApi(
         )
 
     fun cloudMounts(): List<CloudMount> {
-        val json = getJson("/api/cortex/host/cloud/discover")
+        val json = postJson("/api/cortex/host/cloud/discover", JSONObject())
         val mounts = json.optJSONArray("mounts") ?: JSONArray()
         return buildList {
             for (i in 0 until mounts.length()) {
