@@ -10,7 +10,11 @@ on:
 
 concurrency:
   group: endless-android-ci-${{ github.ref }}
-  cancel-in-progress: true
+  # Preserve the running emulator verification when more realism fixes land.
+  # GitHub still coalesces pending runs for this branch, so final-head CI
+  # runs after the current verified build rather than constantly aborting
+  # API36/26 tests part-way through every commit.
+  cancel-in-progress: false
 
 jobs:
   build:
