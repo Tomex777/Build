@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - feature/offline-100-games-android-foundation
+      - feature/offline-native-first-games-20261020
     paths:
       - 'offline-games/app/src/main/assets/**'
       - 'offline-games/app/src/main/java/com/night/offlinegames/MainActivity.kt'

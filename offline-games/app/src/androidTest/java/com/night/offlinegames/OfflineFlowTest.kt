@@ -24,7 +24,7 @@ import org.junit.Test
 
 @RunWith(AndroidJUnit4::class)
 class OfflineFlowTest {
-    @Test fun hubNativeAndBundledGameWorkWithoutNetworkPermission() {
+    @Test fun nativeHubGamesWorkWithoutNetworkPermission() {
         val instrument = InstrumentationRegistry.getInstrumentation()
         val context = instrument.targetContext
         val granted = context.packageManager
@@ -46,66 +46,55 @@ class OfflineFlowTest {
             device.pressBack()
             assertNotNull("Did not return from 2048", device.wait(Until.findObject(By.text("Offline collection")), 7000))
 
-            val mines = device.wait(Until.findObject(By.text("Minesweeper")), 7000)
-            assertNotNull("Minesweeper missing from hub", mines)
-            mines.click()
-            // WebView accessibility text exposure varies with the Android System WebView
-            // version. Assert on the actual rendered DOM and a complete 81-cell game.
-            val minesReady = awaitJavaScript(scenario, """
-                (function() {
-                    var title = document.getElementById('title');
-                    return !!title && title.textContent === 'Minesweeper' &&
-                        document.querySelectorAll('#mineboard [data-tile]').length === 81;
-                })()
-            """.trimIndent(), 18000)
-            saveScreenshot(device, context, "03-minesweeper.png") // also save the failure state
-            assertEquals("Bundled Minesweeper did not render: ${diagnose(scenario)}", "true", minesReady)
-            assertEquals("Minesweeper does not respond to a click",
-                "true", evaluateJavaScript(scenario, """
-                    (function(){
-                        document.querySelector('#mineboard [data-tile="0"]').click();
-                        return document.querySelectorAll('#mineboard button.revealed').length > 0;
-                    })()
-                """.trimIndent()))
-            saveScreenshot(device, context, "03-minesweeper-touched.png")
-
+            // Native Minesweeper must work without any system WebView provider.
+            val mines = device.wait(Until.findObject(By.desc("Open Minesweeper")), 7000)
+            assertNotNull("Native Minesweeper missing from hub", mines)
+            mines!!.click()
+            val center = device.wait(Until.findObject(By.desc("Mine cell 5, 5: hidden")), 9000)
+            assertNotNull("Minesweeper native touch cells missing", center)
+            saveScreenshot(device, context, "03-native-minesweeper-opening.png")
+            center!!.click()
+            SystemClock.sleep(700)
+            saveScreenshot(device, context, "03-native-minesweeper-after-tap.png")
+            val savedMineState = NativeMinesEngine.decode(
+                context.getSharedPreferences("native_mines", android.content.Context.MODE_PRIVATE)
+                    .getString("board", null))
+            org.junit.Assert.assertTrue("Minesweeper tap did not reach Kotlin engine",
+                savedMineState != null && savedMineState.revealed.isNotEmpty())
+            // UIAutomator can retain an outdated accessibility snapshot of
+            // Compose Canvas cells. Verify the actual tapped native cell and HUD.
+            org.junit.Assert.assertTrue("Minesweeper center square was not revealed",
+                4 * NativeMinesEngine.side + 4 in savedMineState!!.revealed)
+            assertNotNull("Native Minesweeper HUD failed to render after reveal",
+                device.wait(Until.findObject(By.textStartsWith("SAFE ")), 7000))
+            saveScreenshot(device, context, "03-native-minesweeper-revealed.png")
             device.pressBack()
-            assertNotNull("Did not return from arcade", device.wait(Until.findObject(By.text("Offline collection")), 7000))
+            assertNotNull("Did not return from native Minesweeper",
+                device.wait(Until.findObject(By.text("Offline collection")), 7000))
 
-            var newGame = device.wait(Until.findObject(By.text("Tic-Tac-Toe")), 1500)
-            var swipes = 0
-            while (newGame == null && swipes < 7) {
-                device.swipe(
-                    device.displayWidth / 2, device.displayHeight * 3 / 4,
-                    device.displayWidth / 2, device.displayHeight / 3, 15
-                )
-                swipes++
-                newGame = device.wait(Until.findObject(By.text("Tic-Tac-Toe")), 1200)
-            }
-            assertNotNull("Tic-Tac-Toe not listed after scrolling", newGame)
-            newGame!!.click()
-            val ticTacToeReady = awaitJavaScript(scenario, """
-                (function(){
-                    var title = document.getElementById('title');
-                    var status = document.getElementById('status');
-                    return !!title && !!status && title.textContent === 'Tic-Tac-Toe' &&
-                        document.querySelectorAll('#board button.cell').length === 9 &&
-                        status.textContent === 'Your turn · X';
-                })()
-            """.trimIndent(), 15000)
-            saveScreenshot(device, context, "04-tictactoe.png")
-            assertEquals("Tic-Tac-Toe did not render: ${diagnose(scenario)}", "true", ticTacToeReady)
-            assertEquals("Tic-Tac-Toe move did not reach the game engine", "true",
-                evaluateJavaScript(scenario, """
-                    (function(){
-                        document.querySelector('#board button.cell').click();
-                        return document.querySelectorAll('#board button.cell[disabled]').length >= 2;
-                    })()
-                """.trimIndent()))
-            saveScreenshot(device, context, "04-tictactoe-touched.png")
-
+            // This is now a genuine Kotlin/Compose Tic-Tac-Toe screen — not a DOM.
+            val search = device.wait(Until.findObject(By.clazz("android.widget.EditText")), 5000)
+            assertNotNull("Search is not discoverable", search)
+            search!!.text = "Tic-Tac-Toe"
+            val tic = device.wait(Until.findObject(By.desc("Open Tic-Tac-Toe")), 9000)
+            assertNotNull("Native Tic-Tac-Toe absent", tic)
+            tic!!.click()
+            assertNotNull("Native Tic-Tac-Toe cells not mounted", device.wait(Until.findObject(By.descContains("Cell 1:")), 8000))
+            device.findObject(By.text("New game")).click()
+            assertNotNull("Native Tic-Tac-Toe didn't display its turn",
+                device.wait(Until.findObject(By.text("Your move")), 8000))
+            assertNotNull("The first native tap cell is missing",
+                device.wait(Until.findObject(By.descContains("Cell 1: empty")), 8000))
+            saveScreenshot(device, context, "04-native-tictactoe.png")
+            device.findObject(By.descContains("Cell 1: empty")).click()
+            assertNotNull("Touch failed to mark X",
+                device.wait(Until.findObject(By.descContains("Cell 1: X")), 8000))
+            assertNotNull("Kotlin opponent did not answer",
+                device.wait(Until.findObject(By.descContains(": O")), 8000))
+            saveScreenshot(device, context, "04-native-tictactoe-touched.png")
             device.pressBack()
-            assertNotNull("Could not leave the new game", device.wait(Until.findObject(By.text("Offline collection")), 7000))
+            assertNotNull("Could not leave the native game",
+                device.wait(Until.findObject(By.text("Offline collection")), 7000))
         }
     }
 
@@ -159,7 +148,11 @@ class OfflineFlowTest {
     """.trimIndent())
 
     private fun saveScreenshot(device: UiDevice, context: android.content.Context, filename: String) {
-        val directory = context.getExternalFilesDir(null) ?: return
-        device.takeScreenshot(File(directory, filename))
+        val directory = context.getExternalFilesDir(null)
+        assertNotNull("Android screenshot directory unavailable", directory)
+        device.waitForIdle()
+        val file = File(directory!!, filename)
+        org.junit.Assert.assertTrue("Capture failed: $filename", device.takeScreenshot(file))
+        org.junit.Assert.assertTrue("Screenshot empty: $filename", file.exists() && file.length() > 1000L)
     }
 }
