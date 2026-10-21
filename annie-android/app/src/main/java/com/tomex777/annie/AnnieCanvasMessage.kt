@@ -23,7 +23,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -254,8 +253,6 @@ internal fun AnnieCanvasMessage(payload: JSONObject) {
                 modifier = Modifier.fillMaxWidth().height(doc.heightDp.dp)
                     .testTag("annie_canvas_webview"),
             )
-            Text("Interactive • offline sandbox", fontSize = 10.sp,
-                color = BrowserSoftText, modifier = Modifier.padding(start = 8.dp, bottom = 2.dp))
         }
     }
 }
@@ -265,13 +262,19 @@ internal class AnnieCanvasActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // An expanded Canvas is immersive; keep system bars out of the playing surface.
+        androidx.core.view.WindowCompat.getInsetsController(window, window.decorView).apply {
+            hide(androidx.core.view.WindowInsetsCompat.Type.statusBars())
+            systemBarsBehavior =
+                androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        }
         controller = intent.getStringExtra(EXTRA_ID)?.let(AnnieCanvasSessions::find)
         if (controller == null) { finish(); return }
         setContent {
             AnnieTheme {
                 Column(
                     Modifier.fillMaxSize().background(BrowserNight)
-                        .statusBarsPadding().navigationBarsPadding()
+                        .navigationBarsPadding()
                         .testTag("annie_canvas_fullscreen_screen"),
                 ) {
                     Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),

@@ -173,6 +173,18 @@ internal object AnnieIcons {
         }.build()
     }
 
+    val Bookmark: ImageVector by lazy {
+        ImageVector.Builder(name = "Bookmark", defaultWidth = 24.dp, defaultHeight = 24.dp,
+            viewportWidth = 24f, viewportHeight = 24f).apply {
+            path(fill = SolidColor(androidx.compose.ui.graphics.Color.White)) {
+                moveTo(6f, 3f); horizontalLineTo(18f)
+                curveTo(19.1f, 3f, 20f, 3.9f, 20f, 5f)
+                verticalLineTo(22f); lineTo(12f, 17f); lineTo(4f, 22f)
+                verticalLineTo(5f); curveTo(4f, 3.9f, 4.9f, 3f, 6f, 3f); close()
+            }
+        }.build()
+    }
+
     val Add: ImageVector by lazy {
         ImageVector.Builder(
             name = "Add", defaultWidth = 24.dp, defaultHeight = 24.dp,

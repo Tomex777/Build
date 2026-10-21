@@ -37,12 +37,16 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -605,15 +609,25 @@ private fun AnnieFullBrowser(spec: AnnieBrowserSpec, instanceId: String, onClose
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(7.dp),
                 ) {
-                    OutlinedTextField(
+                    BasicTextField(
                         value = address,
                         onValueChange = { address = it.take(AnnieBrowserSpec.MAX_URL_CHARS) },
-                        modifier = Modifier.weight(1f).testTag("annie_browser_address"),
+                        modifier = Modifier.weight(1f).heightIn(min = 48.dp)
+                            .clip(RoundedCornerShape(14.dp)).background(Color(0xFF10243A))
+                            .border(1.dp, Color(0xFF294562), RoundedCornerShape(14.dp))
+                            .padding(horizontal = 14.dp, vertical = 12.dp)
+                            .testTag("annie_browser_address"),
+                        textStyle = TextStyle(color = BrowserBrightText, fontSize = 15.sp),
+                        cursorBrush = SolidColor(BrowserTeal),
                         singleLine = true,
-                        placeholder = { Text("Search or enter address", color = BrowserSoftText, fontSize = 12.sp) },
-                        shape = RoundedCornerShape(15.dp),
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go),
                         keyboardActions = KeyboardActions(onGo = { loadAddress(controller, safe, address) }),
+                        decorationBox = { inner ->
+                            Box(contentAlignment = Alignment.CenterStart) {
+                                if (address.isEmpty()) Text("Search or enter address", color = BrowserSoftText, fontSize = 12.sp)
+                                inner()
+                            }
+                        },
                     )
                     Button(
                         onClick = { loadAddress(controller, safe, address) },

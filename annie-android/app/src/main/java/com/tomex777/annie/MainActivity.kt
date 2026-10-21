@@ -1176,12 +1176,12 @@ private fun ChatHistoryContent(
             onDismissRequest = { renameTarget = null },
             title = { Text("Rename chat") },
             text = {
-                androidx.compose.material3.OutlinedTextField(
+                AnnieSettingsInput(
                     value = renameDraft,
                     onValueChange = { renameDraft = it.take(64) },
-                    singleLine = true,
-                    label = { Text("Chat name") },
-                    modifier = Modifier.testTag("rename_chat_input"),
+                    label = "Chat name",
+                    modifier = Modifier.fillMaxWidth(),
+                    tag = "rename_chat_input",
                 )
             },
             confirmButton = {
@@ -1269,8 +1269,6 @@ private fun AnnieNavigationDrawer(
                     modifier = Modifier.padding(top = 10.dp).testTag("drawer_new_chat"), highlighted = true)
                 DrawerAction("Library", AnnieIcons.Library, { onOpen("Library") },
                     modifier = Modifier.testTag("drawer_library"))
-                DrawerAction("Downloads", AnnieIcons.Download, { onOpen("Downloads:All") },
-                    modifier = Modifier.testTag("drawer_downloads"))
                 DrawerAction("Extensions", AnnieIcons.Package, { onOpen("Extensions") },
                     modifier = Modifier.testTag("drawer_extensions"))
                 Row(Modifier.fillMaxWidth().padding(top = 7.dp), verticalAlignment = Alignment.CenterVertically) {

@@ -23,7 +23,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -87,6 +86,11 @@ internal class AnnieImageEditorActivity : ComponentActivity() {
             statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
             navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
         )
+        androidx.core.view.WindowCompat.getInsetsController(window, window.decorView).apply {
+            hide(androidx.core.view.WindowInsetsCompat.Type.statusBars())
+            systemBarsBehavior =
+                androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        }
         val source = intent.getStringExtra(EXTRA_URI).orEmpty()
         val projectId = intent.getStringExtra(EXTRA_PROJECT).orEmpty()
         val image = source.takeIf(String::isNotBlank)?.let {
@@ -187,7 +191,7 @@ internal fun AnnieImageEditorScreen(source: String?, onClose: () -> Unit) {
     }
 
     Column(Modifier.fillMaxSize().background(Color(0xFF030811))
-        .statusBarsPadding().navigationBarsPadding().testTag("annie_image_editor")) {
+        .navigationBarsPadding().testTag("annie_image_editor")) {
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 8.dp),
             horizontalArrangement = Arrangement.SpaceBetween,

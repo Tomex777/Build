@@ -202,7 +202,20 @@ class GenericFileDownloadTest {
                 val completed = requireNotNull(saved) { "FILE message did not reach the durable queue" }
                 assertBytes(completed)
                 compose.onNodeWithTag("chat_history_button").performClick()
-                compose.onNodeWithTag("drawer_downloads").performClick()
+                // ABR: Downloads is reached through Library, never a duplicate drawer entry.
+                // Wait for the actual drawer to finish opening before injecting touch input.
+                compose.mainClock.advanceTimeBy(320)
+                compose.waitUntil(8_000) {
+                    compose.onAllNodesWithTag("drawer_library").fetchSemanticsNodes().isNotEmpty()
+                }
+                compose.onNodeWithTag("drawer_library").performClick()
+                compose.waitUntil(8_000) {
+                    compose.onAllNodesWithTag("library_downloads").fetchSemanticsNodes().isNotEmpty()
+                }
+                compose.onNodeWithTag("library_downloads").performClick()
+                compose.waitUntil(8_000) {
+                    compose.onAllNodesWithTag("download_file_${completed.id}").fetchSemanticsNodes().isNotEmpty()
+                }
                 compose.onNodeWithTag("download_file_${completed.id}").assertExists()
                 compose.onNode(hasText("package.blorp") and hasAnyAncestor(hasTestTag("download_file_${completed.id}"))).assertExists()
                 saveEmulatorScreenshot("package-file-in-downloads")
