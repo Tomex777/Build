@@ -2,12 +2,24 @@
 // Run: node night-play/sling-siege/mobile-smoke.mjs (npm i --no-save playwright@1.56.1)
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
+import { createServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { resolve, dirname } from 'node:path';
-import { pathToFileURL } from 'node:url';
 import { chromium } from 'playwright';
 const home=dirname(fileURLToPath(import.meta.url));
-const gameUrl=pathToFileURL(resolve(home,'index.html')).href;
+// Use the SAME root-relative CSS resolution as the actual combined website.
+// A file:// test silently drops /game-shell.css and gives false mobile layout failures.
+const root=resolve(home,'..');
+const server=createServer((req,res)=>{
+ const url=new URL(req.url,'http://127.0.0.1').pathname;
+ const assets={'/sling-siege/':'sling-siege/index.html','/sling-siege/index.html':'sling-siege/index.html','/game-shell.css':'game-shell.css'};
+ const rel=assets[url];if(!rel){res.writeHead(404);res.end();return;}
+ res.writeHead(200,{'content-type':rel.endsWith('.css')?'text/css':'text/html'});
+ res.end(readFileSync(resolve(root,rel)));
+});
+await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+const gameUrl='http://127.0.0.1:'+server.address().port+'/sling-siege/';
 const evidence=resolve(home,'visual-output');
 await mkdir(evidence,{recursive:true});
 const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
@@ -90,4 +102,4 @@ try{
   await page.close();
  }
  console.log('Sling Siege browser gate PASS',JSON.stringify(results));
-}finally{await browser.close()}
+}finally{await browser.close();await new Promise(done=>server.close(done))}
