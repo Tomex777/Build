@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises';
 import sharp from 'sharp';
 import {inside,atomic,digest} from './catalogue.mjs';
+import {composeRomanceCutouts} from './manhwa-duo.mjs';
 
 export async function download(url,{fetchImpl=fetch,limit=16*1024*1024}={}) {
   const response=await fetchImpl(url,{redirect:'error',signal:AbortSignal.timeout(25000)});
@@ -10,6 +11,24 @@ export async function download(url,{fetchImpl=fetch,limit=16*1024*1024}={}) {
   return Buffer.concat(chunks);
 }
 export async function acquireArtwork(card,{fetchImpl=fetch}={}) {
+  if(card.family==='romance') {
+    if(!card.secondSource || !card.secondRecipe || !card.romanceComposition
+      || !Array.isArray(card.sourceSubjects) || card.sourceSubjects.length!==2)
+      throw Error('Romance card needs two independently sourced subjects');
+    const left=await acquireArtwork({...card,family:'character'}, {fetchImpl});
+    const right=await acquireArtwork({...card,family:'character',
+      source:card.secondSource,recipe:card.secondRecipe},{fetchImpl});
+    const combined=await composeRomanceCutouts({
+      left:left.art,right:right.art,composition:card.romanceComposition
+    });
+    return {...left,...combined,
+      artist:left.artist+' / '+right.artist,
+      license:left.license+' / '+right.license,
+      rights:left.rights+' / '+right.rights,
+      sourceUrl:left.sourceUrl+' | '+right.sourceUrl,
+      licenseUrl:left.licenseUrl+' | '+right.licenseUrl,
+      title:card.title+' — '+card.form};
+  }
   const s=card.source, file=inside(s.localPath);
   let bytes;
   try {bytes=await fs.readFile(file);} catch(e) {

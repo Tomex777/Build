@@ -39,6 +39,25 @@ export async function loadCatalogue(series='bleach') {
     const [x,y,w,h]=r?.crop??[];
     if (![x,y,w,h].every(Number.isInteger) || x<0 || y<0 || w<1 || h<1 || x+w>s.width || y+h>s.height) throw Error(`Invalid artwork crop: ${card.id}`);
     if (!r.focal?.every(n=>Number.isFinite(n)&&n>=0&&n<=1)) throw Error(`Missing focal point: ${card.id}`);
+    if (card.family==='romance') {
+      const second=card.secondSource, recipe=card.secondRecipe;
+      if (!/^[a-f0-9]{64}$/.test(second?.sha256)
+        || second.sha256===s.sha256 || second.localPath===s.localPath
+        || !second.rights || !second.usage || !second.page?.startsWith('https://')
+        || !second.image?.startsWith('https://'))
+        throw Error(`Missing distinct second romance subject provenance: ${card.id}`);
+      inside(second.localPath);
+      const [x2,y2,w2,h2]=recipe?.crop??[];
+      if (![x2,y2,w2,h2].every(Number.isInteger)||x2<0||y2<0||w2<1||h2<1
+        || x2+w2>second.width||y2+h2>second.height
+        || !recipe.focal?.every(n=>Number.isFinite(n)&&n>=0&&n<=1))
+        throw Error(`Invalid secondary romance cutout crop: ${card.id}`);
+      if(card.romanceComposition?.mode!=='two-subject-source-locked'
+        || !Array.isArray(card.sourceSubjects)||card.sourceSubjects.length!==2
+        || card.sourceSubjects.some(x=>typeof x!=='string'||!x.trim()))
+        throw Error(`Missing distinct subject composition identity: ${card.id}`);
+    }
+
   }
   return catalogue;
 }
@@ -52,7 +71,7 @@ export async function rendererDigest() {
   return digest(JSON.stringify(hashes));
 }
 export function reviewFingerprint(card,design,renderer,width=3000) {
-  return digest(JSON.stringify(stable({id:card.id,number:card.number,character:card.character,name:card.name,title:card.title,form:card.form,formId:card.formId,source:card.source,recipe:card.recipe,design,renderer,width})));
+  return digest(JSON.stringify(stable({id:card.id,number:card.number,character:card.character,name:card.name,title:card.title,form:card.form,formId:card.formId,source:card.source,recipe:card.recipe,secondSource:card.secondSource,secondRecipe:card.secondRecipe,romanceComposition:card.romanceComposition,sourceSubjects:card.sourceSubjects,design,renderer,width})));
 }
 export function findEntries(entries,query,{form,design}={}) {
   const q=normalise(query);

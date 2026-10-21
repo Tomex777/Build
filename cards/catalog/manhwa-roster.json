@@ -1,0 +1,4321 @@
+{
+  "version": 1,
+  "id": "night-manhwa-foundation",
+  "created": "2026-10-21",
+  "status": "expanded-roster-pending-art-and-chapter-review",
+  "imagePolicy": "No generated art, no source substitution. Original source SHA-256, native dimensions, rights and crop must be pinned before rendering.",
+  "powerPolicy": "Only the same work and continuity can be compared; no NIGHT F-EX rank until source-located feats are checked.",
+  "families": [
+    "power",
+    "character",
+    "romance"
+  ],
+  "series": [
+    {
+      "id": "sss-revival",
+      "name": "SSS-Class Revival Hunter",
+      "medium": "manhwa",
+      "source": "https://tapas.io/series/sss-class-revival-hunter/info",
+      "continuity": "webcomic",
+      "mode": "combat-and-story",
+      "publisher": "Tapas / Fansia",
+      "rights": "© Bill K, Neida, Sinnoa / Fansia. All rights reserved."
+    },
+    {
+      "id": "infinite-mage",
+      "name": "The Infinite Mage",
+      "medium": "manhwa",
+      "source": "https://tapas.io/series/the-infinite-mage/info",
+      "continuity": "webcomic",
+      "mode": "combat-and-story",
+      "publisher": "Tapas / REDICE STUDIO",
+      "rights": "© Themis, kiraz (REDICE STUDIO), kim chi woo, Aditi / REDICE STUDIO. All rights reserved."
+    },
+    {
+      "id": "study-group",
+      "name": "Study Group",
+      "medium": "manhwa",
+      "source": "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+      "continuity": "webcomic",
+      "mode": "character-story-only",
+      "publisher": "WEBTOON / YLAB",
+      "rights": "© Hyungwuk Shin, Seungyeon Ryu / YLAB. All rights reserved."
+    }
+  ],
+  "editions": [
+    {
+      "id": "gong-ja-regressor",
+      "series": "sss-revival",
+      "family": "power",
+      "title": "Kim Gong-ja",
+      "form": "Returner / Tower",
+      "subjects": [
+        "Kim Gong-ja"
+      ],
+      "story": {
+        "descriptor": "Regresses after death; exact webcomic-era form must match artwork.",
+        "role": "Regression is not raw offensive power.",
+        "spoiler": false,
+        "source": "https://tapas.io/series/sss-class-revival-hunter/info"
+      },
+      "power": {
+        "status": "pending-feat-review",
+        "tier": null,
+        "scope": "in-universe-only",
+        "continuity": "webcomic",
+        "reference": "https://tapas.io/series/sss-class-revival-hunter/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Kim Gong-ja"
+        ],
+        "sourcePage": "https://tapas.io/series/sss-class-revival-hunter/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "nocturne",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/sss-class-revival-hunter/info",
+          "https://sss-class-revival-hunter.fandom.com/wiki/Category:Character"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": [
+        "Kim Gongja",
+        "Gong-ja Kim",
+        "Confucius Kim"
+      ]
+    },
+    {
+      "id": "gong-ja-demonic-arts",
+      "series": "sss-revival",
+      "family": "power",
+      "title": "Kim Gong-ja",
+      "form": "Demonic Arts",
+      "subjects": [
+        "Kim Gong-ja"
+      ],
+      "story": {
+        "descriptor": "A later martial-arts development requiring separate era-accurate source imagery.",
+        "role": "Different form; no reused early Tower portrait.",
+        "spoiler": true,
+        "source": "https://tapas.io/series/sss-class-revival-hunter/info"
+      },
+      "power": {
+        "status": "pending-feat-review",
+        "tier": null,
+        "scope": "in-universe-only",
+        "continuity": "webcomic",
+        "reference": "https://tapas.io/series/sss-class-revival-hunter/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Kim Gong-ja"
+        ],
+        "sourcePage": "https://tapas.io/series/sss-class-revival-hunter/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "nocturne",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/sss-class-revival-hunter/info",
+          "https://sss-class-revival-hunter.fandom.com/wiki/Category:Character"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": [
+        "Kim Gongja",
+        "Gong-ja Kim"
+      ]
+    },
+    {
+      "id": "heavenly-demon",
+      "series": "sss-revival",
+      "family": "power",
+      "title": "Heavenly Demon",
+      "form": "Martial Arts Master",
+      "subjects": [
+        "Seo Baek-hyang"
+      ],
+      "story": {
+        "descriptor": "Martial master encountered through the Tower story.",
+        "role": "Martial mastery; source-era feat audit required.",
+        "spoiler": true,
+        "source": "https://tapas.io/series/sss-class-revival-hunter/info"
+      },
+      "power": {
+        "status": "pending-feat-review",
+        "tier": null,
+        "scope": "in-universe-only",
+        "continuity": "webcomic",
+        "reference": "https://tapas.io/series/sss-class-revival-hunter/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Seo Baek-hyang"
+        ],
+        "sourcePage": "https://tapas.io/series/sss-class-revival-hunter/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "nocturne",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/sss-class-revival-hunter/info",
+          "https://sss-class-revival-hunter.fandom.com/wiki/Category:Character"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": []
+    },
+    {
+      "id": "sword-emperor",
+      "series": "sss-revival",
+      "family": "power",
+      "title": "Sword Emperor",
+      "form": "Mentor",
+      "subjects": [
+        "Sword Emperor"
+      ],
+      "story": {
+        "descriptor": "Sword-master mentor linked to Gong-ja's development.",
+        "role": "Spiritual and physical manifestation must not be conflated.",
+        "spoiler": false,
+        "source": "https://tapas.io/series/sss-class-revival-hunter/info"
+      },
+      "power": {
+        "status": "pending-feat-review",
+        "tier": null,
+        "scope": "in-universe-only",
+        "continuity": "webcomic",
+        "reference": "https://tapas.io/series/sss-class-revival-hunter/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Sword Emperor"
+        ],
+        "sourcePage": "https://tapas.io/series/sss-class-revival-hunter/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "nocturne",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/sss-class-revival-hunter/info",
+          "https://sss-class-revival-hunter.fandom.com/wiki/Category:Character"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": []
+    },
+    {
+      "id": "black-witch",
+      "series": "sss-revival",
+      "family": "power",
+      "title": "Black Witch",
+      "form": "Guild Leader",
+      "subjects": [
+        "Black Witch"
+      ],
+      "story": {
+        "descriptor": "Prominent Tower guild leader.",
+        "role": "Support and tactical influence differ from raw attack power.",
+        "spoiler": false,
+        "source": "https://tapas.io/series/sss-class-revival-hunter/info"
+      },
+      "power": {
+        "status": "pending-feat-review",
+        "tier": null,
+        "scope": "in-universe-only",
+        "continuity": "webcomic",
+        "reference": "https://tapas.io/series/sss-class-revival-hunter/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Black Witch"
+        ],
+        "sourcePage": "https://tapas.io/series/sss-class-revival-hunter/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "nocturne",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/sss-class-revival-hunter/info",
+          "https://sss-class-revival-hunter.fandom.com/wiki/Category:Character"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": [
+        "Anastasia Zelenski",
+        "Witch of the Black Dragon"
+      ]
+    },
+    {
+      "id": "yoo-soo-ha",
+      "series": "sss-revival",
+      "family": "power",
+      "title": "Yoo Soo-ha",
+      "form": "Flame Emperor",
+      "subjects": [
+        "Yoo Soo-ha"
+      ],
+      "story": {
+        "descriptor": "Early Tower rank-one hunter.",
+        "role": "In-universe Tower leaderboard is not NIGHT tier.",
+        "spoiler": false,
+        "source": "https://tapas.io/series/sss-class-revival-hunter/info"
+      },
+      "power": {
+        "status": "pending-feat-review",
+        "tier": null,
+        "scope": "in-universe-only",
+        "continuity": "webcomic",
+        "reference": "https://tapas.io/series/sss-class-revival-hunter/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Yoo Soo-ha"
+        ],
+        "sourcePage": "https://tapas.io/series/sss-class-revival-hunter/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "nocturne",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/sss-class-revival-hunter/info",
+          "https://sss-class-revival-hunter.fandom.com/wiki/Category:Character"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": [
+        "Yoo Soo Ha",
+        "Flame Emperor"
+      ]
+    },
+    {
+      "id": "raviel-ivansia",
+      "series": "sss-revival",
+      "family": "character",
+      "title": "Raviel Ivansia",
+      "form": "The Lady of Silver Lily",
+      "subjects": [
+        "Raviel Ivansia"
+      ],
+      "story": {
+        "descriptor": "A defining figure in the romance narrative.",
+        "role": "Character spotlight, not an arbitrary combat grade.",
+        "spoiler": true,
+        "source": "https://tapas.io/series/sss-class-revival-hunter/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Raviel Ivansia"
+        ],
+        "sourcePage": "https://tapas.io/series/sss-class-revival-hunter/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/sss-class-revival-hunter/info",
+          "https://sss-class-revival-hunter.fandom.com/wiki/Category:Character"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": [
+        "Raviel Ivansi",
+        "Lady of the Silver Lily"
+      ]
+    },
+    {
+      "id": "gong-ja-raviel",
+      "series": "sss-revival",
+      "family": "romance",
+      "title": "Gong-ja × Raviel",
+      "form": "Bound by Returns",
+      "subjects": [
+        "Kim Gong-ja",
+        "Raviel Ivansia"
+      ],
+      "story": {
+        "descriptor": "A relationship-centered two-character edition.",
+        "role": "Romance / devotion / shared memory, never a power ranking.",
+        "spoiler": true,
+        "source": "https://tapas.io/series/sss-class-revival-hunter/info"
+      },
+      "bond": {
+        "grade": null,
+        "focus": "Romance / devotion / shared memory, never a power ranking.",
+        "continuity": "webcomic",
+        "relationshipStatus": "story-spoiler"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Kim Gong-ja",
+          "Raviel Ivansia"
+        ],
+        "sourcePage": "https://tapas.io/series/sss-class-revival-hunter/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "tidelight",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/sss-class-revival-hunter/info",
+          "https://sss-class-revival-hunter.fandom.com/wiki/Category:Character"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": [
+        "Kim Gongja × Raviel",
+        "Gong-ja and Raviel"
+      ]
+    },
+    {
+      "id": "sirone-academy",
+      "series": "infinite-mage",
+      "family": "power",
+      "title": "Sirone Arian",
+      "form": "Magic Academy",
+      "subjects": [
+        "Sirone Arian"
+      ],
+      "story": {
+        "descriptor": "Young mage learning the Spirit Zone.",
+        "role": "School-era magic; do not use eventual novel feats.",
+        "spoiler": false,
+        "source": "https://tapas.io/series/the-infinite-mage/info"
+      },
+      "power": {
+        "status": "pending-feat-review",
+        "tier": null,
+        "scope": "in-universe-only",
+        "continuity": "webcomic",
+        "reference": "https://tapas.io/series/the-infinite-mage/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Sirone Arian"
+        ],
+        "sourcePage": "https://tapas.io/series/the-infinite-mage/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "nocturne",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/the-infinite-mage/info",
+          "https://infinite-mage.fandom.com/wiki/Category:Characters"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": [
+        "Shirone",
+        "Sirone"
+      ]
+    },
+    {
+      "id": "sirone-photon",
+      "series": "infinite-mage",
+      "family": "power",
+      "title": "Sirone Arian",
+      "form": "Light Magic",
+      "subjects": [
+        "Sirone Arian"
+      ],
+      "story": {
+        "descriptor": "Distinct later magic expression and artwork needed.",
+        "role": "Only demonstrable webcomic powers considered.",
+        "spoiler": true,
+        "source": "https://tapas.io/series/the-infinite-mage/info"
+      },
+      "power": {
+        "status": "pending-feat-review",
+        "tier": null,
+        "scope": "in-universe-only",
+        "continuity": "webcomic",
+        "reference": "https://tapas.io/series/the-infinite-mage/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Sirone Arian"
+        ],
+        "sourcePage": "https://tapas.io/series/the-infinite-mage/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "nocturne",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/the-infinite-mage/info",
+          "https://infinite-mage.fandom.com/wiki/Category:Characters"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": [
+        "Shirone"
+      ]
+    },
+    {
+      "id": "amy-karmis",
+      "series": "infinite-mage",
+      "family": "power",
+      "title": "Amy Karmis",
+      "form": "Fire Mage",
+      "subjects": [
+        "Amy Karmis"
+      ],
+      "story": {
+        "descriptor": "Academy fire-magic combatant.",
+        "role": "Exact school-era form; grade awaits feat review.",
+        "spoiler": false,
+        "source": "https://tapas.io/series/the-infinite-mage/info"
+      },
+      "power": {
+        "status": "pending-feat-review",
+        "tier": null,
+        "scope": "in-universe-only",
+        "continuity": "webcomic",
+        "reference": "https://tapas.io/series/the-infinite-mage/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Amy Karmis"
+        ],
+        "sourcePage": "https://tapas.io/series/the-infinite-mage/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "nocturne",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/the-infinite-mage/info",
+          "https://infinite-mage.fandom.com/wiki/Category:Characters"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": []
+    },
+    {
+      "id": "alpheas-mirhy",
+      "series": "infinite-mage",
+      "family": "power",
+      "title": "Alpheas Mirhy",
+      "form": "Academy Head",
+      "subjects": [
+        "Alpheas Mirhy"
+      ],
+      "story": {
+        "descriptor": "Head of Alpheas School of Magic.",
+        "role": "Authority is not automatically superior combat potency.",
+        "spoiler": false,
+        "source": "https://tapas.io/series/the-infinite-mage/info"
+      },
+      "power": {
+        "status": "pending-feat-review",
+        "tier": null,
+        "scope": "in-universe-only",
+        "continuity": "webcomic",
+        "reference": "https://tapas.io/series/the-infinite-mage/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Alpheas Mirhy"
+        ],
+        "sourcePage": "https://tapas.io/series/the-infinite-mage/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "nocturne",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/the-infinite-mage/info",
+          "https://infinite-mage.fandom.com/wiki/Category:Characters"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": []
+    },
+    {
+      "id": "ethella-romie",
+      "series": "infinite-mage",
+      "family": "power",
+      "title": "Ethella Romie",
+      "form": "Mage Instructor",
+      "subjects": [
+        "Ethella Romie"
+      ],
+      "story": {
+        "descriptor": "Experienced magical instructor.",
+        "role": "Match source version and observed spells.",
+        "spoiler": false,
+        "source": "https://tapas.io/series/the-infinite-mage/info"
+      },
+      "power": {
+        "status": "pending-feat-review",
+        "tier": null,
+        "scope": "in-universe-only",
+        "continuity": "webcomic",
+        "reference": "https://tapas.io/series/the-infinite-mage/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Ethella Romie"
+        ],
+        "sourcePage": "https://tapas.io/series/the-infinite-mage/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "nocturne",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/the-infinite-mage/info",
+          "https://infinite-mage.fandom.com/wiki/Category:Characters"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": []
+    },
+    {
+      "id": "rian-ogent",
+      "series": "infinite-mage",
+      "family": "character",
+      "title": "Rian Ogent",
+      "form": "Swordsman",
+      "subjects": [
+        "Rian Ogent"
+      ],
+      "story": {
+        "descriptor": "Sirone's loyal companion.",
+        "role": "Character importance does not equal a cross-genre tier.",
+        "spoiler": false,
+        "source": "https://tapas.io/series/the-infinite-mage/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Rian Ogent"
+        ],
+        "sourcePage": "https://tapas.io/series/the-infinite-mage/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/the-infinite-mage/info",
+          "https://infinite-mage.fandom.com/wiki/Category:Characters"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": []
+    },
+    {
+      "id": "iruki-mercodain",
+      "series": "infinite-mage",
+      "family": "character",
+      "title": "Iruki Mercodain",
+      "form": "Classmate",
+      "subjects": [
+        "Iruki Mercodain"
+      ],
+      "story": {
+        "descriptor": "One of Sirone's peers.",
+        "role": "A story-led character spotlight.",
+        "spoiler": false,
+        "source": "https://tapas.io/series/the-infinite-mage/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Iruki Mercodain"
+        ],
+        "sourcePage": "https://tapas.io/series/the-infinite-mage/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/the-infinite-mage/info",
+          "https://infinite-mage.fandom.com/wiki/Category:Characters"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": [
+        "Eruki Mercodain"
+      ]
+    },
+    {
+      "id": "nade-west",
+      "series": "infinite-mage",
+      "family": "character",
+      "title": "Nade West",
+      "form": "Classmate",
+      "subjects": [
+        "Nade West"
+      ],
+      "story": {
+        "descriptor": "Member of Sirone's school circle.",
+        "role": "A story-led character spotlight.",
+        "spoiler": false,
+        "source": "https://tapas.io/series/the-infinite-mage/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Nade West"
+        ],
+        "sourcePage": "https://tapas.io/series/the-infinite-mage/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/the-infinite-mage/info",
+          "https://infinite-mage.fandom.com/wiki/Category:Characters"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": []
+    },
+    {
+      "id": "sirone-amy",
+      "series": "infinite-mage",
+      "family": "romance",
+      "title": "Sirone × Amy",
+      "form": "A Growing Bond",
+      "subjects": [
+        "Sirone Arian",
+        "Amy Karmis"
+      ],
+      "story": {
+        "descriptor": "Their relationship has important developments across versions.",
+        "role": "Romance storytelling; use only art matching the depicted continuity.",
+        "spoiler": true,
+        "source": "https://tapas.io/series/the-infinite-mage/info"
+      },
+      "bond": {
+        "grade": null,
+        "focus": "Romance storytelling; use only art matching the depicted continuity.",
+        "continuity": "webcomic",
+        "relationshipStatus": "story-spoiler"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Sirone Arian",
+          "Amy Karmis"
+        ],
+        "sourcePage": "https://tapas.io/series/the-infinite-mage/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "tidelight",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/the-infinite-mage/info",
+          "https://infinite-mage.fandom.com/wiki/Category:Characters"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": [
+        "Shirone and Amy"
+      ]
+    },
+    {
+      "id": "gamin-yoon",
+      "series": "study-group",
+      "family": "character",
+      "title": "Gamin Yoon",
+      "form": "Study Group Founder",
+      "subjects": [
+        "Gamin Yoon"
+      ],
+      "story": {
+        "descriptor": "A gifted fighter determined to succeed academically.",
+        "role": "Determination / protectiveness / school story.",
+        "spoiler": false,
+        "source": "https://www.webtoons.com/en/action/study-group/list?title_no=3595"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Gamin Yoon"
+        ],
+        "sourcePage": "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+          "https://webtoon.fandom.com/id/wiki/Study_Group"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": [
+        "Yoon Ga-min",
+        "Youn Gamin",
+        "Yoon Gamin"
+      ]
+    },
+    {
+      "id": "hankyeong-lee",
+      "series": "study-group",
+      "family": "character",
+      "title": "Hankyeong Lee",
+      "form": "Tutor & Teacher",
+      "subjects": [
+        "Hankyeong Lee"
+      ],
+      "story": {
+        "descriptor": "Gamin's former tutor and teacher.",
+        "role": "Mentorship, not a combat tier.",
+        "spoiler": false,
+        "source": "https://www.webtoons.com/en/action/study-group/list?title_no=3595"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Hankyeong Lee"
+        ],
+        "sourcePage": "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+          "https://webtoon.fandom.com/id/wiki/Study_Group"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": [
+        "Lee Han-kyung",
+        "Lee Han-gyeong"
+      ]
+    },
+    {
+      "id": "sehyun-kim",
+      "series": "study-group",
+      "family": "character",
+      "title": "Sehyun Kim",
+      "form": "First Recruit",
+      "subjects": [
+        "Sehyun Kim"
+      ],
+      "story": {
+        "descriptor": "Early member of the Study Group.",
+        "role": "Growth / friendship / studies.",
+        "spoiler": false,
+        "source": "https://www.webtoons.com/en/action/study-group/list?title_no=3595"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Sehyun Kim"
+        ],
+        "sourcePage": "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+          "https://webtoon.fandom.com/id/wiki/Study_Group"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": [
+        "Kim Se-hyun"
+      ]
+    },
+    {
+      "id": "jiwoo-lee",
+      "series": "study-group",
+      "family": "character",
+      "title": "Jiwoo Lee",
+      "form": "Study Group Member",
+      "subjects": [
+        "Jiwoo Lee"
+      ],
+      "story": {
+        "descriptor": "Core study group member.",
+        "role": "Friendship / school-life, no invented ranking.",
+        "spoiler": false,
+        "source": "https://www.webtoons.com/en/action/study-group/list?title_no=3595"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Jiwoo Lee"
+        ],
+        "sourcePage": "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+          "https://webtoon.fandom.com/id/wiki/Study_Group"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": [
+        "Lee Ji-woo"
+      ]
+    },
+    {
+      "id": "heewon-choi",
+      "series": "study-group",
+      "family": "character",
+      "title": "Heewon Choi",
+      "form": "Study Group Member",
+      "subjects": [
+        "Heewon Choi"
+      ],
+      "story": {
+        "descriptor": "Core study group member.",
+        "role": "Solidarity / academic ambition.",
+        "spoiler": false,
+        "source": "https://www.webtoons.com/en/action/study-group/list?title_no=3595"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Heewon Choi"
+        ],
+        "sourcePage": "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+          "https://webtoon.fandom.com/id/wiki/Study_Group"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": [
+        "Choi Hee-won"
+      ]
+    },
+    {
+      "id": "hanwool-phi",
+      "series": "study-group",
+      "family": "character",
+      "title": "Hanwool Phi",
+      "form": "Yusung Antagonist",
+      "subjects": [
+        "Hanwool Phi"
+      ],
+      "story": {
+        "descriptor": "A school power-broker and opponent.",
+        "role": "Narrative rivalry, not a supernatural scale.",
+        "spoiler": false,
+        "source": "https://www.webtoons.com/en/action/study-group/list?title_no=3595"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Hanwool Phi"
+        ],
+        "sourcePage": "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+          "https://webtoon.fandom.com/id/wiki/Study_Group"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": [
+        "Pi Han-wool",
+        "Phi Hanwool"
+      ]
+    },
+    {
+      "id": "countess-babylon",
+      "series": "sss-revival",
+      "family": "character",
+      "title": "Countess",
+      "form": "Babylon Merchant Guild",
+      "subjects": [
+        "Countess"
+      ],
+      "story": {
+        "descriptor": "One of the Tower's prominent guild leaders.",
+        "role": "Influence and strategy are separate from direct combat power.",
+        "spoiler": false,
+        "source": "https://tapas.io/series/sss-class-revival-hunter/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Countess"
+        ],
+        "sourcePage": "https://tapas.io/series/sss-class-revival-hunter/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/sss-class-revival-hunter/info",
+          "https://sss-class-revival-hunter.fandom.com/wiki/Category:Character"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": []
+    },
+    {
+      "id": "heretic-inquisitor",
+      "series": "sss-revival",
+      "family": "power",
+      "title": "Heresy Inquisitor",
+      "form": "Ten Thousand Temple Guildmaster",
+      "subjects": [
+        "Heresy Inquisitor"
+      ],
+      "story": {
+        "descriptor": "Tower hunter known for an unsettlingly cheerful demeanor.",
+        "role": "Supernatural technique; exact depicted form and feats need verification.",
+        "spoiler": true,
+        "source": "https://tapas.io/series/sss-class-revival-hunter/info"
+      },
+      "power": {
+        "status": "pending-feat-review",
+        "tier": null,
+        "scope": "in-universe-only",
+        "continuity": "webcomic",
+        "reference": "https://tapas.io/series/sss-class-revival-hunter/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Heresy Inquisitor"
+        ],
+        "sourcePage": "https://tapas.io/series/sss-class-revival-hunter/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "nocturne",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/sss-class-revival-hunter/info",
+          "https://sss-class-revival-hunter.fandom.com/wiki/Category:Character"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": [
+        "Heretic Questioner",
+        "Heretic Interrogator"
+      ]
+    },
+    {
+      "id": "paladin",
+      "series": "sss-revival",
+      "family": "character",
+      "title": "Paladin",
+      "form": "Civil Militia Guild Leader",
+      "subjects": [
+        "Paladin"
+      ],
+      "story": {
+        "descriptor": "Tower guild leader known for lie-detection and a code of justice.",
+        "role": "Detection and leadership do not imply a raw attack grade.",
+        "spoiler": false,
+        "source": "https://tapas.io/series/sss-class-revival-hunter/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Paladin"
+        ],
+        "sourcePage": "https://tapas.io/series/sss-class-revival-hunter/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/sss-class-revival-hunter/info",
+          "https://sss-class-revival-hunter.fandom.com/wiki/Category:Character"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": [
+        "Crusader",
+        "Patricia"
+      ]
+    },
+    {
+      "id": "viper-martial",
+      "series": "sss-revival",
+      "family": "power",
+      "title": "Viper",
+      "form": "Chun-Moon Guild Swordsmanship",
+      "subjects": [
+        "Viper"
+      ],
+      "story": {
+        "descriptor": "Top Tower hunter and martial artist.",
+        "role": "The martial form must match its scene and continuity.",
+        "spoiler": false,
+        "source": "https://tapas.io/series/sss-class-revival-hunter/info"
+      },
+      "power": {
+        "status": "pending-feat-review",
+        "tier": null,
+        "scope": "in-universe-only",
+        "continuity": "webcomic",
+        "reference": "https://tapas.io/series/sss-class-revival-hunter/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Viper"
+        ],
+        "sourcePage": "https://tapas.io/series/sss-class-revival-hunter/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "nocturne",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/sss-class-revival-hunter/info",
+          "https://sss-class-revival-hunter.fandom.com/wiki/Category:Character"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": [
+        "Venomous Snake",
+        "Liao Fan",
+        "Poisonous Viper"
+      ]
+    },
+    {
+      "id": "marcus-sword-saint",
+      "series": "sss-revival",
+      "family": "power",
+      "title": "Marcus Calenbury",
+      "form": "Sword Saint",
+      "subjects": [
+        "Marcus Calenbury"
+      ],
+      "story": {
+        "descriptor": "Sword Saint and prominent Tower hunter.",
+        "role": "His Sword Saint rank and NIGHT power letter are different systems.",
+        "spoiler": false,
+        "source": "https://tapas.io/series/sss-class-revival-hunter/info"
+      },
+      "power": {
+        "status": "pending-feat-review",
+        "tier": null,
+        "scope": "in-universe-only",
+        "continuity": "webcomic",
+        "reference": "https://tapas.io/series/sss-class-revival-hunter/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Marcus Calenbury"
+        ],
+        "sourcePage": "https://tapas.io/series/sss-class-revival-hunter/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "nocturne",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/sss-class-revival-hunter/info",
+          "https://sss-class-revival-hunter.fandom.com/wiki/Category:Character"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": [
+        "Sword Saint",
+        "Blade Saint"
+      ]
+    },
+    {
+      "id": "master-alchemist",
+      "series": "sss-revival",
+      "family": "character",
+      "title": "Master Alchemist",
+      "form": "Tower Alchemist",
+      "subjects": [
+        "Master Alchemist"
+      ],
+      "story": {
+        "descriptor": "Powerful Guild leader associated with alchemy and healing.",
+        "role": "Craft and support mastery are not raw physical strength.",
+        "spoiler": false,
+        "source": "https://tapas.io/series/sss-class-revival-hunter/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Master Alchemist"
+        ],
+        "sourcePage": "https://tapas.io/series/sss-class-revival-hunter/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/sss-class-revival-hunter/info",
+          "https://sss-class-revival-hunter.fandom.com/wiki/Category:Character"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": []
+    },
+    {
+      "id": "sylvia-academy",
+      "series": "sss-revival",
+      "family": "character",
+      "title": "Sylvia Evanail",
+      "form": "Lady of the Golden Silk",
+      "subjects": [
+        "Sylvia Evanail"
+      ],
+      "story": {
+        "descriptor": "A major rival in the Sormwyn Academy story.",
+        "role": "Relationship-driven academy plot; only verified manhwa scenes.",
+        "spoiler": true,
+        "source": "https://tapas.io/series/sss-class-revival-hunter/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Sylvia Evanail"
+        ],
+        "sourcePage": "https://tapas.io/series/sss-class-revival-hunter/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/sss-class-revival-hunter/info",
+          "https://sss-class-revival-hunter.fandom.com/wiki/Category:Character"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": [
+        "Lady of the Golden Silk",
+        "Sylvia Evanaila",
+        "Lady Goldencup"
+      ]
+    },
+    {
+      "id": "ester-saintess",
+      "series": "sss-revival",
+      "family": "character",
+      "title": "Ester",
+      "form": "Saintess of the Outskirts",
+      "subjects": [
+        "Ester"
+      ],
+      "story": {
+        "descriptor": "A tragic identity underlying the floor-boss narrative.",
+        "role": "An earlier appearance distinct from the demon-boss body.",
+        "spoiler": true,
+        "source": "https://tapas.io/series/sss-class-revival-hunter/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Ester"
+        ],
+        "sourcePage": "https://tapas.io/series/sss-class-revival-hunter/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/sss-class-revival-hunter/info",
+          "https://sss-class-revival-hunter.fandom.com/wiki/Category:Character"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": [
+        "Estelle",
+        "Preta"
+      ]
+    },
+    {
+      "id": "fall-rain-demon-king",
+      "series": "sss-revival",
+      "family": "power",
+      "title": "Demon King of Fall Rain",
+      "form": "20th Floor Boss",
+      "subjects": [
+        "Demon King of Fall Rain"
+      ],
+      "story": {
+        "descriptor": "An important Tower boss whose body and silhouette differ from Ester's saintess form.",
+        "role": "Do not use the human saintess cutout as the monster body.",
+        "spoiler": true,
+        "source": "https://tapas.io/series/sss-class-revival-hunter/info"
+      },
+      "power": {
+        "status": "pending-feat-review",
+        "tier": null,
+        "scope": "in-universe-only",
+        "continuity": "webcomic",
+        "reference": "https://tapas.io/series/sss-class-revival-hunter/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Demon King of Fall Rain"
+        ],
+        "sourcePage": "https://tapas.io/series/sss-class-revival-hunter/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "nocturne",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/sss-class-revival-hunter/info",
+          "https://sss-class-revival-hunter.fandom.com/wiki/Category:Character"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": [
+        "Demon King of Autumn Rain",
+        "Estelle",
+        "Preta"
+      ]
+    },
+    {
+      "id": "uburka",
+      "series": "sss-revival",
+      "family": "character",
+      "title": "Uburka",
+      "form": "Warrior / Allied Follower",
+      "subjects": [
+        "Uburka"
+      ],
+      "story": {
+        "descriptor": "A later story figure associated with Gong-ja.",
+        "role": "Check webcomic chapter and story era before making a physical card.",
+        "spoiler": true,
+        "source": "https://tapas.io/series/sss-class-revival-hunter/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Uburka"
+        ],
+        "sourcePage": "https://tapas.io/series/sss-class-revival-hunter/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/sss-class-revival-hunter/info",
+          "https://sss-class-revival-hunter.fandom.com/wiki/Category:Character"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": []
+    },
+    {
+      "id": "hamustra",
+      "series": "sss-revival",
+      "family": "character",
+      "title": "Hamustra",
+      "form": "Constellation",
+      "subjects": [
+        "Hamustra"
+      ],
+      "story": {
+        "descriptor": "A named constellation in the larger story.",
+        "role": "Webcomic appearance and art remain to be verified.",
+        "spoiler": true,
+        "source": "https://tapas.io/series/sss-class-revival-hunter/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Hamustra"
+        ],
+        "sourcePage": "https://tapas.io/series/sss-class-revival-hunter/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/sss-class-revival-hunter/info",
+          "https://sss-class-revival-hunter.fandom.com/wiki/Category:Character"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": []
+    },
+    {
+      "id": "hellfire-maiden",
+      "series": "sss-revival",
+      "family": "character",
+      "title": "Hellfire Maiden",
+      "form": "Named Tower Figure",
+      "subjects": [
+        "Hellfire Maiden"
+      ],
+      "story": {
+        "descriptor": "Named figure appearing in the wider SSS-Class universe.",
+        "role": "Adaptation appearance and art must be verified.",
+        "spoiler": true,
+        "source": "https://tapas.io/series/sss-class-revival-hunter/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Hellfire Maiden"
+        ],
+        "sourcePage": "https://tapas.io/series/sss-class-revival-hunter/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/sss-class-revival-hunter/info",
+          "https://sss-class-revival-hunter.fandom.com/wiki/Category:Character"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": []
+    },
+    {
+      "id": "lefanta-aegim",
+      "series": "sss-revival",
+      "family": "character",
+      "title": "Lefanta Aegim",
+      "form": "Aegim Legend",
+      "subjects": [
+        "Lefanta Aegim"
+      ],
+      "story": {
+        "descriptor": "Named figure from the Aegim-related lore.",
+        "role": "Later source arc; no novel-exclusive appearance claims.",
+        "spoiler": true,
+        "source": "https://tapas.io/series/sss-class-revival-hunter/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Lefanta Aegim"
+        ],
+        "sourcePage": "https://tapas.io/series/sss-class-revival-hunter/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/sss-class-revival-hunter/info",
+          "https://sss-class-revival-hunter.fandom.com/wiki/Category:Character"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": []
+    },
+    {
+      "id": "sarbast-aegim",
+      "series": "sss-revival",
+      "family": "character",
+      "title": "Sarbast Aegim",
+      "form": "Aegim History",
+      "subjects": [
+        "Sarbast Aegim"
+      ],
+      "story": {
+        "descriptor": "Named figure connected with the Aegim story.",
+        "role": "Check the actual webcomic chapter before sourcing artwork.",
+        "spoiler": true,
+        "source": "https://tapas.io/series/sss-class-revival-hunter/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Sarbast Aegim"
+        ],
+        "sourcePage": "https://tapas.io/series/sss-class-revival-hunter/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/sss-class-revival-hunter/info",
+          "https://sss-class-revival-hunter.fandom.com/wiki/Category:Character"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": []
+    },
+    {
+      "id": "goddess-of-protection",
+      "series": "sss-revival",
+      "family": "power",
+      "title": "Goddess of Protection",
+      "form": "Goddess",
+      "subjects": [
+        "Goddess of Protection"
+      ],
+      "story": {
+        "descriptor": "Divine figure in the story's cosmology.",
+        "role": "Divine title alone never earns EX or SSS.",
+        "spoiler": true,
+        "source": "https://tapas.io/series/sss-class-revival-hunter/info"
+      },
+      "power": {
+        "status": "pending-feat-review",
+        "tier": null,
+        "scope": "in-universe-only",
+        "continuity": "webcomic",
+        "reference": "https://tapas.io/series/sss-class-revival-hunter/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Goddess of Protection"
+        ],
+        "sourcePage": "https://tapas.io/series/sss-class-revival-hunter/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "nocturne",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/sss-class-revival-hunter/info",
+          "https://sss-class-revival-hunter.fandom.com/wiki/Category:Character"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": []
+    },
+    {
+      "id": "sylvia-chamberlain",
+      "series": "sss-revival",
+      "family": "character",
+      "title": "Sylvia Evanail",
+      "form": "Ivansia Chamberlain",
+      "subjects": [
+        "Sylvia Evanail"
+      ],
+      "story": {
+        "descriptor": "A distinct later narrative role for Sylvia.",
+        "role": "Requires its own form-specific art; never recycle academy form.",
+        "spoiler": true,
+        "source": "https://tapas.io/series/sss-class-revival-hunter/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Sylvia Evanail"
+        ],
+        "sourcePage": "https://tapas.io/series/sss-class-revival-hunter/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/sss-class-revival-hunter/info",
+          "https://sss-class-revival-hunter.fandom.com/wiki/Category:Character"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": [
+        "Sylvia Evanaila"
+      ]
+    },
+    {
+      "id": "adrias-miro",
+      "series": "infinite-mage",
+      "family": "character",
+      "title": "Adrias Miro",
+      "form": "Magic-world Figure",
+      "subjects": [
+        "Adrias Miro"
+      ],
+      "story": {
+        "descriptor": "Named member of the Infinite Mage cast.",
+        "role": "Exact adapted arc and original art still need review.",
+        "spoiler": true,
+        "source": "https://tapas.io/series/the-infinite-mage/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Adrias Miro"
+        ],
+        "sourcePage": "https://tapas.io/series/the-infinite-mage/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/the-infinite-mage/info",
+          "https://infinite-mage.fandom.com/wiki/Category:Characters"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": []
+    },
+    {
+      "id": "arin-darkness",
+      "series": "infinite-mage",
+      "family": "power",
+      "title": "Arin",
+      "form": "Darkness Magic",
+      "subjects": [
+        "Arin"
+      ],
+      "story": {
+        "descriptor": "Darkness user associated with Victor Arcane.",
+        "role": "Darkness affinity needs observed technique and limits.",
+        "spoiler": true,
+        "source": "https://tapas.io/series/the-infinite-mage/info"
+      },
+      "power": {
+        "status": "pending-feat-review",
+        "tier": null,
+        "scope": "in-universe-only",
+        "continuity": "webcomic",
+        "reference": "https://tapas.io/series/the-infinite-mage/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Arin"
+        ],
+        "sourcePage": "https://tapas.io/series/the-infinite-mage/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "nocturne",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/the-infinite-mage/info",
+          "https://infinite-mage.fandom.com/wiki/Category:Characters"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": []
+    },
+    {
+      "id": "bishop-ogent",
+      "series": "infinite-mage",
+      "family": "character",
+      "title": "Bishop Ogent",
+      "form": "Ogent Household",
+      "subjects": [
+        "Bishop Ogent"
+      ],
+      "story": {
+        "descriptor": "Named member of the Ogent family.",
+        "role": "Character spotlight; no unverified fighting claims.",
+        "spoiler": false,
+        "source": "https://tapas.io/series/the-infinite-mage/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Bishop Ogent"
+        ],
+        "sourcePage": "https://tapas.io/series/the-infinite-mage/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/the-infinite-mage/info",
+          "https://infinite-mage.fandom.com/wiki/Category:Characters"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": []
+    },
+    {
+      "id": "cerielle-portris",
+      "series": "infinite-mage",
+      "family": "character",
+      "title": "Cerielle Portris",
+      "form": "Magic-world Character",
+      "subjects": [
+        "Cerielle Portris"
+      ],
+      "story": {
+        "descriptor": "Named Infinite Mage character.",
+        "role": "Verify source appearance and arc.",
+        "spoiler": true,
+        "source": "https://tapas.io/series/the-infinite-mage/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Cerielle Portris"
+        ],
+        "sourcePage": "https://tapas.io/series/the-infinite-mage/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/the-infinite-mage/info",
+          "https://infinite-mage.fandom.com/wiki/Category:Characters"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": []
+    },
+    {
+      "id": "cuan-parka",
+      "series": "infinite-mage",
+      "family": "character",
+      "title": "Cuan Parka",
+      "form": "Academy-world Character",
+      "subjects": [
+        "Cuan Parka"
+      ],
+      "story": {
+        "descriptor": "Named Infinite Mage character.",
+        "role": "Story-specific cutout and role review required.",
+        "spoiler": true,
+        "source": "https://tapas.io/series/the-infinite-mage/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Cuan Parka"
+        ],
+        "sourcePage": "https://tapas.io/series/the-infinite-mage/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/the-infinite-mage/info",
+          "https://infinite-mage.fandom.com/wiki/Category:Characters"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": []
+    },
+    {
+      "id": "fermi-ardino",
+      "series": "infinite-mage",
+      "family": "character",
+      "title": "Fermi Ardino",
+      "form": "Mage Student",
+      "subjects": [
+        "Fermi Ardino"
+      ],
+      "story": {
+        "descriptor": "Named figure in the Magic Academy cast.",
+        "role": "Do not rank without a documented adapted feat.",
+        "spoiler": true,
+        "source": "https://tapas.io/series/the-infinite-mage/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Fermi Ardino"
+        ],
+        "sourcePage": "https://tapas.io/series/the-infinite-mage/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/the-infinite-mage/info",
+          "https://infinite-mage.fandom.com/wiki/Category:Characters"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": []
+    },
+    {
+      "id": "guy-ogent",
+      "series": "infinite-mage",
+      "family": "character",
+      "title": "Guy Ogent",
+      "form": "Ogent Household",
+      "subjects": [
+        "Guy Ogent"
+      ],
+      "story": {
+        "descriptor": "Named member of the Ogent family.",
+        "role": "Family roles are not magic ranks.",
+        "spoiler": false,
+        "source": "https://tapas.io/series/the-infinite-mage/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Guy Ogent"
+        ],
+        "sourcePage": "https://tapas.io/series/the-infinite-mage/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/the-infinite-mage/info",
+          "https://infinite-mage.fandom.com/wiki/Category:Characters"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": []
+    },
+    {
+      "id": "isis-karmis",
+      "series": "infinite-mage",
+      "family": "character",
+      "title": "Isis Karmis",
+      "form": "Karmis Household",
+      "subjects": [
+        "Isis Karmis"
+      ],
+      "story": {
+        "descriptor": "Named member of Amy's family.",
+        "role": "Adaptation evidence and visual identity pending.",
+        "spoiler": true,
+        "source": "https://tapas.io/series/the-infinite-mage/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Isis Karmis"
+        ],
+        "sourcePage": "https://tapas.io/series/the-infinite-mage/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/the-infinite-mage/info",
+          "https://infinite-mage.fandom.com/wiki/Category:Characters"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": []
+    },
+    {
+      "id": "jake-ardius",
+      "series": "infinite-mage",
+      "family": "character",
+      "title": "Jake Ardius",
+      "form": "Academy-world Character",
+      "subjects": [
+        "Jake Ardius"
+      ],
+      "story": {
+        "descriptor": "Named Infinite Mage figure.",
+        "role": "Scene and appearance require source inspection.",
+        "spoiler": true,
+        "source": "https://tapas.io/series/the-infinite-mage/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Jake Ardius"
+        ],
+        "sourcePage": "https://tapas.io/series/the-infinite-mage/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/the-infinite-mage/info",
+          "https://infinite-mage.fandom.com/wiki/Category:Characters"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": []
+    },
+    {
+      "id": "kanis-darkness",
+      "series": "infinite-mage",
+      "family": "power",
+      "title": "Kanis",
+      "form": "Arcane Arc Darkness Magic",
+      "subjects": [
+        "Kanis"
+      ],
+      "story": {
+        "descriptor": "Darkness mage and Victor Arcane's pupil.",
+        "role": "Do not conflate his academy form with earlier arc scenes.",
+        "spoiler": true,
+        "source": "https://tapas.io/series/the-infinite-mage/info"
+      },
+      "power": {
+        "status": "pending-feat-review",
+        "tier": null,
+        "scope": "in-universe-only",
+        "continuity": "webcomic",
+        "reference": "https://tapas.io/series/the-infinite-mage/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Kanis"
+        ],
+        "sourcePage": "https://tapas.io/series/the-infinite-mage/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "nocturne",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/the-infinite-mage/info",
+          "https://infinite-mage.fandom.com/wiki/Category:Characters"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": [
+        "Canis"
+      ]
+    },
+    {
+      "id": "kanya",
+      "series": "infinite-mage",
+      "family": "character",
+      "title": "Kanya",
+      "form": "Magic-world Character",
+      "subjects": [
+        "Kanya"
+      ],
+      "story": {
+        "descriptor": "Named Infinite Mage figure.",
+        "role": "Role and adaptation appearance awaiting chapter confirmation.",
+        "spoiler": true,
+        "source": "https://tapas.io/series/the-infinite-mage/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Kanya"
+        ],
+        "sourcePage": "https://tapas.io/series/the-infinite-mage/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/the-infinite-mage/info",
+          "https://infinite-mage.fandom.com/wiki/Category:Characters"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": []
+    },
+    {
+      "id": "klump-ogent",
+      "series": "infinite-mage",
+      "family": "character",
+      "title": "Klump Ogent",
+      "form": "Ogent Family",
+      "subjects": [
+        "Klump Ogent"
+      ],
+      "story": {
+        "descriptor": "Named Ogent-family character.",
+        "role": "Family history spotlight; any combat variant is separate.",
+        "spoiler": false,
+        "source": "https://tapas.io/series/the-infinite-mage/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Klump Ogent"
+        ],
+        "sourcePage": "https://tapas.io/series/the-infinite-mage/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/the-infinite-mage/info",
+          "https://infinite-mage.fandom.com/wiki/Category:Characters"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": []
+    },
+    {
+      "id": "lucas",
+      "series": "infinite-mage",
+      "family": "character",
+      "title": "Lucas",
+      "form": "Magic-world Character",
+      "subjects": [
+        "Lucas"
+      ],
+      "story": {
+        "descriptor": "Named Infinite Mage cast member.",
+        "role": "Source-specific appearance pending.",
+        "spoiler": false,
+        "source": "https://tapas.io/series/the-infinite-mage/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Lucas"
+        ],
+        "sourcePage": "https://tapas.io/series/the-infinite-mage/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/the-infinite-mage/info",
+          "https://infinite-mage.fandom.com/wiki/Category:Characters"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": []
+    },
+    {
+      "id": "mark-slider",
+      "series": "infinite-mage",
+      "family": "character",
+      "title": "Mark Slider",
+      "form": "Magic Academy",
+      "subjects": [
+        "Mark Slider"
+      ],
+      "story": {
+        "descriptor": "Named student in the magic-school storyline.",
+        "role": "No assumed grade from school status.",
+        "spoiler": false,
+        "source": "https://tapas.io/series/the-infinite-mage/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Mark Slider"
+        ],
+        "sourcePage": "https://tapas.io/series/the-infinite-mage/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/the-infinite-mage/info",
+          "https://infinite-mage.fandom.com/wiki/Category:Characters"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": []
+    },
+    {
+      "id": "marsha-clay",
+      "series": "infinite-mage",
+      "family": "character",
+      "title": "Marsha Clay",
+      "form": "Magic-world Character",
+      "subjects": [
+        "Marsha Clay"
+      ],
+      "story": {
+        "descriptor": "Named Infinite Mage figure.",
+        "role": "Verify exact webcomic adaptation and cutout.",
+        "spoiler": true,
+        "source": "https://tapas.io/series/the-infinite-mage/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Marsha Clay"
+        ],
+        "sourcePage": "https://tapas.io/series/the-infinite-mage/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/the-infinite-mage/info",
+          "https://infinite-mage.fandom.com/wiki/Category:Characters"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": []
+    },
+    {
+      "id": "olina-arian",
+      "series": "infinite-mage",
+      "family": "character",
+      "title": "Olina Arian",
+      "form": "Sirone's Family",
+      "subjects": [
+        "Olina Arian"
+      ],
+      "story": {
+        "descriptor": "Member of Sirone's adoptive family.",
+        "role": "Story significance rather than combat power.",
+        "spoiler": false,
+        "source": "https://tapas.io/series/the-infinite-mage/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Olina Arian"
+        ],
+        "sourcePage": "https://tapas.io/series/the-infinite-mage/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/the-infinite-mage/info",
+          "https://infinite-mage.fandom.com/wiki/Category:Characters"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": []
+    },
+    {
+      "id": "rai-ogent",
+      "series": "infinite-mage",
+      "family": "character",
+      "title": "Rai Ogent",
+      "form": "Ogent Household",
+      "subjects": [
+        "Rai Ogent"
+      ],
+      "story": {
+        "descriptor": "Named Ogent-family figure.",
+        "role": "No arbitrary in-universe magic strength assigned.",
+        "spoiler": false,
+        "source": "https://tapas.io/series/the-infinite-mage/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Rai Ogent"
+        ],
+        "sourcePage": "https://tapas.io/series/the-infinite-mage/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/the-infinite-mage/info",
+          "https://infinite-mage.fandom.com/wiki/Category:Characters"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": []
+    },
+    {
+      "id": "reina-ogent",
+      "series": "infinite-mage",
+      "family": "character",
+      "title": "Reina Ogent",
+      "form": "Ogent Household",
+      "subjects": [
+        "Reina Ogent"
+      ],
+      "story": {
+        "descriptor": "Named Ogent-family figure.",
+        "role": "Character relationship and story role.",
+        "spoiler": false,
+        "source": "https://tapas.io/series/the-infinite-mage/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Reina Ogent"
+        ],
+        "sourcePage": "https://tapas.io/series/the-infinite-mage/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/the-infinite-mage/info",
+          "https://infinite-mage.fandom.com/wiki/Category:Characters"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": []
+    },
+    {
+      "id": "richard-pyger",
+      "series": "infinite-mage",
+      "family": "character",
+      "title": "Richard Pyger",
+      "form": "Magic-world Character",
+      "subjects": [
+        "Richard Pyger"
+      ],
+      "story": {
+        "descriptor": "Named Infinite Mage cast member.",
+        "role": "Arc and appearance still require verification.",
+        "spoiler": true,
+        "source": "https://tapas.io/series/the-infinite-mage/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Richard Pyger"
+        ],
+        "sourcePage": "https://tapas.io/series/the-infinite-mage/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/the-infinite-mage/info",
+          "https://infinite-mage.fandom.com/wiki/Category:Characters"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": []
+    },
+    {
+      "id": "shakora-karmis",
+      "series": "infinite-mage",
+      "family": "character",
+      "title": "Shakora Karmis",
+      "form": "Karmis Household",
+      "subjects": [
+        "Shakora Karmis"
+      ],
+      "story": {
+        "descriptor": "Named member of Amy's family.",
+        "role": "No unsupported fighting feats.",
+        "spoiler": false,
+        "source": "https://tapas.io/series/the-infinite-mage/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Shakora Karmis"
+        ],
+        "sourcePage": "https://tapas.io/series/the-infinite-mage/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/the-infinite-mage/info",
+          "https://infinite-mage.fandom.com/wiki/Category:Characters"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": []
+    },
+    {
+      "id": "sienna-olypher",
+      "series": "infinite-mage",
+      "family": "power",
+      "title": "Sienna Olypher",
+      "form": "Magic Instructor",
+      "subjects": [
+        "Sienna Olypher"
+      ],
+      "story": {
+        "descriptor": "Experienced teacher within the magic-school story.",
+        "role": "Power assessment pending adapted, source-located feats.",
+        "spoiler": false,
+        "source": "https://tapas.io/series/the-infinite-mage/info"
+      },
+      "power": {
+        "status": "pending-feat-review",
+        "tier": null,
+        "scope": "in-universe-only",
+        "continuity": "webcomic",
+        "reference": "https://tapas.io/series/the-infinite-mage/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Sienna Olypher"
+        ],
+        "sourcePage": "https://tapas.io/series/the-infinite-mage/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "nocturne",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/the-infinite-mage/info",
+          "https://infinite-mage.fandom.com/wiki/Category:Characters"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": []
+    },
+    {
+      "id": "tess-elzaine",
+      "series": "infinite-mage",
+      "family": "character",
+      "title": "Tess Elzaine",
+      "form": "Swordswoman",
+      "subjects": [
+        "Tess Elzaine"
+      ],
+      "story": {
+        "descriptor": "Sword-trained member of the wider cast.",
+        "role": "Swordsmanship should not be mapped to magical school grades.",
+        "spoiler": false,
+        "source": "https://tapas.io/series/the-infinite-mage/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Tess Elzaine"
+        ],
+        "sourcePage": "https://tapas.io/series/the-infinite-mage/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/the-infinite-mage/info",
+          "https://infinite-mage.fandom.com/wiki/Category:Characters"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": [
+        "Tess Elzine",
+        "Tes Elzine"
+      ]
+    },
+    {
+      "id": "thad",
+      "series": "infinite-mage",
+      "family": "power",
+      "title": "Thad",
+      "form": "Mage Instructor",
+      "subjects": [
+        "Thad"
+      ],
+      "story": {
+        "descriptor": "Instructor in the Infinite Mage cast.",
+        "role": "Requires source-located spells and demonstrated limits.",
+        "spoiler": false,
+        "source": "https://tapas.io/series/the-infinite-mage/info"
+      },
+      "power": {
+        "status": "pending-feat-review",
+        "tier": null,
+        "scope": "in-universe-only",
+        "continuity": "webcomic",
+        "reference": "https://tapas.io/series/the-infinite-mage/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Thad"
+        ],
+        "sourcePage": "https://tapas.io/series/the-infinite-mage/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "nocturne",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/the-infinite-mage/info",
+          "https://infinite-mage.fandom.com/wiki/Category:Characters"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": []
+    },
+    {
+      "id": "victor-arcane",
+      "series": "infinite-mage",
+      "family": "power",
+      "title": "Victor Arcane",
+      "form": "Arcane Arc Archmage",
+      "subjects": [
+        "Victor Arcane"
+      ],
+      "story": {
+        "descriptor": "Archmage and major antagonist in the Arcane storyline.",
+        "role": "Webcomic arc feats only; no novel-end extrapolation.",
+        "spoiler": true,
+        "source": "https://tapas.io/series/the-infinite-mage/info"
+      },
+      "power": {
+        "status": "pending-feat-review",
+        "tier": null,
+        "scope": "in-universe-only",
+        "continuity": "webcomic",
+        "reference": "https://tapas.io/series/the-infinite-mage/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Victor Arcane"
+        ],
+        "sourcePage": "https://tapas.io/series/the-infinite-mage/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "nocturne",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/the-infinite-mage/info",
+          "https://infinite-mage.fandom.com/wiki/Category:Characters"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": []
+    },
+    {
+      "id": "vincent-arian",
+      "series": "infinite-mage",
+      "family": "character",
+      "title": "Vincent Arian",
+      "form": "Sirone's Father",
+      "subjects": [
+        "Vincent Arian"
+      ],
+      "story": {
+        "descriptor": "A member of Sirone's adoptive family.",
+        "role": "Family and character story, not battle grade.",
+        "spoiler": false,
+        "source": "https://tapas.io/series/the-infinite-mage/info"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Vincent Arian"
+        ],
+        "sourcePage": "https://tapas.io/series/the-infinite-mage/info",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://tapas.io/series/the-infinite-mage/info",
+          "https://infinite-mage.fandom.com/wiki/Category:Characters"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": []
+    },
+    {
+      "id": "geonyeob-park",
+      "series": "study-group",
+      "family": "character",
+      "title": "Geonyeob Park",
+      "form": "Yusung Student",
+      "subjects": [
+        "Geonyeob Park"
+      ],
+      "story": {
+        "descriptor": "A student connected to the conflicts around Yusung.",
+        "role": "Grounded school-drama profile; not a fantasy ranking.",
+        "spoiler": true,
+        "source": "https://www.webtoons.com/en/action/study-group/list?title_no=3595"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Geonyeob Park"
+        ],
+        "sourcePage": "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+          "https://webtoon.fandom.com/id/wiki/Study_Group"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": [
+        "Park Geon-yeop"
+      ]
+    },
+    {
+      "id": "hyunwoo-lee",
+      "series": "study-group",
+      "family": "character",
+      "title": "Hyunwoo Lee",
+      "form": "Yusung Student",
+      "subjects": [
+        "Hyunwoo Lee"
+      ],
+      "story": {
+        "descriptor": "Jiwoo's brother and a student at Yusung.",
+        "role": "Sibling storyline and school conflict.",
+        "spoiler": false,
+        "source": "https://www.webtoons.com/en/action/study-group/list?title_no=3595"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Hyunwoo Lee"
+        ],
+        "sourcePage": "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+          "https://webtoon.fandom.com/id/wiki/Study_Group"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": [
+        "Lee Hyun-woo",
+        "Hyeonu Lee"
+      ]
+    },
+    {
+      "id": "jun-lee",
+      "series": "study-group",
+      "family": "character",
+      "title": "Jun Lee",
+      "form": "Study Group Circle",
+      "subjects": [
+        "Jun Lee"
+      ],
+      "story": {
+        "descriptor": "Student linked to the study group.",
+        "role": "Friendship and participation, not magical power.",
+        "spoiler": false,
+        "source": "https://www.webtoons.com/en/action/study-group/list?title_no=3595"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Jun Lee"
+        ],
+        "sourcePage": "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+          "https://webtoon.fandom.com/id/wiki/Study_Group"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": []
+    },
+    {
+      "id": "minhwan-ma",
+      "series": "study-group",
+      "family": "character",
+      "title": "Minhwan Ma",
+      "form": "Yusung Antagonist",
+      "subjects": [
+        "Minhwan Ma"
+      ],
+      "story": {
+        "descriptor": "A student associated with the Yusung conflict.",
+        "role": "Rivalry and school power politics.",
+        "spoiler": true,
+        "source": "https://www.webtoons.com/en/action/study-group/list?title_no=3595"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Minhwan Ma"
+        ],
+        "sourcePage": "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+          "https://webtoon.fandom.com/id/wiki/Study_Group"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": [
+        "Ma Min-hwan"
+      ]
+    },
+    {
+      "id": "siwan-cheon",
+      "series": "study-group",
+      "family": "character",
+      "title": "Siwan Cheon",
+      "form": "Blue String Character",
+      "subjects": [
+        "Siwan Cheon"
+      ],
+      "story": {
+        "descriptor": "Named character in the manhwa's wider cast.",
+        "role": "Verify exact adapted arc, no invented power tier.",
+        "spoiler": true,
+        "source": "https://www.webtoons.com/en/action/study-group/list?title_no=3595"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Siwan Cheon"
+        ],
+        "sourcePage": "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+          "https://webtoon.fandom.com/id/wiki/Study_Group"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": []
+    },
+    {
+      "id": "sunchul-kim",
+      "series": "study-group",
+      "family": "character",
+      "title": "Sunchul Kim",
+      "form": "Yusung Student",
+      "subjects": [
+        "Sunchul Kim"
+      ],
+      "story": {
+        "descriptor": "An upperclassman tied to school conflicts.",
+        "role": "Avoid borrowing live-action-only depictions.",
+        "spoiler": false,
+        "source": "https://www.webtoons.com/en/action/study-group/list?title_no=3595"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Sunchul Kim"
+        ],
+        "sourcePage": "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+          "https://webtoon.fandom.com/id/wiki/Study_Group"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": [
+        "Kim Sun-chul",
+        "Kim Soon-chul"
+      ]
+    },
+    {
+      "id": "minho-kim",
+      "series": "study-group",
+      "family": "character",
+      "title": "Minho Kim",
+      "form": "Yusung Story",
+      "subjects": [
+        "Minho Kim"
+      ],
+      "story": {
+        "descriptor": "Named character from the Study Group roster.",
+        "role": "Verify chapter appearance and story role.",
+        "spoiler": true,
+        "source": "https://www.webtoons.com/en/action/study-group/list?title_no=3595"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Minho Kim"
+        ],
+        "sourcePage": "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+          "https://webtoon.fandom.com/id/wiki/Study_Group"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": []
+    },
+    {
+      "id": "sangin-bang",
+      "series": "study-group",
+      "family": "character",
+      "title": "Sangin Bang",
+      "form": "Yusung Conflict",
+      "subjects": [
+        "Sangin Bang"
+      ],
+      "story": {
+        "descriptor": "Character associated with the school's rivalries.",
+        "role": "Street-level school drama, no supernatural rating.",
+        "spoiler": true,
+        "source": "https://www.webtoons.com/en/action/study-group/list?title_no=3595"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Sangin Bang"
+        ],
+        "sourcePage": "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+          "https://webtoon.fandom.com/id/wiki/Study_Group"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": []
+    },
+    {
+      "id": "jaehwang-chu",
+      "series": "study-group",
+      "family": "character",
+      "title": "Jaehwang Chu",
+      "form": "School Antagonist",
+      "subjects": [
+        "Jaehwang Chu"
+      ],
+      "story": {
+        "descriptor": "Student linked to Sehyun's early difficulties.",
+        "role": "An antagonist spotlight without power-letter inflation.",
+        "spoiler": false,
+        "source": "https://www.webtoons.com/en/action/study-group/list?title_no=3595"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Jaehwang Chu"
+        ],
+        "sourcePage": "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+          "https://webtoon.fandom.com/id/wiki/Study_Group"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": [
+        "Chu Jae-hwang"
+      ]
+    },
+    {
+      "id": "taehwan-ahn",
+      "series": "study-group",
+      "family": "character",
+      "title": "Taehwan Ahn",
+      "form": "Anti",
+      "subjects": [
+        "Taehwan Ahn"
+      ],
+      "story": {
+        "descriptor": "Also known as Anti in community character listings.",
+        "role": "Verify exact depicted appearance and arc.",
+        "spoiler": true,
+        "source": "https://www.webtoons.com/en/action/study-group/list?title_no=3595"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Taehwan Ahn"
+        ],
+        "sourcePage": "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+          "https://webtoon.fandom.com/id/wiki/Study_Group"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": [
+        "Anti"
+      ]
+    },
+    {
+      "id": "dohoon-jung",
+      "series": "study-group",
+      "family": "character",
+      "title": "Dohoon Jung",
+      "form": "Yusung Student",
+      "subjects": [
+        "Dohoon Jung"
+      ],
+      "story": {
+        "descriptor": "Member of the wider Study Group cast.",
+        "role": "Adaptation scene and role verification pending.",
+        "spoiler": false,
+        "source": "https://www.webtoons.com/en/action/study-group/list?title_no=3595"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Dohoon Jung"
+        ],
+        "sourcePage": "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+          "https://webtoon.fandom.com/id/wiki/Study_Group"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": [
+        "Jung Do-hoon"
+      ]
+    },
+    {
+      "id": "junghwa-oh",
+      "series": "study-group",
+      "family": "character",
+      "title": "Junghwa Oh",
+      "form": "Yusung Story",
+      "subjects": [
+        "Junghwa Oh"
+      ],
+      "story": {
+        "descriptor": "Named figure in the Study Group universe.",
+        "role": "Chapter-specific appearance verification pending.",
+        "spoiler": true,
+        "source": "https://www.webtoons.com/en/action/study-group/list?title_no=3595"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Junghwa Oh"
+        ],
+        "sourcePage": "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+          "https://webtoon.fandom.com/id/wiki/Study_Group"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": []
+    },
+    {
+      "id": "yeonbaek-phi",
+      "series": "study-group",
+      "family": "character",
+      "title": "Yeonbaek Phi",
+      "form": "Phi Family",
+      "subjects": [
+        "Yeonbaek Phi"
+      ],
+      "story": {
+        "descriptor": "Named family-connected figure in the storyline.",
+        "role": "Family and power-politics role, not strength letter.",
+        "spoiler": true,
+        "source": "https://www.webtoons.com/en/action/study-group/list?title_no=3595"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Yeonbaek Phi"
+        ],
+        "sourcePage": "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+          "https://webtoon.fandom.com/id/wiki/Study_Group"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": []
+    },
+    {
+      "id": "hansol-phi",
+      "series": "study-group",
+      "family": "character",
+      "title": "Hansol Phi",
+      "form": "Phi Family",
+      "subjects": [
+        "Hansol Phi"
+      ],
+      "story": {
+        "descriptor": "Named Phi-family figure in the cast.",
+        "role": "Webcomic arc and character art not yet confirmed.",
+        "spoiler": true,
+        "source": "https://www.webtoons.com/en/action/study-group/list?title_no=3595"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Hansol Phi"
+        ],
+        "sourcePage": "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+          "https://webtoon.fandom.com/id/wiki/Study_Group"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": []
+    },
+    {
+      "id": "wooyeol-park",
+      "series": "study-group",
+      "family": "character",
+      "title": "Wooyeol Park",
+      "form": "Study Group Universe",
+      "subjects": [
+        "Wooyeol Park"
+      ],
+      "story": {
+        "descriptor": "Named character in the broader manhwa roster.",
+        "role": "Check appearance and avoid assumptions.",
+        "spoiler": true,
+        "source": "https://www.webtoons.com/en/action/study-group/list?title_no=3595"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Wooyeol Park"
+        ],
+        "sourcePage": "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+          "https://webtoon.fandom.com/id/wiki/Study_Group"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": []
+    },
+    {
+      "id": "jaehee-hong",
+      "series": "study-group",
+      "family": "character",
+      "title": "Jaehee Hong",
+      "form": "Study Group Universe",
+      "subjects": [
+        "Jaehee Hong"
+      ],
+      "story": {
+        "descriptor": "Named character in the broader manhwa roster.",
+        "role": "Check episode appearance and source art.",
+        "spoiler": true,
+        "source": "https://www.webtoons.com/en/action/study-group/list?title_no=3595"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Jaehee Hong"
+        ],
+        "sourcePage": "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+          "https://webtoon.fandom.com/id/wiki/Study_Group"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": []
+    },
+    {
+      "id": "junmin-yoon",
+      "series": "study-group",
+      "family": "character",
+      "title": "Junmin Yoon",
+      "form": "Study Group Universe",
+      "subjects": [
+        "Junmin Yoon"
+      ],
+      "story": {
+        "descriptor": "Named character in the broader manhwa roster.",
+        "role": "Distinct identity and depicted era need verification.",
+        "spoiler": true,
+        "source": "https://www.webtoons.com/en/action/study-group/list?title_no=3595"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Junmin Yoon"
+        ],
+        "sourcePage": "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+          "https://webtoon.fandom.com/id/wiki/Study_Group"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": []
+    },
+    {
+      "id": "seokdae-um",
+      "series": "study-group",
+      "family": "character",
+      "title": "Seokdae Um",
+      "form": "Study Group Universe",
+      "subjects": [
+        "Seokdae Um"
+      ],
+      "story": {
+        "descriptor": "Named character in the broader manhwa roster.",
+        "role": "Art, scene and identity need verification.",
+        "spoiler": true,
+        "source": "https://www.webtoons.com/en/action/study-group/list?title_no=3595"
+      },
+      "artwork": {
+        "status": "awaiting-verified-cutout",
+        "subjectSlots": [
+          "Seokdae Um"
+        ],
+        "sourcePage": "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+        "provenance": null,
+        "usage": "reference-only",
+        "licensedForDistribution": false
+      },
+      "design": {
+        "family": "NIGHT",
+        "finish": "ivory",
+        "breakoutRequired": true,
+        "renderSize": [
+          3000,
+          4800
+        ],
+        "phoneProof": [
+          320,
+          512
+        ]
+      },
+      "research": {
+        "evidence": [
+          "https://www.webtoons.com/en/action/study-group/list?title_no=3595",
+          "https://webtoon.fandom.com/id/wiki/Study_Group"
+        ],
+        "evidenceType": "publisher-series-plus-community-character-index",
+        "webcomicAppearance": "requires-chapter-check",
+        "verification": "candidate-not-confirmed"
+      },
+      "aliases": []
+    }
+  ],
+  "expanded": "2026-10-21",
+  "researchPolicy": "Publisher page verifies series and continuity; community indexes only identify potential cast. Unconfirmed adapted appearances must stay pending until chapter-level evidence is checked."
+}
