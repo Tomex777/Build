@@ -72,7 +72,23 @@ test -x "$SDKMANAGER"
 test -x "$AVDMANAGER"
 
 yes | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true
-"$SDKMANAGER" "platform-tools" "platforms;android-26" "emulator" "system-images;android-26;google_apis;x86_64"
+# GitHub-hosted runners occasionally receive an incomplete emulator ZIP from
+# Google's package mirror ("Error on ZipFile unknown archive"). This is a
+# transient download failure, not a game or instrumentation failure. Retry
+# only package provisioning, preserving a nonzero result if all attempts fail.
+sdk_ready=false
+for attempt in 1 2 3; do
+    if "$SDKMANAGER" "platform-tools" "platforms;android-26" "emulator" "system-images;android-26;google_apis;x86_64"; then
+        sdk_ready=true
+        break
+    fi
+    echo "Android API 26 SDK package install failed (attempt $attempt/3)" >&2
+    if (( attempt < 3 )); then sleep $((attempt * 5)); fi
+done
+if [[ "$sdk_ready" != true ]]; then
+    echo "Android API 26 SDK installation failed after three attempts" >&2
+    exit 1
+fi
 
 rm -rf "$ANDROID_AVD_HOME/api26-smoke.avd" "$ANDROID_AVD_HOME/api26-smoke.ini"
 printf 'no\n' | "$AVDMANAGER" create avd --force     -n api26-smoke     -k "system-images;android-26;google_apis;x86_64"     -d pixel_6     -p "$ANDROID_AVD_HOME/api26-smoke.avd"
