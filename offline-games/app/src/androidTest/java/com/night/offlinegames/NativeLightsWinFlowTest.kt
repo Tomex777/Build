@@ -1,6 +1,7 @@
 package com.night.offlinegames
 
 import android.content.Context
+import android.os.SystemClock
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -48,12 +49,16 @@ class NativeLightsWinFlowTest {
                 "native_lights", Context.MODE_PRIVATE).getString("board", null))
             assertNotNull(saved)
             assertTrue("Solved board not saved", saved!!.won)
+            assertNotNull("Solved HUD did not show zero lit cells",
+                device.wait(Until.findObject(By.text("LIT 0")), 5000))
+            SystemClock.sleep(400)
             capture(device, context, "19-native-lights-completed.png")
             val next = device.wait(Until.findObject(By.text("Next level")), 5000)
             assertNotNull(next)
             next!!.click()
             assertNotNull("Next level did not advance",
                 device.wait(Until.findObject(By.text("LEVEL 2")), 6000))
+            SystemClock.sleep(250)
             capture(device, context, "20-native-lights-next-level.png")
         }
     }
