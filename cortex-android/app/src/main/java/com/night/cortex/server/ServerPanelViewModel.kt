@@ -268,13 +268,10 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
         if (!_state.value.configured || _state.value.loading) return
         viewModelScope.launch {
             busy {
-                val (snapshot, refreshedLogs) = withContext(Dispatchers.IO) {
-                    val client = api()
-                    val result = client.power(action)
-                    // The command has already completed. Journal permissions or
-                    // a transient read failure must not turn success into failure.
-                    result to runCatching { client.logs() }.getOrNull()
-                }
+                // The POST acknowledgement already contains NIGHT's state.
+                // The Console's separate stream refreshes logs. Never delay or
+                // misclassify a power operation by waiting for GET /logs.
+                val snapshot = withContext(Dispatchers.IO) { api().power(action) }
                 val running = snapshot.state == "active"
                 val stopped = snapshot.state == "inactive"
                 val applied = when (action) {
@@ -288,7 +285,6 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
                 }
                 _state.value = _state.value.copy(
                     snapshot = snapshot,
-                    logs = refreshedLogs ?: _state.value.logs,
                     cloudCredentialsPendingRestart =
                         if (action == HostingPowerAction.RESTART && running) false
                         else _state.value.cloudCredentialsPendingRestart,
