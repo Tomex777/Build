@@ -18,13 +18,14 @@ export function createAssistantTyping({
   sleep = ms => new Promise(resolve => setTimeout(resolve, ms)),
   schedule = (callback, ms) => setInterval(callback, ms),
   unschedule = timer => clearInterval(timer),
+  canSignal = () => true,
 } = {}) {
   let startedAt = 0
   let active = false
   let timer = null
 
   function presence(kind) {
-    if (typeof sock?.sendPresenceUpdate !== 'function' || !chat) return
+    if (typeof sock?.sendPresenceUpdate !== 'function' || !chat || !canSignal()) return
     // The caller never awaits presence: network failures cannot break chat.
     try {
       Promise.resolve(sock.sendPresenceUpdate(kind, chat)).catch(() => {})
