@@ -5,11 +5,11 @@
 set -euo pipefail
 umask 077
 
-readonly SOURCE_SHA=18a3a89f730689f675b0103c25b16b8c11b8134c
-readonly AGENT_BLOB=8aacac2287e96a19a7fd68cfa645c8f13a0e8f51
-readonly PREVIOUS_AGENT_BLOB=558a8394d574aec9b8798e39d9d4475f6b6bf4a9
+readonly SOURCE_SHA=b6175f37c53f6ca1f86f062d1da60a40101d3c17
+readonly AGENT_BLOB=68e1f21daecd59b4831394d188ce8b59f5d57ff7
+readonly PREVIOUS_AGENT_BLOB=8aacac2287e96a19a7fd68cfa645c8f13a0e8f51
 readonly HELPER_BLOB=8bc55110b92f60bfe31b8097cbc5dad32ae0a820
-readonly PREVIOUS_HELPER_BLOB=4e0fa0455c604d3793a72254a1c3b4e260b67f4e
+readonly PREVIOUS_HELPER_BLOB=8bc55110b92f60bfe31b8097cbc5dad32ae0a820
 readonly INSTALL_BLOB=e5ac0fe87511310cc4248aa261a6cb185e3afe9d
 readonly PACKAGE_BLOB=c2032a0fddf20a85e0cb1e9201bfd28652c046ba
 readonly SERVICE_BLOB=82518da0a5a09d5148671aac1d8d3cfa3d7fb7fc
@@ -28,6 +28,18 @@ for required in sudo curl node git systemctl; do
 done
 sudo -n true || { echo 'Noninteractive Azure sudo is required.' >&2; exit 2; }
 systemctl is-active --quiet mscc.service || { echo 'MSCC is not active; declining Agent bootstrap.' >&2; exit 2; }
+
+# Release dependency: production NIGHT must already contain the protected
+# passive MEGA Cloud fix (#537). Older GET /cloud refreshed a real third-party
+# password login; never let the updater's read-only diagnostics accidentally
+# trigger that behavior before the first protected release is approved.
+readonly NIGHT_PROJECT=/opt/mscc/current
+if ! grep -Fq 'getCloudDashboard: () => megaStorageDashboard({ passive:true })' "$NIGHT_PROJECT/index.js" ||
+   ! grep -Fq "req.method === 'GET' && url.pathname === '/cloud/discover'" "$NIGHT_PROJECT/web-panel.js" ||
+   ! grep -Fq 'signInRequired: true' "$NIGHT_PROJECT/web-panel.js"; then
+  echo 'Protected passive MEGA server release is not installed; refusing Agent upgrade before any Cloud request.' >&2
+  exit 1
+fi
 
 # Production investigation (15 Oct): the server is missing either the Agent
 # binary or privileged helper. Older rollouts assumed an existing install.
@@ -232,8 +244,32 @@ const cloud = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
 if (!cloud || typeof cloud !== 'object' || typeof cloud.configured !== 'boolean') {
   throw new Error('Unexpected MSCC Cloud dashboard response.');
 }
-console.log('Cortex Agent -> MSCC Community Cloud endpoint verified.');
+// Even after credentials are configured, a dashboard read must be passive.
+if (cloud.connected !== false || cloud.used !== null || cloud.total !== null ||
+    !/sign-in was not attempted/i.test(String(cloud.note || '')) && cloud.configured) {
+  throw new Error('Cloud GET is not passive; abort before any Agent upgrade.');
+}
+console.log('Cortex Agent -> MSCC passive Cloud endpoint verified (no MEGA login).');
 VERIFY_CLOUD_RESPONSE
+# Old Android versions still send GET discovery on Refresh. The new Agent
+# must treat that method as inert; never test POST discovery automatically.
+discover_code="$(curl --silent --show-error --max-time 12 \\
+  --output "$cloud_probe_dir/discover.json" --write-out '%{http_code}' \\
+  -H "Authorization: Bearer $CLOUD_TOKEN" \\
+  http://127.0.0.1:47831/api/cortex/host/cloud/discover)" || {
+    echo 'Cortex legacy MEGA discovery GET failed.' >&2; exit 1;
+  }
+[[ "$discover_code" == 200 ]] || {
+  echo "Cortex legacy MEGA discovery GET returned HTTP $discover_code." >&2; exit 1;
+}
+node - "$cloud_probe_dir/discover.json" <<'VERIFY_PASSIVE_DISCOVER'
+const fs = require('node:fs');
+const data = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+if (!Array.isArray(data.mounts) || data.mounts.length || data.signInRequired !== true) {
+  throw new Error('Legacy MEGA discovery GET is not safely passive.');
+}
+console.log('Legacy Cortex MEGA discovery GET verified inert; no sign-in requested.');
+VERIFY_PASSIVE_DISCOVER
 # Local loopback /status and Cloud checks are not sufficient: the Android
 # app uses nginx HTTPS. Verify its authenticated HTTPS ingress independently
 # so a green Azure deploy cannot mask a broken phone-facing route. No token,
