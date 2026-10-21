@@ -1,0 +1,79 @@
+name: NIGHT Devil May Cry Netflix Cards
+on:
+  push:
+    branches: [feature/cards-dmc-netflix-20261021]
+    paths:
+      - 'cards/catalog/dmc-netflix-*'
+      - 'cards/bin/seed-dmc-netflix.mjs'
+      - 'cards/bin/dmc-netflix-gallery.mjs'
+      - 'cards/tests/dmc-netflix.test.mjs'
+      - '.github/workflows/cards-dmc-netflix.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: cards-dmc-netflix-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 65
+    defaults:
+      run:
+        working-directory: cards
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: cards/package-lock.json
+      - run: npm ci
+      - name: Acquire native TV series images, isolate foreground and SHA-pin
+        run: node bin/seed-dmc-netflix.mjs
+      - run: npm test
+      - run: npx playwright install-deps chromium
+      - name: Pinned renderer Chrome 131
+        run: |
+          curl -fL --retry 3 https://storage.googleapis.com/chrome-for-testing-public/131.0.6778.204/linux64/chrome-headless-shell-linux64.zip -o "$RUNNER_TEMP/chrome.zip"
+          unzip -q "$RUNNER_TEMP/chrome.zip" -d "$RUNNER_TEMP/night-chrome"
+          chmod +x "$RUNNER_TEMP/night-chrome/chrome-headless-shell-linux64/chrome-headless-shell"
+          echo "NIGHT_BROWSER_PATH=$RUNNER_TEMP/night-chrome/chrome-headless-shell-linux64/chrome-headless-shell" >> "$GITHUB_ENV"
+      - name: Render actual universal NIGHT 3000x4800 masters
+        run: npm run build -- --series dmc-netflix --width 3000 --out dist/dmc-netflix
+      - name: Source-bound gallery
+        run: |
+          npm run gallery -- --series dmc-netflix --out dist/dmc-netflix --file dist/NIGHT-DMC-Netflix.html
+          node bin/dmc-netflix-gallery.mjs dist/dmc-netflix/index.html
+          node bin/dmc-netflix-gallery.mjs dist/NIGHT-DMC-Netflix.html
+      - name: Stage genuinely rendered private preview (never approve or publish)
+        working-directory: .
+        run: |
+          git config user.name "NIGHT Cards Provenance"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          mkdir -p cards/previews/dmc-netflix
+          cp cards/dist/dmc-netflix/index.html cards/previews/dmc-netflix/
+          cp cards/dist/dmc-netflix/*--view.jpg cards/previews/dmc-netflix/
+          cp cards/dist/dmc-netflix/*--phone.png cards/previews/dmc-netflix/
+          git add cards/catalog/dmc-netflix.json cards/catalog/power/dmc-netflix.json cards/catalog/dmc-netflix-source-lock.json cards/previews/dmc-netflix
+          if ! git diff --cached --quiet; then
+            git commit -m "cards(dmc-netflix): source-lock Netflix art and genuine preview"
+            git pull --rebase origin "$GITHUB_REF_NAME"
+            git push origin "HEAD:$GITHUB_REF_NAME"
+          fi
+      - name: Candidate render artefacts for visual review (not approved)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NIGHT-DMC-Netflix-Artwork-QA-Candidates
+          path: |
+            cards/dist/dmc-netflix/
+            cards/dist/NIGHT-DMC-Netflix.html
+            cards/dist/dmc-netflix-source-status.json
+            cards/artwork/dmc-netflix/
+            cards/catalog/dmc-netflix.json
+            cards/catalog/dmc-netflix-source-lock.json
+            cards/catalog/power/dmc-netflix.json
+          if-no-files-found: warn
+          retention-days: 21
+          compression-level: 0
