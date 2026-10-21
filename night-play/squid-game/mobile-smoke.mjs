@@ -21,9 +21,22 @@ try{
  const errors=[];
  page.on('pageerror',e=>errors.push(String(e)));
  await page.goto('http://127.0.0.1:'+server.address().port+'/squid-game/',{waitUntil:'domcontentloaded'});
+ // Wait for an actual WebGL attempt before collecting 3D screenshots.
+ await page.waitForFunction(()=>{
+  const canvas=document.getElementById('webgl');
+  return document.getElementById('arena').classList.contains('fallback3d') || (canvas.width!==960 && canvas.height!==560);
+ },null,{timeout:20000});
+ const usedFallback=await page.locator('#arena').evaluate(el=>el.classList.contains('fallback3d'));
+ if(usedFallback)console.warn('3D WebGL could not initialize in CI; screenshot coverage is 2.5D fallback, not genuine 3D.');
+ else console.log('3D WebGL renderer initialized before screenshots');
  assert.equal(await page.locator('#arena').getAttribute('data-style'),'three','3D is the default arena');
  assert.equal(await page.locator('[data-mode="three"]').getAttribute('aria-selected'),'true');
  const output=path.join(root,'visual-output');mkdirSync(output,{recursive:true});
+ await page.locator('#start').click();
+ await page.locator('#run').dispatchEvent('pointerdown',{pointerId:8,pointerType:'touch',isPrimary:true});
+ await page.waitForTimeout(550);
+ await page.locator('#run').dispatchEvent('pointerup',{pointerId:8,pointerType:'touch',isPrimary:true});
+
  for(const [width,height] of [[320,568],[360,740],[390,844],[412,915],[1280,800]]){
   await page.setViewportSize({width,height});
   const dims=await page.evaluate(()=>({
@@ -39,7 +52,8 @@ try{
   await page.screenshot({path:path.join(output,'squid-3d-'+width+'.jpg'),type:'jpeg',quality:80,fullPage:true});
  }
  await page.setViewportSize({width:390,height:844});
- // This runs the actual game loop: button hold, distance, the red-light rule and restart.
+ // Reload for a fresh round before touch, elimination, restart and keyboard tests.
+ await page.reload({waitUntil:'domcontentloaded'});
  await page.locator('#start').click();
  assert.equal(await page.locator('#run').isEnabled(),true,'forward movement should be enabled');
  await page.locator('#run').dispatchEvent('pointerdown',{pointerId:1,pointerType:'touch',isPrimary:true});
@@ -60,8 +74,7 @@ try{
  await page.locator('[data-mode="three"]').click();
  assert.equal(await page.locator('#arena').getAttribute('data-style'),'three');
  assert.deepEqual(errors,[],'browser JavaScript exceptions');
- const fallback=await page.locator('#arena').evaluate(el=>el.classList.contains('fallback3d'));
- console.log('PASS Squid Game arena: 5 viewport screenshots, 3D default, touch, elimination, restart, keyboard, mode switching; WebGL fallback='+fallback);
+ console.log('PASS Squid Game arena: 5 viewport screenshots, 3D default, touch, elimination, restart, keyboard, mode switching; WebGL fallback='+usedFallback);
 }finally{
  if(browser)await browser.close();
  await new Promise(resolve=>server.close(resolve));
