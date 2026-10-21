@@ -159,7 +159,7 @@ export function compactCommandReference(commands = [], filter = null, question =
   const queryTerms = new Set((input.match(/[a-z][a-z0-9_-]{2,}/g) || [])
     .filter(term => !['what','this','that','with','from','have','would','could','please','about',
       'there','they','them','just','when','which','your','want','some','really','should',
-      'command','commands','download','send','help','make'].includes(term)))
+      'command','commands','help'].includes(term)))
   const ranked = allowed.map(command => {
     const name = String(command.name).toLowerCase()
     const capability = String(command.capability || 'general').toLowerCase()
@@ -169,7 +169,7 @@ export function compactCommandReference(commands = [], filter = null, question =
     let score = names.includes(name) || names.some(n => aliases.includes(n)) ? 100 : 0
     if (queryTerms.has(name) || aliases.some(alias => queryTerms.has(alias))) score += 50
     if (queryTerms.has(capability)) score += 20
-    for (const term of queryTerms) if (terms.has(term)) score += 2
+    for (const term of queryTerms) if ([...terms].some(word => word === term || (term.length >= 4 && word.startsWith(term)) || (word.length >= 4 && term.startsWith(word)))) score += 2
     return { command, score }
   }).filter(row => row.score > 0)
     .sort((a, b) => b.score - a.score || String(a.command.name).localeCompare(String(b.command.name)))
