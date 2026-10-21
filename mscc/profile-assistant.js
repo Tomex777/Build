@@ -135,10 +135,15 @@ export function compactCommandReference(commands = [], filter = null, question =
   const input = String(question || '').trim().toLowerCase()
   const names = [...input.matchAll(/\.([a-z][a-z0-9_-]*)\b/g)].map(match => match[1])
   const asksForCommands = /\b(command|commands|bot features|available tools|what can you do|your capabilities|help menu|list features)\b/i.test(input)
-  const operation = /\b(download|fetch|send me|save me|extract|convert|transcribe|translate|remove background|make a sticker)\b/i.test(input)
-  if (!names.length && !asksForCommands && !operation) return ''
+  // Only look up command data when someone explicitly asks about NIGHT's
+  // ability to perform an operation. Ordinary conversation (including
+  // "send me a joke" or a discussion about downloads) gets no catalog.
+  const capabilityQuestion = /\b(?:can|could|does|do|will|would|how|which)\s+(?:you|night|the bot|josia|nami|mimi)\b.{0,80}\b(?:download|fetch|extract|convert|transcribe|translate|remove|sticker|send)\b/i.test(input)
+  const explicitOperation = /^\s*(?:download|fetch|extract|convert|transcribe|translate|remove background|make a sticker)\b/i.test(input)
+  if (!names.length && !asksForCommands && !capabilityQuestion && !explicitOperation) return ''
 
-  const allowed = (typeof filter === 'function' ? commands.filter(filter) : commands)
+  const catalog = typeof commands === 'function' ? commands() : commands
+  const allowed = (typeof filter === 'function' ? catalog.filter(filter) : catalog)
     .filter(command => String(command?.name || '').trim())
   if (!allowed.length) return 'No operational commands available to this personality.'
 
@@ -362,7 +367,7 @@ export function createProfileAssistant({
     if (previousRows.length && cleanText(previousRows.at(-1)?.text, 12000) === current) {
       previousRows.pop()
     }
-    const operations = compactCommandReference(getCommands(), liveCommandFilter, current)
+    const operations = compactCommandReference(getCommands, liveCommandFilter, current)
     const prompt = [
       groupName ? `GROUP: ${groupName}` : 'CHAT: direct message',
       presenceBlock,
