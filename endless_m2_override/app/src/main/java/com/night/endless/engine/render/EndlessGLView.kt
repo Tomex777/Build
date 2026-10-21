@@ -14,6 +14,110 @@ class EndlessGLView(
     val endlessRenderer = EndlessRenderer(context, onSelectionChanged)
     private var lastX = 0f
     private var lastY = 0f
+    private var movePointerId = MotionEvent.INVALID_POINTER_ID
+    private var lookPointerId = MotionEvent.INVALID_POINTER_ID
+    private var lastLookX = 0f
+    private var lastLookY = 0f
+
+    /** True physical thumb position for a passive, non-touch-consuming Compose HUD. */
+    var onSurfaceStickChanged: ((Float, Float) -> Unit)? = null
+
+    private fun resetSurfaceMovement() {
+        movePointerId = MotionEvent.INVALID_POINTER_ID
+        endlessRenderer.setSurfaceMovementInput(0f, 0f)
+        onSurfaceStickChanged?.invoke(0f, 0f)
+    }
+
+    fun cancelSurfaceControls() {
+        // A lifecycle cancellation is not a finger-up event; don't advance
+        // held movement through a paused/detached app.
+        movePointerId = MotionEvent.INVALID_POINTER_ID
+        endlessRenderer.cancelSurfaceMovementInput()
+        onSurfaceStickChanged?.invoke(0f, 0f)
+        lookPointerId = MotionEvent.INVALID_POINTER_ID
+    }
+
+    private fun beginSurfacePointer(event: MotionEvent, index: Int) {
+        val id = event.getPointerId(index)
+        val x = event.getX(index)
+        val y = event.getY(index)
+        val d = resources.displayMetrics.density
+        if (movePointerId == MotionEvent.INVALID_POINTER_ID &&
+            SurfaceJoystickMath.isInMoveZone(x, y, height, d)) {
+            movePointerId = id
+            updateStick(x, y)
+        } else if (lookPointerId == MotionEvent.INVALID_POINTER_ID &&
+            SurfaceJoystickMath.isInLookZone(x, width)) {
+            // Only the right half aims. An accidental left-side tap should
+            // never steer the camera or steal the movement pointer.
+            lookPointerId = id
+            lastLookX = x
+            lastLookY = y
+        }
+    }
+
+    private fun updateStick(x: Float, y: Float) {
+        val d = resources.displayMetrics.density
+        val dx = x - SurfaceJoystickMath.centerX(d)
+        val dy = y - SurfaceJoystickMath.centerY(height, d)
+        val travel = SurfaceJoystickMath.KNOB_TRAVEL_DP * d
+        val axes = SurfaceJoystickMath.fromDisplacement(dx, dy, travel)
+        val knob = SurfaceJoystickMath.knobOffset(dx, dy, travel)
+        endlessRenderer.setSurfaceMovementInput(axes.first, axes.second)
+        onSurfaceStickChanged?.invoke(knob.first, knob.second)
+    }
+
+    private fun handleSurfaceTouch(event: MotionEvent): Boolean {
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> beginSurfacePointer(event, 0)
+            MotionEvent.ACTION_POINTER_DOWN ->
+                beginSurfacePointer(event, event.actionIndex)
+            MotionEvent.ACTION_MOVE -> {
+                val stickIndex = event.findPointerIndex(movePointerId)
+                if (stickIndex >= 0) updateStick(
+                    event.getX(stickIndex), event.getY(stickIndex)
+                )
+                val lookIndex = event.findPointerIndex(lookPointerId)
+                if (lookIndex >= 0) {
+                    val x = event.getX(lookIndex)
+                    val y = event.getY(lookIndex)
+                    endlessRenderer.orbitBy(x - lastLookX, y - lastLookY, height)
+                    lastLookX = x
+                    lastLookY = y
+                }
+            }
+            MotionEvent.ACTION_POINTER_UP -> {
+                val leavingId = event.getPointerId(event.actionIndex)
+                if (leavingId == movePointerId) resetSurfaceMovement()
+                if (leavingId == lookPointerId) {
+                    lookPointerId = MotionEvent.INVALID_POINTER_ID
+                    // Another unassigned finger can keep aiming without a jump.
+                    for (i in 0 until event.pointerCount) {
+                        if (i == event.actionIndex || event.getPointerId(i) == movePointerId ||
+                            !SurfaceJoystickMath.isInLookZone(event.getX(i), width)) continue
+                        lookPointerId = event.getPointerId(i)
+                        lastLookX = event.getX(i)
+                        lastLookY = event.getY(i)
+                        break
+                    }
+                }
+            }
+            MotionEvent.ACTION_UP -> {
+                // The final thumb-up must commit held travel even if software
+                // OpenGL did not draw a frame during the gesture.
+                resetSurfaceMovement()
+                lookPointerId = MotionEvent.INVALID_POINTER_ID
+            }
+            MotionEvent.ACTION_CANCEL -> cancelSurfaceControls()
+        }
+        return true
+    }
+
+    override fun onDetachedFromWindow() {
+        // A paused/detached surface must never keep walking after its touch ends.
+        cancelSurfaceControls()
+        super.onDetachedFromWindow()
+    }
 
     private val scaler = ScaleGestureDetector(context, object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
         override fun onScale(detector: ScaleGestureDetector): Boolean {
@@ -45,12 +149,21 @@ class EndlessGLView(
 
     init {
         setEGLContextClientVersion(3)
+        // GLSurfaceView's default chooser only requires 16 depth bits.
+        // Human-scale stones/shadows over kilometre terrain need 24 bits
+        // to avoid quantized depth stripes at grazing viewing angles.
+        setEGLConfigChooser(8, 8, 8, 0, 24, 0)
         setRenderer(endlessRenderer)
         renderMode = RENDERMODE_CONTINUOUSLY
         preserveEGLContextOnPause = true
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
+        if (endlessRenderer.isSurfaceMode()) {
+            return handleSurfaceTouch(event)
+        }
+        if (movePointerId != MotionEvent.INVALID_POINTER_ID ||
+            lookPointerId != MotionEvent.INVALID_POINTER_ID) cancelSurfaceControls()
         scaler.onTouchEvent(event)
         gestures.onTouchEvent(event)
 

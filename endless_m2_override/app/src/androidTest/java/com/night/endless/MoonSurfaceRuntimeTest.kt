@@ -51,6 +51,32 @@ class MoonSurfaceRuntimeTest {
                 renderer.completedFrameCount() >= firstFrame + 3L
             }
 
+            assertTrue("Ground rendering requires at least 24 actual depth bits; got ${renderer.depthBufferBits()}",
+                renderer.depthBufferBits() >= 24)
+
+            // UI polling must remain a cached read even while a drawing or
+            // navigation operation owns the renderer monitor.
+            val held = CountDownLatch(1)
+            val release = CountDownLatch(1)
+            val monitorOwner = Thread {
+                synchronized(renderer) {
+                    held.countDown()
+                    release.await(3, TimeUnit.SECONDS)
+                }
+            }.apply { isDaemon = true; start() }
+            try {
+                assertTrue("Renderer monitor test could not start", held.await(5, TimeUnit.SECONDS))
+                val readStarted = SystemClock.elapsedRealtime()
+                val cached = renderer.uiFrameSnapshot()
+                val readMs = SystemClock.elapsedRealtime() - readStarted
+                assertTrue("A completed UI frame snapshot was not published", cached != null)
+                assertTrue("UI frame snapshot blocked behind drawing for $readMs ms", readMs < 500)
+            } finally {
+                release.countDown()
+                monitorOwner.join(5_000)
+            }
+
+
             assertTrue(
                 "Overview control was not exposed",
                 device.wait(androidx.test.uiautomator.Until.hasObject(By.textContains("Overview")), 5_000)
@@ -110,25 +136,44 @@ class MoonSurfaceRuntimeTest {
             device.waitForIdle()
             await("Lunar surface mode starts") { renderer.surfaceBodyId() == "moon" }
             await("Lunar movement controls are visible") {
-                device.findObject(By.text("↑")) != null &&
-                    device.findObject(By.textContains("Take off")) != null
+                device.findObject(By.textContains("Take off")) != null &&
+                    device.findObject(By.text("↑")) == null
             }
             await("Lunar exploration HUD collapses system panels") {
                 device.findObject(By.text("RADIUS")) == null &&
                     device.findObject(By.textContains("Overview")) == null &&
                     device.findObject(By.textContains("JPL HORIZONS")) == null
             }
+            assertTrue("Orbital planet labels must not cover the lunar surface",
+                device.findObject(By.desc("Focus Mars")) == null &&
+                    device.findObject(By.desc("Focus Moon")) == null)
+            assertTrue("Lunar take-off has a specific accessible action",
+                device.findObject(By.desc("Take off from Moon")) != null)
             SystemClock.sleep(700)
             capture(instrumentation, "moon-surface", glView)
 
+            // GTA-style touch control: hold/drag the left thumbstick.
+            // The old four ↑←↓→ tap buttons must not be present on the surface.
+            assertTrue("Legacy tap movement buttons must be absent",
+                device.findObject(By.text("↑")) == null)
             val before = renderer.surfaceCoordinates()
-            val forward = checkNotNull(device.findObject(By.text("↑")))
-            repeat(7) {
-                forward.click()
-                SystemClock.sleep(70)
-            }
+            val joystickScene = checkNotNull(glRef.get())
+            val joystickScreenOrigin = IntArray(2)
+            joystickScene.getLocationOnScreen(joystickScreenOrigin)
+            val density = joystickScene.resources.displayMetrics.density
+            val thumbX = joystickScreenOrigin[0] + (92f * density).toInt()
+            val thumbY = joystickScreenOrigin[1] + joystickScene.height -
+                (102f * density).toInt()
+            assertTrue("Could not drag the movement thumbstick",
+                device.swipe(
+                    thumbX, thumbY, thumbX,
+                    thumbY - (50f * density).toInt(), 45
+                ))
             val after = renderer.surfaceCoordinates()
             assertNotEquals("Lunar movement did not change location", before, after)
+            assertEquals("Surface controls must follow a completed terrain frame", "moon", renderer.renderedSurfaceBodyId())
+            assertTrue("Repeated landing must not reset a walking session", !renderer.landOnMoon())
+            assertEquals("A repeated landing changed the walking position", after, renderer.surfaceCoordinates())
             capture(instrumentation, "moon-movement", glView)
 
             val lookBefore = renderer.surfaceOrientation()
@@ -272,6 +317,14 @@ class MoonSurfaceRuntimeTest {
                 device.findObject(By.textContains("Take off")) != null &&
                     device.findObject(By.textContains("Overview")) == null
             }
+            // The Compose surface controls can appear before the GLES frame
+            // finishes its first fully-populated terrain pass. Capture the
+            // stable rendered scene, not an intermediate sky-only swap.
+            val secondLandingFrame = renderer.completedFrameCount()
+            await("Cross-body Mars terrain frames are ready", 15_000) {
+                renderer.completedFrameCount() >= secondLandingFrame + 5L
+            }
+            SystemClock.sleep(650)
             capture(instrumentation, "moon-to-mars-surface", glView)
 
             val marsClockBeforeTakeoff = renderer.currentTimeMillis()
@@ -389,6 +442,12 @@ class MoonSurfaceRuntimeTest {
     }
 
     private fun capture(instrumentation: android.app.Instrumentation, name: String, scene: EndlessGLView) {
+        // Observe completed GL frames before asking SurfaceFlinger for the
+        // whole window; a ready HUD alone does not prove terrain is on screen.
+        val baseline = scene.endlessRenderer.completedFrameCount()
+        await("Stable composed frame for $name", 20_000) {
+            scene.endlessRenderer.completedFrameCount() >= baseline + 3L
+        }
         val screenshot = checkNotNull(instrumentation.uiAutomation.takeScreenshot())
         val base = checkNotNull(instrumentation.targetContext.getExternalFilesDir(null))
         write(screenshot, File(base, "endless-runtime/$name.png"), name)

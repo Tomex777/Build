@@ -1,5 +1,6 @@
 package com.night.endless.engine.render
 
+import android.content.Context
 import android.opengl.GLES30
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -10,11 +11,16 @@ import kotlin.math.sin
 import kotlin.math.sqrt
 
 /** Deterministic first landing patch, pending georeferenced elevation tiles. */
-class MarsSurfaceTerrain {
+class MarsSurfaceTerrain(private val context: Context) {
     private val program: Int
+    private val landingPhotoTexture: Int
+    private val detailedOrbitalPhoto: Int
+    private val inferredOrbitalNormal: Int
+    private val microMaterialTexture: Int
     private val vertices: FloatBuffer
     private val indices: ShortBuffer
     private val indexCount: Int
+    private val detail = SurfaceDetailRenderer(-.45, .85, .35) { x, z -> renderedHeightAt(x, z) }
 
     init {
         val side = 121
@@ -47,15 +53,44 @@ class MarsSurfaceTerrain {
         vertices = ByteBuffer.allocateDirect(data.size * 4).order(ByteOrder.nativeOrder()).asFloatBuffer().apply { put(data); position(0) }
         indices = ByteBuffer.allocateDirect(indexData.size * 2).order(ByteOrder.nativeOrder()).asShortBuffer().apply { put(indexData); position(0) }
         indexCount = indexData.size
-        program = createProgram(VS, FS)
+        program = createProgram(SurfaceMaterialShaders.VERTEX, SurfaceMaterialShaders.FRAGMENT)
+        landingPhotoTexture = LandingPhotoTexture.load(context, "mars")
+        detailedOrbitalPhoto = LandingPhotoTexture.load(context, "mars_detail")
+        inferredOrbitalNormal = LandingPhotoTexture.load(context, "mars_detail_normal")
+        microMaterialTexture = SurfaceMicroTexture.create(context, "mars")
+        // Prepare the measured coarse-to-mid-to-near geometry while the GL
+        // engine initializes, not on the user's first landing frame.
+        // Prewarm the measured caldera-wall landing region so the first
+        // landed frame doesn't pay the 1m/21m mesh allocation cost.
+        detail.prepare(3.5, -4.0)
     }
 
     fun draw(vp: FloatArray, offsetX: Float, offsetZ: Float) {
         GLES30.glUseProgram(program)
         GLES30.glUniformMatrix4fv(GLES30.glGetUniformLocation(program, "uVp"), 1, false, vp, 0)
         GLES30.glUniform2f(GLES30.glGetUniformLocation(program, "uOffset"), offsetX, offsetZ)
+        GLES30.glUniform1f(GLES30.glGetUniformLocation(program, "uPlanetRadiusUnits"), 3389.5f / 3.0f)
+        GLES30.glUniform1i(GLES30.glGetUniformLocation(program, "uWorld"), 0)
+        LandingPhotoTexture.bind(program, landingPhotoTexture)
+        LandingPhotoTexture.bindDetail(program, detailedOrbitalPhoto)
+        LandingPhotoTexture.bindPhotometricNormal(program, inferredOrbitalNormal)
+        SurfaceMicroTexture.bind(program, microMaterialTexture)
+        // Initialize/reanchor midfield LOD *before* drawing the coarse
+        // mesh, so its masked region always matches the actual replacement.
+        detail.prepare(-offsetX.toDouble(), -offsetZ.toDouble())
+        GLES30.glUniform2f(
+            GLES30.glGetUniformLocation(program, "uViewAnchor"),
+            detail.foregroundAnchorX, detail.foregroundAnchorZ
+        )
+        GLES30.glUniform2f(
+            GLES30.glGetUniformLocation(program, "uMidAnchor"),
+            detail.midfieldAnchorX, detail.midfieldAnchorZ
+        )
+        GLES30.glUniform1i(GLES30.glGetUniformLocation(program, "uPatchType"), 0)
         GLES30.glUniform3f(GLES30.glGetUniformLocation(program, "uLight"), -0.45f, 0.85f, 0.35f)
-        GLES30.glDisable(GLES30.GL_CULL_FACE); GLES30.glEnable(GLES30.GL_DEPTH_TEST)
+        // Both local and kilometer-scale meshes have counterclockwise upward faces.
+// Cull rear/underside triangles so steep terrain never forms a false ceiling.
+        GLES30.glEnable(GLES30.GL_CULL_FACE); GLES30.glEnable(GLES30.GL_DEPTH_TEST)
         vertices.position(0); GLES30.glEnableVertexAttribArray(0)
         GLES30.glVertexAttribPointer(0, 3, GLES30.GL_FLOAT, false, 36, vertices)
         vertices.position(3); GLES30.glEnableVertexAttribArray(1)
@@ -65,11 +100,19 @@ class MarsSurfaceTerrain {
         vertices.position(0); indices.position(0)
         GLES30.glDrawElements(GLES30.GL_TRIANGLES, indexCount, GLES30.GL_UNSIGNED_SHORT, indices)
         GLES30.glDisableVertexAttribArray(0); GLES30.glDisableVertexAttribArray(1); GLES30.glDisableVertexAttribArray(2)
+        detail.draw(-offsetX.toDouble(), -offsetZ.toDouble(), program)
         GLES30.glEnable(GLES30.GL_CULL_FACE)
     }
 
     companion object {
+        /** Triangles actually visible to the player, not unmeshed DEM samples. */
+        fun renderedHeightAt(x: Double, z: Double): Double =
+            SurfaceTerrainSampling.renderedHeight(x, z, 121, 0.22f.toDouble(), ::heightAt)
+
+        @Volatile var elevationPatch: MeasuredElevationPatch? = null
+
         fun heightAt(x: Double, z: Double): Double {
+            elevationPatch?.heightAt(x, z)?.let { return it + 0.003 * sin(x * 9.0 + z * 4.0) * cos(z * 11.0 - x * 1.7) }
             val broad = 0.16 * sin(x * 0.36) * cos(z * 0.29)
             val ridges = 0.09 * sin(x * 1.08 + cos(z * 0.44)) * cos(z * 0.83)
             val ripples = 0.035 * sin(x * 2.6 + z * 1.7) * cos(z * 2.1 - x * 0.8)

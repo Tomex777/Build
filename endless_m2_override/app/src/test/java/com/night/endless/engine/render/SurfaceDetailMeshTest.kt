@@ -1,0 +1,139 @@
+package com.night.endless.engine.render
+
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Test
+import kotlin.math.abs
+
+class SurfaceDetailMeshTest {
+    @Test fun remainingForegroundRadiusIsSafeAtNewNineMetreReanchor() {
+        val fullRadius = (SurfaceDetailMesh.SIDE - 1) * SurfaceDetailMesh.STEP / 2f
+        val interval = .0030f
+        // Units are 3km: an astronaut remains inside the original
+        // fine-triangle square throughout the reanchor interval.
+        org.junit.Assert.assertTrue(fullRadius - interval > .015f)
+        org.junit.Assert.assertTrue((fullRadius - interval) * 3000f > 49.0f)
+    }
+
+    @Test fun rockRimsAreEmbeddedOnBothSidesOfASlope() {
+        val slope: (Double, Double) -> Double = { x, z -> .2 + x * .21 - z * .17 }
+        val rocks = SurfaceDetailMesh.buildRocks(.03, -.04, slope)
+        val perRock = SurfaceDetailMesh.ROCK_SIDES * 5 * 3 * 9
+        for (rock in 0 until rocks.count) {
+            for (side in 0 until SurfaceDetailMesh.ROCK_SIDES) {
+                val first = rock * perRock + side * 5 * 3 * 9
+                for (offset in listOf(0, 18)) {
+                    val p = first + offset
+                    val ground = slope(rocks.vertices[p].toDouble(), rocks.vertices[p + 2].toDouble())
+                    assertTrue("A downhill rock rim must not hover above the ground",
+                        rocks.vertices[p + 1] <= ground + 1e-7)
+                    assertTrue("Rock embedding should remain shallow",
+                        ground - rocks.vertices[p + 1] < .0001)
+                }
+            }
+        }
+    }
+
+    @Test fun weatheredRockNormalsStayFiniteAndUnitLength() {
+        val rocks = SurfaceDetailMesh.buildRocks(1.5, -.5) { x, z -> .1 + x * .06 - z * .03 }
+        assertTrue(rocks.count > 100)
+        for (i in rocks.vertices.indices step SurfaceDetailMesh.STRIDE) {
+            val nx = rocks.vertices[i + 3].toDouble()
+            val ny = rocks.vertices[i + 4].toDouble()
+            val nz = rocks.vertices[i + 5].toDouble()
+            assertEquals(1.0, kotlin.math.sqrt(nx*nx + ny*ny + nz*nz), 1e-5)
+        }
+    }
+
+    @Test fun localLodPreservesPlanetCoordinatesAndAddsOnlySmallRelief() {
+        val elevation: (Double, Double) -> Double = { x, z -> 0.2 + x * 0.012 + z * 0.026 }
+        val mesh = SurfaceDetailMesh.buildPatch(0.01, -0.017, elevation)
+        assertEquals(SurfaceDetailMesh.SIDE * SurfaceDetailMesh.SIDE * 9, mesh.vertices.size)
+        assertEquals(6 * 112 * 112, mesh.indices.size)
+        val center = (SurfaceDetailMesh.SIDE * SurfaceDetailMesh.SIDE / 2) * 9
+        assertEquals(0.01f, mesh.vertices[center], 1e-6f)
+        assertEquals(-0.017f, mesh.vertices[center + 2], 1e-6f)
+        assertTrue(abs(mesh.vertices[center + 1] - 0.2f) < 0.001f)
+        assertTrue(mesh.vertices.all { it.isFinite() })
+    }
+
+    @Test fun rocksAreDeterministicFixedOnThePlanetSurface() {
+        val flat: (Double, Double) -> Double = { _, _ -> 0.0 }
+        val first = SurfaceDetailMesh.buildRocks(0.0, 0.0, flat)
+        val second = SurfaceDetailMesh.buildRocks(0.0, 0.0, flat)
+        assertTrue(first.count > 200)
+        assertEquals(first.count, second.count)
+        assertTrue(first.vertices.contentEquals(second.vertices))
+        assertEquals(first.count * SurfaceDetailMesh.ROCK_SIDES * 5 * 3 * 9, first.vertices.size)
+        assertTrue(first.vertices.all { it.isFinite() })
+    }
+
+
+    @Test fun surfaceRocksKeepCoherentReflectanceAndMostlyGravelSize() {
+        val rocks = SurfaceDetailMesh.buildRocks(0.0, 0.0) { _, _ -> 0.0 }
+        val stride = SurfaceDetailMesh.STRIDE
+        val verticesPerStone = SurfaceDetailMesh.ROCK_SIDES * 5 * 3
+        var gravel = 0
+        for (stone in 0 until rocks.count) {
+            val first = stone * verticesPerStone * stride
+            val tone = rocks.vertices[first + 6]
+            var minX = Float.POSITIVE_INFINITY
+            var maxX = Float.NEGATIVE_INFINITY
+            for (v in 0 until verticesPerStone) {
+                val p = first + v * stride
+                assertEquals("A single basalt stone must not have random corner tint",
+                    tone, rocks.vertices[p + 6], 0.000001f)
+                minX = minOf(minX, rocks.vertices[p])
+                maxX = maxOf(maxX, rocks.vertices[p])
+            }
+            if (maxX - minX < 0.0002f) gravel++
+        }
+        assertTrue("Most surface fragments should be sub-30cm gravel",
+            gravel > rocks.count / 2)
+    }
+
+    @Test fun nearbyBouldersHaveMeterScaleRadiusesRatherThanHundredsOfMeters() {
+        val data = SurfaceDetailMesh.buildRocks(0.0, 0.0) { _, _ -> 0.0 }.vertices
+        var peak = 0f
+        for (i in data.indices step 9) peak = maxOf(peak, data[i + 1])
+        assertTrue(peak > 0f)
+        assertTrue("Tops should remain under roughly 1.5m high", peak < 0.0006f)
+    }
+
+    @Test fun surfaceSamplingMatchesBothRenderedTriangleHalves() {
+        val cx = .0123
+        val cz = -.0147
+        val elevation: (Double, Double) -> Double = { x, z ->
+            .2 + x * .13 + z * .07
+        }
+        val mesh = SurfaceDetailMesh.buildPatch(cx, cz, elevation)
+        val ix = 53
+        val iz = 58
+        val half = (SurfaceDetailMesh.SIDE - 1) * .5
+        fun h(x: Int, z: Int) =
+            mesh.vertices[(z * SurfaceDetailMesh.SIDE + x) * 9 + 1].toDouble()
+        for ((fx, fz) in listOf(.2 to .3, .8 to .7, .5 to .5)) {
+            val expected = if (fx + fz <= 1.0) {
+                h(ix, iz) * (1.0 - fx - fz) +
+                    h(ix + 1, iz) * fx + h(ix, iz + 1) * fz
+            } else {
+                h(ix + 1, iz) * (1.0 - fz) +
+                    h(ix, iz + 1) * (1.0 - fx) +
+                    h(ix + 1, iz + 1) * (fx + fz - 1.0)
+            }
+            val actual = SurfaceDetailMesh.surfaceHeightAt(
+                cx + (ix + fx - half) * SurfaceDetailMesh.STEP,
+                cz + (iz + fz - half) * SurfaceDetailMesh.STEP,
+                cx, cz, elevation
+            )
+            assertEquals("Grounded details must follow the displayed triangle",
+                expected, actual, 1e-10)
+        }
+    }
+
+    @Test fun samplingOutsideForegroundUsesUnderlyingTerrain() {
+        val elevation: (Double, Double) -> Double = { x, z -> .1 + x + z }
+        assertEquals(elevation(.03, .01),
+            SurfaceDetailMesh.surfaceHeightAt(.03, .01, 0.0, 0.0, elevation), 1e-12)
+    }
+}

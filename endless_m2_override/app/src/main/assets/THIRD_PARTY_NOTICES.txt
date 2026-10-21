@@ -21,3 +21,135 @@ Close-approach lunar material:
 
 Close-approach Mars normal detail is derived from the USGS Astrogeology MGS MOLA
 global elevation product, credited to the MOLA Team and NASA GSFC.
+
+
+Measured planetary surface data:
+- NASA's Scientific Visualization Studio CGI Moon Kit (ID 4720): 2025 2K
+  LRO/LROC natural-color lunar texture and LRO/LOLA `ldem_16_uint.tif`
+  elevation raster. Credited to NASA/GSFC, Ernie Wright, Noah Petro, the
+  LROC and LOLA teams. https://svs.gsfc.nasa.gov/4720/
+- NASA Mars Global Surveyor/Mars Orbiter Laser Altimeter MEGDR
+  `megt90n000eb.img` topography, courtesy NASA GSFC MOLA science team
+  and PDS Geosciences Node.
+  https://pds-geosciences.wustl.edu/missions/mgs/megdr.html
+- Raster DEMs are cropped/resampled to compact Tycho (-43.31, 348.64 E)
+  and Olympus Mons (18.65 N, 226.2 E) landing patches. Native source
+  resolution is 16 pixels/degree. Bilinear interpolation does not create
+  additional measured geological detail; subpixel visual detail remains
+  illustrative rather than measured.
+- Approximate planetary orbital elements and analytical J2000 solution:
+  NASA/JPL Solar System Dynamics, Standish/Williams Table 1 (1800-2050).
+  https://ssd.jpl.nasa.gov/planets/approx_pos.html
+  Present renderer magnifies planet sizes and compresses planet distances
+  for navigation, despite improving Keplerian phase/tilt/eccentricity.
+
+Blue Marble Next Generation photographic Earth imagery:
+- Endless uses a NASA Earth Observatory Blue Marble July composite
+  (source world.200407.3x5400x2700.jpg; NASA/GSFC, Reto Stöckli).
+  Delivered in a genuine downsampled 4096x2048 image by physics-lab:
+  https://github.com/MaxwellLee/physics-lab/blob/main/assets/textures/SOURCES.md
+  NASA original: https://science.nasa.gov/earth/earth-observatory/blue-marble-next-generation/base-map/
+  No clouds, shadows, and artificial lighting are baked into this day albedo.
+
+NASA Trek photographic landings (when imagery server is available during CI):
+- Moon: LRO Wide Angle Camera (WAC) Global Mosaic 303ppd v02,
+  NASA Moon Trek (NASA/GSFC, ASU LROC team), at Tycho Crater -43.31 latitude,
+  348.64 degrees east longitude.
+  https://trek.nasa.gov/tiles/apidoc/trekAPI.html?body=moon
+- Mars: Viking MDIM 2.1 Color Mosaic global 232 m,
+  NASA Mars Trek (NASA/JPL/USGS), near Olympus Mons 18.65 latitude,
+  226.2 degrees east longitude.
+  https://trek.nasa.gov/tiles/apidoc/trekAPI.html?body=mars
+- Product is a georeferenced ~81.6 km by ~81.6 km NASA orbital photo mosaic,
+  matched with MOLA and LOLA DEM coordinates. The orbital images are NOT
+  meter-scale rover photography or ground-truth boulder textures.
+- The app works entirely offline after installation. If the NASA Trek service
+  is unavailable during packaging, the app falls back to geologic materials
+  generated procedurally above the measured DEM and indicates that fallback
+  in CI logs. The product should not be marketed as photographic without
+  checking inclusion of these resources.
+
+Sub-10-cm grain reference (optional, generated only when NASA photos can be fetched):
+- Mars reference: NASA/JPL-Caltech/Cornell/ASU, Opportunity Pancam soil image
+  PIA14533 from Endeavour crater rim, 2011.
+  https://www.jpl.nasa.gov/images/pia14533-on-different-ground-soil-on-endeavour-rim/
+- Moon reference: NASA/JSC Apollo 11 photograph AS11-40-5876, undisturbed soil
+  at Tranquility Base (via Wikimedia Commons, public domain).
+  https://commons.wikimedia.org/wiki/File:AS11-40-5876_Undisturbed_Lunar_Soil.png
+- These are normalised, high-pass, tiny seamless grain patterns, *not* measured
+  images of Olympus Mons or Tycho crater. Large-scale geographical photos
+  continue to use locally registered NASA Trek mosaics.
+- Each generated WebP is 256x256; raw photo is not bundled. If fetch fails,
+  the app uses its built-in deterministic regolith atlas and remains offline.
+
+
+Expanded exploratory worlds:
+- Mercury: MESSENGER Mercury Dual Imaging System enhanced-color global
+  basemap (~665 m source scale) served by NASA Mercury Trek. Selected map
+  center approximately Caloris Basin (30.5 N, 162.7 E).
+  https://trek.nasa.gov/tiles/apidoc/trekAPI.html?body=mercury
+- Ceres: NASA Dawn Framing Camera HAMO enhanced color/shaded global mosaic,
+  serviced by NASA Ceres Trek; centered near Occator (20 N, 239 E).
+  https://trek.nasa.gov/tiles/apidoc/trekAPI.html?body=ceres
+- Those optional mission mosaics register ORBITAL REFLECTANCE to geographic
+  map coordinates. They do NOT provide measured landing-site geometry:
+  Mercury/Ceres, Europa and Titan terrain is presently illustrative 3D
+  procedural geology and should be labelled SIMULATED.
+- Europa's ice fractures, ridges, and likely ocean are modeled from NASA
+  Galileo/Europa Clipper descriptions; Titan's dunes and atmospheric haze
+  from NASA Cassini/Huygens observations. Both satellite orbits are simplified
+  parent-relative motions, NOT historical JPL ephemerides.
+  https://europa.nasa.gov/mission/faq/
+  https://science.nasa.gov/saturn/moons/titan/facts/
+- NASA/JPL-Caltech, ASU and the mission instrument teams are credited for
+  the photographic sources. If optional tile fetching fails, the new worlds
+  remain navigable but show only explicitly illustrative materials.
+
+Optional NASA Olympus Mons local photographic detail:
+- NASA/JPL/USGS Mars Trek WMTS layer ID olympus_mons.eq, centered on
+  Olympus Mons (18.65 N, -133.8 E), used as a separate luminance
+  detail source IF a complete tile mosaic is available in CI.
+  https://trek.nasa.gov/tiles/apidoc/trekAPI.html?body=mars
+- The verified Viking MDIM 2.1 color is always the base orbital
+  reflectance. The local mosaic only modifies large-scale spatial
+  details; no claim of meter-scale rover photographs or a site DEM.
+
+- Optional `mars_detail_normal_trek_landing.png`: derived at build time
+  from the Olympus Mons 1024x1024 registered NASA optical mosaic.
+  Encodes low-amplitude photometric shading gradients as visual *bump*
+  normals at distances where source image resolution supports them.
+  It is NOT a measured topographic product; the independently measured
+  MOLA elevation DEM is unchanged and authoritative for collision.
+
+NASA Hubble observed Jupiter clouds (optional):
+- NASA SVS 12021, Hubble WFC3 planetary cloud map from 2015:
+  Hubble_Jupiter_color_global_map_2015a.tif (3600 x 1800).
+  https://svs.gsfc.nasa.gov/12021/
+  Credits: NASA Goddard Space Flight Center, Space Telescope Science
+  Institute; Amy A. Simon, Michael H. Wong, Glenn Orton.
+- Converted offline in CI to 3072 x 1536 JPEG, downsampled without
+  artificial detail; this is a historical observation, NOT live Jupiter.
+- A failed optional NASA download preserves the verified Solar System
+  Scope CC BY 4.0 2K texture. GLES3 low-memory and 2048px-max GPUs
+  decode lower-resolution mipmaps rather than failing the GL upload.
+
+NASA JPL/USGS Europa globe (optional):
+- Europa's actual grayscale global Voyager orbital mosaic (1440 x 720),
+  available from the JPL Solar System Simulator texture maps.
+  https://maps.jpl.nasa.gov/tmaps/jupiter.html
+  File: jup2vss2.jpg. Credits: NASA/JPL/USGS, David Seal.
+- This is authentic planetary albedo with coverage/processing limitations,
+  not terrain elevation and not a fully color-calibrated Galileo photograph.
+  At simulated Europa landings, the terrain remains illustrative and does
+  not claim to reproduce this observed image's local geography.
+
+Ceres orbit improvement:
+- Orbital elements of asteroid 1 Ceres from the NASA/JPL Small-Body
+  Database, osculating epoch JD 2458200.5 (2018), mean ecliptic J2000.
+  a=2.76704624850 AU, e=0.07553461024, i=10.59351 degrees,
+  ascending node=80.30992 degrees, argument perihelion=73.11534 degrees,
+  mean anomaly=352.23046 degrees, period=1681.2142 days.
+  Reference: https://ssd.jpl.nasa.gov/tools/sbdb_lookup.html#/?sstr=1
+- Ceres is outside JPL's planet approximation table. This is a bounded
+  two-body Keplerian approximation using a dated osculating solution and
+  schematic in-app distance scale, not JPL Horizons/SPICE.

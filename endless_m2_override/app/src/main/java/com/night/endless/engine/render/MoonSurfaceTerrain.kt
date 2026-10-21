@@ -1,16 +1,20 @@
 package com.night.endless.engine.render
 
+import android.content.Context
 import android.opengl.GLES30
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.FloatBuffer
 import java.nio.ShortBuffer
 
-class MoonSurfaceTerrain {
+class MoonSurfaceTerrain(private val context: Context) {
     private val program: Int
+    private val landingPhotoTexture: Int
+    private val microMaterialTexture: Int
     private val vertices: FloatBuffer
     private val indices: ShortBuffer
     private val indexCount: Int
+    private val detail = SurfaceDetailRenderer(-.74, .38, .31) { x, z -> renderedHeightAt(x, z) }
 
     init {
         val mesh = MoonSurfaceMeshGenerator.build()
@@ -19,15 +23,38 @@ class MoonSurfaceTerrain {
         indices = ByteBuffer.allocateDirect(mesh.indices.size * 2).order(ByteOrder.nativeOrder())
             .asShortBuffer().apply { put(mesh.indices); position(0) }
         indexCount = mesh.indices.size
-        program = createProgram(VS, FS)
+        program = createProgram(SurfaceMaterialShaders.VERTEX, SurfaceMaterialShaders.FRAGMENT)
+        landingPhotoTexture = LandingPhotoTexture.load(context, "moon")
+        microMaterialTexture = SurfaceMicroTexture.create(context, "moon")
+        // Prepare the measured coarse-to-mid-to-near geometry while the GL
+        // engine initializes, not on the user's first landing frame.
+        detail.prepare(1.5, -0.5)
     }
 
     fun draw(vp: FloatArray, offsetX: Float, offsetZ: Float) {
         GLES30.glUseProgram(program)
         GLES30.glUniformMatrix4fv(GLES30.glGetUniformLocation(program, "uVp"), 1, false, vp, 0)
         GLES30.glUniform2f(GLES30.glGetUniformLocation(program, "uOffset"), offsetX, offsetZ)
+        GLES30.glUniform1f(GLES30.glGetUniformLocation(program, "uPlanetRadiusUnits"), 1737.4f / 3.0f)
+        GLES30.glUniform1i(GLES30.glGetUniformLocation(program, "uWorld"), 1)
+        LandingPhotoTexture.bind(program, landingPhotoTexture)
+        SurfaceMicroTexture.bind(program, microMaterialTexture)
+        // Initialize/reanchor midfield LOD *before* drawing the coarse
+        // mesh, so its masked region always matches the actual replacement.
+        detail.prepare(-offsetX.toDouble(), -offsetZ.toDouble())
+        GLES30.glUniform2f(
+            GLES30.glGetUniformLocation(program, "uViewAnchor"),
+            detail.foregroundAnchorX, detail.foregroundAnchorZ
+        )
+        GLES30.glUniform2f(
+            GLES30.glGetUniformLocation(program, "uMidAnchor"),
+            detail.midfieldAnchorX, detail.midfieldAnchorZ
+        )
+        GLES30.glUniform1i(GLES30.glGetUniformLocation(program, "uPatchType"), 0)
         GLES30.glUniform3f(GLES30.glGetUniformLocation(program, "uLight"), -0.74f, 0.38f, 0.31f)
-        GLES30.glDisable(GLES30.GL_CULL_FACE); GLES30.glEnable(GLES30.GL_DEPTH_TEST)
+        // Both local and kilometer-scale meshes have counterclockwise upward faces.
+// Cull rear/underside triangles so steep terrain never forms a false ceiling.
+        GLES30.glEnable(GLES30.GL_CULL_FACE); GLES30.glEnable(GLES30.GL_DEPTH_TEST)
         vertices.position(0); GLES30.glEnableVertexAttribArray(0)
         GLES30.glVertexAttribPointer(0, 3, GLES30.GL_FLOAT, false, 36, vertices)
         vertices.position(3); GLES30.glEnableVertexAttribArray(1)
@@ -37,10 +64,15 @@ class MoonSurfaceTerrain {
         vertices.position(0); indices.position(0)
         GLES30.glDrawElements(GLES30.GL_TRIANGLES, indexCount, GLES30.GL_UNSIGNED_SHORT, indices)
         GLES30.glDisableVertexAttribArray(0); GLES30.glDisableVertexAttribArray(1); GLES30.glDisableVertexAttribArray(2)
+        detail.draw(-offsetX.toDouble(), -offsetZ.toDouble(), program)
         GLES30.glEnable(GLES30.GL_CULL_FACE)
     }
 
     companion object {
+        /** Triangles actually visible to the player, not unmeshed DEM samples. */
+        fun renderedHeightAt(x: Double, z: Double): Double =
+            SurfaceTerrainSampling.renderedHeight(x, z, 161, MoonSurfaceMeshGenerator.DEFAULT_STEP.toDouble(), ::heightAt)
+
         fun heightAt(x: Double, z: Double): Double = MoonSurfaceMeshGenerator.heightAt(x, z)
 
         private fun createProgram(vs: String, fs: String): Int {

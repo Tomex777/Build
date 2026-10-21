@@ -4,8 +4,13 @@ import android.os.Bundle
 import android.view.View
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -20,16 +25,22 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.viewinterop.AndroidView
 import com.night.endless.engine.render.ApproachSnapshot
 import com.night.endless.engine.render.BodyLabelSnapshot
@@ -45,6 +56,7 @@ import java.util.TimeZone
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
+import kotlin.math.hypot
 
 class MainActivity : ComponentActivity() {
     private var activeGlView: EndlessGLView? = null
@@ -88,6 +100,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onPause() {
+        activeGlView?.cancelSurfaceControls()
         activeGlView?.onPause()
         super.onPause()
     }
@@ -202,7 +215,9 @@ private val bodyInfo = mapOf(
     "jupiter" to BodyInfo("Jupiter", "Gas giant", "69,911 km", "5.2029 AU", "11.86 y", "9 h 55 m", "The largest planet, a gas giant with banded clouds and enormous storms."),
     "saturn" to BodyInfo("Saturn", "Gas giant", "58,232 km", "9.5371 AU", "29.45 y", "10 h 42 m", "A gas giant surrounded by its bright, complex ring system."),
     "uranus" to BodyInfo("Uranus", "Ice giant", "25,362 km", "19.191 AU", "84.0 y", "17 h 14 m retrograde", "An ice giant rotating on its side with a faint ring system."),
-    "neptune" to BodyInfo("Neptune", "Ice giant", "24,622 km", "30.07 AU", "164.8 y", "16 h 6 m", "A distant blue ice giant with some of the fastest winds in the Solar System.")
+    "neptune" to BodyInfo("Neptune", "Ice giant", "24,622 km", "30.07 AU", "164.8 y", "16 h 6 m", "A distant blue ice giant with some of the fastest winds in the Solar System."),
+    "europa" to BodyInfo("Europa", "Icy moon of Jupiter", "1,560.8 km", "671,100 km from Jupiter", "3.551 d", "3.551 d", "An ice-covered moon with fractured ridges above a possible subsurface ocean. Ground terrain is illustrative."),
+    "titan" to BodyInfo("Titan", "Moon of Saturn", "2,574.7 km", "1,221,870 km from Saturn", "15.945 d", "15.945 d", "A moon with orange nitrogen-methane haze, organic dunes, and hydrocarbon lakes. Ground terrain is illustrative.")
 )
 
 @Composable
@@ -225,7 +240,7 @@ private fun EndlessApp(
         )
     }
     var infoVisible by remember {
-        mutableStateOf(initialState?.marsSurfaceMode != true && initialState?.moonSurfaceMode != true)
+        mutableStateOf(initialState?.marsSurfaceMode != true && initialState?.moonSurfaceMode != true && initialState?.extendedSurfaceId == null)
     }
     var paused by remember { mutableStateOf(initialState?.clockState?.paused ?: false) }
     var overview by remember { mutableStateOf(initialState?.overview ?: false) }
@@ -241,11 +256,13 @@ private fun EndlessApp(
             when {
                 initialState?.moonSurfaceMode == true -> "moon"
                 initialState?.marsSurfaceMode == true -> "mars"
+                initialState?.extendedSurfaceId != null -> initialState.extendedSurfaceId
                 else -> null
             }
         )
     }
     var glView by remember { mutableStateOf<EndlessGLView?>(null) }
+    var surfaceStick by remember { mutableStateOf(Offset.Zero) }
     var historyOpen by remember { mutableStateOf(initialHistoryOpen) }
     var historyAgeGa by remember { mutableFloatStateOf(initialHistoryAgeGa.toFloat().coerceIn(-7f, 4.6f)) }
     var historyDomain by remember { mutableStateOf(initialHistoryDomain.takeIf { it in DeepTimeHistory.domains } ?: "System") }
@@ -313,19 +330,25 @@ private fun EndlessApp(
         val timeFormat = SimpleDateFormat("HH:mm:ss 'UTC'", Locale.US).apply { timeZone = TimeZone.getTimeZone("UTC") }
         while (true) {
             glView?.endlessRenderer?.let { renderer ->
-                val now = Date(renderer.currentTimeMillis())
+                // One immutable completed-frame snapshot keeps this 33ms
+                // Compose loop off the renderer's monitor while drawing.
+                val frame = renderer.uiFrameSnapshot() ?: return@let
+                val now = Date(frame.timeMillis)
                 dateText = dateFormat.format(now)
                 timeText = timeFormat.format(now)
-                snapshots = renderer.labelSnapshots()
-                approach = renderer.approachSnapshot()
-                landedBody = renderer.surfaceBodyId()
-                speedLabel = renderer.speedLabel()
+                snapshots = frame.labels
+                approach = frame.approach
+                landedBody = frame.surfaceBody
+                speedLabel = frame.speedLabel
 
                 // The renderer is the source of truth for navigation. A body can be
                 // selected directly on the GLSurfaceView while Compose is publishing
                 // a fresh projected-label frame, so reconcile the shell every frame
                 // instead of relying on a single cross-thread selection callback.
-                val navigation = renderer.snapshotState()
+                // Ignore a completed frame from before the latest selection. It
+                // must not dismiss the information panel opened by that tap.
+                if (frame.navigationRevision != renderer.currentNavigationRevision()) return@let
+                val navigation = frame.navigation
                 val rendererSelected = navigation.selectedId.takeUnless { navigation.overview }
                 if (overview != navigation.overview) overview = navigation.overview
                 if (selected != rendererSelected) selected = rendererSelected
@@ -356,6 +379,9 @@ private fun EndlessApp(
                         }
                     }.also { view ->
                         initialState?.let(view.endlessRenderer::restoreState)
+                        view.onSurfaceStickChanged = { x, y ->
+                            surfaceStick = Offset(x, y)
+                        }
                         glView = view
                         onGlViewReady(view)
                     }
@@ -382,8 +408,12 @@ private fun EndlessApp(
                 Text("ENDLESS", color = Text, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.7.sp)
                 Text(
                     when (landedBody) {
-                        "mars" -> "MARS SURFACE"
-                        "moon" -> "LUNAR SURFACE"
+                        "mars" -> "OLYMPUS MONS · MARS"
+                        "moon" -> "TYCHO CRATER · MOON"
+                        "mercury" -> "MERCURY · SIMULATED SURFACE"
+                        "ceres" -> "CERES · SIMULATED SURFACE"
+                        "europa" -> "EUROPA · SIMULATED ICE"
+                        "titan" -> "TITAN · SIMULATED DUNES"
                         else -> when {
                             historyOpen -> "SPACE & TIME EXPLORER"
                             cosmicScale != CosmicScale.SOLAR_SYSTEM -> "COSMIC SCALE EXPLORER"
@@ -394,7 +424,7 @@ private fun EndlessApp(
                 )
             }
 
-            Surface(
+            if (landedBody == null) Surface(
                 modifier = Modifier.align(Alignment.TopStart).padding(start = 18.dp, top = 58.dp),
                 shape = CircleShape,
                 color = Panel,
@@ -409,7 +439,8 @@ private fun EndlessApp(
                 }
             }
 
-            if (cosmicScale == CosmicScale.SOLAR_SYSTEM && labelsOn) {
+            // Never overlay cached orbital body labels over a landing scene.
+            if (cosmicScale == CosmicScale.SOLAR_SYSTEM && labelsOn && landedBody == null) {
                 snapshots.filter { it.visible && it.id != "sun" }.forEach { label ->
                     key(label.id) {
                     val xDp = with(density) { label.xPx.toDp() }
@@ -455,7 +486,10 @@ private fun EndlessApp(
                             "moon" -> "Explore Moon"
                             "mars" -> "Explore Mars"
                             "venus" -> "Explore Venus"
-                            "ceres" -> "Explore Belt"
+                            "ceres" -> "Explore Ceres"
+                            "mercury" -> "Explore Mercury"
+                            "europa" -> "Explore Europa"
+                            "titan" -> "Explore Titan"
                             else -> null
                         },
                         modifier = Modifier.align(Alignment.CenterEnd).padding(end = 16.dp),
@@ -468,7 +502,7 @@ private fun EndlessApp(
                 }
             }
 
-            if (cosmicScale == CosmicScale.SOLAR_SYSTEM) Column(
+            if (cosmicScale == CosmicScale.SOLAR_SYSTEM && landedBody == null) Column(
                 modifier = Modifier.align(Alignment.BottomStart).padding(start = 16.dp, bottom = 14.dp),
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
@@ -517,7 +551,34 @@ private fun EndlessApp(
                 )
             }
 
-            if (cosmicScale == CosmicScale.SOLAR_SYSTEM && (landedBody != null || ((selected == "mars" || selected == "moon" || selected == "venus" || selected == "ceres") && !overview))) {
+            if (cosmicScale == CosmicScale.SOLAR_SYSTEM && landedBody != null) {
+                SurfaceJoystickHud(
+                    offset = surfaceStick,
+                    modifier = Modifier.align(Alignment.BottomStart)
+                        .padding(
+                            start = com.night.endless.engine.render.SurfaceJoystickMath.PAD_START_DP.dp,
+                            bottom = com.night.endless.engine.render.SurfaceJoystickMath.PAD_BOTTOM_DP.dp
+                        ).size(com.night.endless.engine.render.SurfaceJoystickMath.PAD_SIZE_DP.dp)
+                )
+                SurfaceTakeoffControl(
+                    body = landedBody ?: "surface",
+                    modifier = Modifier.align(Alignment.BottomEnd)
+                        .padding(end = 18.dp, bottom = 35.dp)
+                ) {
+                    glView?.cancelSurfaceControls()
+                    if (glView?.endlessRenderer?.takeOffSurface() == true) {
+                        // The OpenGL thread can stall after leaving a world.
+                        // Hide surface controls as soon as takeoff succeeds;
+                        // do not leave a ghost button for the next GL frame.
+                        landedBody = null
+                        surfaceStick = Offset.Zero
+                        infoVisible = false
+                    }
+                }
+            }
+
+            if (cosmicScale == CosmicScale.SOLAR_SYSTEM && landedBody == null &&
+                ((selected in setOf("mars", "moon", "venus", "ceres", "mercury", "europa", "titan")) && !overview)) {
                 Surface(
                     modifier = Modifier.align(Alignment.BottomCenter)
                         .padding(bottom = if (landedBody != null) 18.dp else 68.dp),
@@ -531,26 +592,6 @@ private fun EndlessApp(
                         horizontalArrangement = Arrangement.spacedBy(2.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        if (landedBody != null) {
-                            Text(
-                                landedBody!!.uppercase(),
-                                color = Accent,
-                                fontSize = 8.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier.padding(horizontal = 7.dp)
-                            )
-                            DividerPill()
-                            ControlButton("↑") { glView?.endlessRenderer?.walkSurface(1f, 0f) }
-                            ControlButton("←") { glView?.endlessRenderer?.walkSurface(0f, -1f) }
-                            ControlButton("↓") { glView?.endlessRenderer?.walkSurface(-1f, 0f) }
-                            ControlButton("→") { glView?.endlessRenderer?.walkSurface(0f, 1f) }
-                            DividerPill()
-                            ControlButton("↗  Take off", active = true) {
-                                if (glView?.endlessRenderer?.takeOffSurface() == true) {
-                                    landedBody = null
-                                }
-                            }
-                        } else {
                             Text(
                                 approach.stage,
                                 color = Accent,
@@ -579,7 +620,6 @@ private fun EndlessApp(
                                     "SURFACE SKIM" -> {
                                         ControlButton("◆  Land on Mars", active = true) {
                                             if (glView?.endlessRenderer?.landOnMars() == true) {
-                                                landedBody = "mars"
                                                 infoVisible = false
                                             }
                                         }
@@ -620,7 +660,6 @@ private fun EndlessApp(
                                     "SURFACE SKIM" -> {
                                         ControlButton("◆  Land on Moon", active = true) {
                                             if (glView?.endlessRenderer?.landOnMoon() == true) {
-                                                landedBody = "moon"
                                                 infoVisible = false
                                             }
                                         }
@@ -656,16 +695,38 @@ private fun EndlessApp(
                                         }
                                     }
                                 }
-                            } else if (selected == "ceres") {
-                                ControlButton("↓  Approach Ceres", active = true) {
-                                    infoVisible = false
-                                    glView?.endlessRenderer?.approachSelected()
-                                }
-                                ControlButton("↑  Pull back") {
-                                    glView?.endlessRenderer?.pullBackSelected()
+                            } else if (selected in setOf("mercury", "ceres", "europa", "titan")) {
+                                val id = selected!!
+                                val name = bodyInfo[id]?.name ?: id
+                                when (approach.stage) {
+                                    "ORBIT" -> {
+                                        ControlButton("Approach $name", active = true) {
+                                            infoVisible = false
+                                            glView?.endlessRenderer?.approachSelected()
+                                        }
+                                    }
+                                    "CLOSE APPROACH", "LOW ORBIT" -> {
+                                        ControlButton("Descend", active = true) {
+                                            glView?.endlessRenderer?.descendSelected()
+                                        }
+                                        ControlButton("Pull back") {
+                                            glView?.endlessRenderer?.pullBackSelected()
+                                        }
+                                    }
+                                    "SURFACE SKIM" -> {
+                                        ControlButton("Land on $name", active = true) {
+                                            if (glView?.endlessRenderer?.landOnExtendedBody(id) == true)
+                                                infoVisible = false
+                                        }
+                                        ControlButton("Pull back") {
+                                            glView?.endlessRenderer?.pullBackSelected()
+                                        }
+                                    }
+                                    else -> ControlButton("Pull back") {
+                                        glView?.endlessRenderer?.pullBackSelected()
+                                    }
                                 }
                             }
-                        }
                     }
                 }
             }
@@ -693,7 +754,7 @@ private fun EndlessApp(
                         onPresent = { historyAgeGa = 0f; historyPlaying = false },
                         onClose = { historyOpen = false; historyPlaying = false }
                     )
-                } else Surface(
+                } else if (landedBody == null) Surface(
                     modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp)
                         .widthIn(max = maxWidth - 150.dp),
                 shape = CircleShape,
@@ -1132,6 +1193,181 @@ private fun InfoCell(label: String, value: String, modifier: Modifier = Modifier
     }
 }
 
+/**
+ * Surface control geometry is deliberately passive. Do NOT add a Compose
+ * clickable/pointerInput modifier: Android's GLSurfaceView must see BOTH
+ * thumbs to support locomotion and independent camera-look concurrently.
+ */
+@Composable
+private fun SurfaceJoystickHud(offset: Offset, modifier: Modifier = Modifier) {
+    val magnitude = hypot(offset.x, offset.y).coerceIn(0f, 1f)
+    val engaged by animateFloatAsState(
+        targetValue = magnitude,
+        animationSpec = tween(durationMillis = 95),
+        label = "Movement intensity"
+    )
+    Canvas(modifier.semantics {
+        contentDescription = "Movement joystick. Drag to walk, swipe right side to look."
+    }) {
+        val center = Offset(size.width / 2f, size.height / 2f)
+        val unit = size.minDimension /
+            com.night.endless.engine.render.SurfaceJoystickMath.PAD_SIZE_DP
+        val travel = com.night.endless.engine.render.SurfaceJoystickMath.KNOB_TRAVEL_DP * unit
+        val thumb = center + Offset(offset.x * travel, offset.y * travel)
+
+        // Low-profile layered physical thumbstick, not a generic Android
+        // slider or a full-screen floating touchpad. No fake interactive halo.
+        drawCircle(
+            brush = Brush.radialGradient(
+                listOf(Color(0xE80A1824), Color(0xD80B121D), Color(0xAF050A13)),
+                center = center, radius = 74f * unit
+            ),
+            radius = 71f * unit, center = center
+        )
+        drawCircle(
+            color = Color.White.copy(alpha = .13f),
+            radius = 69f * unit, center = center,
+            style = Stroke(width = 1f * unit)
+        )
+        drawCircle(
+            color = Color(0x302E5971),
+            radius = 55f * unit, center = center,
+            style = Stroke(width = 1f * unit)
+        )
+        // Graduated directional ticks and two asymmetric orbit arcs give
+        // feedback without inventing redundant movement buttons.
+        for (index in 0 until 8) {
+            val angle = index * kotlin.math.PI / 4.0
+            val dx = sin(angle).toFloat()
+            val dy = cos(angle).toFloat()
+            val cardinal = index % 2 == 0
+            val inner = if (cardinal) 61f else 63f
+            val outer = if (cardinal) 66f else 65f
+            drawLine(
+                color = Color.White.copy(alpha = if (cardinal) .45f else .18f),
+                start = center + Offset(dx * inner * unit, dy * inner * unit),
+                end = center + Offset(dx * outer * unit, dy * outer * unit),
+                strokeWidth = if (cardinal) 1.8f * unit else 1.1f * unit,
+                cap = StrokeCap.Round
+            )
+        }
+        drawArc(
+            color = Accent.copy(alpha = .48f + .40f * engaged),
+            startAngle = 203f, sweepAngle = 83f, useCenter = false,
+            topLeft = center - Offset(68f * unit, 68f * unit),
+            size = androidx.compose.ui.geometry.Size(136f * unit, 136f * unit),
+            style = Stroke(width = 2.3f * unit, cap = StrokeCap.Round)
+        )
+        drawArc(
+            color = Color.White.copy(alpha = .15f),
+            startAngle = 18f, sweepAngle = 40f, useCenter = false,
+            topLeft = center - Offset(68f * unit, 68f * unit),
+            size = androidx.compose.ui.geometry.Size(136f * unit, 136f * unit),
+            style = Stroke(width = 1.5f * unit, cap = StrokeCap.Round)
+        )
+        // Thumb appears slightly elevated with a crisp annular edge and
+        // physically tracks exactly the movement event's displacements.
+        drawCircle(Color(0xB000050D), 30f * unit, thumb + Offset(0f, 2.5f * unit))
+        drawCircle(
+            brush = Brush.radialGradient(
+                listOf(Color(0xFF2B4C64), Color(0xFF122534), Color(0xFF0B1825)),
+                center = thumb - Offset(9f * unit, 12f * unit),
+                radius = 46f * unit
+            ),
+            radius = 27f * unit, center = thumb
+        )
+        drawCircle(
+            Accent.copy(alpha = .68f + .26f * engaged),
+            radius = 26f * unit, center = thumb,
+            style = Stroke(width = 1.8f * unit)
+        )
+        drawCircle(
+            Color.White.copy(alpha = .13f), 18f * unit, thumb,
+            style = Stroke(width = 1f * unit)
+        )
+        drawCircle(Color(0xFFE0F5FF), 3.6f * unit, thumb)
+    }
+}
+
+/**
+ * One purpose-built return-to-orbit action. Uses a real vector drawable,
+ * a single semantic button, and a quiet tactile pressed state. Keep the
+ * Take off text literal for UI Automator and accessibility.
+ */
+@Composable
+private fun SurfaceTakeoffControl(
+    body: String,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (pressed) .955f else 1f,
+        animationSpec = tween(durationMillis = 110),
+        label = "Take off pressed"
+    )
+    val shape = RoundedCornerShape(18.dp)
+    Row(
+        modifier = modifier
+            .graphicsLayer { scaleX = scale; scaleY = scale }
+            .shadow(if (pressed) 4.dp else 12.dp, shape)
+            .clip(shape)
+            .background(
+                Brush.horizontalGradient(
+                    if (pressed) listOf(Color(0xF3133045), Color(0xEE081722))
+                    else listOf(Color(0xF1132839), Color(0xEF091420))
+                )
+            )
+            .border(
+                width = 1.dp,
+                color = if (pressed) Accent.copy(alpha = .74f)
+                    else Accent.copy(alpha = .43f),
+                shape = shape
+            )
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                role = Role.Button,
+                onClick = onClick
+            )
+            .semantics(mergeDescendants = true) {
+                contentDescription = "Take off from ${body.replaceFirstChar { it.uppercase() }}"
+            }
+            .height(56.dp)
+            .padding(start = 9.dp, end = 19.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Box(
+            Modifier.size(38.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(Accent.copy(alpha = if (pressed) .23f else .13f))
+                .border(
+                    1.dp,
+                    Accent.copy(alpha = if (pressed) .54f else .24f),
+                    RoundedCornerShape(12.dp)
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.ic_endless_takeoff),
+                contentDescription = null,
+                modifier = Modifier.size(24.dp),
+                tint = Color(0xFFBCE9FF)
+            )
+        }
+        Text(
+            "Take off",
+            color = Color(0xFFF0F8FF),
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            letterSpacing = .35.sp,
+            maxLines = 1
+        )
+    }
+}
+
 @Composable
 private fun ControlButton(label: String, active: Boolean = false, modifier: Modifier = Modifier, onClick: () -> Unit) {
     TextButton(
@@ -1153,7 +1389,7 @@ private fun DividerPill() {
 
 
 private const val STATE_VERSION_KEY = "endless.state.version"
-private const val STATE_VERSION = 2
+private const val STATE_VERSION = 3
 
 private fun Bundle.writeExplorationState(state: EndlessRenderer.ExplorationState) {
     putInt(STATE_VERSION_KEY, STATE_VERSION)
@@ -1170,6 +1406,9 @@ private fun Bundle.writeExplorationState(state: EndlessRenderer.ExplorationState
     putBoolean("endless.state.moonSurface", state.moonSurfaceMode)
     putDouble("endless.state.moonSurfaceX", state.moonSurfaceX)
     putDouble("endless.state.moonSurfaceZ", state.moonSurfaceZ)
+    putString("endless.state.extendedSurfaceId", state.extendedSurfaceId)
+    putDouble("endless.state.extendedSurfaceX", state.extendedSurfaceX)
+    putDouble("endless.state.extendedSurfaceZ", state.extendedSurfaceZ)
 
     state.savedFocus?.let { focus ->
         putBoolean("endless.state.savedFocus.present", true)
@@ -1217,6 +1456,9 @@ private fun Bundle.readExplorationState(): EndlessRenderer.ExplorationState? {
         moonSurfaceMode = stateVersion >= 2 && getBoolean("endless.state.moonSurface"),
         moonSurfaceX = if (stateVersion >= 2) getDouble("endless.state.moonSurfaceX") else 0.0,
         moonSurfaceZ = if (stateVersion >= 2) getDouble("endless.state.moonSurfaceZ") else 0.0,
+        extendedSurfaceId = if (stateVersion >= 3) getString("endless.state.extendedSurfaceId") else null,
+        extendedSurfaceX = if (stateVersion >= 3) getDouble("endless.state.extendedSurfaceX") else 0.0,
+        extendedSurfaceZ = if (stateVersion >= 3) getDouble("endless.state.extendedSurfaceZ") else 0.0,
         clockState = UniverseClock.State(
             simulationSeconds = getDouble("endless.state.clock.seconds"),
             anchorMillis = getLong("endless.state.clock.anchorMillis"),

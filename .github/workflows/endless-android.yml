@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - endless-android-ci
+      - endless-realism-20261013
   workflow_dispatch:
 
 concurrency:
@@ -93,6 +94,145 @@ jobs:
           echo "Verified texture total:"
           du -ch "$OUT"/* | tail -1
 
+      - name: Set up Python for NASA DEM extraction
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Fetch NASA terrain and higher-detail planetary imagery
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT="$ENDLESS_PROJECT/app/src/main/res/drawable-nodpi"
+          ASSETS="$ENDLESS_PROJECT/app/src/main/assets"
+          mkdir -p "$OUT" "$ASSETS" "$RUNNER_TEMP/endless-dem"
+          # Use the CGI Moon Kit's modern LRO/LROC albedo instead of
+          # the generic lower-detail lunar color texture.
+          curl -fL --retry 4 --retry-delay 3 --max-time 240 \
+            "https://svs.gsfc.nasa.gov/vis/a000000/a004700/a004720/lroc_color_2k.jpg" \
+            -o "$OUT/planet_moon.jpg"
+          # NASA Blue Marble Next Generation July (5400x2700)
+          # resampled to a true 4096x2048 image (not interpolated 2K).
+          # Source attribution recorded in THIRD_PARTY_NOTICES.txt.
+          curl -fL --retry 4 --retry-delay 2 --max-time 180 \
+            "https://raw.githubusercontent.com/MaxwellLee/physics-lab/main/assets/textures/earth_4096.jpg" \
+            -o "$OUT/planet_earth.jpg"
+          python3 -m pip install --quiet pillow
+          python3 - "$OUT/planet_earth.jpg" <<'PY_EARTH'
+          import sys
+          from PIL import Image
+          with Image.open(sys.argv[1]) as im:
+              assert im.size == (4096, 2048), "NASA Earth day map must be true 4K"
+              assert im.format == "JPEG"
+          PY_EARTH
+          # Replace the illustrative 2K Jupiter with observed Hubble WFC3
+          # 2015 global cloud imagery when NASA SVS is reachable. This
+          # upgrade is independent of the verified offline fallback.
+          python3 -m unittest discover -s endless_ci -p 'test_prepare_hubble_jupiter.py' -v
+          HUBBLE_SOURCE="$RUNNER_TEMP/hubble-jupiter-2015a.tif"
+          HUBBLE_RESULT="$RUNNER_TEMP/hubble-jupiter-3072.jpg"
+          if timeout 130 curl -fL --retry 2 --retry-delay 2 --connect-timeout 18 --max-time 115 "https://svs.gsfc.nasa.gov/vis/a010000/a012000/a012021/Hubble_Jupiter_color_global_map_2015a.tif" -o "$HUBBLE_SOURCE" &&
+              python3 endless_ci/prepare_hubble_jupiter.py --source "$HUBBLE_SOURCE" --output "$HUBBLE_RESULT"; then
+            cp "$HUBBLE_RESULT" "$OUT/planet_jupiter.jpg"
+            echo "NASA Hubble 3072x1536 observed Jupiter packaged; not real-time clouds."
+          else
+            echo "::warning::NASA Hubble map unavailable; verified 2K Jupiter fallback retained."
+          fi
+          rm -f "$HUBBLE_SOURCE" "$HUBBLE_RESULT"
+
+          # NASA JPL/USGS Voyager global reflectance map. It contains
+          # real cracks and ice terrain across Europa's actual globe,
+          # unlike the featureless colored sphere used without a texture.
+          # Original calibrated greyscale; don't falsely colorize imagery.
+          EUROPA_SOURCE="$RUNNER_TEMP/europa-voyager-observed.jpg"
+          if timeout 80 curl -fL --retry 2 --connect-timeout 15 --max-time 65 "https://maps.jpl.nasa.gov/tmaps/pix/jup2vss2.jpg" -o "$EUROPA_SOURCE" &&
+            python3 - "$EUROPA_SOURCE" <<'PY_EUROPA'
+          from PIL import Image
+          import sys
+          with Image.open(sys.argv[1]) as im:
+              im.verify()
+          with Image.open(sys.argv[1]) as im:
+              assert im.format == 'JPEG' and im.width >= 1024
+              assert im.width == im.height * 2, (im.width, im.height)
+          PY_EUROPA
+          then
+            cp "$EUROPA_SOURCE" "$OUT/planet_europa.jpg"
+            echo "Observed Voyager/JPL equirectangular Europa texture included."
+          else
+            rm -f "$OUT/planet_europa.jpg"
+            echo "::warning::NASA Europa mosaic unavailable; illustrative orbital color fallback retained."
+          fi
+          rm -f "$EUROPA_SOURCE"
+          # Retain NASA mission DEM source only on the CI runner. The shipped APK
+          # contains compact 161x161 elevation tiles, not 65MB raw archives.
+          curl -fL --retry 4 --retry-delay 3 --max-time 360 \
+            "https://svs.gsfc.nasa.gov/vis/a000000/a004700/a004720/ldem_16_uint.tif" \
+            -o "$RUNNER_TEMP/endless-dem/ldem_16_uint.tif"
+          curl -fL --retry 4 --retry-delay 3 --max-time 360 \
+            "https://pds-geosciences.wustl.edu/mgs/mgs-m-mola-5-megdr-l3-v1/mgsl_300x/meg016/megt90n000eb.img" \
+            -o "$RUNNER_TEMP/endless-dem/megt90n000eb.img"
+          test "$(stat -c%s "$RUNNER_TEMP/endless-dem/megt90n000eb.img")" -eq 33177600
+          test "$(stat -c%s "$RUNNER_TEMP/endless-dem/ldem_16_uint.tif")" -gt 20000000
+          python3 endless_ci/generate_landing_tiles.py \
+            --moon "$RUNNER_TEMP/endless-dem/ldem_16_uint.tif" \
+            --mars "$RUNNER_TEMP/endless-dem/megt90n000eb.img" \
+            --out "$ASSETS"
+          test "$(stat -c%s "$ASSETS/moon_lola_terrain.bin")" -eq 51842
+          test "$(stat -c%s "$ASSETS/mars_mola_terrain.bin")" -eq 51842
+
+      - name: Validate NASA Trek geographic site mapping
+        shell: bash
+        run: python3 -m unittest discover -s endless_ci -p 'test_prepare_nasa_trek_imagery.py' -v
+
+      - name: Fetch NASA Trek photographic landing mosaics
+        shell: bash
+        run: |
+          set -euo pipefail
+          OUT="$ENDLESS_PROJECT/app/src/main/res/drawable-nodpi"
+          # NASA Trek WMTS is a live external service; request once at build
+          # time and package georeferenced photos for fully offline viewing.
+          # If the service is temporarily unavailable, keep the measured
+          # DEM + illustrated material rather than substitute unrelated art.
+          if timeout 120 python3 endless_ci/prepare_nasa_trek_imagery.py --out "$OUT" --worlds moon mars; then
+            file "$OUT/mars_trek_landing.jpg" "$OUT/moon_trek_landing.jpg"
+            echo "NASA Trek photo landscapes included in APK."
+          else
+            rm -f "$OUT/mars_trek_landing.jpg" "$OUT/moon_trek_landing.jpg"
+            echo "::warning::NASA Trek WMTS unavailable; built-in MOLA/LOLA regolith fallback used."
+          fi
+          # The Mercury and Ceres maps add real mission photographic
+          # reflectance to *illustrative* relief. Fetch independently:
+          # these optional images must never regress the verified Mars/Moon.
+          # Local NASA Trek Olympus Mons photographic/orthomosaic detail:
+          # layered over Viking color albedo when obtainable; never allow
+          # partial missing tiles or a dead endpoint to block the APK.
+          if timeout 90 python3 endless_ci/prepare_nasa_trek_imagery.py --out "$OUT" --worlds mars_detail; then
+            file "$OUT/mars_detail_trek_landing.jpg"
+            echo "NASA Olympus Mons local orbital detail included."
+          else
+            rm -f "$OUT/mars_detail_trek_landing.jpg"
+            echo "::warning::Olympus detail unavailable; Viking color mosaic remains."
+          fi
+          # Each mission tile service is independent. A dead Ceres layer
+          # must not discard a complete Mercury image (or vice versa).
+          for BODY in mercury ceres; do
+            if timeout 80 python3 endless_ci/prepare_nasa_trek_imagery.py --out "$OUT" --worlds "$BODY"; then
+              file "$OUT/${BODY}_trek_landing.jpg"
+              echo "NASA Trek orbital reflectance: $BODY included."
+            else
+              rm -f "$OUT/${BODY}_trek_landing.jpg"
+              echo "::warning::NASA $BODY imagery unavailable; illustrated material retained."
+            fi
+          done
+
+      - name: Bake tiny NASA rover/Apollo regolith reference (optional)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s endless_ci -p 'test_prepare_surface_grit_photos.py' -v
+          python3 endless_ci/prepare_surface_grit_photos.py \
+            --out "$ENDLESS_PROJECT/app/src/main/res/drawable-nodpi"
+
       - name: Set up JDK 17
         uses: actions/setup-java@v5
         with:
@@ -119,6 +259,14 @@ jobs:
       - name: Build Endless production and QA variants
         working-directory: ${{ env.ENDLESS_PROJECT }}
         run: gradle :app:testDebugUnitTest :app:lintRelease :app:assembleDebug :app:assembleDebugAndroidTest :app:assembleRelease :app:bundleRelease --stacktrace
+
+      - name: Upload Endless realism preview APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: endless-realism-preview-apk
+          path: ${{ env.ENDLESS_PROJECT }}/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Sign release binary for emulator validation
         shell: bash
@@ -169,11 +317,25 @@ jobs:
           unzip -l "$APK" | grep -q 'mars_normal.png'
           unzip -l "$APK" | grep -q 'moon_close.jpg'
           unzip -l "$APK" | grep -q 'moon_normal.png'
+          unzip -l "$APK" | grep -q 'moon_lola_terrain.bin'
+          unzip -l "$APK" | grep -q 'mars_mola_terrain.bin'
 
       - name: Runtime smoke on API 36 emulator
         env:
           API36_EVIDENCE_DIR: artifacts/endless-m5-runtime
         run: bash "$GITHUB_WORKSPACE/endless_ci/start-emulator-api36.sh" "$GITHUB_WORKSPACE/endless_ci/runtime-smoke-api36.sh" "$ENDLESS_PROJECT"
+
+      - name: Check actual Mars/Moon landing visibility
+        shell: bash
+        run: python3 endless_ci/check_visual_realism.py artifacts/endless-m5-runtime/screenshots
+
+      - name: Review expanded-world sky, exposure and visible surface detail
+        shell: bash
+        run: python3 endless_ci/check_extended_surface_visuals.py artifacts/endless-m5-runtime/screenshots
+
+      - name: Validate real Jupiter and Saturn orbital renders
+        shell: bash
+        run: python3 endless_ci/check_gas_giant_visuals.py artifacts/endless-m5-runtime/screenshots
 
       - name: Upload Endless API 36 emulator evidence
         if: always()
