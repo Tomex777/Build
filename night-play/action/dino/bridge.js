@@ -1,0 +1,119 @@
+/* NIGHT Play shell controlling the unmodified Chromium runner's gameplay state.
+ * Physics, collision geometry, jump timing and dinosaur frames are provided by
+ * vendored chromium-runner.js rather than NIGHT's retired custom runner. */
+(()=>{
+'use strict';
+const $=id=>document.getElementById(id);
+const soundKey='night-play-action-sfx-v1';
+const bestKey='night-play-v1-action-runner-chromium';
+let runner=null,started=false,paused=false,dead=false,sound=true,loadedSound=false;
+let best=0,activePointer=null,duckPointer=null,pointerDownY=0,score=0;
+try{sound=localStorage.getItem(soundKey)!=='off';best=Math.max(0,Number(localStorage.getItem(bestKey))||0)}catch{}
+$('best').textContent=String(best);
+function displayScore(n){score=Math.max(0,Math.floor(n));$('score').textContent=String(score);
+ if(score>best){best=score;$('best').textContent=String(best);try{localStorage.setItem(bestKey,String(best))}catch{}}}
+function overlay(tag,title,copy,action){$('overlayTag').textContent=tag;$('overlayTitle').textContent=title;$('overlayCopy').textContent=copy;$('overlayAction').textContent=action;$('overlay').hidden=false}
+function hideOverlay(){$('overlay').hidden=true}
+function pauseIcon(isPaused){$('pauseButton').setAttribute('aria-label',isPaused?'Resume game':'Pause game');
+ $('pauseButton').querySelector('use').setAttribute('href',isPaused?'#icon-play':'#icon-pause');}
+function setSound(on){sound=on;const btn=$('soundToggle');btn.setAttribute('aria-pressed',String(on));btn.textContent='Sound effects · '+(on?'On':'Off');
+ try{localStorage.setItem(soundKey,on?'on':'off')}catch{}}
+setSound(sound);
+function prepareAudio(){if(!sound||loadedSound||!runner)return;try{runner.loadSounds();loadedSound=true}catch(e){console.warn('Dino audio unavailable; gameplay unaffected',e)}}
+function start(){if(!runner?.canvas)return;
+ if(dead){runner.restart();dead=false}
+ else if(!started){
+  // Original Runner starts with an opening zoom animation on Chrome's error
+  // page. NIGHT uses its own Start overlay but keeps Chromium physics intact.
+  runner.activated=true;runner.playingIntro=false;runner.tRex.playingIntro=false;
+  runner.containerEl.style.width=runner.dimensions.WIDTH+'px';
+  runner.play();
+ }else if(paused){runner.play()}
+ started=true;paused=false;hideOverlay();pauseIcon(false);
+ prepareAudio();$('arenaHint').textContent='JUMP • DUCK';
+}
+function pause(){if(!runner||!started||dead)return;
+ if(paused){runner.play();paused=false;hideOverlay()}
+ else{runner.stop();paused=true;overlay('PAUSED','Endless Runner','Your run is on hold.','Resume')}
+ pauseIcon(paused);
+}
+function jumpStart(){if(!runner||!started||paused||dead)return;
+ if(!runner.tRex.jumping&&!runner.tRex.ducking){
+  if(runner.soundFx?.BUTTON_PRESS)runner.playSound(runner.soundFx.BUTTON_PRESS);
+  runner.tRex.startJump(runner.currentSpeed);
+ }}
+function jumpEnd(){if(runner&&runner.tRex?.jumping)runner.tRex.endJump()}
+function duckStart(){if(!runner||!started||paused||dead)return;
+ if(runner.tRex.jumping)runner.tRex.setSpeedDrop();
+ else runner.tRex.setDuck(true);
+ $('duckButton').setAttribute('aria-pressed','true');
+}
+function duckEnd(){if(runner?.tRex){runner.tRex.speedDrop=false;runner.tRex.setDuck(false)}
+ $('duckButton').setAttribute('aria-pressed','false');
+}
+$('overlayAction').addEventListener('click',()=>start());
+$('pauseButton').addEventListener('click',()=>pause());
+$('settingsButton').addEventListener('click',()=>{if(started&&!paused&&!dead)pause();$('settingsDialog').showModal()});
+$('settingsClose').addEventListener('click',()=>$('settingsDialog').close());
+$('settingsDialog').addEventListener('click',e=>{if(e.target===$('settingsDialog'))$('settingsDialog').close()});
+$('soundToggle').addEventListener('click',()=>{setSound(!sound);if(sound)prepareAudio()});
+$('touchPad').addEventListener('pointerdown',e=>{if(activePointer!==null)return;
+ e.preventDefault();activePointer=e.pointerId;pointerDownY=e.clientY;
+ try{$('touchPad').setPointerCapture(e.pointerId)}catch{}
+ jumpStart();
+});
+$('touchPad').addEventListener('pointermove',e=>{
+ if(e.pointerId===activePointer&&e.clientY-pointerDownY>32&&runner?.tRex?.jumping){
+  // Chromium's native jump cancellation / speed-drop mechanic.
+  runner.tRex.setSpeedDrop();
+ }
+});
+function releaseJump(e){if(e.pointerId!==activePointer)return;activePointer=null;jumpEnd();
+ try{$('touchPad').releasePointerCapture(e.pointerId)}catch{}
+}
+$('touchPad').addEventListener('pointerup',releaseJump);
+$('touchPad').addEventListener('pointercancel',releaseJump);
+$('touchPad').addEventListener('lostpointercapture',releaseJump);
+$('duckButton').addEventListener('pointerdown',e=>{
+ if(duckPointer!==null)return;e.preventDefault();e.stopPropagation();duckPointer=e.pointerId;
+ try{$('duckButton').setPointerCapture(e.pointerId)}catch{}duckStart();
+});
+function releaseDuck(e){if(e.pointerId!==duckPointer)return;duckPointer=null;duckEnd();
+ try{$('duckButton').releasePointerCapture(e.pointerId)}catch{}
+}
+$('duckButton').addEventListener('pointerup',releaseDuck);
+$('duckButton').addEventListener('pointercancel',releaseDuck);
+$('duckButton').addEventListener('lostpointercapture',releaseDuck);
+window.addEventListener('keydown',e=>{
+ if($('settingsDialog').open)return;
+ if(e.code==='KeyP'){e.preventDefault();pause()}
+ if(['Space','ArrowDown','ArrowUp'].includes(e.code))e.preventDefault();
+},true);
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&started&&!paused&&!dead)pause()});
+window.addEventListener('blur',()=>{if(started&&!paused&&!dead)pause()});
+function pulse(){
+ if(runner?.canvas){
+  const measured=runner.distanceMeter?.getActualDistance?
+   runner.distanceMeter.getActualDistance(Math.ceil(runner.distanceRan)):runner.distanceRan*.025;
+  if(started)displayScore(measured);
+  if(started&&runner.crashed&&!dead){
+   dead=true;paused=false;duckEnd();activePointer=null;
+   overlay('GAME OVER','Run ended','Score '+score+' · Best '+best,'Play again');pauseIcon(false);
+  }
+ }
+ requestAnimationFrame(pulse);
+}
+window.addEventListener('load',()=>{
+ if(typeof window.Runner!=='function'){overlay('UNAVAILABLE','Game did not load','Refresh to try again.','Retry');return}
+ runner=new window.Runner('#main-frame-error');
+ window.__nightDinoTest={snapshot:()=>({
+  ready:!!runner.canvas,playing:runner.playing,paused,dead,started,
+  dinosaurY:runner.tRex?.yPos,groundY:runner.tRex?.groundYPos,
+  jumping:runner.tRex?.jumping,ducking:runner.tRex?.ducking,
+  obstacles:runner.horizon?.obstacles?.map(o=>({type:o.typeConfig?.type,x:o.xPos,y:o.yPos,w:o.width})),
+  speed:runner.currentSpeed,score,best,distanceRan:runner.distanceRan,
+  gravity:runner.tRex?.config.GRAVITY,jumpVelocity:runner.tRex?.config.INIITAL_JUMP_VELOCITY
+ }),jump:jumpStart,release:jumpEnd,pause,start};
+ pulse();
+});
+})();
