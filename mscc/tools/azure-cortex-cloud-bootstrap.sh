@@ -5,8 +5,8 @@
 set -euo pipefail
 umask 077
 
-readonly SOURCE_SHA=dd4a272909b73b4aada53c846dea7d45240f953c
-readonly AGENT_BLOB=24192fb0c1c8f765604c070211809289a42281ff
+readonly SOURCE_SHA=18a3a89f730689f675b0103c25b16b8c11b8134c
+readonly AGENT_BLOB=8aacac2287e96a19a7fd68cfa645c8f13a0e8f51
 readonly PREVIOUS_AGENT_BLOB=558a8394d574aec9b8798e39d9d4475f6b6bf4a9
 readonly HELPER_BLOB=8bc55110b92f60bfe31b8097cbc5dad32ae0a820
 readonly PREVIOUS_HELPER_BLOB=4e0fa0455c604d3793a72254a1c3b4e260b67f4e
@@ -102,6 +102,51 @@ if ! sudo -n grep -Fxq 'ReadWritePaths=/etc' "$ENV_WRITER_OVERRIDE" 2>/dev/null;
     exit 1
   }
 fi
+
+# The sandboxed Agent could read /etc/mscc.env, but every privileged
+# environment POST failed on Azure. Never grant arbitrary writes to /etc.
+# NIGHT loads this private, Agent-owned overlay after the original env file;
+# systemd only consumes it when NIGHT is deliberately restarted.
+readonly CORTEX_ENV_OVERLAY=/var/lib/cortex/mscc-overrides.env
+readonly NIGHT_SERVICE_USER="$(systemctl show mscc.service --property User --value)"
+[[ "$NIGHT_SERVICE_USER" == "$USER" && "$USER" =~ ^[a-z_][a-z0-9_-]*$ ]] || {
+  echo 'NIGHT service user differs from deployment owner; refusing ENV overlay.' >&2; exit 1;
+}
+systemctl cat mscc.service | grep -Fxq "EnvironmentFile=-$CORTEX_ENV_OVERLAY" || {
+  echo 'NIGHT does not load the protected Cortex ENV overlay.' >&2; exit 1;
+}
+if sudo -n test -L /var/lib/cortex || sudo -n test -L "$CORTEX_ENV_OVERLAY"; then
+  echo 'Cortex overlay storage contains a symlink; refusing repair.' >&2; exit 1;
+fi
+sudo -n install -d -o cortex-agent -g cortex-agent -m 0750 /var/lib/cortex
+if ! sudo -n test -e "$CORTEX_ENV_OVERLAY"; then
+  sudo -n -u cortex-agent install -m 0600 /dev/null "$CORTEX_ENV_OVERLAY"
+else
+  [[ "$(sudo -n stat -c '%U' "$CORTEX_ENV_OVERLAY")" == cortex-agent ]] &&
+    sudo -n test -f "$CORTEX_ENV_OVERLAY" || {
+      echo 'Cortex ENV overlay is not an Agent-owned regular file.' >&2; exit 1;
+    }
+fi
+# Give NIGHT only directory traversal and file read access. Cortex owns
+# writes and recreates the same ACL on every atomic replacement.
+sudo -n setfacl -m "u:$USER:--x" /var/lib/cortex
+sudo -n setfacl -m "u:$USER:r--" "$CORTEX_ENV_OVERLAY"
+sudo -n -u cortex-agent test -w "$CORTEX_ENV_OVERLAY" &&
+sudo -n -u "$USER" test -r "$CORTEX_ENV_OVERLAY" || {
+  echo 'Cortex ENV overlay owner/reader permissions failed.' >&2; exit 1;
+}
+for entry in "CORTEX_MSCC_ENV_READER_USER=$USER" "CORTEX_MSCC_ENV_OVERLAY_FILE=$CORTEX_ENV_OVERLAY"; do
+  env_key="${entry%%=*}"
+  existing_env="$(sudo -n sed -n "s/^$env_key=//p" /etc/cortex-agent.env | tail -n 1)"
+  if [[ -n "$existing_env" ]]; then
+    [[ "$existing_env" == "${entry#*=}" ]] || {
+      echo 'Cortex ENV overlay configuration differs from this host; refusing overwrite.' >&2; exit 1;
+    }
+  else
+    printf '%s\n' "$entry" | sudo -n tee -a /etc/cortex-agent.env >/dev/null
+  fi
+done
+echo 'Private Cortex ENV overlay prepared with restricted NIGHT read access.'
 
 # MSCC chmod(700) resets POSIX ACL masks on /var/lib/mscc/data.
 # The installed Agent may be healthy for /status while failing /environment.
