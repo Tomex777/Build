@@ -46,15 +46,25 @@ const result = await mimi.answer({
 assert.equal(result.ok, true)
 assert(result.text.includes('Arcane'))
 const prompt = calls.at(-1).messages[0].content
-assert(prompt.includes('.music'))
-assert(prompt.includes('.movie'))
-assert(prompt.includes('.tv'))
+assert(!prompt.includes('.music'))
+assert(!prompt.includes('.movie'))
+assert(!prompt.includes('.tv'))
+assert(prompt.length < 2000)
 assert(!prompt.includes('.anime'))
 assert(!prompt.includes('.ping'))
 assert(prompt.includes('mention token: [[mention:nami]]'))
 assert.equal(calls.at(-1).allowWeb, false)
-assert(String(calls.at(-1).system).includes('operational specialty is music, movies, and TV series'))
-assert(String(calls.at(-1).system).includes('Never call yourself a bot'))
+assert(String(calls.at(-1).system).includes('music, movies and TV specialist'))
+assert(String(calls.at(-1).system).includes('not an automated recommendations page'))
+
+await mimi.answer({
+  chatJid:'media@g.us',
+  text:'What command downloads music?',
+  senderName:'Teddy',
+  isGroup:true,
+})
+assert(calls.at(-1).messages[0].content.includes('.music'))
+assert(!calls.at(-1).messages[0].content.includes('.anime'))
 
 storage.close()
 console.log('PASS MiMi assistant selftest')
