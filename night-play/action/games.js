@@ -8,7 +8,7 @@ const $=id=>document.getElementById(id),canvas=$('screen'),ctx=canvas.getContext
 const W=390,H=550,PI=Math.PI,TAU=PI*2;
 // Render at real device resolution instead of blurring a 390px canvas on
 // high-density phones. All gameplay coordinates remain in logical pixels.
-const dpr=Math.min(2.5,Math.max(1,window.devicePixelRatio||1));
+const dpr=Math.min(2,Math.max(1,window.devicePixelRatio||1));
 canvas.width=Math.round(W*dpr);canvas.height=Math.round(H*dpr);
 ctx.setTransform(dpr,0,0,dpr,0,0);
 const defs={
@@ -362,7 +362,7 @@ function paintJump(){
  bg('#bedcef','#f2f0d8');
  text(state.score+' m',W-17,31,14,'#275b58',850,'right');
  // Subtle distant cloud layers: intentionally soft, not repeated white blobs.
- for(let i=0;i<8;i++){
+ for(let i=0;i<(reducedEffects?3:8);i++){
    const x=(i*127+46)%W,y=((i*121+30)+state.scroll*.12)%(H+110)-65;
    ctx.fillStyle='#ffffff76';ctx.beginPath();
    ctx.ellipse(x,y,30,13,0,0,TAU);ctx.fill();
@@ -452,12 +452,12 @@ function paintRunner(){
  bg('#b6d8e6','#f7e5bd');
  // Original layered landscape: slow cloud bank, distant ridge, rooftops,
  // near track and foreground markings, each scrolling at its own speed.
- const drift=reducedEffects?0:state.distance;
+ const drift=state.distance;
  const sun=ctx.createRadialGradient(306,96,6,306,96,99);
  sun.addColorStop(0,'#fff6d6');sun.addColorStop(.35,'#ffefb780');
  sun.addColorStop(1,'#ffe7b600');ctx.fillStyle=sun;ctx.fillRect(206,-3,200,208);
  disk(306,96,26,'#fff6d3');
- for(let i=0;i<5;i++){
+ for(let i=0;i<(reducedEffects?2:5);i++){
   const x=((i*147-drift*.032)%(W+215)+(W+215))%(W+215)-75,y=80+(i%3)*56;
   ctx.fillStyle='#ffffff9e';ctx.beginPath();ctx.ellipse(x,y,29,10,0,0,TAU);
   ctx.ellipse(x+18,y-7,24,12,0,0,TAU);ctx.ellipse(x-17,y+1,19,8,0,0,TAU);ctx.fill();
@@ -488,7 +488,7 @@ function paintRunner(){
  // Track has readable near-surface depth but keeps collision plane at y=442.
  fill(0,439,W,5,'#b3d29d');fill(0,444,W,12,'#436f64');
  fill(0,456,W,94,'#325449');
- for(let i=0;i<15;i++){
+ for(let i=0;i<(reducedEffects?7:15);i++){
   const x=((i*39-drift*.83)%(W+42)+(W+42))%(W+42)-10;
   fill(x,475+(i%3)*18,21,3,'#7ca58c',1);
  }
@@ -570,7 +570,7 @@ function initShooter(){
   spawn:.45,kills:0,clock:0,shoot:0,breaches:0,lastBossWave:0,notice:0};
 }
 function shooterBurst(q,x,y,color,count=10){
- for(let i=0;i<count;i++){
+ for(let i=0;i<(reducedEffects?Math.min(6,count):count);i++){
   const angle=rand(0,TAU),speed=rand(35,190),life=rand(.22,.58);
   q.particles.push({x,y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,life,maxLife:life,color,r:rand(1.5,3.4)});
  }
@@ -668,7 +668,7 @@ function tickShooter(dt){
 }
 function paintShooter(){
  bg('#0b1c2b','#244558');
- for(let i=0;i<53;i++){
+ for(let i=0;i<(reducedEffects?22:53);i++){
   const x=(i*71)%W,y=(i*127+state.clock*(18+(i%4)*9))%H;
   disk(x,y,i%7===0?1.8:.8,i%3===0?'#d6e8ee':'#739bb0');
  }
@@ -772,7 +772,7 @@ function sweptBrick(x,y,dx,dy,brick){
  return enter>=0&&enter<=1&&exit>=enter?{t:enter,nx,ny}:null;
 }
 function brickSparks(q,x,y,color){
- for(let i=0;i<9;i++){
+ for(let i=0;i<(reducedEffects?4:9);i++){
   const a=rand(0,TAU),speed=rand(35,125),life=rand(.18,.43);
   q.particles.push({x,y,vx:Math.cos(a)*speed,vy:Math.sin(a)*speed,life,maxLife:life,color,r:rand(1.2,3)});
  }
