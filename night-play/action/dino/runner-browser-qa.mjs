@@ -42,11 +42,18 @@ try{
   assert.ok(overflow<=1,'no horizontal overflow at '+width);
   const arena=await page.locator('#stage').boundingBox();
   const rect=await page.locator('.runner-canvas').boundingBox();
-  const expectedHeight=height>=800?(width<700?550:500):width<700?340:220;
-  assert.ok(arena.height>=expectedHeight,'game arena must stay tall on '+width+'x'+height+': '+arena.height);
-  assert.ok(arena.height>=rect.height+150,'more sky/visible space, not a stretched dinosaur');
-  assert.equal(rect.height,150,'original pixel-space height, not stretched');
+  // All NIGHT Play arcade games use the 390:550 stage footprint.
+  const other=await browser.newPage({viewport:{width,height},hasTouch:true,isMobile:width<700});
+  await other.goto(origin+'/action/?game=slice',{waitUntil:'domcontentloaded'});
+  const reference=await other.locator('#screen').boundingBox();
+  assert.ok(Math.abs(arena.width-reference.width)<=4,'Dino and Fruit Slice widths align at '+width);
+  assert.ok(Math.abs(arena.height-reference.height)<=4,'Dino and Fruit Slice heights align at '+width+
+    ': Dino='+arena.height+', Slice='+reference.height);
+  await other.close();
+  assert.ok(Math.abs(rect.height-(arena.height-34))<=3,
+    'Chromium canvas must fill the real arena above the track at '+width);
   assert.ok(rect.width>290&&rect.width<=600,'Chromium native game width');
+  assert.equal(initial.groundY,93,'physics coordinates remain original 150px world despite tall rendering');
   await page.locator('#overlayAction').click();
   await page.waitForTimeout(390);
   const playing=await snap(page);assert.equal(playing.playing,true,'engine plays');
@@ -92,7 +99,7 @@ try{
    assert.ok((await snap(page)).distanceRan<200,'new round resets distance');
   }
   assert.deepEqual(errors,[],'no browser exceptions at '+width);
-  console.log('PASS',width,{overflow,arenaHeight:arena.height,originalJumpVelocity:initial.jumpVelocity,canvasWidth:rect.width,canvasHeight:rect.height});
+  console.log('PASS',width,{overflow,arenaHeight:arena.height,canvasHeight:rect.height,referenceHeight:reference.height,originalJumpVelocity:initial.jumpVelocity,canvasWidth:rect.width});
   await page.close();
  }
 }finally{if(browser)await browser.close();await new Promise(done=>server.close(done));}
