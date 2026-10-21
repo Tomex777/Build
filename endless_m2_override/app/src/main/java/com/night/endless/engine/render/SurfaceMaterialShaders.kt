@@ -120,9 +120,14 @@ void main() {
     // Clip to the exact mesh extents (160 * 21m / 2 and
     // 112 * 1.05m / 2). The old inset left coplanar overlap rings
     // that produced diagonal depth-buffer stippling on lunar slopes.
+    // Leave a one-metre overlap between the 21m midfield and 1.05m
+    // foreground mesh. Exact edge-to-edge masks leave 1px pinholes at
+    // grazing angles: real Titan screenshot showed a dotted orange line
+    // of sky shining through the join. The near mesh is depth-biased
+    // forward only during its draw to win the small overlap cleanly.
     if (uPatchType == 4 && max(
         abs(vPosition.x - uViewAnchor.x),
-        abs(vPosition.z - uViewAnchor.y)) < 0.0196) discard;
+        abs(vPosition.z - uViewAnchor.y)) < 0.0192) discard;
     vec3 N = normalize(vNormal);
     vec3 sun = normalize(uLight);
     vec2 ground = vPosition.xz;
