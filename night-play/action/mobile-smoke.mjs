@@ -134,8 +134,10 @@ try{
   await page.locator('#overlayStart').click();assert.equal((await snap()).paused,false,'Resume continues');
   await page.locator('#restart').click();assert.equal((await snap()).score,0,'Restart resets score');
   await page.locator('#settingsButton').click();assert.ok(await page.locator('#settingsDialog').isVisible());
-  assert.equal(await page.locator('#gamePicks button').count(),5);
+  assert.equal(await page.locator('#soundToggle').count(),1,'sound setting exists');
+   assert.equal(await page.locator('#motionToggle').count(),1,'motion setting exists');
+   assert.equal(await page.locator('#gamePicks').count(),0,'settings must not contain redundant game switcher');
   await page.locator('#settingsClose').click();
  }
- console.log('PASS NIGHT ACTION ARCADE: 5 playable modes, pointer/keyboard, motion, overlays, restart, pause and six viewport sizes.');
+ console.log('PASS NIGHT ACTION ARCADE: 4 standalone modes + Chromium Dino, pointer/keyboard, motion, overlays, restart, pause and six viewport sizes.');
 }finally{if(browser)await browser.close();await new Promise(resolve=>server.close(resolve))}
