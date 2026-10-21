@@ -8,7 +8,7 @@ const $=id=>document.getElementById(id),canvas=$('screen'),ctx=canvas.getContext
 const W=390,H=550,PI=Math.PI,TAU=PI*2;
 // Render at real device resolution instead of blurring a 390px canvas on
 // high-density phones. All gameplay coordinates remain in logical pixels.
-const dpr=Math.min(2.5,Math.max(1,window.devicePixelRatio||1));
+const dpr=Math.min(2,Math.max(1,window.devicePixelRatio||1));
 canvas.width=Math.round(W*dpr);canvas.height=Math.round(H*dpr);
 ctx.setTransform(dpr,0,0,dpr,0,0);
 const defs={
@@ -22,6 +22,8 @@ const soundKey='night-play-action-sfx-v1',bestKey=id=>'night-play-v1-action-'+id
 const clamp=(n,a,b)=>Math.min(b,Math.max(a,n)),rand=(a,b)=>a+Math.random()*(b-a);
 let game='slice',state,started=false,over=false,paused=false,frame=0,raf=0,last=0,sfx=true,ctxAudio=null;
 try{sfx=localStorage.getItem(soundKey)!=='off'}catch{}
+let showTouch=true,reducedEffects=false;
+try{showTouch=localStorage.getItem('night-play-action-touch')!=='off';reducedEffects=localStorage.getItem('night-play-action-motion')==='reduced'}catch{}
 const inputs={left:false,right:false,duck:false,drag:false,lastX:0,lastY:0,slicePointerId:null,
  pointerId:null,jumpGestureMoved:false,jumpStartX:0,jumpPlayerStartX:0,jumpTargetX:0};
 function audio(type='tap'){
@@ -44,6 +46,7 @@ function updateHud(){
  $('score').textContent=String(Math.floor(state?.score||0));
  $('best').textContent=String(Math.floor(Math.max(readBest(),state?.score||0)));
  $('statLabel').textContent=defs[game].label;
+ $('scoreLabel').textContent=game==='jump'?'DISTANCE':'SCORE';$('bestLabel').textContent=game==='jump'?'BEST HEIGHT':'PERSONAL BEST';
  let value=0;
  if(state){if(game==='slice')value=Math.max(0,5-state.misses);
  if(game==='jump')value=Math.floor(state.score);
@@ -75,20 +78,21 @@ function bg(top,bottom){
 
 // The launch arc is solved from a target apex, rather than increasing velocity
 // blindly. Nearly every throw crosses the centre and upper-middle touch area.
-const SLICE_GRAVITY=980;
+const SLICE_GRAVITY=1170;
 function initSlice(){return {score:0,misses:0,spawn:.55,fruits:[],halves:[],splashes:[],trail:[],popups:[],clock:0,combo:0,comboClock:0};}
 function addFruit(){
  const level=Math.min(8,Math.floor(state.score/100));
- const count=Math.random()<Math.min(.59,.26+level*.045)?(level>=3&&Math.random()<.22?3:2):1;
+ const waveChance=Math.min(.82,.36+level*.055);
+ const count=Math.random()<waveChance?(level>=5&&Math.random()<.28?4:level>=2&&Math.random()<.42?3:2):1;
  const bombChance=Math.min(.19,.075+level*.014);
  for(let i=0;i<count;i++){
   const kind=Math.random()<bombChance?'bomb':Math.floor(rand(0,5));
   // Distinct launch lanes keep two/three fruit visible as separate targets.
   // Independent random X used to stack fruit ON bombs, creating unavoidable
   // deaths and invisible multi-fruit combos on high-density phone screens.
-  const lanes=count===2?[.28,.72]:count===3?[.22,.5,.78]:null;
-  const x=lanes?W*lanes[i]+rand(-17,17):rand(65,W-65);
-  const y=H+24+rand(0,26),apex=rand(137,233);
+  const lanes=count===2?[.24,.76]:count===3?[.16,.5,.84]:count===4?[.13,.37,.63,.87]:null;
+  const x=lanes?W*lanes[i]+rand(-9,9):rand(62,W-62);
+  const y=H+21+rand(0,36),apex=rand(53,247);
   const rise=Math.sqrt(2*SLICE_GRAVITY*(y-apex)),timeToApex=rise/SLICE_GRAVITY;
   // Prevent the apex from being outside the screen, even for edge launches.
   const vx=clamp(rand(-65,65)+(W*.5-x)*.16,
@@ -134,7 +138,7 @@ function sliceMove(x1,y1,x2,y2){
    vx:f.vx+nx*side*170,vy:f.vy+ny*side*140-25,r:f.r,kind:f.kind,
    angle,cutRotation:f.rotation,rotation:f.rotation,spin:side*rand(2.7,4.5),
    side,age:0});
-  for(let i=0;i<20;i++){
+  for(let i=0;i<(reducedEffects?7:20);i++){
    const a=rand(0,TAU),speed=rand(50,270);
    state.splashes.push({x:f.x,y:f.y,vx:Math.cos(a)*speed,vy:Math.sin(a)*speed-45,
     age:0,life:rand(.29,.63),r:rand(1.5,4),color:juice});
@@ -239,7 +243,7 @@ function drawHalf(h){
 }
 function tickSlice(dt){
  state.clock+=dt;state.spawn-=dt;
- if(state.spawn<0){addFruit();state.spawn=rand(.72,1.02)*Math.max(.54,1-state.score/1100);}
+ if(state.spawn<0){addFruit();state.spawn=rand(.51,.86)*Math.max(.70,1-state.score/1500);}
  for(const f of state.fruits){
   f.x+=f.vx*dt;f.y+=f.vy*dt;f.vy+=SLICE_GRAVITY*dt;f.rotation+=f.spin*dt;
   if(f.vy>0&&f.y>H+f.r+4&&!f.hit&&f.kind!=='bomb'){f.hit=true;state.misses++;audio('bad')}
@@ -296,20 +300,26 @@ function jumpPlatform(x,y,w,moving=false){
  return {x:center,y,w,moving,baseX:center,phase:rand(0,TAU),
    range,pace:rand(.8,1.45)};
 }
+// Generate reachable but genuinely lateral routes, rather than auto-climb columns.
+function nextJumpPlatform(previous,step,difficulty,direction){
+ const width=rand(74-14*difficulty,99-15*difficulty),gap=rand(68+8*difficulty,80+10*difficulty);
+ const center=previous.x+previous.w/2,margin=14+width/2;
+ const left=center-(86+18*difficulty)>margin,right=center+(86+18*difficulty)<W-margin;
+ let nextDir=direction;
+ if(!left)nextDir=1;else if(!right)nextDir=-1;else if(Math.random()<.82)nextDir=-direction;
+ const shift=rand(93+8*difficulty,125+13*difficulty);
+ const x=clamp(center+nextDir*shift,margin,W-margin)-width/2;
+ const moving=step>=5&&Math.random()<.20+.22*difficulty;
+ return {platform:jumpPlatform(x,previous.y-gap,width,moving),direction:nextDir};
+}
 function initJump(){
- const platforms=[jumpPlatform(120,505,133)];
- let last=platforms[0];
- for(let y=428,i=0;y>=-90;y-=rand(65,78),i++){
-   const w=i<4?rand(84,106):rand(69,96);
-   // Keep a reachable stepping route rather than independent random Xs.
-   const earlyStep=i<4?88:112;
-   const x=clamp(last.x+rand(-earlyStep,earlyStep),12,W-w-12);
-   // Ease in with four permanent wide platforms before moving targets.
-   const plat=jumpPlatform(x,y,w,i===4||(i>4&&Math.random()<.19));
-   platforms.push(plat);last=plat;
+ const platforms=[jumpPlatform(120,505,133)];let previous=platforms[0],direction=Math.random()<.5?-1:1;
+ for(let step=0;step<9;step++){
+  const generated=nextJumpPlatform(previous,step,Math.min(1,step/20),direction);
+  platforms.push(generated.platform);previous=generated.platform;direction=generated.direction;
  }
  return {score:0,elapsed:0,bounce:0,player:{x:180,y:460,vy:-575,vx:0},
-   platforms,scroll:0};
+  platforms,scroll:0,platformDirection:direction,platformStep:9};
 }
 function tickJump(dt){
  const p=state.player,prev=p.y;
@@ -334,27 +344,25 @@ function tickJump(dt){
  }
  if(p.y<185){
    const shift=185-p.y;p.y=185;state.scroll+=shift;
-   state.score=Math.max(state.score,Math.floor(state.scroll));
+   state.score=Math.max(state.score,Math.floor(state.scroll/10)); // measured vertical metres
    for(const plat of state.platforms)plat.y+=shift;
  }
  // Scrolling out of sight is the only reason to cull a platform.
  state.platforms=state.platforms.filter(plat=>plat.y<H+30);
- const difficulty=Math.min(1,state.score/4000);
+ const difficulty=Math.min(1,state.scroll/2300);
  while(state.platforms.length<11){
    const last=state.platforms.reduce((top,plat)=>plat.y<top.y?plat:top);
-   const gap=rand(67+5*difficulty,81+9*difficulty);
-   const w=rand(70-12*difficulty,92-11*difficulty);
-   const x=clamp(last.baseX+rand(-110-18*difficulty,110+18*difficulty),12,W-w-12);
-   const moving=Math.random()<.16+.20*difficulty;
-   state.platforms.push(jumpPlatform(x,last.y-gap,w,moving));
+   const generated=nextJumpPlatform(last,state.platformStep++,difficulty,state.platformDirection);
+   state.platformDirection=generated.direction;state.platforms.push(generated.platform);
  }
  if(p.y>H+35)end('You fell!');
  updateHud();
 }
 function paintJump(){
  bg('#bedcef','#f2f0d8');
+ text(state.score+' m',W-17,31,14,'#275b58',850,'right');
  // Subtle distant cloud layers: intentionally soft, not repeated white blobs.
- for(let i=0;i<8;i++){
+ for(let i=0;i<(reducedEffects?3:8);i++){
    const x=(i*127+46)%W,y=((i*121+30)+state.scroll*.12)%(H+110)-65;
    ctx.fillStyle='#ffffff76';ctx.beginPath();
    ctx.ellipse(x,y,30,13,0,0,TAU);ctx.fill();
@@ -393,6 +401,63 @@ function paintJump(){
    ctx.fillStyle='#ffffff80';ctx.beginPath();
    ctx.ellipse(p.x,p.y+23,18*(1-state.bounce/.15),3,0,0,TAU);ctx.fill();
  }
+}
+
+// NIGHT original SVG hazard sprites are cached by the browser, and painted in
+// one drawImage each. They have clear silhouettes at 320px phone widths.
+const RUNNER_ART_BASE='/action/art/';
+const runnerArt={};
+function loadRunnerArt(){
+ for(const key of ['flyer-up','flyer-down','glider','pillar','stone','barrel']){
+  if(runnerArt[key])continue;
+  const img=new Image();img.decoding='async';img.src=RUNNER_ART_BASE+key+'.svg';
+  runnerArt[key]=img;
+ }
+}
+function runnerObstacleSprite(o){
+ if(o.kind==='flying')return runnerArt[Math.floor(state.clock*10)%2?'flyer-up':'flyer-down'];
+ return runnerArt[o.kind];
+}
+function paintRunnerObstacle(o){
+ const bounds=runnerBounds(o),airborne=o.kind==='flying'||o.kind==='glider';
+ const w=o.w,h=airborne?(o.kind==='flying'?47:58):o.h;
+ const y=airborne?(o.kind==='flying'?392:346):442-o.h;
+ ctx.save();
+ // Light pools and ground shadows indicate the obstacle's actual lane.
+ ctx.fillStyle=airborne?'#224a5035':'#1a374a54';ctx.beginPath();
+ ctx.ellipse(o.x+w*.5,446,airborne?w*.39:w*.53,airborne?3:2.6,0,0,TAU);ctx.fill();
+ if(airborne){
+  // Short afterimage tails communicate leftward motion without concealing
+  // the collider; artwork stays fixed to its collision rectangle.
+  const trailY=o.kind==='flying'?bounds.top+19:bounds.top+28;
+  ctx.lineCap='round';ctx.strokeStyle=o.kind==='flying'?'#b66e6890':'#5f96a987';
+  for(let i=0;i<2;i++){ctx.globalAlpha=.43-i*.18;ctx.lineWidth=2.2-i*.3;
+   ctx.beginPath();ctx.moveTo(o.x+w+6+i*9,trailY+i*4);
+   ctx.lineTo(o.x+w+14+i*10,trailY+i*4);ctx.stroke();}
+  ctx.globalAlpha=1;
+ }
+ const sprite=runnerObstacleSprite(o);
+ if(sprite.complete&&sprite.naturalWidth){
+  ctx.drawImage(sprite,o.x,y,w,h);
+ }else{
+  // Small accessible silhouette while the SVG finishes its first load.
+  const tint=o.kind==='flying'?'#995362':o.kind==='glider'?'#4a7184':o.kind==='pillar'?'#df925d':o.kind==='barrel'?'#b76b63':'#7b939d';
+  fill(o.x+1,y+3,w-2,h-4,tint,4);
+ }
+ if(o.kind==='glider'){
+  const spin=Math.sin(state.clock*43);
+  ctx.strokeStyle='#f7f2e0b8';ctx.lineWidth=1.6;ctx.lineCap='round';
+  for(const offset of [.19,.81]){
+   const centerX=o.x+w*offset;
+   ctx.beginPath();ctx.moveTo(centerX-6,359+spin*1.5);
+   ctx.lineTo(centerX+6,359-spin*1.5);ctx.stroke();
+  }
+ }else if(o.kind==='pillar'){
+  // The warning lamp also makes the narrow barrier visible at full speed.
+  ctx.fillStyle=Math.floor(state.clock*3)%2?'#fff3bb':'#eab279';
+  ctx.beginPath();ctx.arc(o.x+w*.5,y+7,2.1,0,TAU);ctx.fill();
+ }
+ ctx.restore();
 }
 
 function initRunner(){return {score:0,speed:220,player:{x:88,y:442,vy:0,duck:false},obstacles:[],spawn:1.25,distance:0,passed:0,duckTimer:0,clock:0,nearMisses:0};}
@@ -441,59 +506,55 @@ function tickRunner(dt){
  updateHud();
 }
 function paintRunner(){
- bg('#bfdce7','#deede1');
- // Separate layers travel at different speeds, so the sprint has real depth.
- for(let i=0;i<6;i++){
-  const x=((i*123-state.distance*.055)%(W+160)+(W+160))%(W+160)-75;
-  const y=68+(i%3)*61;
-  ctx.fillStyle='#ffffff86';ctx.beginPath();
-  ctx.ellipse(x,y,29,10,0,0,TAU);
-  ctx.ellipse(x+17,y-7,22,13,0,0,TAU);ctx.fill();
+ bg('#b6d8e6','#f7e5bd');
+ // Original layered landscape: slow cloud bank, distant ridge, rooftops,
+ // near track and foreground markings, each scrolling at its own speed.
+ const drift=state.distance;
+ const sun=ctx.createRadialGradient(306,96,6,306,96,99);
+ sun.addColorStop(0,'#fff6d6');sun.addColorStop(.35,'#ffefb780');
+ sun.addColorStop(1,'#ffe7b600');ctx.fillStyle=sun;ctx.fillRect(206,-3,200,208);
+ disk(306,96,26,'#fff6d3');
+ for(let i=0;i<(reducedEffects?2:5);i++){
+  const x=((i*147-drift*.032)%(W+215)+(W+215))%(W+215)-75,y=80+(i%3)*56;
+  ctx.fillStyle='#ffffff9e';ctx.beginPath();ctx.ellipse(x,y,29,10,0,0,TAU);
+  ctx.ellipse(x+18,y-7,24,12,0,0,TAU);ctx.ellipse(x-17,y+1,19,8,0,0,TAU);ctx.fill();
  }
- ctx.fillStyle='#96bab22c';ctx.beginPath();ctx.moveTo(0,440);
- for(let x=0;x<=W+12;x+=12){
-  ctx.lineTo(x,375+19*Math.sin(x*.015+state.distance*.00025)+
-    11*Math.sin(x*.037+1.5));
+ ctx.fillStyle='#94b9b18d';ctx.beginPath();ctx.moveTo(0,357);
+ for(let x=0;x<=W+8;x+=8){
+  const u=x+drift*.042;
+  ctx.lineTo(x,340+23*Math.sin(u*.012)+13*Math.cos(u*.033));
  }
- ctx.lineTo(W,440);ctx.closePath();ctx.fill();
- const offset=state.distance*.23;
+ ctx.lineTo(W,447);ctx.lineTo(0,447);ctx.fill();
+ ctx.fillStyle='#78a5a193';ctx.beginPath();ctx.moveTo(0,406);
+ for(let x=0;x<=W+9;x+=9)ctx.lineTo(x,381+21*Math.sin((x+drift*.077)*.017)+12*Math.cos((x+drift*.077)*.035));
+ ctx.lineTo(W,446);ctx.lineTo(0,446);ctx.fill();
+ const offset=drift*.17;
  for(let i=0;i<12;i++){
-  const x=((i*95-offset*.5)%490+490)%490-40;
-  const roof=300+(i%4)*13;
-  fill(x,roof,52,143,'#a6bfc3',6);
-  fill(x+12,roof+15,7,13,'#edf1eb');
-  fill(x+31,roof+31,6,12,'#edf1ebad');
+  const x=((i*76-offset)%(W+146)+(W+146))%(W+146)-54;
+  const towerHeight=65+(i*37)%83,roof=443-towerHeight,wide=38+(i*11)%25;
+  fill(x,roof,wide,towerHeight,'#829b9c',3);
+  fill(x+3,roof+3,wide-6,4,'#aec4bb');
+  if(i%3===0){fill(x+wide/2-3,roof-15,6,15,'#779696',2);
+    fill(x+wide/2-10,roof-18,20,5,'#668787',2);}
+  if(i%4===1){fill(x-7,roof+12,7,8,'#9bb2ad',2);}
+  for(let row=0;row<3;row++)for(let col=0;col<2;col++){
+   const wx=x+9+col*17,wy=roof+16+row*18;
+   if(wy<435&&wx<x+wide-3)fill(wx,wy,7,10,(i+col+row)%3?'#dce8dd':'#f1d4a4',1);
+  }
  }
- fill(0,442,W,108,'#426956');fill(0,440,W,5,'#98c8a6');
- for(let i=0;i<22;i++){const x=((i*41-state.distance)%W+W)%W;fill(x,463+(i%3)*21,25,2,'#6d9e7a')}
- for(const o of state.obstacles){
-  if(o.kind==='flying'){ // A low flying dinosaur sweeps its wings and talons across the runner's lane.
-   ctx.save();ctx.translate(o.x,0);
-   const wing=Math.sin(state.clock*18+o.x*.014)*7;
-   ctx.fillStyle='#a25c61';ctx.beginPath();ctx.moveTo(7,412);ctx.lineTo(19,396+wing);
-   ctx.lineTo(27,413);ctx.lineTo(42,395-wing);ctx.lineTo(39,422);
-   ctx.lineTo(24,431);ctx.lineTo(12,427);ctx.closePath();ctx.fill();
-   disk(29,411,11,'#ce8e75');disk(37,408,2,'#253a37');
-   ctx.strokeStyle='#654344';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(13,427);ctx.lineTo(10,437);
-   ctx.moveTo(27,427);ctx.lineTo(24,437);ctx.stroke();ctx.restore();
-  }else if(o.kind==='glider'){
-   ctx.save();ctx.translate(o.x,0);
-   const wing=Math.sin(state.clock*15+o.x*.012)*7;
-   ctx.fillStyle='#815a78';ctx.beginPath();ctx.moveTo(4,383);ctx.lineTo(12,349+wing);
-   ctx.lineTo(25,381);ctx.lineTo(43,348-wing);ctx.lineTo(47,392);
-   ctx.lineTo(28,397);ctx.lineTo(12,393);ctx.closePath();ctx.fill();
-   disk(29,389,9,'#a5738b');disk(35,384,2,'#fff4e3');ctx.restore();
-  }else if(o.kind==='pillar'){
-   fill(o.x,442-o.h,o.w,o.h,'#93676c',5);
-   fill(o.x+6,442-o.h+9,7,8,'#d3a198');
-  }else if(o.kind==='barrel'){
-    fill(o.x,442-o.h,o.w,o.h,'#9f6b56',7);
-    fill(o.x+3,442-o.h+7,o.w-6,5,'#ddb083',2);
-    fill(o.x+3,442-11,o.w-6,5,'#ddb083',2);
-    disk(o.x+o.w*.5,442-o.h*.5,7,'#bd9171');
-   }else{fill(o.x,442-o.h,o.w,o.h,'#aa8170',10);
-   fill(o.x+7,442-o.h+6,19,7,'#e1b7a1',4)}
+ // Track has readable near-surface depth but keeps collision plane at y=442.
+ fill(0,439,W,5,'#b3d29d');fill(0,444,W,12,'#436f64');
+ fill(0,456,W,94,'#325449');
+ for(let i=0;i<(reducedEffects?7:15);i++){
+  const x=((i*39-drift*.83)%(W+42)+(W+42))%(W+42)-10;
+  fill(x,475+(i%3)*18,21,3,'#7ca58c',1);
  }
+ for(let i=0;i<8;i++){
+  const x=((i*87-drift*1.1)%(W+94)+(W+94))%(W+94)-31;
+  fill(x,454+(i%2)*3,8,2,'#d3ddb6',1);
+ }
+ text(''+Math.floor(state.distance/10)+' m',W-13,29,13,'#29564f',850,'right');
+ for(const o of state.obstacles)paintRunnerObstacle(o);
  const p=state.player,ducking=p.duck&&p.y>=441,airborne=p.y<441;
  const stride=Math.sin(state.clock*21);
  // The shadow separates the playable character from the ground while jumping.
@@ -539,7 +600,7 @@ function initShooter(){
   spawn:.45,kills:0,clock:0,shoot:0,breaches:0,lastBossWave:0,notice:0};
 }
 function shooterBurst(q,x,y,color,count=10){
- for(let i=0;i<count;i++){
+ for(let i=0;i<(reducedEffects?Math.min(6,count):count);i++){
   const angle=rand(0,TAU),speed=rand(35,190),life=rand(.22,.58);
   q.particles.push({x,y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,life,maxLife:life,color,r:rand(1.5,3.4)});
  }
@@ -637,7 +698,7 @@ function tickShooter(dt){
 }
 function paintShooter(){
  bg('#0b1c2b','#244558');
- for(let i=0;i<53;i++){
+ for(let i=0;i<(reducedEffects?22:53);i++){
   const x=(i*71)%W,y=(i*127+state.clock*(18+(i%4)*9))%H;
   disk(x,y,i%7===0?1.8:.8,i%3===0?'#d6e8ee':'#739bb0');
  }
@@ -741,7 +802,7 @@ function sweptBrick(x,y,dx,dy,brick){
  return enter>=0&&enter<=1&&exit>=enter?{t:enter,nx,ny}:null;
 }
 function brickSparks(q,x,y,color){
- for(let i=0;i<9;i++){
+ for(let i=0;i<(reducedEffects?4:9);i++){
   const a=rand(0,TAU),speed=rand(35,125),life=rand(.18,.43);
   q.particles.push({x,y,vx:Math.cos(a)*speed,vy:Math.sin(a)*speed,life,maxLife:life,color,r:rand(1.2,3)});
  }
@@ -903,13 +964,14 @@ function pause(){
 }
 function selectGame(type){
  if(!defs[type])type='slice';game=type;
+ if(game==='runner')loadRunnerArt();
  const url=new URL(location.href);url.searchParams.set('game',game);history.replaceState({},'',url.pathname+url.search);
  const def=defs[game];$('title').textContent=def.title;$('subtitle').textContent=def.subtitle;
  $('rules').textContent=def.rules;document.title=def.title+' · NIGHT Play';
- for(const el of $('gamePicks').querySelectorAll('[data-game]'))el.setAttribute('aria-current',String(el.dataset.game===game));
+ $('touchToggle').hidden=!(game==='jump'||game==='runner');
  $('touchControls').replaceChildren();$('touchControls').hidden=true;
  if(game==='jump'||game==='runner'){
-  $('touchControls').hidden=false;
+  $('touchControls').hidden=!showTouch;
   const buttons=game==='jump'?[['left','◀'],['right','▶']]:[['jump','JUMP'],['slide','SLIDE']];
   for(const [command,label] of buttons){const btn=document.createElement('button');btn.type='button';btn.dataset.control=command;btn.textContent=label;btn.setAttribute('aria-label',command);$('touchControls').append(btn)}
  }
@@ -1025,9 +1087,13 @@ $('restart').addEventListener('click',reset);
 $('settingsButton').addEventListener('click',()=>{$('settingsDialog').showModal();if(started&&!paused)pause()});
 $('settingsClose').addEventListener('click',()=>$('settingsDialog').close());
 $('settingsDialog').addEventListener('click',e=>{if(e.target===$('settingsDialog'))$('settingsDialog').close()});
-$('gamePicks').addEventListener('click',e=>{const b=e.target.closest('[data-game]');if(b)selectGame(b.dataset.game)});
+
 $('soundToggle').addEventListener('click',()=>{sfx=!sfx;$('soundToggle').setAttribute('aria-pressed',String(sfx));$('soundToggle').textContent='Sound effects · '+(sfx?'On':'Off');try{localStorage.setItem(soundKey,sfx?'on':'off')}catch{}});
 $('soundToggle').setAttribute('aria-pressed',String(sfx));$('soundToggle').textContent='Sound effects · '+(sfx?'On':'Off');
+function option(id,on,label){$(id).setAttribute('aria-pressed',String(on));$(id).textContent=label+' · '+(on?'On':'Off')}
+option('touchToggle',showTouch,'On-screen controls');option('motionToggle',reducedEffects,'Reduced effects');
+$('touchToggle').addEventListener('click',()=>{showTouch=!showTouch;option('touchToggle',showTouch,'On-screen controls');$('touchControls').hidden=!showTouch;try{localStorage.setItem('night-play-action-touch',showTouch?'on':'off')}catch{}});
+$('motionToggle').addEventListener('click',()=>{reducedEffects=!reducedEffects;option('motionToggle',reducedEffects,'Reduced effects');try{localStorage.setItem('night-play-action-motion',reducedEffects?'reduced':'full')}catch{}});
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&started&&!paused)pause()});
 window.__nightActionTest={snapshot:()=>JSON.parse(JSON.stringify({game,started,paused,over,frame,...state})),selectGame,reset,start};
 selectGame(new URLSearchParams(location.search).get('game')||'slice');

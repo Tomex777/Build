@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#f5f6f3"><meta name="description" content="Sling Siege — an original skill-based catapult game in NIGHT Play.">
-<title>Sling Siege · NIGHT Play</title>
+<title>Sling Siege · NIGHT Play</title><link rel="stylesheet" href="/game-shell.css">
 <style>
 :root{--ink:#17241f;--line:#dce3dc;--surface:#fff;--pale:#f4f6f2;--accent:#2f694d}
 *{box-sizing:border-box}html{min-height:100%}body{margin:0;background:var(--pale);color:var(--ink);font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}button,a{-webkit-tap-highlight-color:transparent}button{font:inherit;cursor:pointer}
@@ -25,20 +25,39 @@ canvas{display:block;width:100%;height:auto;touch-action:none;user-select:none;c
 .help{font-size:12px;color:#66786d;line-height:1.6;max-width:660px}.actions{display:flex;gap:9px;flex-shrink:0}.status{font-size:12px;font-weight:700;color:#366648;min-height:19px;margin-top:8px}
 @media(max-width:690px){header{height:62px;padding:0 14px}.logo{font-size:15px}.logo span{font-size:9px}.wrap{padding:0 10px}.title{margin-bottom:16px;padding:0 8px;align-items:center}.title p{max-width:290px;font-size:12px}.title h1{font-size:40px}.title .eyebrow{font-size:9px}.hud>div{padding:10px 7px;flex-direction:column;gap:3px}.hud strong{font-size:21px}.hud small{font-size:9px;letter-spacing:1px}.hud{border-radius:12px 12px 0 0}.board{border-radius:0 0 12px 12px}.controls{padding:0 6px;align-items:start}.help{order:2;flex-basis:100%}.actions{order:1}.panel{padding:18px 20px}.panel h2{font-size:24px}.panel p{margin-bottom:10px}.back .full{display:none}}
 @media(max-width:380px){.actions{width:100%;flex-shrink:1;gap:5px}.actions .btn{flex:1;min-width:0;font-size:12px;padding:10px 5px}}@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
+
+/* Shared NIGHT shell, in-board HUD and immersive game controls. */
+header.night-shell-header{display:grid;justify-content:initial;align-items:center;padding:0 max(17px,calc((100% - 1110px)/2))!important;height:69px!important}
+header.night-shell-header .night-brand{font-size:14px;letter-spacing:-.6px}
+header.night-shell-header .night-brand em{font-size:11px;margin:0;color:#84938c}
+main{padding:18px 0 34px}.title{margin-bottom:12px;justify-content:center;text-align:center}.title h1{font-size:clamp(27px,4vw,40px);letter-spacing:-1.7px;margin:5px 0 0}
+.hud{grid-template-columns:repeat(3,minmax(0,1fr));border-radius:12px;margin-bottom:8px;gap:1px}.hud>div{padding:8px 14px}.hud strong{font-size:19px}.board{border-radius:12px;border:1px solid #cad5ca}
+.board-top{position:absolute;inset:9px 10px auto;z-index:2;display:flex;justify-content:space-between;align-items:center;pointer-events:none}
+.board-top button{pointer-events:auto;display:flex;align-items:center;justify-content:center;gap:7px;height:40px;background:#ffffffec;border:1px solid #cbd6c9;border-radius:10px;color:#28523e;font-size:11px;letter-spacing:.8px;font-weight:850;padding:0 12px;box-shadow:0 2px 10px #203e2414}
+.board-level strong{font-size:14px;letter-spacing:0}.board-top button.board-pause{width:42px;padding:0}.board-pause .night-ico{width:20px;height:20px}.overlay{z-index:3}
+.panel #overlayRetry{margin-top:8px}.panel #overlayRetry[hidden]{display:none}
+.sling-option{min-height:44px;width:100%;text-align:left;border:1px solid #dae6db;border-radius:11px;background:#f6f9f5;padding:11px 15px;color:#315b43;font-weight:800;margin-bottom:8px}.sling-option[aria-pressed=false]{color:#758078}
+.level-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px}.level-grid button{height:46px;background:#f6faf6;border:1px solid #d5e0d5;color:#29543b;border-radius:9px;font-weight:850}.level-grid button:disabled{opacity:.38}.level-grid button[aria-current=true]{color:#fff;background:#275e43;border-color:#275e43}
+.controls{margin-top:7px}.help{max-width:none}.status{margin-top:2px}
+@media(max-width:690px){header.night-shell-header{height:58px!important;padding:0 12px!important}.night-shell-header .night-brand{font-size:13px}.title{padding:0;margin:0 0 8px}.title h1{font-size:28px}.hud{border-radius:11px}.hud>div{padding:7px 6px;flex-direction:column}.hud strong{font-size:18px}.hud small{font-size:9px}.board{border-radius:11px}.controls{padding:0 4px}.help{font-size:11px}.board-top{top:7px;left:7px;right:7px}.board-top button{height:36px}.board-top button.board-pause{height:38px;width:38px}}
+@media(max-width:380px){.level-grid{grid-template-columns:repeat(5,minmax(0,1fr))}.level-grid button{height:41px}}
 </style>
 </head>
 <body>
-<header><a class="back" href="/games" aria-label="Return to NIGHT Play games">Games</a><a class="logo" href="/dashboard" aria-label="NIGHT Play dashboard"><span class="mark" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 108 108" focusable="false"><path fill="#f3f8f4" d="M24 54 C24 37.43 37.43 24 54 C70.57 24 84 37.43 84 54 L24 54 Z"/><path fill="#f3f8f4" d="M22 66h64v6H22z"/></svg></span>NIGHT<span>PLAY</span></a><span class="eyebrow">ARCADE</span></header>
+<svg class="night-svg-defs" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><symbol id="night-mark" viewBox="0 0 108 108"><path fill="#0B0F11" d="M0 0h108v108H0z"/><path fill="#F4F5F6" d="M24 54 C24 37.43 37.43 24 54 24 C70.57 24 84 37.43 84 54 L24 54 Z"/><path fill="#F4F5F6" d="M22 66h64v6H22z"/></symbol><symbol id="icon-back" viewBox="0 0 24 24"><path d="M15.5 5 8.5 12l7 7M9 12h12"/></symbol><symbol id="icon-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 0-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 0-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 0 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/></symbol><symbol id="icon-pause" viewBox="0 0 24 24"><path d="M9 5v14M15 5v14"/></symbol><symbol id="icon-play" viewBox="0 0 24 24"><path d="m8 5 11 7-11 7Z"/></symbol></svg>
+<header class="night-shell-header"><a class="night-back" href="/games" aria-label="Back to games"><svg class="night-ico" aria-hidden="true"><use href="#icon-back"></use></svg><span class="night-text">Games</span></a><a class="night-brand" href="/dashboard" aria-label="NIGHT Play home"><svg class="night-brand-mark" aria-hidden="true"><use href="#night-mark"></use></svg><strong>NIGHT <em>PLAY</em></strong></a><button type="button" class="night-settings" id="settingsButton" aria-label="Game settings"><svg class="night-ico" aria-hidden="true"><use href="#icon-settings"></use></svg><span class="night-text">Settings</span></button></header>
 <main class="wrap">
-<div class="title"><div><div class="eyebrow">AIM · LAUNCH · TOPPLE</div><h1>Sling Siege</h1><p>One careful shot can bring down a fortress.</p></div></div>
+<div class="title"><div><div class="eyebrow">PHYSICS ARCADE</div><h1>Sling Siege</h1></div></div>
 <section aria-label="Sling Siege game">
-<div class="hud"><div><small>LEVEL</small><strong id="level">1/6</strong></div><div><small>SHOTS</small><strong id="shots">4</strong></div><div><small>SCORE</small><strong id="score">0</strong></div><div><small>BEST</small><strong id="best">0</strong></div></div>
-<div class="board" id="board"><canvas id="game" width="900" height="540" tabindex="0" aria-label="Sling Siege game board. Drag the glowing orb backward from the slingshot to aim, release to fire. Alternatively use arrow keys to aim and Space to fire."></canvas>
+<div class="hud"><div><small>SHOTS</small><strong id="shots">4</strong></div><div><small>SCORE</small><strong id="score">0</strong></div><div><small>BEST</small><strong id="best">0</strong></div></div>
+<div class="board" id="board"><div class="board-top"><button type="button" id="levelButton" class="board-level" aria-label="Choose unlocked level">LEVEL <strong id="level">1 / 100</strong></button><button type="button" id="pause" class="board-pause" aria-label="Pause game" aria-pressed="false"><svg class="night-ico" aria-hidden="true"><use href="#icon-pause"></use></svg></button></div><canvas id="game" width="900" height="540" tabindex="0" aria-label="Sling Siege game board. Drag the glowing orb backward from the slingshot to aim, release to fire. Alternatively use arrow keys to aim and Space to fire."></canvas>
 <div class="overlay" id="overlay" role="dialog" aria-modal="true" aria-labelledby="overlayTitle">
-<div class="panel"><div class="eyebrow" id="overlayTag">SLING SIEGE</div><div class="stars" id="stars" aria-hidden="true"></div><h2 id="overlayTitle">Topple the sentinels</h2><p id="overlayDescription">Drag the glowing orb away from the sling. Release to launch. Knock every violet sentinel off its perch before you run out of shots.</p><button class="btn primary" id="overlayAction" type="button">Start level</button></div></div>
+<div class="panel"><div class="eyebrow" id="overlayTag">SLING SIEGE</div><div class="stars" id="stars" aria-hidden="true"></div><h2 id="overlayTitle">Topple the sentinels</h2><p id="overlayDescription">Drag the glowing orb away from the sling. Release to launch. Knock every violet sentinel off its perch before you run out of shots.</p><button class="btn primary" id="overlayAction" type="button">Start level</button><button class="btn" id="overlayRetry" type="button" hidden>Restart level</button></div></div>
 </div>
-<div class="controls"><div class="help"><b>Drag from the orb to aim.</b> Pull back, release. Keyboard: arrow keys + Space. Mobile: slide your finger directly from the orb. <span id="keyHint">Six stages. Aim for the supports.</span><div class="status" id="status" role="status" aria-live="polite"></div></div><div class="actions"><button class="btn" id="restart" type="button">Restart</button><button class="btn" id="pause" type="button" aria-pressed="false">Pause</button><button class="btn" id="sound" type="button" aria-pressed="true">Sound on</button></div></div>
+<div class="controls"><div class="help"><b>Pull back from the orb and release.</b> The weakest support is often the best target. <div class="status" id="status" role="status" aria-live="polite"></div></div></div>
 </section></main>
+<dialog class="night-sheet" id="settingsDialog" aria-labelledby="settingsHeading"><div class="night-sheet-head"><h2 id="settingsHeading">Sling Siege settings</h2><button class="night-sheet-close" id="settingsClose" type="button" aria-label="Close settings"><svg class="night-ico"><path d="M6 6 18 18M18 6 6 18"/></svg></button></div><div class="night-sheet-body"><span class="night-sheet-label">AUDIO</span><button class="sling-option" id="sound" type="button" aria-pressed="true">Sound effects · On</button><span class="night-sheet-label">GAMEPLAY</span><button class="sling-option" id="aimGuide" type="button" aria-pressed="true">Trajectory guide · On</button><span class="night-sheet-label">CONTROLS</span><p class="night-sheet-rule">Drag the orb backward and release. Press arrow keys to aim, Space to launch, and P to pause.</p></div></dialog>
+<dialog class="night-sheet" id="levelDialog" aria-labelledby="levelHeading"><div class="night-sheet-head"><h2 id="levelHeading">Choose level</h2><button class="night-sheet-close" id="levelClose" type="button" aria-label="Close level chooser"><svg class="night-ico"><path d="M6 6 18 18M18 6 6 18"/></svg></button></div><div class="night-sheet-body"><p class="night-sheet-rule">Complete each level to unlock the next.</p><div class="level-grid" id="levelGrid"></div></div></dialog>
 <script>
 'use strict';
 (()=>{
@@ -53,33 +72,64 @@ const levels=[
  {shots:5,b:[[586,443,32,47,'stone'],[693,443,32,47,'stone'],[581,420,150,23,'wood'],[601,382,30,38,'glass'],[678,382,30,38,'glass'],[595,357,121,25,'wood'],[785,445,34,45,'wood']],e:[[650,398],[653,334],[801,424]]},
  {shots:5,b:[[559,443,28,47,'glass'],[643,443,28,47,'glass'],[553,419,124,24,'wood'],[565,379,27,40,'wood'],[637,379,27,40,'wood'],[560,355,110,24,'stone'],[733,447,32,43,'wood'],[798,447,32,43,'wood'],[728,421,108,26,'glass']],e:[[612,397],[616,332],[781,398],[821,427]]}
 ];
+// 94 additional deterministic constructions: alternating tower types, target
+// positions, material compositions, and upper-storey weaknesses. Authoring seed
+// is stable so a level doesn't change on reload or across device widths.
+function siegeStage(n){
+ let seed=(0x9e3779b9^(n*2654435761))>>>0;
+ const roll=()=>{seed=(1664525*seed+1013904223)>>>0;return seed/4294967296};
+ const b=[],e=[],tier=Math.min(3,1+Math.floor((n-1)/30));
+ const dual=n>14&&n%5!==0;
+ const material=(t,kind)=>{if(kind==='roof')return roll()<.20?'glass':(n>38&&roll()<.35?'stone':'wood');
+  if(t===0&&n>25&&roll()<.26)return 'stone';return roll()<.36?'glass':'wood';};
+ function tower(x,width,stories){
+  let deck=490;
+  for(let t=0;t<stories;t++){
+   const h=t===0?48:46,postW=t===0?28:24,y=deck-h;
+   b.push([x,y,postW,h,material(t,'post')],[x+width-postW,y,postW,h,material(t,'post')]);
+   const roofY=y-24;
+   b.push([x-4,roofY,width+8,24,material(t,'roof')]);
+   e.push([x+width/2+(roll()-.5)*16,roofY-20]);
+   deck=roofY;
+  }
+ }
+ const x=555+Math.floor(roll()*29),w=114+Math.floor(roll()*25);
+ tower(x,w,1+(n>22&&n%3===0?1:0)+(n>65&&n%13===0?1:0));
+ if(dual){const bx=731+Math.floor(roll()*13),bw=91+Math.floor(roll()*12);
+  tower(bx,bw,1+(n>43&&n%4===1?1:0));}
+ if(n>39&&n%7===0)b.push([x+w+27,446,29,44,'stone']);
+ return {shots:dual?5:4,b,e};
+}
+for(let n=7;n<=100;n++)levels.push(siegeStage(n));
 const mats={wood:{hp:2,color:'#bd8d52',line:'#7c5937',mass:2.8},glass:{hp:1,color:'#a9e6db',line:'#4d9895',mass:1.8},stone:{hp:4,color:'#9babb1',line:'#61767b',mass:5.2}};
-let levelIdx=0,level=null,shots=0,used=0,score=0,camera=0,viewW=900,cssScale=1,sound=true,paused=false,dragging=false,gameState='intro',charge={x:SLING.x,y:SLING.y},ball=null,particles=[],tickId=0,last=0,acc=0,settle=0,follow=0,aimKeyboard=false,audioCtx=null;
+let levelIdx=0,level=null,shots=0,used=0,score=0,camera=0,viewW=900,cssScale=1,skyPaddingWorld=0,debrisActive=false,debrisStillFor=0,falloutWait=0,sound=true,paused=false,dragging=false,gameState='intro',charge={x:SLING.x,y:SLING.y},ball=null,particles=[],tickId=0,last=0,acc=0,settle=0,follow=0,aimKeyboard=false,audioCtx=null;
 let bests={};try{bests=JSON.parse(localStorage.getItem('night-play-sling-siege-bests')||'{}')}catch{bests={}}
+let unlocked=1,aimGuide=true;
+try{unlocked=clamp(Number(localStorage.getItem('night-play-sling-siege-unlocked'))||1,1,levels.length);aimGuide=localStorage.getItem('night-play-sling-siege-guide')!=='off'}catch{}
 try{sound=localStorage.getItem('night-play-sling-siege-sound')!=='off'}catch{}
 function sfx(freq=370,life=.12,type='sine'){if(!sound)return;try{audioCtx=audioCtx||new(window.AudioContext||window.webkitAudioContext)();if(audioCtx.state==='suspended')audioCtx.resume();let a=audioCtx.createOscillator(),g=audioCtx.createGain(),t=audioCtx.currentTime;a.type=type;a.frequency.setValueAtTime(freq,t);a.frequency.exponentialRampToValueAtTime(Math.max(80,freq*.65),t+life);g.gain.setValueAtTime(.05,t);g.gain.exponentialRampToValueAtTime(.0001,t+life);a.connect(g);g.connect(audioCtx.destination);a.start(t);a.stop(t+life)}catch{}}
 function box(x,y,w,h,material){const m=mats[material];return {kind:'block',x,y,w,h,vx:0,vy:0,mass:m.mass,hp:m.hp,maxHp:m.hp,material,cool:0,alive:true};}
 function enemy(x,y){return {kind:'enemy',x,y,r:20,vx:0,vy:0,mass:1.25,hp:1,alive:true,cool:0};}
-function overlay(tag,title,description,action,stars=''){$('overlayTag').textContent=tag;$('overlayTitle').textContent=title;$('overlayDescription').textContent=description;$('overlayAction').textContent=action;$('stars').textContent=stars;$('overlay').hidden=false}
+function overlay(tag,title,description,action,stars=''){$('overlayTag').textContent=tag;$('overlayTitle').textContent=title;$('overlayDescription').textContent=description;$('overlayAction').textContent=action;$('stars').textContent=stars;$('overlayRetry').hidden=!paused;$('overlay').hidden=false}
 function hideOverlay(){$('overlay').hidden=true}
 function status(s){$('status').textContent=s}
-function ui(){$('level').textContent=(levelIdx+1)+'/'+levels.length;$('shots').textContent=shots;$('score').textContent=score;$('best').textContent=bests[levelIdx]||0;$('pause').textContent=paused?'Resume':'Pause';$('pause').setAttribute('aria-pressed',String(paused));$('sound').textContent=sound?'Sound on':'Sound off';$('sound').setAttribute('aria-pressed',String(sound));}
-function reset(show=true){let l=levels[levelIdx],compact=window.innerWidth<600,sceneX=x=>compact?320+(x-320)*.74:x;level={blocks:l.b.map(([x,y,w,h,mat])=>box(sceneX(x),y,w,h,mat)),enemies:l.e.map(([x,y])=>enemy(sceneX(x),y))};shots=l.shots;score=0;used=0;ball=null;charge={x:SLING.x,y:SLING.y};dragging=false;aimKeyboard=false;gameState='ready';camera=0;particles=[];paused=false;settle=0;follow=0;ui();status('Pull the orb backward to aim.');if(show)overlay('LEVEL '+(levelIdx+1),'Find the weak point',level.enemies.length+' sentinels guard this fort. You have '+shots+' shots.','Play level');else hideOverlay();draw();}
+function ui(){$('level').textContent=(levelIdx+1)+' / '+levels.length;$('shots').textContent=shots;$('score').textContent=score;$('best').textContent=bests[levelIdx]||0;$('pause').setAttribute('aria-pressed',String(paused));$('pause').setAttribute('aria-label',paused?'Resume game':'Pause game');$('pause').querySelector('use').setAttribute('href',paused?'#icon-play':'#icon-pause');$('sound').textContent='Sound effects · '+(sound?'On':'Off');$('sound').setAttribute('aria-pressed',String(sound));$('aimGuide').textContent='Trajectory guide · '+(aimGuide?'On':'Off');$('aimGuide').setAttribute('aria-pressed',String(aimGuide));}
+function reset(show=true){debrisActive=false;debrisStillFor=0;falloutWait=0;let l=levels[levelIdx],compact=window.innerWidth<600,sceneX=x=>compact?320+(x-320)*.74:x;level={blocks:l.b.map(([x,y,w,h,mat])=>box(sceneX(x),y,w,h,mat)),enemies:l.e.map(([x,y])=>enemy(sceneX(x),y))};shots=l.shots;score=0;used=0;ball=null;charge={x:SLING.x,y:SLING.y};dragging=false;aimKeyboard=false;gameState='ready';camera=0;particles=[];paused=false;settle=0;follow=0;ui();status('Pull the orb backward to aim.');if(show)overlay('LEVEL '+(levelIdx+1),'Find the weak point',level.enemies.length+' sentinels guard this fort. You have '+shots+' shots.','Play level');else hideOverlay();draw();}
 function start(){hideOverlay();paused=false;if(gameState==='ready')status('Aim carefully.');ui();draw();canvas.focus({preventScroll:true})}
-function next(){levelIdx=(levelIdx+1)%levels.length;reset(true);}
-function complete(){if(gameState==='won')return;gameState='won';const stars=used<=2?3:used<=3?2:1;score+=shots*120;if(score>(bests[levelIdx]||0)){bests[levelIdx]=score;try{localStorage.setItem('night-play-sling-siege-bests',JSON.stringify(bests))}catch{}}ui();sfx(870,.3,'triangle');status('Fortress cleared!');overlay('LEVEL CLEARED','Excellent shot'+(used===1?'!':'s!'),'Score '+score+' · '+used+' shots used · '+shots+' unused shots',levelIdx===levels.length-1?'Play from level one':'Next level','★'.repeat(stars)+'☆'.repeat(3-stars));}
+function next(){levelIdx=Math.min(levels.length-1,levelIdx+1);reset(true);}
+function complete(){if(gameState==='won')return;gameState='won';unlocked=Math.max(unlocked,Math.min(levels.length,levelIdx+2));try{localStorage.setItem('night-play-sling-siege-unlocked',String(unlocked))}catch{}const stars=used<=2?3:used<=3?2:1;score+=shots*120;if(score>(bests[levelIdx]||0)){bests[levelIdx]=score;try{localStorage.setItem('night-play-sling-siege-bests',JSON.stringify(bests))}catch{}}ui();sfx(870,.3,'triangle');status('Fortress cleared!');overlay('LEVEL CLEARED','Excellent shot'+(used===1?'!':'s!'),'Score '+score+' · '+used+' shots used · '+shots+' unused shots',levelIdx===levels.length-1?'Choose a level':'Next level','★'.repeat(stars)+'☆'.repeat(3-stars));}
 function failure(){if(gameState==='lost'||gameState==='won')return;gameState='lost';ui();status('Out of shots. Try a new approach.');sfx(130,.25,'sawtooth');overlay('NO SHOTS LEFT','Try a different angle','You knocked down '+(levels[levelIdx].e.length-level.enemies.filter(e=>e.alive).length)+' of '+levels[levelIdx].e.length+' sentinels. Target the supports.','Try again');}
 function fragment(x,y,color,n=8){for(let i=0;i<n;i++)particles.push({x,y,vx:rand(-150,150),vy:rand(-210,-40),life:rand(.28,.7),color,r:rand(2,6)});if(particles.length>140)particles.splice(0,particles.length-140)}
 function kill(o){if(!o.alive)return;o.alive=false;score+=o.kind==='enemy'?200:30;fragment(o.x+(o.w||0)/2,o.y+(o.h||0)/2,o.kind==='enemy'?'#ae8edc':mats[o.material].color,o.kind==='enemy'?22:12);sfx(o.kind==='enemy'?570:210,.13,o.kind==='enemy'?'triangle':'square');ui()}
 function impact(o,speed){if(!o||!o.alive||o.cool>0)return;if(o.kind==='enemy'){if(speed>67){kill(o)}return}if(speed>105){o.hp-=speed>370?2:1;o.cool=.11;if(o.hp<=0)kill(o);else{sfx(180,.06,'triangle');fragment(o.x+o.w/2,o.y+o.h/2,mats[o.material].color,3)}}}
 function loadBall(){ball=null;charge={x:SLING.x,y:SLING.y};aimKeyboard=false;camera=0;gameState='ready';status(shots+' shots left. Aim again.');}
-function fire(){const dx=SLING.x-charge.x,dy=SLING.y-charge.y,p=Math.hypot(dx,dy);if(gameState!=='ready'||shots<=0||p<14)return false;ball={kind:'ball',x:charge.x,y:charge.y,r:19,vx:dx*7.7,vy:dy*7.7,mass:3,alive:true,cool:0,age:0};shots--;used++;dragging=false;gameState='flying';settle=0;follow=0;ui();status('Shot '+used+' airborne');sfx(480,.16,'triangle');return true}
+function fire(){const dx=SLING.x-charge.x,dy=SLING.y-charge.y,p=Math.hypot(dx,dy);if(gameState!=='ready'||shots<=0||p<14)return false;ball={kind:'ball',x:charge.x,y:charge.y,r:19,vx:dx*7.7,vy:dy*7.7,mass:3,alive:true,cool:0,age:0};shots--;used++;dragging=false;gameState='flying';debrisActive=true;debrisStillFor=0;falloutWait=0;settle=0;follow=0;ui();status('Shot '+used+' airborne');sfx(480,.16,'triangle');return true}
 function circleRect(c,r){const px=clamp(c.x,r.x,r.x+r.w),py=clamp(c.y,r.y,r.y+r.h),dx=c.x-px,dy=c.y-py,d=Math.hypot(dx,dy);if(d>=c.r)return null;if(d>.001)return {nx:dx/d,ny:dy/d,depth:c.r-d};const left=c.x-r.x,right=r.x+r.w-c.x,top=c.y-r.y,bottom=r.y+r.h-c.y,m=Math.min(left,right,top,bottom);if(m===left)return {nx:-1,ny:0,depth:c.r+left};if(m===right)return {nx:1,ny:0,depth:c.r+right};if(m===top)return {nx:0,ny:-1,depth:c.r+top};return {nx:0,ny:1,depth:c.r+bottom}}
 function collide(a,b,nx,ny,depth){const ia=1/a.mass,ib=1/b.mass,sum=ia+ib;const push=Math.max(0,depth-.02);a.x+=nx*push*ia/sum;b.x-=nx*push*ib/sum;a.y+=ny*push*ia/sum;b.y-=ny*push*ib/sum;const rv=(a.vx-b.vx)*nx+(a.vy-b.vy)*ny;if(rv>=0)return;const j=-(1.13)*rv/sum;a.vx+=j*nx*ia;a.vy+=j*ny*ia;b.vx-=j*nx*ib;b.vy-=j*ny*ib;const speed=-rv;if(a.kind==='ball')impact(b,speed);else if(b.kind==='ball')impact(a,speed);else if(speed>185){impact(a,speed*.76);impact(b,speed*.76)}}
 function circleCircle(a,b){const dx=a.x-b.x,dy=a.y-b.y,d=Math.hypot(dx,dy),sum=a.r+b.r;if(d>=sum)return;collide(a,b,d?dx/d:1,d?dy/d:0,sum-d)}
 function rectRect(a,b){const dx=a.x+a.w/2-b.x-b.w/2,dy=a.y+a.h/2-b.y-b.h/2,ox=(a.w+b.w)/2-Math.abs(dx),oy=(a.h+b.h)/2-Math.abs(dy);if(ox<=0||oy<=0)return;if(oy<ox)collide(a,b,0,dy>=0?1:-1,oy);else collide(a,b,dx>=0?1:-1,0,ox)}
 function collideGround(o){const bottom=o.kind==='block'?o.y+o.h:o.y+o.r;if(bottom<=GROUND)return;const vy=o.vy;o.y-=bottom-GROUND;if(o.vy>0){o.vy=-o.vy*(o.kind==='ball'?.35:.07);o.vx*=o.kind==='ball'?.80:.79;if(Math.abs(o.vy)<24)o.vy=0}if(o.kind==='enemy'&&vy>240)impact(o,vy*.9);}
-function physics(dt){if(gameState!=='flying')return;if(ball&&ball.alive)ball.age+=dt;let moving=[...level.blocks.filter(b=>b.alive),...level.enemies.filter(e=>e.alive)];if(ball&&ball.alive)moving.push(ball);
+function physics(dt){if(!debrisActive)return;if(ball&&ball.alive)ball.age+=dt;let moving=[...level.blocks.filter(b=>b.alive),...level.enemies.filter(e=>e.alive)];if(ball&&ball.alive)moving.push(ball);
 for(const o of moving){o.cool=Math.max(0,(o.cool||0)-dt);o.vy=clamp(o.vy+GRAVITY*dt,-1200,1300);o.x+=o.vx*dt;o.y+=o.vy*dt;o.vx*=Math.pow(.997,dt*60);if(o.kind==='block'){if(o.x<320){o.x=320;o.vx=0}if(o.x+o.w>BOARD_W){o.x=BOARD_W-o.w;o.vx=0}}else if(o.kind==='enemy'){if(o.x<325+o.r){o.x=325+o.r;o.vx=Math.abs(o.vx)*.2}if(o.x>BOARD_W-o.r){o.x=BOARD_W-o.r;o.vx=-Math.abs(o.vx)*.2}}collideGround(o)}
 // Small fixed timestep and two positional passes keep towers stable without a 3rd-party engine.
 for(let it=0;it<2;it++){let blocks=level.blocks.filter(o=>o.alive),enemies=level.enemies.filter(o=>o.alive),actors=ball&&ball.alive?[...enemies,ball]:enemies;
@@ -89,9 +139,25 @@ for(let i=0;i<actors.length;i++)for(let j=i+1;j<actors.length;j++)circleCircle(a
 for(const o of moving)if(o.alive)collideGround(o)}
 if(ball&&ball.alive){if(ball.x>BOARD_W+60||ball.y>BOARD_H+70||ball.age>7.5){ball.alive=false}else if(ball.age>.8&&Math.hypot(ball.vx,ball.vy)<35&&ball.y>GROUND-ball.r-3){settle+=dt;if(settle>.7)ball.alive=false}else settle=0}
 if(level.enemies.every(o=>!o.alive)){complete();return}
-if(!ball||!ball.alive){if(shots<=0)failure();else loadBall();}
+// A destroyed support must keep falling even after the projectile expires.
+ // Earlier code stopped ALL gravity as soon as the next shot became ready,
+ // leaving roof slabs visibly hovering in mid-air.
+ if(gameState==='flying'&&(!ball||!ball.alive)){
+   if(shots>0)loadBall();
+   else{gameState='settling';falloutWait=0;status('Let the structure settle…');}
+ }
+ if(gameState==='settling'){
+   falloutWait+=dt;
+   if(falloutWait>=2.5)failure();
+ }
+ // Let surviving blocks and targets reach their supports/the ground during
+ // ready, victory and defeat states without simulating sleeping scenery forever.
+ const still=level.blocks.concat(level.enemies).filter(o=>o.alive)
+   .every(o=>Math.abs(o.vx)<6&&Math.abs(o.vy)<9);
+ debrisStillFor=still?debrisStillFor+dt:0;
+ if(debrisStillFor>.75&&['ready','won','lost'].includes(gameState))debrisActive=false;
 }
-function paintBackdrop(){const g=ctx.createLinearGradient(0,0,0,GROUND);g.addColorStop(0,'#a6cad1');g.addColorStop(.54,'#e6e4bd');g.addColorStop(1,'#d9dcc2');ctx.fillStyle=g;ctx.fillRect(0,0,BOARD_W,BOARD_H);
+function paintBackdrop(){const g=ctx.createLinearGradient(0,0,0,GROUND);g.addColorStop(0,'#a6cad1');g.addColorStop(.54,'#e6e4bd');g.addColorStop(1,'#d9dcc2');ctx.fillStyle=g;ctx.fillRect(0,-skyPaddingWorld,BOARD_W,BOARD_H+skyPaddingWorld);
 ctx.fillStyle='#f5efd2bb';ctx.beginPath();ctx.arc(758,102,50,0,TAU);ctx.fill();
 ctx.fillStyle='#7aa49b58';ctx.beginPath();ctx.moveTo(0,393);for(let x=0;x<=BOARD_W;x+=12)ctx.lineTo(x,365+25*Math.sin(x*.009)+19*Math.cos(x*.023));ctx.lineTo(BOARD_W,GROUND);ctx.lineTo(0,GROUND);ctx.fill();
 ctx.fillStyle='#5b88766b';ctx.beginPath();ctx.moveTo(0,440);for(let x=0;x<=BOARD_W;x+=12)ctx.lineTo(x,427+16*Math.sin(x*.015)+9*Math.cos(x*.035));ctx.lineTo(BOARD_W,GROUND);ctx.lineTo(0,GROUND);ctx.fill();
@@ -102,34 +168,64 @@ function rect(x,y,w,h,color,r=0){ctx.fillStyle=color;ctx.beginPath();ctx.roundRe
 function orb(x,y,r,alpha=1){ctx.save();ctx.globalAlpha=alpha;const g=ctx.createRadialGradient(x-r*.3,y-r*.5,2,x,y,r*1.25);g.addColorStop(0,'#ffeca3');g.addColorStop(.52,'#f8ad55');g.addColorStop(1,'#be593e');ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,r,0,TAU);ctx.fill();ctx.strokeStyle='#71472e';ctx.lineWidth=2;ctx.stroke();ctx.fillStyle='#fff4c1';ctx.beginPath();ctx.arc(x+3,y-2,r*.52,-2.8,.6);ctx.arc(x+6,y-2,r*.40,.9,-2.8,true);ctx.fill();ctx.restore()}
 function drawSlingBack(){ctx.lineCap='round';ctx.strokeStyle='#513d2d';ctx.lineWidth=17;ctx.beginPath();ctx.moveTo(131,GROUND);ctx.lineTo(137,353);ctx.lineTo(119,334);ctx.stroke();ctx.strokeStyle='#9c7144';ctx.lineWidth=10;ctx.beginPath();ctx.moveTo(132,GROUND);ctx.lineTo(138,353);ctx.lineTo(119,334);ctx.stroke();ctx.strokeStyle='#e7bb77';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(132,481);ctx.lineTo(138,350);ctx.stroke();}
 function drawSlingFront(){ctx.strokeStyle='#67472b';ctx.lineCap='round';ctx.lineWidth=15;ctx.beginPath();ctx.moveTo(139,373);ctx.lineTo(165,330);ctx.stroke();ctx.strokeStyle='#bb854f';ctx.lineWidth=9;ctx.beginPath();ctx.moveTo(139,373);ctx.lineTo(164,330);ctx.stroke();}
-function drawBand(){let p=gameState==='ready'?charge:ball;ctx.strokeStyle='#6b4936';ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(118,334);ctx.lineTo(p.x,p.y);ctx.lineTo(163,331);ctx.stroke();}
+function drawBand(){const p=gameState==='ready'?charge:null;ctx.strokeStyle='#6b4936';ctx.lineWidth=5;ctx.beginPath();ctx.moveTo(118,334);if(p)ctx.lineTo(p.x,p.y);ctx.lineTo(163,331);ctx.stroke();}
 function drawBlock(b){const m=mats[b.material];ctx.save();ctx.translate(b.x,b.y);ctx.shadowColor='#112d2160';ctx.shadowBlur=6;rect(0,0,b.w,b.h,m.color,3);ctx.shadowBlur=0;ctx.strokeStyle=m.line;ctx.lineWidth=2;ctx.strokeRect(2,2,b.w-4,b.h-4);
 if(b.material==='wood'){ctx.strokeStyle='#f2d39a';ctx.lineWidth=1.6;for(let j=1;j<4;j++){let y=(b.h/4)*j;ctx.beginPath();ctx.moveTo(4,y);ctx.bezierCurveTo(b.w*.35,y-6,b.w*.58,y+6,b.w-4,y-2);ctx.stroke()}}
 if(b.material==='glass'){ctx.fillStyle='#e0fff4a8';ctx.fillRect(6,4,Math.max(2,b.w*.20),b.h-8);ctx.strokeStyle='#6aafab';ctx.beginPath();ctx.moveTo(b.w*.45,3);ctx.lineTo(b.w*.65,b.h*.54);ctx.stroke()}
 if(b.material==='stone'){ctx.strokeStyle='#dae6e4aa';ctx.beginPath();ctx.moveTo(6,b.h*.56);ctx.lineTo(b.w*.56,b.h*.56);ctx.moveTo(b.w*.5,b.h*.57);ctx.lineTo(b.w*.5,b.h-4);ctx.stroke()}
 if(b.hp<b.maxHp){ctx.strokeStyle=m.line;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(b.w*.4,4);ctx.lineTo(b.w*.62,b.h*.5);ctx.lineTo(b.w*.53,b.h-4);ctx.stroke()}ctx.restore()}
 function drawEnemy(e){ctx.save();ctx.translate(e.x,e.y);ctx.shadowColor='#38295b65';ctx.shadowBlur=8;ctx.fillStyle='#8767b5';ctx.beginPath();for(let i=0;i<6;i++){let a=-Math.PI/2+i*TAU/6;ctx.lineTo(Math.cos(a)*e.r,Math.sin(a)*e.r)}ctx.closePath();ctx.fill();ctx.strokeStyle='#514578';ctx.lineWidth=2;ctx.stroke();ctx.shadowBlur=0;ctx.fillStyle='#dcd4ff';ctx.beginPath();ctx.arc(-6,-2,3.8,0,TAU);ctx.arc(6,-2,3.8,0,TAU);ctx.fill();ctx.fillStyle='#3f315a';ctx.fillRect(-7,-2,2.5,3);ctx.fillRect(5,-2,2.5,3);ctx.strokeStyle='#392952';ctx.lineWidth=1.7;ctx.beginPath();ctx.arc(0,6,5,.15,Math.PI-.15);ctx.stroke();ctx.restore();}
-function paintAim(){if(gameState!=='ready')return;const vx=(SLING.x-charge.x)*7.7,vy=(SLING.y-charge.y)*7.7;if(Math.hypot(vx,vy)<4)return;ctx.fillStyle='#fff7df';ctx.strokeStyle='#346a58';ctx.lineWidth=1;for(let i=1;i<=22;i++){const t=i*.075,x=charge.x+vx*t,y=charge.y+vy*t+.5*GRAVITY*t*t;if(y>GROUND-19||x>BOARD_W)break;ctx.globalAlpha=.8-i*.03;ctx.beginPath();ctx.arc(x,y,Math.max(1.8,4-i*.07),0,TAU);ctx.fill()}ctx.globalAlpha=1}
-function draw(){if(!level)return;let bounds=canvas.getBoundingClientRect(),w=bounds.width||900;viewW=w<600?720:900;let h=w*BOARD_H/viewW;canvas.style.height=h+'px';let dpr=Math.min(window.devicePixelRatio||1,2);const pw=Math.max(1,Math.round(w*dpr)),ph=Math.max(1,Math.round(h*dpr));if(canvas.width!==pw||canvas.height!==ph){canvas.width=pw;canvas.height=ph}cssScale=w/viewW;ctx.setTransform(canvas.width/viewW,0,0,canvas.height/BOARD_H,0,0);const wanted=gameState==='flying'&&ball?clamp(ball.x-viewW*.53,0,BOARD_W-viewW):0;camera+=(wanted-camera)*.15;if(!Number.isFinite(camera))camera=0;
+function paintAim(){if(gameState!=='ready'||!aimGuide)return;const vx=(SLING.x-charge.x)*7.7,vy=(SLING.y-charge.y)*7.7;if(Math.hypot(vx,vy)<4)return;ctx.fillStyle='#fff7df';ctx.strokeStyle='#346a58';ctx.lineWidth=1;for(let i=1;i<=22;i++){const t=i*.075,x=charge.x+vx*t,y=charge.y+vy*t+.5*GRAVITY*t*t;if(y>GROUND-19||x>BOARD_W)break;ctx.globalAlpha=.8-i*.03;ctx.beginPath();ctx.arc(x,y,Math.max(1.8,4-i*.07),0,TAU);ctx.fill()}ctx.globalAlpha=1}
+function draw(){if(!level)return;let bounds=canvas.getBoundingClientRect(),w=bounds.width||900;viewW=w<600?720:900;const naturalH=w*BOARD_H/viewW;let h=w<600?Math.min(naturalH+190,Math.max(naturalH,window.innerHeight*.58)):naturalH;canvas.style.height=h+'px';let dpr=Math.min(window.devicePixelRatio||1,2);const pw=Math.max(1,Math.round(w*dpr)),ph=Math.max(1,Math.round(h*dpr));if(canvas.width!==pw||canvas.height!==ph){canvas.width=pw;canvas.height=ph}cssScale=w/viewW;skyPaddingWorld=Math.max(0,(h-naturalH)/cssScale);ctx.setTransform(canvas.width/viewW,0,0,canvas.width/viewW,0,skyPaddingWorld*canvas.width/viewW);const wanted=gameState==='flying'&&ball?clamp(ball.x-viewW*.53,0,BOARD_W-viewW):0;camera+=(wanted-camera)*.15;if(!Number.isFinite(camera))camera=0;
 ctx.save();ctx.translate(-camera,0);paintBackdrop();drawSlingBack();drawBand();for(const b of level.blocks)if(b.alive)drawBlock(b);for(const e of level.enemies)if(e.alive)drawEnemy(e);paintAim();if(gameState==='ready')orb(charge.x,charge.y,19);else if(ball&&ball.alive)orb(ball.x,ball.y,19);drawSlingFront();
 for(let i=particles.length-1;i>=0;i--){let p=particles[i];ctx.globalAlpha=clamp(p.life/.65,0,1);rect(p.x,p.y,p.r,p.r,p.color,1)}ctx.globalAlpha=1;ctx.restore();
 if(w<600){ctx.fillStyle='#ffffffa8';rect(6,11,119,23,'#ffffffa8',6);ctx.fillStyle='#315d4a';ctx.font='700 12px system-ui';ctx.fillText(camera>24?'← SLING     FORT →':'SLING  →  FORT',16,27)}
 }
-function pointer(e){let r=canvas.getBoundingClientRect();return {x:camera+(e.clientX-r.left)/r.width*viewW,y:(e.clientY-r.top)/r.height*BOARD_H}}
+function pointer(e){let r=canvas.getBoundingClientRect(),scale=r.width/viewW;return {x:camera+(e.clientX-r.left)/scale,y:(e.clientY-r.top-skyPaddingWorld*scale)/scale}}
 function pull(p){let x=p.x-SLING.x,y=p.y-SLING.y,d=Math.hypot(x,y),factor=d>MAX_PULL?MAX_PULL/d:1;charge={x:SLING.x+x*factor,y:SLING.y+y*factor};draw()}
 canvas.addEventListener('pointerdown',e=>{if(gameState!=='ready'||paused||!$('overlay').hidden)return;let p=pointer(e);if(Math.hypot(p.x-charge.x,p.y-charge.y)>69)return;e.preventDefault();canvas.setPointerCapture(e.pointerId);dragging=true;aimKeyboard=false;$('board').classList.add('aiming');pull(p)});
 canvas.addEventListener('pointermove',e=>{if(!dragging)return;e.preventDefault();pull(pointer(e))});
 function release(e){if(!dragging)return;e.preventDefault();dragging=false;$('board').classList.remove('aiming');if(!fire()){charge={x:SLING.x,y:SLING.y}}draw()}
 canvas.addEventListener('pointerup',release);canvas.addEventListener('pointercancel',release);
-document.addEventListener('keydown',e=>{if(!$('overlay').hidden){if(e.key==='Enter'){e.preventDefault();$('overlayAction').click()}return}if(e.key==='p'||e.key==='P'){e.preventDefault();$('pause').click();return}if(paused||gameState!=='ready')return;if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown',' '].includes(e.key)){e.preventDefault();if(e.key===' '){fire();return}aimKeyboard=true;let off={x:charge.x-SLING.x,y:charge.y-SLING.y};if(Math.hypot(off.x,off.y)<10)off={x:-45,y:25};if(e.key==='ArrowLeft')off.x-=8;if(e.key==='ArrowRight')off.x+=8;if(e.key==='ArrowUp')off.y-=8;if(e.key==='ArrowDown')off.y+=8;pull({x:SLING.x+off.x,y:SLING.y+off.y})}});
-function frame(t){if(!last)last=t;const elapsed=clamp((t-last)/1000,0,.04);last=t;if(!paused&&gameState==='flying'){acc+=elapsed;let n=0;while(acc>=1/120&&n++<6){physics(1/120);acc-=1/120;}if(n>=6)acc=0}
+document.addEventListener('keydown',e=>{if(!$('overlay').hidden){if(e.key==='Enter'){e.preventDefault();$('overlayAction').click()}return}if(e.key==='p'||e.key==='P'){e.preventDefault();if(!paused||!$('overlay').hidden)togglePause();return}if(paused||gameState!=='ready')return;if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown',' '].includes(e.key)){e.preventDefault();if(e.key===' '){fire();return}aimKeyboard=true;let off={x:charge.x-SLING.x,y:charge.y-SLING.y};if(Math.hypot(off.x,off.y)<10)off={x:-45,y:25};if(e.key==='ArrowLeft')off.x-=8;if(e.key==='ArrowRight')off.x+=8;if(e.key==='ArrowUp')off.y-=8;if(e.key==='ArrowDown')off.y+=8;pull({x:SLING.x+off.x,y:SLING.y+off.y})}});
+function frame(t){if(!last)last=t;const elapsed=clamp((t-last)/1000,0,.04);last=t;if(!paused&&debrisActive){acc+=elapsed;let n=0;while(acc>=1/120&&n++<6){physics(1/120);acc-=1/120;}if(n>=6)acc=0}
 if(!paused)for(let i=particles.length-1;i>=0;i--){let p=particles[i];p.x+=p.vx*elapsed;p.y+=p.vy*elapsed;p.vy+=GRAVITY*.5*elapsed;p.life-=elapsed;if(p.life<0)particles.splice(i,1)}draw();tickId=requestAnimationFrame(frame)}
-$('overlayAction').addEventListener('click',()=>{if(gameState==='won')next();else if(gameState==='lost')reset(false);else start()});
-$('restart').addEventListener('click',()=>reset(true));
-$('pause').addEventListener('click',()=>{if(['intro','won','lost'].includes(gameState))return;if(!$('overlay').hidden)return;paused=!paused;status(paused?'Paused':'Aim and launch');ui()});
+function togglePause(){
+ if(!['ready','flying'].includes(gameState))return;
+ paused=!paused;
+ if(paused)overlay('PAUSED','Sling Siege','Your current shot is saved. Resume or restart this level.','Resume');
+ else hideOverlay();
+ ui();
+}
+function openLevelChooser(){
+ const grid=$('levelGrid');grid.replaceChildren();
+ for(let i=0;i<levels.length;i++){
+  const button=document.createElement('button');button.type='button';button.textContent=String(i+1);
+  button.disabled=i>=unlocked;button.setAttribute('aria-label','Level '+(i+1)+(i>=unlocked?', locked':''));
+  button.setAttribute('aria-current',String(levelIdx===i));
+  button.addEventListener('click',()=>{levelIdx=i;$('levelDialog').close();reset(true)});
+  grid.append(button);
+ }
+ $('levelDialog').showModal();
+}
+$('overlayAction').addEventListener('click',()=>{
+ if(paused){togglePause();return}
+ if(gameState==='won'){
+  if(levelIdx===levels.length-1)openLevelChooser();else next();
+ }else if(gameState==='lost')reset(false);
+ else start();
+});
+$('overlayRetry').addEventListener('click',()=>reset(false));
+$('pause').addEventListener('click',togglePause);
+$('levelButton').addEventListener('click',openLevelChooser);
+$('levelClose').addEventListener('click',()=>$('levelDialog').close());
+$('settingsButton').addEventListener('click',()=>{if(!paused&&['ready','flying'].includes(gameState)&&$('overlay').hidden)togglePause();$('settingsDialog').showModal()});
+$('settingsClose').addEventListener('click',()=>$('settingsDialog').close());
 $('sound').addEventListener('click',()=>{sound=!sound;try{localStorage.setItem('night-play-sling-siege-sound',sound?'on':'off')}catch{}ui()});
+$('aimGuide').addEventListener('click',()=>{aimGuide=!aimGuide;try{localStorage.setItem('night-play-sling-siege-guide',aimGuide?'on':'off')}catch{}ui()});
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&!paused&&$('overlay').hidden)togglePause()});
 window.addEventListener('resize',draw);
-window.__slingTest={get state(){return {gameState,levelIdx,shots,used,score,ball:ball?{...ball}:null,enemies:level.enemies.map(e=>({...e})),blocks:level.blocks.map(b=>({...b})),camera}},reset:()=>reset(false),fireAt:(dx,dy)=>{if(gameState!=='ready')return false;pull({x:SLING.x-dx,y:SLING.y-dy});return fire()},next:()=>next(),step:(n=1)=>{for(let i=0;i<n;i++)physics(1/120);draw()},pointer,pull};
+window.__slingTest={get state(){return {gameState,levelIdx,levelCount:levels.length,unlocked,paused,shots,used,score,ball:ball?{...ball}:null,enemies:level.enemies.map(e=>({...e})),blocks:level.blocks.map(b=>({...b})),camera,debrisActive}},reset:()=>reset(false),dislodgeSupportsForTest:()=>{if(gameState!=='ready')throw Error('reset first');for(const b of level.blocks.slice(0,2))b.alive=false;debrisActive=true;debrisStillFor=0;},fireAt:(dx,dy)=>{if(gameState!=='ready')return false;pull({x:SLING.x-dx,y:SLING.y-dy});return fire()},next:()=>next(),step:(n=1)=>{for(let i=0;i<n;i++)physics(1/120);draw()},pointer,pull};
 reset(true);tickId=requestAnimationFrame(frame);
 })();
 </script>

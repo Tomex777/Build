@@ -1,4 +1,4 @@
-name: NIGHT Play Agent 3 Wave 2 Touch Physics
+name: NIGHT Play Dino Real Touch QA
 
 on:
   pull_request:
@@ -21,16 +21,17 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Install exact Playwright package for local Chrome
-        run: npm install --no-save playwright@1.56.1
-      - name: Drive real Chromium touch, collision, progression and restart
-        run: node night-play/action/agent3-wave2-touch.mjs
+      - name: Install real Playwright Chromium
+        run: |
+          npm install --no-save playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Test current canonical Chromium Dino runner with actual touch
+        run: node night-play/action/dino/runner-browser-qa.mjs
       - name: Keep visual/interaction evidence even on failure
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: night-play-agent3-wave2-touch
+          name: night-play-chromium-dino-touch
           path: |
-            night-play/visual-output/agent3-wave2-*.jpg
-            night-play/visual-output/agent3-wave2-*.json
+            night-play/visual-output/chromium-dino/*.png
           retention-days: 14

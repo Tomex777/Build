@@ -65,8 +65,10 @@ jobs:
         run: node night-play/puzzles/logic-test.mjs
       - name: Verify three new games in mobile Chromium
         run: node night-play/puzzles/mobile-smoke.mjs
-      - name: Play five new action arcade games on mobile and resize screens
+      - name: Play four integrated action arcade games on mobile
         run: node night-play/action/mobile-smoke.mjs
+      - name: Test authentic Chromium Dino runner with real mobile touch
+        run: node night-play/action/dino/runner-browser-qa.mjs
       - name: Actually play flying hazards, slicing animation and brick impact in Chromium
         run: node night-play/action/real-play-corrections.mjs
       - name: Actually play the jumping game with touch movement for extended rounds

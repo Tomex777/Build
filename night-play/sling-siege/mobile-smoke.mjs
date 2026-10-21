@@ -1,13 +1,25 @@
-// Sling Siege: full source page, real Chromium input, score and six-stage route regression.
+// Sling Siege: full source page, real Chromium input, score and 100-stage route regression.
 // Run: node night-play/sling-siege/mobile-smoke.mjs (npm i --no-save playwright@1.56.1)
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
+import { createServer } from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { resolve, dirname } from 'node:path';
-import { pathToFileURL } from 'node:url';
 import { chromium } from 'playwright';
 const home=dirname(fileURLToPath(import.meta.url));
-const gameUrl=pathToFileURL(resolve(home,'index.html')).href;
+// Use the SAME root-relative CSS resolution as the actual combined website.
+// A file:// test silently drops /game-shell.css and gives false mobile layout failures.
+const root=resolve(home,'..');
+const server=createServer((req,res)=>{
+ const url=new URL(req.url,'http://127.0.0.1').pathname;
+ const assets={'/sling-siege/':'sling-siege/index.html','/sling-siege/index.html':'sling-siege/index.html','/game-shell.css':'game-shell.css'};
+ const rel=assets[url];if(!rel){res.writeHead(404);res.end();return;}
+ res.writeHead(200,{'content-type':rel.endsWith('.css')?'text/css':'text/html'});
+ res.end(readFileSync(resolve(root,rel)));
+});
+await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+const gameUrl='http://127.0.0.1:'+server.address().port+'/sling-siege/';
 const evidence=resolve(home,'visual-output');
 await mkdir(evidence,{recursive:true});
 const browser=await chromium.launch({headless:true,args:['--no-sandbox']});
@@ -18,6 +30,7 @@ try{
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto(gameUrl);
   assert.equal(await page.locator('#overlay').isVisible(),true,'start overlay');
+  assert.equal((await page.evaluate(()=>window.__slingTest.state)).levelCount,100,'100 levels are available');
   await page.locator('#overlayAction').click();
   assert.equal((await page.evaluate(()=>window.__slingTest.state)).gameState,'ready');
   const overflow=await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth);
@@ -28,7 +41,8 @@ try{
   if(width===320||width===390){
    // Native CDP touch stream, not a JS function simulating a touch.
    const cd=await page.context().newCDPSession(page);
-   const fx=box.x+(140/720)*box.width,fy=box.y+(362/540)*box.height;
+   const xScale=box.width/720,skyPad=box.height-box.width*540/720;
+   const fx=box.x+140*xScale,fy=box.y+skyPad+362*xScale;
    await cd.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x:fx,y:fy}]});
    await cd.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x:fx-32,y:fy+36}]});
    assert.equal(await page.locator('#board').evaluate(e=>e.classList.contains('aiming')),true,'real touch pulls sling');
@@ -37,6 +51,16 @@ try{
    await page.screenshot({path:resolve(evidence,'sling-touch-'+width+'.png')});
   }
   if(width===390){
+   // Grounding regression: after supports are destroyed, roof must drop to the
+   // floor even when the projectile is no longer flying. This previously froze.
+   const unsupported=await page.evaluate(()=>{
+    const t=window.__slingTest;t.reset();
+    const before=t.state.blocks[2].y;
+    t.dislodgeSupportsForTest();t.step(240);
+    return {before,after:t.state.blocks[2].y};
+   });
+   assert.ok(unsupported.after>unsupported.before+10,
+    'roof must fall under gravity after its supports disappear: '+JSON.stringify(unsupported));
    // Round 1 genuine collisions and victory + 3-star/localStorage persistence.
    const first=await page.evaluate(()=>{const a=window.__slingTest;a.reset();a.fireAt(66,-65);a.step(1150);return a.state});
    assert.equal(first.gameState,'won','first stage must be physically winnable');
@@ -58,14 +82,18 @@ try{
    await page.keyboard.press('ArrowDown');
    await page.keyboard.press('Space');
    assert.equal((await page.evaluate(()=>window.__slingTest.state)).used,1,'keyboard fired real projectile');
-   await page.locator('#restart').click();
-   await page.locator('#overlayAction').click();
    await page.locator('#pause').click();
    assert.equal(await page.locator('#pause').getAttribute('aria-pressed'),'true','pause works');
+   await page.locator('#overlayRetry').click();
+   assert.equal((await page.evaluate(()=>window.__slingTest.state)).used,0,'pause can restart level');
    await page.locator('#pause').click();
+   await page.locator('#overlayAction').click();
    assert.equal(await page.locator('#pause').getAttribute('aria-pressed'),'false','resume works');
+   await page.locator('#settingsButton').click();
+   assert.equal(await page.locator('#settingsDialog').evaluate(e=>e.open),true,'settings opens');
    await page.locator('#sound').click();
    assert.equal(await page.locator('#sound').getAttribute('aria-pressed'),'false','sound toggle');
+   await page.locator('#settingsClose').click();
    await page.reload();
    assert.equal(await page.locator('#sound').getAttribute('aria-pressed'),'false','sound setting persists');
   }
@@ -74,4 +102,4 @@ try{
   await page.close();
  }
  console.log('Sling Siege browser gate PASS',JSON.stringify(results));
-}finally{await browser.close()}
+}finally{await browser.close();await new Promise(done=>server.close(done))}
