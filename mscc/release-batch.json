@@ -1,11 +1,12 @@
 {
-  "releaseId": "night-cortex-agent-v107-manual-mega-after-passive-20261021",
+  "releaseId": "night-cortex-agent-v107-personality-ai-20261021",
   "baseBranch": "mscc-azure",
   "baseCommit": "b6dde2b6abb5214bb0d566d13b9154656dff41ac",
   "pullRequests": [
     538,
-    541
+    541,
+    540
   ],
-  "preparedAt": "2026-10-21T07:24:44.912Z",
-  "notes": "SEQUENTIAL PROTECTED RELEASE ONLY. Prerequisite: Azure run #39556468780 (NIGHT passive MEGA + one-key AI #537) must be APPROVED and completed SUCCESSFULLY, proving masked Cortex Settings/ENV writes and passive Cloud GET before this follow-up is merged or approved. Then deploy exact reviewed Agent v1.0.7 from merged Cortex #538, pinned source b6175f37c53f6ca1f86f062d1da60a40101d3c17 / blob 68e1f21daecd59b4831394d188ce8b59f5d57ff7 via guarded #541 bootstrap. Refuse if old NIGHT source still performs login on Cloud GET; old Android GET discovery must be inert. Never invoke intentional MEGA POST/discovery with suspected credentials in CI. Preserve existing Cortex bearer token, MEGA credentials, user files, and all WhatsApp linked sessions; no automatic MSCC restart. Exact integration-head Azure/Readiness/Contract green required; protected approval separate. Before declaring app done, test installed Cortex 1.0.7 upgrade with original owner signature and actual phone-facing HTTPS Restart/Cloud behavior without MEGA authentication."
+  "preparedAt": "2026-10-21T11:16:36.750Z",
+  "notes": "ONE protected Azure release combines the already validated, guarded Cortex Agent 1.0.7 release #542 (feature #541 and Android/Agent #538) with tested group-chat-only Josia/Nami/MiMi personality and lazy read-only command lookup #540. Previous passive MEGA/one-key AI production rollout #39556468780 completed successfully; preserve its protections, including no MEGA sign-in on Cloud GET and inert legacy discovery. Do not change saved credentials, bearer token, WhatsApp auth/session files or sudo; no automatic MEGA POST authentication. Enforce exact integration-head Azure, Readiness and Cortex Contract checks, then one protected mscc-production approval. After Azure installation verify authenticated settings/environment readbacks, passive Cloud, agent API and actual WhatsApp group personality response/DM opt-out; never claim end-user live verification from static tests."
 }
