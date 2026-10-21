@@ -7,11 +7,11 @@ import {chromium} from 'playwright';
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const assets={'/action/':'action/index.html','/action/style.css':'action/style.css',
- '/action/games.js':'action/games.js','/game-shell.css':'game-shell.css'};
+ '/action/games.js':'action/games.js','/game-shell.css':'game-shell.css','/action/art/flyer-up.svg':'action/art/flyer-up.svg','/action/art/flyer-down.svg':'action/art/flyer-down.svg','/action/art/glider.svg':'action/art/glider.svg','/action/art/pillar.svg':'action/art/pillar.svg','/action/art/stone.svg':'action/art/stone.svg','/action/art/barrel.svg':'action/art/barrel.svg'};
 const server=createServer((req,res)=>{
  const file=assets[new URL(req.url,'http://127.0.0.1').pathname];
  if(!file){res.writeHead(404);res.end('Not found');return;}
- res.writeHead(200,{'content-type':file.endsWith('.css')?'text/css':file.endsWith('.js')?'text/javascript':'text/html'});
+ res.writeHead(200,{'content-type':file.endsWith('.css')?'text/css':file.endsWith('.js')?'text/javascript':file.endsWith('.svg')?'image/svg+xml':'text/html'});
  res.end(readFileSync(path.join(root,file)));
 });
 await new Promise(done=>server.listen(0,'127.0.0.1',done));
