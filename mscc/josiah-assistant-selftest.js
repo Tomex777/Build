@@ -108,6 +108,12 @@ assert(String(calls.at(-1).system).includes('WhatsApp group'))
   assert(!compact.includes('COMMAND INDEX'))
   const all = compactCommandReference(largeCatalog, null, 'List all commands')
   assert(all.includes('.tool256'))
+  const media = compactCommandReference([
+    { name:'dl', capability:'media', description:'Download videos from a link.', usage:'.dl <url>' },
+    { name:'ping', capability:'general', description:'Check connection.', usage:'.ping' },
+  ], null, 'Can you download a video?')
+  assert(media.includes('.dl <url>'))
+  assert(!media.includes('.ping'))
   assert(!compact.includes('Perform a long operational tool function. '.repeat(12) + '\nPerform'))
 }
 
