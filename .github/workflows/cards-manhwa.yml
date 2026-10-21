@@ -6,20 +6,28 @@ on:
     paths:
       - 'cards/catalog/manhwa-*.json'
       - 'cards/src/manhwa.mjs'
+      - 'cards/src/manhwa-duo.mjs'
+      - 'cards/src/artwork.mjs'
+      - 'cards/src/catalogue.mjs'
       - 'cards/src/manhwa-review.mjs'
       - 'cards/bin/manhwa.mjs'
       - 'cards/bin/manhwa-review.mjs'
       - 'cards/tests/manhwa.test.mjs'
+      - 'cards/tests/manhwa-duo.test.mjs'
       - 'cards/docs/MANHWA.md'
       - '.github/workflows/cards-manhwa.yml'
   pull_request:
     paths:
       - 'cards/catalog/manhwa-*.json'
       - 'cards/src/manhwa.mjs'
+      - 'cards/src/manhwa-duo.mjs'
+      - 'cards/src/artwork.mjs'
+      - 'cards/src/catalogue.mjs'
       - 'cards/src/manhwa-review.mjs'
       - 'cards/bin/manhwa.mjs'
       - 'cards/bin/manhwa-review.mjs'
       - 'cards/tests/manhwa.test.mjs'
+      - 'cards/tests/manhwa-duo.test.mjs'
       - '.github/workflows/cards-manhwa.yml'
   workflow_dispatch:
 
@@ -43,7 +51,7 @@ jobs:
           cache: npm
           cache-dependency-path: cards/package-lock.json
       - run: npm ci
-      - name: Regression tests, including existing BLEACH renderer catalogue
+      - name: Regression tests, including BLEACH, 82 manhwa candidates and two-source romance artwork
         run: npm test
       - name: Validate 82 research candidates and strict art acquisition gate
         run: node bin/manhwa.mjs audit
