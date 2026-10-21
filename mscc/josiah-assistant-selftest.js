@@ -85,11 +85,12 @@ assert(prompt.includes('REPLYING TO: Josia: Saturday works.'))
 assert(prompt.includes('Teddy: We should meet Saturday evening.'))
 assert(prompt.includes('CURRENT MESSAGE:\nBut what did you mean?'))
 assert(prompt.includes('mention token: [[mention:nami]]'))
-assert(prompt.includes('.ping'))
+assert(!prompt.includes('.ping'))
+assert(prompt.length < 5000)
 assert(!prompt.includes('.anime'))
 assert(!prompt.includes('.movie'))
 assert.equal(calls.at(-1).allowWeb, false)
-assert(String(calls.at(-1).system).includes('Never call yourself a bot'))
+assert(String(calls.at(-1).system).includes('group member'))
 
 
 {
@@ -101,9 +102,12 @@ assert(String(calls.at(-1).system).includes('Never call yourself a bot'))
     usage:'.tool' + i + ' <args>',
   }))
   const compact = compactCommandReference(largeCatalog, null, 'How do I use .tool184?')
-  assert(compact.length <= 8500)
+  assert(compact.length <= 1900)
+  assert.equal(compactCommandReference(largeCatalog, null, 'How are you?'), '')
   assert(compact.includes('.tool184 <args>'))
-  assert(compact.includes('COMMAND INDEX'))
+  assert(!compact.includes('COMMAND INDEX'))
+  const all = compactCommandReference(largeCatalog, null, 'List all commands')
+  assert(all.includes('.tool256'))
   assert(!compact.includes('Perform a long operational tool function. '.repeat(12) + '\nPerform'))
 }
 
