@@ -233,6 +233,13 @@ export function startWebPanel({ port, host = '127.0.0.1', password, sessionSecre
         return sendJson(res, 200, await verifyCloudFolder({ targetId:body.targetId }))
       }
       if (req.method === 'GET' && url.pathname === '/cloud/discover') {
+        // Compatibility for older Cortex APKs that silently call GET on every
+        // Cloud refresh. Do not authenticate to MEGA from a read-only request.
+        return sendJson(res, 200, { mounts: [], signInRequired: true })
+      }
+      if (req.method === 'POST' && url.pathname === '/cloud/discover/explicit') {
+        // A deliberate button action must use POST; no automatic login from
+        // old Cortex GET clients, even before they upgrade their APK.
         return sendJson(res, 200, { mounts: await getCloudMounts() })
       }
       if (req.method === 'GET' && url.pathname === '/cloud') {
