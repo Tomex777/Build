@@ -117,6 +117,114 @@
       "originalWidth": 720,
       "originalHeight": 880,
       "image": "https://maohgakuin.com/assets/img/character/img_emilia.png"
+    },
+    "nousgallia-god": {
+      "sha256": "b4d61ca1b0f06374117a4453216b94205ac9e21f908f26a1ce9337d1a01463ff",
+      "width": 1440,
+      "height": 1760,
+      "originalSha256": "513cabbee13b74bbc51c2f4f96738fee1f4e37a373b76bd10204dcde76459d67",
+      "originalWidth": 720,
+      "originalHeight": 880,
+      "image": "https://maohgakuin.com/assets/img/character/img_nousgallia.png"
+    },
+    "ahide-oracle": {
+      "sha256": "fe0a8ab147b22e7af6f0525b87215ac7eef3d40a62623e84923a26689f8fff94",
+      "width": 1440,
+      "height": 1760,
+      "originalSha256": "554df3a08f9f9ec5d92bf65b138e55f226aaa1a0a862dc4f356cf8edeac7956a",
+      "originalWidth": 720,
+      "originalHeight": 880,
+      "image": "https://maohgakuin.com/assets/img/character/img_ahide.png"
+    },
+    "anoshu-child": {
+      "sha256": "0d180f3b293d509af74cef44b17a7260886bb7955e96756922c69fc601ced2a2",
+      "width": 1440,
+      "height": 1760,
+      "originalSha256": "5dbace7c9f0e55f7be7c000c961f820073fb1446aa93871b128f17b72809766b",
+      "originalWidth": 720,
+      "originalHeight": 880,
+      "image": "https://maohgakuin.com/assets/img/character/img_anoshu.png"
+    },
+    "gusta-s1": {
+      "sha256": "608b907d1b29c377ce7be2ee974e37d1ed8a4cb4111a6b53cb63ce068875857d",
+      "width": 1140,
+      "height": 2320,
+      "originalSha256": "a94bb16396c3aa3ed09da2fdd80a0a2da7ed77d9a8cfb3ccb3ec495c6789423d",
+      "originalWidth": 570,
+      "originalHeight": 1160,
+      "image": "https://maohgakuin.com/1st/assets/img/chara/img_gusta.png"
+    },
+    "izabella-s1": {
+      "sha256": "871de2790b004f3fd339a5d379117c218956938e821e4ffe387f572cdb7ddb33",
+      "width": 1140,
+      "height": 2320,
+      "originalSha256": "d70c1c62b71c1f85d0d88b512dd45be9f71219d0a41be6e2c592d75326e79caa",
+      "originalWidth": 570,
+      "originalHeight": 1160,
+      "image": "https://maohgakuin.com/1st/assets/img/chara/img_izabella2.png"
+    },
+    "anos-s1": {
+      "sha256": "3e8f336380bc70b178077104a7434695474026896f6e39d84a65277420fb4e5e",
+      "width": 1140,
+      "height": 2320,
+      "originalSha256": "20b80191933246e1d2c38e897a43672330a7d51d1dc1afe03e28a74cf6a4a4b7",
+      "originalWidth": 570,
+      "originalHeight": 1160,
+      "image": "https://maohgakuin.com/1st/assets/img/chara/img_anos.png"
+    },
+    "misha-s1": {
+      "sha256": "57c27572fbe0780098a870f14ff35f3cc967162cb00fff88888e9dac5292fa3f",
+      "width": 1140,
+      "height": 2320,
+      "originalSha256": "4a6a839d13c1fe7134e33e279f914b7aaf809af377cd67a24a46b9a7209ae01c",
+      "originalWidth": 570,
+      "originalHeight": 1160,
+      "image": "https://maohgakuin.com/1st/assets/img/chara/img_misha.png"
+    },
+    "sasha-s1": {
+      "sha256": "81ea668aee0b06f41e5114a88fbf85008b38e0eca1bd33a4637f1e26a24c4d96",
+      "width": 1140,
+      "height": 2320,
+      "originalSha256": "2217aaf28fabef8a6762392b0ee57ff1a3c8dd2df9715ed7741af0f8f43a525b",
+      "originalWidth": 570,
+      "originalHeight": 1160,
+      "image": "https://maohgakuin.com/1st/assets/img/chara/img_sasha.png"
+    },
+    "lay-s1": {
+      "sha256": "42f18a012aada09eaa25955dfca169d10d08645c6fb66e82cbf6b0a33aa3c60a",
+      "width": 1140,
+      "height": 2320,
+      "originalSha256": "04f7145cb2b41301c2b3e5fd908c115c21adf144ec02a7ff36ccbfbcff112d24",
+      "originalWidth": 570,
+      "originalHeight": 1160,
+      "image": "https://maohgakuin.com/1st/assets/img/chara/img_lay.png"
+    },
+    "misa-s1": {
+      "sha256": "35b965c9c2bdb76713a1e937fa487f612b22ff812efd537511753a9629e8eb8b",
+      "width": 1140,
+      "height": 2320,
+      "originalSha256": "f528bab939a4eb3f8f9e57beceec20bc35f2c5e32116f75d0279bda93d81f8c5",
+      "originalWidth": 570,
+      "originalHeight": 1160,
+      "image": "https://maohgakuin.com/1st/assets/img/chara/img_misa.png"
+    },
+    "eleonore-s1": {
+      "sha256": "6ee45412499d12d3ffe1e54acd53bde7c8a7fbf98d26569a2acc6b105617ffbb",
+      "width": 1140,
+      "height": 2320,
+      "originalSha256": "7a70aba26354c6ad645cf0a42ece8779ab3903f9f15e31e2f22381077400d4d3",
+      "originalWidth": 570,
+      "originalHeight": 1160,
+      "image": "https://maohgakuin.com/1st/assets/img/chara/img_eleonore.png"
+    },
+    "emilia-s1": {
+      "sha256": "50e974ee392f3aababcc04949a98cce166fd3074378fcc6db3593e4d564a09dd",
+      "width": 1140,
+      "height": 2320,
+      "originalSha256": "cadc6ce0dd100e3c2e135e2ebe52f0184b07417a9d8420ce197377294a8bd17c",
+      "originalWidth": 570,
+      "originalHeight": 1160,
+      "image": "https://maohgakuin.com/1st/assets/img/chara/img_emilia.png"
     }
   }
 }
