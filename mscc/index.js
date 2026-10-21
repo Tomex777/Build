@@ -436,6 +436,7 @@ let settingsMtimeMs = 0
 let settingsPollTimer = null
 
 const handledReply = new Map()
+const aiFailureNotices = new Map()
 const handledDelete = new Map()
 const handledAuto = new Map()
 const groupNames = new Map()
@@ -1499,6 +1500,7 @@ async function handleProfileAssistant(account, msg, authority, rawText) {
   const senderPersonality = senderPersonalityFromPresence(authority, presence)
   const text = stripAssistantAddress(rawText, profile?.displayName || assistant.displayName || 'Personality')
     || 'You were mentioned. Respond naturally.'
+  const aiStartedAt = Date.now()
 
   const result = await assistant.answer({
     chatJid:chat,
@@ -1513,7 +1515,40 @@ async function handleProfileAssistant(account, msg, authority, rawText) {
     // No extra model call: this is a small optional instruction in the existing reply.
     reactionSoundPolicy:isGroup(chat) && !senderPersonality ? await reactionSounds.promptFor(chat) : '',
   })
-  if (!result?.ok || !result.text) return false
+  if (!result?.ok || !result.text) {
+    // A provider failure is NOT a successful AI response. Cortex can now
+    // distinguish rate limits, cooldowns, auth failures and timeouts without
+    // recording prompt text, phone numbers, or private credentials.
+    const reason = String(result?.reason || 'unavailable').slice(0, 64)
+    await recordActivity('ai.failed', {
+      account:account.id,
+      profile:profile?.id || assistant.profileId || '',
+      group:isGroup(chat),
+      activation:activation.reason,
+      reason,
+      durationMs:Date.now() - aiStartedAt,
+    })
+    // Only one failure notice per chat/minute, and only on an explicitly
+    // activated request. Never override the Cortex DM-off setting.
+    if (!senderPersonality && account?.sock) {
+      const noticeKey = account.id + '|' + chat
+      const now = Date.now()
+      if (now - (aiFailureNotices.get(noticeKey) || 0) >= 60000) {
+        aiFailureNotices.set(noticeKey, now)
+        if (aiFailureNotices.size > 256) {
+          for (const [key, at] of aiFailureNotices) if (now - at > 60000) aiFailureNotices.delete(key)
+        }
+        const overloaded = ['http-429', 'cooldown', 'no-healthy-keys'].includes(reason)
+        await sendAssistantReply(account, msg, overloaded
+          ? 'I hit a temporary AI limit. Please try again shortly.'
+          : 'I could not finish that reply. Please try again shortly.', {
+          presence,
+          allowPersonalityMentions:false,
+        })
+      }
+    }
+    return true
+  }
   const reaction = parseReactionSoundDirective(result.text)
   if (!reaction.text) return false
 
@@ -1531,6 +1566,7 @@ async function handleProfileAssistant(account, msg, authority, rawText) {
     group:isGroup(chat),
     activation:activation.reason,
     usedWeb:result.usedWeb === true,
+    durationMs:Date.now() - aiStartedAt,
   })
   return true
 }
@@ -3535,7 +3571,7 @@ async function init() {
     getState: webState,
     getActivity: activity,
     getAccountDiagnostics,
-    getCloudDashboard: () => megaStorageDashboard(),
+    getCloudDashboard: () => megaStorageDashboard({ passive:true }),
     getCloudMounts: () => megaAvailableMounts(),
     verifyCloudFolder: ({ targetId }) => megaVerifyFolder({ targetId }),
     pairAccount,

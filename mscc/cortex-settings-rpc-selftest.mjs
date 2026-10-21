@@ -14,6 +14,7 @@ const port = () => new Promise((resolve, reject) => {
 const httpPort = await port()
 const controlPort = await port()
 const calls = []
+let explicitDiscoveries = 0
 const values = { autoCc: false }
 const panel = startWebPanel({
   port: httpPort,
@@ -27,6 +28,10 @@ const panel = startWebPanel({
     values[key] = value
   },
   getActivity: async () => [],
+  getCloudMounts: async () => {
+    explicitDiscoveries++
+    return [{nodeId:'mock-node-123',label:'Test MEGA shared folder'}]
+  },
 })
 try {
   const url = `http://127.0.0.1:${controlPort}/settings`
@@ -57,7 +62,18 @@ try {
   assert.equal((await send({key:'autoCc',value:false},
     `http://127.0.0.1:${httpPort}/settings`)).status, 401)
   assert.equal(values.autoCc, true)
-  console.log('PASS: NIGHT owns private Cortex Settings writes via loopback only')
+  const cloudUrl = `http://127.0.0.1:${controlPort}/cloud/discover`
+  const passive = await fetch(cloudUrl)
+  assert.equal(passive.status, 200)
+  assert.deepEqual(await passive.json(), { mounts:[], signInRequired:true })
+  assert.equal(explicitDiscoveries,0,'old Cortex GET must not log into MEGA')
+  const deliberate = await fetch(cloudUrl + '/explicit', {method:'POST'})
+  assert.equal(deliberate.status,200)
+  const found = await deliberate.json()
+  assert.equal(found.mounts[0].nodeId,'mock-node-123')
+  assert.equal(explicitDiscoveries,1)
+  assert.equal((await fetch(cloudUrl+'/explicit')).status,404)
+  console.log('PASS: NIGHT owner-only Settings RPC and MEGA discovery requires explicit POST')
 } finally {
   panel.close()
 }

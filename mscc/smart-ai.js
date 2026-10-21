@@ -79,7 +79,8 @@ export function createSmartAI({
   const models = modelList(env)
   const endpoint = String(env.GROQ_API_URL || DEFAULT_ENDPOINT).trim() || DEFAULT_ENDPOINT
   const enabled = boolEnv(env.MSCC_SMART_AI_ENABLED, true) && keys.length > 0 && typeof fetchImpl === 'function'
-  const timeoutMs = intEnv(env.MSCC_AI_TIMEOUT_MS, 12000, 800, 60000)
+  const timeoutMs = intEnv(env.MSCC_AI_TIMEOUT_MS, 24000, 800, 60000)
+  const totalTimeoutMs = intEnv(env.MSCC_AI_TOTAL_TIMEOUT_MS, 35000, 1000, 120000)
   const keyStates = keys.map(key => ({
     key,
     disabled: false,
@@ -140,17 +141,22 @@ export function createSmartAI({
     }
     if (!input.length) return { ok:false, reason:'empty', text:'' }
 
+    const deadlineAt = now() + totalTimeoutMs
     let lastReason = 'unavailable'
     for (const model of models) {
       const order = healthyKeyIndexes()
       if (!order.length) {
-        lastReason = 'no-healthy-keys'
+        if (lastReason === 'unavailable') {
+          lastReason = keyStates.some(state => state.cooldownUntil > now()) ? 'cooldown' : 'no-healthy-keys'
+        }
         break
       }
 
       for (const index of order) {
         const state = keyStates[index]
         cursor = (index + 1) % keyStates.length
+        const remainingMs = deadlineAt - now()
+        if (remainingMs <= 0) return { ok:false, reason:lastReason === 'unavailable' ? 'timeout' : lastReason, text:'' }
         let response = null
         try {
           response = await fetchImpl(endpoint, {
@@ -167,7 +173,7 @@ export function createSmartAI({
               reasoningEffort,
               allowWeb,
             })),
-            signal:AbortSignal.timeout(timeoutMs),
+            signal:AbortSignal.timeout(Math.max(1, Math.min(timeoutMs, remainingMs))),
           })
 
           if (!response.ok) {
@@ -192,9 +198,9 @@ export function createSmartAI({
             model,
             usedWeb:Boolean(payload?.choices?.[0]?.message?.executed_tools?.length),
           }
-        } catch {
+        } catch (error) {
           markFailure(state, response)
-          lastReason = 'network'
+          lastReason = ['TimeoutError', 'AbortError'].includes(error?.name) ? 'timeout' : 'network'
         }
       }
     }

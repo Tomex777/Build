@@ -50,7 +50,7 @@ function rowLine(row, fallbackBotName = 'Bot') {
   return `[${when}] ${speaker}: ${body}`
 }
 
-function recentTranscript(rows, fallbackBotName, maxChars = 32000) {
+function recentTranscript(rows, fallbackBotName, maxChars = 7500) {
   const lines = []
   let used = 0
   for (let i = rows.length - 1; i >= 0; i -= 1) {
@@ -124,6 +124,51 @@ export function commandReference(commands = [], filter = null) {
   return [...groups.entries()]
     .map(([category, lines]) => `[${category}]\n${lines.join('\n')}`)
     .join('\n\n')
+}
+
+
+/**
+ * The complete command registry can exceed tens of thousands of tokens.
+ * Send its compact live index and only the relevant command details instead.
+ * Tiny registries retain their full descriptions for parity and tests.
+ */
+export function compactCommandReference(commands = [], filter = null, question = '') {
+  const allowed = (typeof filter === 'function' ? commands.filter(filter) : commands)
+    .filter(command => String(command?.name || '').trim())
+  if (allowed.length <= 16) return commandReference(allowed)
+  const groups = new Map()
+  for (const command of allowed) {
+    const category = String(command.capability || 'general').toLowerCase()
+    if (!groups.has(category)) groups.set(category, [])
+    groups.get(category).push('.' + command.name)
+  }
+  const index = [...groups.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([category, names]) => category + ': ' + names.sort().join(', '))
+    .join('\n').slice(0, 4000)
+
+  const query = String(question || '').toLowerCase()
+  const queryTerms = new Set((query.match(/[a-z][a-z0-9_-]{2,}/g) || [])
+    .filter(term => !['what', 'this', 'that', 'with', 'from', 'have', 'would', 'could',
+      'please', 'about', 'there', 'they', 'them', 'just', 'when', 'which', 'your',
+      'want', 'some', 'really', 'should'].includes(term)))
+  const ranked = allowed.map(command => {
+    const name = String(command.name).toLowerCase()
+    const capability = String(command.capability || 'general').toLowerCase()
+    const aliases = (command.aliases || []).map(alias => String(alias).toLowerCase())
+    const details = String(command.description || '') + ' ' + String(command.usage || '')
+    const terms = new Set((details.toLowerCase().match(/[a-z][a-z0-9_-]{2,}/g) || []))
+    let score = query.includes('.' + name) ? 100 : 0
+    if (queryTerms.has(name) || aliases.some(alias => queryTerms.has(alias))) score += 50
+    if (queryTerms.has(capability)) score += 20
+    for (const term of queryTerms) if (terms.has(term)) score += 2
+    return { command, score }
+  }).filter(row => row.score > 0)
+    .sort((a, b) => b.score - a.score || String(a.command.name).localeCompare(String(b.command.name)))
+    .slice(0, 14)
+    .map(row => row.command)
+  const details = ranked.length ? commandReference(ranked).slice(0, 4200) : '(Ask for a command by name or category for usage details.)'
+  return ('COMMAND INDEX (names only):\n' + index + '\n\nRELEVANT COMMAND DETAILS:\n' + details).slice(0, 8500)
 }
 
 export function createProfileAssistant({
@@ -266,7 +311,7 @@ export function createProfileAssistant({
     const rows = storage?.listConversationMessages?.({
       chatJid,
       sinceMs:Date.now() - 24 * 3600000,
-      limit:120,
+      limit:60,
       ascending:true,
     }) || []
 
@@ -306,21 +351,22 @@ export function createProfileAssistant({
       `CURRENT MESSAGE:\n${current}`,
       '',
       'LIVE PUBLIC COMMAND CATALOG (read-only; generated from the current registry):',
-      commandReference(getCommands(), liveCommandFilter),
+      compactCommandReference(getCommands(), liveCommandFilter, current),
       'This catalog is the source of truth for which public commands exist right now. It updates with the registry; do not rely on remembered command names that are absent from it.',
       'Do not recommend a command when the current request is an AI-native task you can perform directly. Use commands mainly for operational bot features.',
     ].filter(Boolean).join('\n\n')
 
+    const needsReasoning = /\b(why|explain|analy[sz]e|compare|reason|solve|prove|calculate|strategy)\b/i.test(current)
     const result = await ai.complete({
       system:[String(systemPrompt || '').trim(), CHARACTER_RUNTIME_RULES, cleanText(reactionSoundPolicy, 2000)].filter(Boolean).join(' '),
       messages:[{ role:'user', content:prompt }],
       allowWeb:false,
       temperature:0.62,
-      maxTokens:1800,
-      reasoningEffort:'medium',
+      maxTokens:needsReasoning ? 1800 : 1400,
+      reasoningEffort:needsReasoning ? 'medium' : 'low',
     })
 
-    if (!result.ok) return { ok:false, text:'' }
+    if (!result.ok) return { ok:false, text:'', reason:result.reason || 'unavailable' }
     return {
       ok:true,
       text:result.text,
