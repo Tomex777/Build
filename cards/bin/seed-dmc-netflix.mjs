@@ -82,7 +82,7 @@ for(const item of sources.assets) {
     const design=designForRank(item.rank);
     catalogue.cards.push({id:item.id,number:item.number,character:item.character,name:item.name,title:item.title,form:item.form,formId:item.formId,aliases:[item.name,item.title,item.character],designs:[design],status:'candidate',
       source:{provider:'netflix-animation-reference',page:item.page,image:item.url,rights:sources.rights,usage:'private-reference-only',credit:'Netflix/Capcom/Studio Mir visual, mirrored by a fan-wiki for source checking',artist:'Studio Mir / Netflix',localPath:'artwork/dmc-netflix/'+item.id+'.png',sha256:newSha,width:outMeta.width,height:outMeta.height,originalSha256:srcSha,originalWidth:meta.width,originalHeight:meta.height,processing:method},
-      recipe:{crop:[0,0,outMeta.width,outMeta.height],bottomPadding:.13,edgeFade:.002,bottomFade:.008,focal:[.5,.37],artworkPlacement:{[design]:{x:-130,y:-125,width:1260}}}});
+      recipe:{crop:[0,0,outMeta.width,outMeta.height],bottomPadding:.13,edgeFade:.002,bottomFade:.008,focal:[.5,.37],artworkPlacement:{[design]:item.id==='lady-darkcom'?{x:-80,y:-95,width:1020}:{x:-130,y:-125,width:1260}}}});
     power.assessments[item.id]={scale:power.scale,status:'proposed',rank:item.rank,universe:'dmc-netflix',continuity:item.continuity,formId:item.formId,artworkSHA256:newSha,scope:item.name+' / '+item.form,basis:slot.basis,limits:slot.limits,references:slot.references};
     lock.sources[item.id]={sha256:newSha,originalSha256:srcSha,width:outMeta.width,height:outMeta.height,originalWidth:meta.width,originalHeight:meta.height,image:item.url};
     status.successful.push(item.id);
