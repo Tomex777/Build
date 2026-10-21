@@ -2047,7 +2047,15 @@ async function handler(req, res) {
       return json(res, 200, result);
     }
     if (req.method === 'GET' && url.pathname === '/api/cortex/host/cloud/discover') {
-      return json(res, 200, await msccControl('GET', '/cloud/discover'));
+      // Old installed APKs automatically call GET on tab refresh. Never
+      // forward it to MEGA; an unauthorised-login warning is not a UX hint.
+      return json(res, 200, { mounts: [], signInRequired: true });
+    }
+    if (req.method === 'POST' && url.pathname === '/api/cortex/host/cloud/discover') {
+      // The new Android button is a deliberate remote MEGA sign-in.
+      const result = await msccControl('POST', '/cloud/discover/explicit', {}, 60_000);
+      await recordActivity('server:cloud.discover', { count: Array.isArray(result?.mounts) ? result.mounts.length : 0 });
+      return json(res, 200, result);
     }
     if (req.method === 'GET' && url.pathname === '/api/cortex/host/environment') {
       return json(res, 200, await environmentState(false));
