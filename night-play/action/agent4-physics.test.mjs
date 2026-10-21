@@ -16,6 +16,7 @@ const sandbox={
  Math:stableMath,
  W:390,H:550,TAU:Math.PI*2,
  inputs:{left:false,right:false,drag:false,lastX:0},
+ reducedEffects:false,
  started:true,state:null,
  clamp:(n,a,b)=>Math.min(b,Math.max(a,n)),
  rand:(a,b)=>a+(b-a)*.5,
