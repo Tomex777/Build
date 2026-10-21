@@ -39,6 +39,16 @@ try{
    await page.screenshot({path:resolve(evidence,'sling-touch-'+width+'.png')});
   }
   if(width===390){
+   // Grounding regression: after supports are destroyed, roof must drop to the
+   // floor even when the projectile is no longer flying. This previously froze.
+   const unsupported=await page.evaluate(()=>{
+    const t=window.__slingTest;t.reset();
+    const before=t.state.blocks[2].y;
+    t.dislodgeSupportsForTest();t.step(240);
+    return {before,after:t.state.blocks[2].y};
+   });
+   assert.ok(unsupported.after>unsupported.before+10,
+    'roof must fall under gravity after its supports disappear: '+JSON.stringify(unsupported));
    // Round 1 genuine collisions and victory + 3-star/localStorage persistence.
    const first=await page.evaluate(()=>{const a=window.__slingTest;a.reset();a.fireAt(66,-65);a.step(1150);return a.state});
    assert.equal(first.gameState,'won','first stage must be physically winnable');
