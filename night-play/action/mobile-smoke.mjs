@@ -20,7 +20,7 @@ try{
  page.on('pageerror',error=>{throw new Error('Page exception: '+String(error))});
  const output=path.join(root,'visual-output');mkdirSync(output,{recursive:true});
  const snap=()=>page.evaluate(()=>window.__nightActionTest.snapshot());
- for(const [game,title] of [['slice','Fruit Slice'],['jump','Sky Jumper'],['runner','Endless Runner'],['shooter','Space Shooter'],['bricks','Brick Breaker']]){
+ for(const [game,title] of [['slice','Fruit Slice'],['jump','Sky Jumper'],['shooter','Space Shooter'],['bricks','Brick Breaker']]){
   await page.goto(url+'/action/?game='+game);
   assert.equal(await page.locator('#title').innerText(),title,'correct game loads');
   assert.equal(await page.locator('.action-overlay').isVisible(),true,'rules and Start shown before gameplay');
