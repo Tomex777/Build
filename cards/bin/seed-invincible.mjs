@@ -46,12 +46,29 @@ for(const item of sourceList.sources){
   const previous=old?.cards?.find(c=>c.id===item.id);
   if(previous&&!refresh&&previous.source.sha256!==sha)throw Error('Source changed; refuse silently re-binding '+item.id);
   await atomic(inside(file),processed);
+  // Derive the placement from the REAL alpha silhouette, not oversized
+  // negative offsets. Heads/crowns must stay inside the outer card while
+  // shoulders, capes and limbs can still break through the inner frame.
+  const {data:pixels,info:pixelInfo}=await sharp(processed).ensureAlpha().raw().toBuffer({resolveWithObject:true});
+  let minX=pixelInfo.width,minY=pixelInfo.height,maxX=-1,maxY=-1;
+  for(let y=0;y<pixelInfo.height;y++)for(let x=0;x<pixelInfo.width;x++){
+    if(pixels[(y*pixelInfo.width+x)*4+3]<96)continue;
+    if(x<minX)minX=x;if(x>maxX)maxX=x;
+    if(y<minY)minY=y;if(y>maxY)maxY=y;
+  }
+  if(maxX-minX<180||maxY-minY<350)throw Error('Insufficient visible subject silhouette: '+item.id);
+  const subjectRatio=(maxY-minY)/(maxX-minX);
+  const subjectTargetWidth=subjectRatio<1.3?1030:900;
+  const renderWidth=Math.max(760,Math.min(1100,Math.round(subjectTargetWidth*pixelInfo.width/(maxX-minX))));
+  const pose={x:Math.round(500-(minX+maxX)*renderWidth/(2*pixelInfo.width)),
+    y:Math.round(95-minY*renderWidth/pixelInfo.width),width:renderWidth};
+  if(pose.y<0||pose.x< -250||pose.x>250)throw Error('Unsafe alpha-derived framing '+item.id+' '+JSON.stringify(pose));
   const design=designForRank(item.rank.letter);
   cards.push({id:item.id,character:item.character,name:item.name,title:item.title,form:item.form,formId:item.formId,
     number:item.number,aliases:[...new Set(item.aliases)],designs:[design],status:'candidate',
     source:{...item.source,localPath:file,sha256:sha,width:info.width,height:info.height,originalSha256,originalWidth:m.width,originalHeight:m.height,processing:'Aspect-preserving Lanczos3 resize from official alpha portrait to 1800px height; native detail unchanged'},
     recipe:{crop:[0,0,info.width,info.height],bottomPadding:0.16,edgeFade:0.005,bottomFade:0.015,focal:[0.5,0.33],
-      artworkPlacement:{[design]:item.pose}}});
+      artworkPlacement:{[design]:pose},placementAudit:{subjectBounds:[minX,minY,maxX,maxY],visibleTop:Math.round(minY*pose.width/pixelInfo.width+pose.y),sourceAspect:pixelInfo.width/pixelInfo.height}}});
   const power={scale:'night-universe-power-v1',status:'proposed',rank:item.rank.letter,formId:item.formId,
     artworkSHA256:sha,scope:item.rank.scope,basis:item.rank.basis,limits:item.rank.limits,
     references:[item.source.page,item.source.image,...item.rank.references],universe:'invincible',continuity:item.continuity};
