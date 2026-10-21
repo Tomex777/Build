@@ -40,6 +40,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -297,7 +298,11 @@ private fun NightBrowser(browser: BrowserController, openSaved: (File) -> Unit) 
                         singleLine = true,
                         textStyle = TextStyle(color = Bright, fontSize = 15.sp),
                         cursorBrush = SolidColor(Accent),
-                        keyboardOptions = KeyboardOptions(autoCorrect = false, imeAction = ImeAction.Go),
+                        keyboardOptions = KeyboardOptions(
+                            autoCorrect = false,
+                            keyboardType = KeyboardType.Uri,
+                            imeAction = ImeAction.Go
+                        ),
                         keyboardActions = KeyboardActions(onGo = { openAddress() }),
                         decorationBox = { inner ->
                             if (address.isBlank()) {
