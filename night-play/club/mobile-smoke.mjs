@@ -366,11 +366,22 @@ try{
   // expanded gallery, keeping the real index and performing its normal flight.
   await page.evaluate(()=>{
     const all=JSON.parse(localStorage.getItem('night-play-club-v1')),s=all.whot;
-    const idx=s.hands[0].findIndex(c=>c.n!==20);
-    const picked=s.hands[0][idx];
-    const top=s.deck.findIndex(c=>c.s===picked.s&&c.n!==20);
-    if(idx<0||top<0)throw Error('Cannot stage matching full-gallery play');
-    const previousTop=s.discard[s.discard.length-1];s.discard[s.discard.length-1]=s.deck.splice(top,1)[0];s.deck.push(previousTop);
+    // The preceding 21-card stress fixture may exhaust the draw deck.
+    // Pick two genuine compatible cards from the hand itself and exchange
+    // the second with the discard top. This conserves all real deck cards
+    // without relying on the randomized deck having a spare matching suit.
+    const hand=s.hands[0];let idx=-1,swap=-1;
+    for(let i=0;i<hand.length&&idx<0;i++){
+      if(hand[i].n===20)continue;
+      for(let j=0;j<hand.length;j++){
+        if(i!==j&&hand[j].n!==20&&(hand[i].s===hand[j].s||hand[i].n===hand[j].n)){
+          idx=i;swap=j;break;
+        }
+      }
+    }
+    if(idx<0||swap<0)throw Error('No two compatible cards available for gallery fixture');
+    const previousTop=s.discard[s.discard.length-1];
+    s.discard[s.discard.length-1]=hand[swap];hand[swap]=previousTop;
     s.turn=0;s.winner=null;s.pendingWhot=null;s.pendingFinish=null;
     localStorage.setItem('night-play-club-v1',JSON.stringify(all));
     window.__galleryPlayableIndex=idx;
@@ -379,7 +390,8 @@ try{
   await page.locator('.whot-view-hand').click();
   const selectable=await page.evaluate(()=>{
     const s=JSON.parse(localStorage.getItem('night-play-club-v1')).whot;
-    return s.hands[0].findIndex(c=>c.n!==20);
+    const top=s.discard[s.discard.length-1];
+    return s.hands[0].findIndex(c=>c.n!==20&&(c.s===top.s||c.n===top.n));
   });
   await page.locator('.whot-hand-gallery .whot-card[data-card="'+selectable+'"]').click();
   await page.waitForFunction(()=>JSON.parse(localStorage.getItem('night-play-club-v1')).whot.hands[0].length===20,null,{timeout:4000});
