@@ -102,7 +102,7 @@ function siegeStage(n){
 }
 for(let n=7;n<=100;n++)levels.push(siegeStage(n));
 const mats={wood:{hp:2,color:'#bd8d52',line:'#7c5937',mass:2.8},glass:{hp:1,color:'#a9e6db',line:'#4d9895',mass:1.8},stone:{hp:4,color:'#9babb1',line:'#61767b',mass:5.2}};
-let levelIdx=0,level=null,shots=0,used=0,score=0,camera=0,viewW=900,cssScale=1,skyPaddingWorld=0,sound=true,paused=false,dragging=false,gameState='intro',charge={x:SLING.x,y:SLING.y},ball=null,particles=[],tickId=0,last=0,acc=0,settle=0,follow=0,aimKeyboard=false,audioCtx=null;
+let levelIdx=0,level=null,shots=0,used=0,score=0,camera=0,viewW=900,cssScale=1,skyPaddingWorld=0,debrisActive=false,debrisStillFor=0,falloutWait=0,sound=true,paused=false,dragging=false,gameState='intro',charge={x:SLING.x,y:SLING.y},ball=null,particles=[],tickId=0,last=0,acc=0,settle=0,follow=0,aimKeyboard=false,audioCtx=null;
 let bests={};try{bests=JSON.parse(localStorage.getItem('night-play-sling-siege-bests')||'{}')}catch{bests={}}
 let unlocked=1,aimGuide=true;
 try{unlocked=clamp(Number(localStorage.getItem('night-play-sling-siege-unlocked'))||1,1,levels.length);aimGuide=localStorage.getItem('night-play-sling-siege-guide')!=='off'}catch{}
@@ -114,7 +114,7 @@ function overlay(tag,title,description,action,stars=''){$('overlayTag').textCont
 function hideOverlay(){$('overlay').hidden=true}
 function status(s){$('status').textContent=s}
 function ui(){$('level').textContent=(levelIdx+1)+' / '+levels.length;$('shots').textContent=shots;$('score').textContent=score;$('best').textContent=bests[levelIdx]||0;$('pause').setAttribute('aria-pressed',String(paused));$('pause').setAttribute('aria-label',paused?'Resume game':'Pause game');$('pause').querySelector('use').setAttribute('href',paused?'#icon-play':'#icon-pause');$('sound').textContent='Sound effects · '+(sound?'On':'Off');$('sound').setAttribute('aria-pressed',String(sound));$('aimGuide').textContent='Trajectory guide · '+(aimGuide?'On':'Off');$('aimGuide').setAttribute('aria-pressed',String(aimGuide));}
-function reset(show=true){let l=levels[levelIdx],compact=window.innerWidth<600,sceneX=x=>compact?320+(x-320)*.74:x;level={blocks:l.b.map(([x,y,w,h,mat])=>box(sceneX(x),y,w,h,mat)),enemies:l.e.map(([x,y])=>enemy(sceneX(x),y))};shots=l.shots;score=0;used=0;ball=null;charge={x:SLING.x,y:SLING.y};dragging=false;aimKeyboard=false;gameState='ready';camera=0;particles=[];paused=false;settle=0;follow=0;ui();status('Pull the orb backward to aim.');if(show)overlay('LEVEL '+(levelIdx+1),'Find the weak point',level.enemies.length+' sentinels guard this fort. You have '+shots+' shots.','Play level');else hideOverlay();draw();}
+function reset(show=true){debrisActive=false;debrisStillFor=0;falloutWait=0;let l=levels[levelIdx],compact=window.innerWidth<600,sceneX=x=>compact?320+(x-320)*.74:x;level={blocks:l.b.map(([x,y,w,h,mat])=>box(sceneX(x),y,w,h,mat)),enemies:l.e.map(([x,y])=>enemy(sceneX(x),y))};shots=l.shots;score=0;used=0;ball=null;charge={x:SLING.x,y:SLING.y};dragging=false;aimKeyboard=false;gameState='ready';camera=0;particles=[];paused=false;settle=0;follow=0;ui();status('Pull the orb backward to aim.');if(show)overlay('LEVEL '+(levelIdx+1),'Find the weak point',level.enemies.length+' sentinels guard this fort. You have '+shots+' shots.','Play level');else hideOverlay();draw();}
 function start(){hideOverlay();paused=false;if(gameState==='ready')status('Aim carefully.');ui();draw();canvas.focus({preventScroll:true})}
 function next(){levelIdx=Math.min(levels.length-1,levelIdx+1);reset(true);}
 function complete(){if(gameState==='won')return;gameState='won';unlocked=Math.max(unlocked,Math.min(levels.length,levelIdx+2));try{localStorage.setItem('night-play-sling-siege-unlocked',String(unlocked))}catch{}const stars=used<=2?3:used<=3?2:1;score+=shots*120;if(score>(bests[levelIdx]||0)){bests[levelIdx]=score;try{localStorage.setItem('night-play-sling-siege-bests',JSON.stringify(bests))}catch{}}ui();sfx(870,.3,'triangle');status('Fortress cleared!');overlay('LEVEL CLEARED','Excellent shot'+(used===1?'!':'s!'),'Score '+score+' · '+used+' shots used · '+shots+' unused shots',levelIdx===levels.length-1?'Choose a level':'Next level','★'.repeat(stars)+'☆'.repeat(3-stars));}
@@ -123,13 +123,13 @@ function fragment(x,y,color,n=8){for(let i=0;i<n;i++)particles.push({x,y,vx:rand
 function kill(o){if(!o.alive)return;o.alive=false;score+=o.kind==='enemy'?200:30;fragment(o.x+(o.w||0)/2,o.y+(o.h||0)/2,o.kind==='enemy'?'#ae8edc':mats[o.material].color,o.kind==='enemy'?22:12);sfx(o.kind==='enemy'?570:210,.13,o.kind==='enemy'?'triangle':'square');ui()}
 function impact(o,speed){if(!o||!o.alive||o.cool>0)return;if(o.kind==='enemy'){if(speed>67){kill(o)}return}if(speed>105){o.hp-=speed>370?2:1;o.cool=.11;if(o.hp<=0)kill(o);else{sfx(180,.06,'triangle');fragment(o.x+o.w/2,o.y+o.h/2,mats[o.material].color,3)}}}
 function loadBall(){ball=null;charge={x:SLING.x,y:SLING.y};aimKeyboard=false;camera=0;gameState='ready';status(shots+' shots left. Aim again.');}
-function fire(){const dx=SLING.x-charge.x,dy=SLING.y-charge.y,p=Math.hypot(dx,dy);if(gameState!=='ready'||shots<=0||p<14)return false;ball={kind:'ball',x:charge.x,y:charge.y,r:19,vx:dx*7.7,vy:dy*7.7,mass:3,alive:true,cool:0,age:0};shots--;used++;dragging=false;gameState='flying';settle=0;follow=0;ui();status('Shot '+used+' airborne');sfx(480,.16,'triangle');return true}
+function fire(){const dx=SLING.x-charge.x,dy=SLING.y-charge.y,p=Math.hypot(dx,dy);if(gameState!=='ready'||shots<=0||p<14)return false;ball={kind:'ball',x:charge.x,y:charge.y,r:19,vx:dx*7.7,vy:dy*7.7,mass:3,alive:true,cool:0,age:0};shots--;used++;dragging=false;gameState='flying';debrisActive=true;debrisStillFor=0;falloutWait=0;settle=0;follow=0;ui();status('Shot '+used+' airborne');sfx(480,.16,'triangle');return true}
 function circleRect(c,r){const px=clamp(c.x,r.x,r.x+r.w),py=clamp(c.y,r.y,r.y+r.h),dx=c.x-px,dy=c.y-py,d=Math.hypot(dx,dy);if(d>=c.r)return null;if(d>.001)return {nx:dx/d,ny:dy/d,depth:c.r-d};const left=c.x-r.x,right=r.x+r.w-c.x,top=c.y-r.y,bottom=r.y+r.h-c.y,m=Math.min(left,right,top,bottom);if(m===left)return {nx:-1,ny:0,depth:c.r+left};if(m===right)return {nx:1,ny:0,depth:c.r+right};if(m===top)return {nx:0,ny:-1,depth:c.r+top};return {nx:0,ny:1,depth:c.r+bottom}}
 function collide(a,b,nx,ny,depth){const ia=1/a.mass,ib=1/b.mass,sum=ia+ib;const push=Math.max(0,depth-.02);a.x+=nx*push*ia/sum;b.x-=nx*push*ib/sum;a.y+=ny*push*ia/sum;b.y-=ny*push*ib/sum;const rv=(a.vx-b.vx)*nx+(a.vy-b.vy)*ny;if(rv>=0)return;const j=-(1.13)*rv/sum;a.vx+=j*nx*ia;a.vy+=j*ny*ia;b.vx-=j*nx*ib;b.vy-=j*ny*ib;const speed=-rv;if(a.kind==='ball')impact(b,speed);else if(b.kind==='ball')impact(a,speed);else if(speed>185){impact(a,speed*.76);impact(b,speed*.76)}}
 function circleCircle(a,b){const dx=a.x-b.x,dy=a.y-b.y,d=Math.hypot(dx,dy),sum=a.r+b.r;if(d>=sum)return;collide(a,b,d?dx/d:1,d?dy/d:0,sum-d)}
 function rectRect(a,b){const dx=a.x+a.w/2-b.x-b.w/2,dy=a.y+a.h/2-b.y-b.h/2,ox=(a.w+b.w)/2-Math.abs(dx),oy=(a.h+b.h)/2-Math.abs(dy);if(ox<=0||oy<=0)return;if(oy<ox)collide(a,b,0,dy>=0?1:-1,oy);else collide(a,b,dx>=0?1:-1,0,ox)}
 function collideGround(o){const bottom=o.kind==='block'?o.y+o.h:o.y+o.r;if(bottom<=GROUND)return;const vy=o.vy;o.y-=bottom-GROUND;if(o.vy>0){o.vy=-o.vy*(o.kind==='ball'?.35:.07);o.vx*=o.kind==='ball'?.80:.79;if(Math.abs(o.vy)<24)o.vy=0}if(o.kind==='enemy'&&vy>240)impact(o,vy*.9);}
-function physics(dt){if(gameState!=='flying')return;if(ball&&ball.alive)ball.age+=dt;let moving=[...level.blocks.filter(b=>b.alive),...level.enemies.filter(e=>e.alive)];if(ball&&ball.alive)moving.push(ball);
+function physics(dt){if(!debrisActive)return;if(ball&&ball.alive)ball.age+=dt;let moving=[...level.blocks.filter(b=>b.alive),...level.enemies.filter(e=>e.alive)];if(ball&&ball.alive)moving.push(ball);
 for(const o of moving){o.cool=Math.max(0,(o.cool||0)-dt);o.vy=clamp(o.vy+GRAVITY*dt,-1200,1300);o.x+=o.vx*dt;o.y+=o.vy*dt;o.vx*=Math.pow(.997,dt*60);if(o.kind==='block'){if(o.x<320){o.x=320;o.vx=0}if(o.x+o.w>BOARD_W){o.x=BOARD_W-o.w;o.vx=0}}else if(o.kind==='enemy'){if(o.x<325+o.r){o.x=325+o.r;o.vx=Math.abs(o.vx)*.2}if(o.x>BOARD_W-o.r){o.x=BOARD_W-o.r;o.vx=-Math.abs(o.vx)*.2}}collideGround(o)}
 // Small fixed timestep and two positional passes keep towers stable without a 3rd-party engine.
 for(let it=0;it<2;it++){let blocks=level.blocks.filter(o=>o.alive),enemies=level.enemies.filter(o=>o.alive),actors=ball&&ball.alive?[...enemies,ball]:enemies;
@@ -139,7 +139,23 @@ for(let i=0;i<actors.length;i++)for(let j=i+1;j<actors.length;j++)circleCircle(a
 for(const o of moving)if(o.alive)collideGround(o)}
 if(ball&&ball.alive){if(ball.x>BOARD_W+60||ball.y>BOARD_H+70||ball.age>7.5){ball.alive=false}else if(ball.age>.8&&Math.hypot(ball.vx,ball.vy)<35&&ball.y>GROUND-ball.r-3){settle+=dt;if(settle>.7)ball.alive=false}else settle=0}
 if(level.enemies.every(o=>!o.alive)){complete();return}
-if(!ball||!ball.alive){if(shots<=0)failure();else loadBall();}
+// A destroyed support must keep falling even after the projectile expires.
+ // Earlier code stopped ALL gravity as soon as the next shot became ready,
+ // leaving roof slabs visibly hovering in mid-air.
+ if(gameState==='flying'&&(!ball||!ball.alive)){
+   if(shots>0)loadBall();
+   else{gameState='settling';falloutWait=0;status('Let the structure settle…');}
+ }
+ if(gameState==='settling'){
+   falloutWait+=dt;
+   if(falloutWait>=2.5)failure();
+ }
+ // Let surviving blocks and targets reach their supports/the ground during
+ // ready, victory and defeat states without simulating sleeping scenery forever.
+ const still=level.blocks.concat(level.enemies).filter(o=>o.alive)
+   .every(o=>Math.abs(o.vx)<6&&Math.abs(o.vy)<9);
+ debrisStillFor=still?debrisStillFor+dt:0;
+ if(debrisStillFor>.75&&['ready','won','lost'].includes(gameState))debrisActive=false;
 }
 function paintBackdrop(){const g=ctx.createLinearGradient(0,0,0,GROUND);g.addColorStop(0,'#a6cad1');g.addColorStop(.54,'#e6e4bd');g.addColorStop(1,'#d9dcc2');ctx.fillStyle=g;ctx.fillRect(0,-skyPaddingWorld,BOARD_W,BOARD_H+skyPaddingWorld);
 ctx.fillStyle='#f5efd2bb';ctx.beginPath();ctx.arc(758,102,50,0,TAU);ctx.fill();
@@ -172,7 +188,7 @@ canvas.addEventListener('pointermove',e=>{if(!dragging)return;e.preventDefault()
 function release(e){if(!dragging)return;e.preventDefault();dragging=false;$('board').classList.remove('aiming');if(!fire()){charge={x:SLING.x,y:SLING.y}}draw()}
 canvas.addEventListener('pointerup',release);canvas.addEventListener('pointercancel',release);
 document.addEventListener('keydown',e=>{if(!$('overlay').hidden){if(e.key==='Enter'){e.preventDefault();$('overlayAction').click()}return}if(e.key==='p'||e.key==='P'){e.preventDefault();if(!paused||!$('overlay').hidden)togglePause();return}if(paused||gameState!=='ready')return;if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown',' '].includes(e.key)){e.preventDefault();if(e.key===' '){fire();return}aimKeyboard=true;let off={x:charge.x-SLING.x,y:charge.y-SLING.y};if(Math.hypot(off.x,off.y)<10)off={x:-45,y:25};if(e.key==='ArrowLeft')off.x-=8;if(e.key==='ArrowRight')off.x+=8;if(e.key==='ArrowUp')off.y-=8;if(e.key==='ArrowDown')off.y+=8;pull({x:SLING.x+off.x,y:SLING.y+off.y})}});
-function frame(t){if(!last)last=t;const elapsed=clamp((t-last)/1000,0,.04);last=t;if(!paused&&gameState==='flying'){acc+=elapsed;let n=0;while(acc>=1/120&&n++<6){physics(1/120);acc-=1/120;}if(n>=6)acc=0}
+function frame(t){if(!last)last=t;const elapsed=clamp((t-last)/1000,0,.04);last=t;if(!paused&&debrisActive){acc+=elapsed;let n=0;while(acc>=1/120&&n++<6){physics(1/120);acc-=1/120;}if(n>=6)acc=0}
 if(!paused)for(let i=particles.length-1;i>=0;i--){let p=particles[i];p.x+=p.vx*elapsed;p.y+=p.vy*elapsed;p.vy+=GRAVITY*.5*elapsed;p.life-=elapsed;if(p.life<0)particles.splice(i,1)}draw();tickId=requestAnimationFrame(frame)}
 function togglePause(){
  if(!['ready','flying'].includes(gameState))return;
@@ -209,7 +225,7 @@ $('sound').addEventListener('click',()=>{sound=!sound;try{localStorage.setItem('
 $('aimGuide').addEventListener('click',()=>{aimGuide=!aimGuide;try{localStorage.setItem('night-play-sling-siege-guide',aimGuide?'on':'off')}catch{}ui()});
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&!paused&&$('overlay').hidden)togglePause()});
 window.addEventListener('resize',draw);
-window.__slingTest={get state(){return {gameState,levelIdx,levelCount:levels.length,unlocked,paused,shots,used,score,ball:ball?{...ball}:null,enemies:level.enemies.map(e=>({...e})),blocks:level.blocks.map(b=>({...b})),camera}},reset:()=>reset(false),fireAt:(dx,dy)=>{if(gameState!=='ready')return false;pull({x:SLING.x-dx,y:SLING.y-dy});return fire()},next:()=>next(),step:(n=1)=>{for(let i=0;i<n;i++)physics(1/120);draw()},pointer,pull};
+window.__slingTest={get state(){return {gameState,levelIdx,levelCount:levels.length,unlocked,paused,shots,used,score,ball:ball?{...ball}:null,enemies:level.enemies.map(e=>({...e})),blocks:level.blocks.map(b=>({...b})),camera,debrisActive}},reset:()=>reset(false),fireAt:(dx,dy)=>{if(gameState!=='ready')return false;pull({x:SLING.x-dx,y:SLING.y-dy});return fire()},next:()=>next(),step:(n=1)=>{for(let i=0;i<n;i++)physics(1/120);draw()},pointer,pull};
 reset(true);tickId=requestAnimationFrame(frame);
 })();
 </script>
