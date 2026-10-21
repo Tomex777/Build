@@ -52,7 +52,7 @@ class SurfaceWalkingPhysicsTest {
         // The 96-sample bound must limit total travel, not silently turn
         // 30cm steps into 250m leaps on an outlier touch displacement.
         val ridge: (Double, Double) -> Double = { x, _ ->
-            if (x in .00032..00056) .005 else 0.0
+            if (x in .00032.. .00056) .005 else 0.0
         }
         val moved = SurfaceWalkingPhysics.move(0.0, 0.0, 2.0, 0.0, ridge)
         assertTrue("large delta skipped the ridge", moved.first < .00032)
