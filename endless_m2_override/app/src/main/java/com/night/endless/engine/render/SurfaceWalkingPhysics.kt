@@ -38,10 +38,18 @@ internal object SurfaceWalkingPhysics {
         val goalZ = (z + dz).coerceIn(-BOUNDARY, BOUNDARY)
         val wholeDistance = hypot(goalX - x, goalZ - z)
         if (wholeDistance <= 1e-12 || !wholeDistance.isFinite()) return x to z
-        val count = min(MAX_SWEEP_SAMPLES, max(1, ceil(wholeDistance /
-            MAX_SWEEP_STEP_UNITS).toInt()))
-        val stepX = (goalX - x) / count
-        val stepZ = (goalZ - z) / count
+        // Never exceed the 30cm collision sample spacing. The previous
+        // min(96, requestedSamples) silently enlarged each step for a very
+        // large injected displacement, allowing a narrow ridge to be skipped.
+        // Bound travel per call instead; normal 50ms joystick steps remain
+        // unchanged, and unusually large/invalid gestures cannot teleport.
+        val sweepDistance = min(
+            wholeDistance, MAX_SWEEP_SAMPLES * MAX_SWEEP_STEP_UNITS
+        )
+        val fraction = sweepDistance / wholeDistance
+        val count = max(1, ceil(sweepDistance / MAX_SWEEP_STEP_UNITS).toInt())
+        val stepX = (goalX - x) * fraction / count
+        val stepZ = (goalZ - z) * fraction / count
 
         var currentX = x
         var currentZ = z
