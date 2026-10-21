@@ -1,0 +1,969 @@
+{
+  "version": 1,
+  "series": "invincible",
+  "name": "Invincible / NIGHT Collection",
+  "rights": "Official Invincible VS media remain copyrighted; internal candidates only.",
+  "continuityPolicy": "Core comic profiles with official VS illustration; VS-only character isolated in game continuity. Do not assign endgame power or costume to game art.",
+  "sources": [
+    {
+      "id": "mark-original",
+      "character": "mark",
+      "name": "Mark Grayson",
+      "title": "Invincible",
+      "form": "Yellow-and-blue suit",
+      "formId": "yellow-blue",
+      "number": 1,
+      "continuity": "invincible-comics-core",
+      "aliases": [
+        "Mark Grayson",
+        "Invincible"
+      ],
+      "source": {
+        "provider": "skybound-invincible-vs",
+        "page": "https://invinciblevs.com/invincible",
+        "image": "https://invinciblevs.com/wp-content/uploads/2025/07/Invincible_v2-scaled.webp",
+        "rights": "© Skybound / Robert Kirkman, Inc. All rights reserved.",
+        "usage": "reference-only; not cleared for sale or public card redistribution",
+        "credit": "Official Invincible VS fighter illustration",
+        "artist": "Quarter Up / Skybound Game Studios"
+      },
+      "rank": {
+        "letter": "S",
+        "scope": "Mark Grayson — Yellow-and-blue suit",
+        "basis": "Original-costume Viltrumite hybrid with growing strength, speed and durability.",
+        "limits": "This is not the emperor/end-of-series appearance.",
+        "references": [
+          "https://imagecomics.com/comics/series/invincible",
+          "https://invinciblevs.com/invincible"
+        ]
+      },
+      "pose": {
+        "x": -110,
+        "y": -145,
+        "width": 1230
+      }
+    },
+    {
+      "id": "atom-eve-normal",
+      "character": "atom-eve",
+      "name": "Samantha Eve Wilkins",
+      "title": "Atom Eve",
+      "form": "Standard hero / matter manipulation",
+      "formId": "standard-matter",
+      "number": 2,
+      "continuity": "invincible-comics-core",
+      "aliases": [
+        "Samantha Eve Wilkins",
+        "Atom Eve"
+      ],
+      "source": {
+        "provider": "skybound-invincible-vs",
+        "page": "https://invinciblevs.com/atom-eve",
+        "image": "https://invinciblevs.com/wp-content/uploads/2025/07/AtomEve_v2-scaled.webp",
+        "rights": "© Skybound / Robert Kirkman, Inc. All rights reserved.",
+        "usage": "reference-only; not cleared for sale or public card redistribution",
+        "credit": "Official Invincible VS fighter illustration",
+        "artist": "Quarter Up / Skybound Game Studios"
+      },
+      "rank": {
+        "letter": "A",
+        "scope": "Samantha Eve Wilkins — Standard hero / matter manipulation",
+        "basis": "Matter manipulation and constructs offer unusual versatility; ordinary mental blocks apply.",
+        "limits": "Does not depict a limiter-off revival state.",
+        "references": [
+          "https://imagecomics.com/comics/series/invincible",
+          "https://invinciblevs.com/atom-eve"
+        ]
+      },
+      "pose": {
+        "x": -140,
+        "y": -150,
+        "width": 1260
+      }
+    },
+    {
+      "id": "bulletproof-standard",
+      "character": "bulletproof",
+      "name": "Zandale Randolph",
+      "title": "Bulletproof",
+      "form": "Flight and superhuman endurance",
+      "formId": "standard",
+      "number": 3,
+      "continuity": "invincible-comics-core",
+      "aliases": [
+        "Zandale Randolph",
+        "Bulletproof"
+      ],
+      "source": {
+        "provider": "skybound-invincible-vs",
+        "page": "https://invinciblevs.com/bulletproof",
+        "image": "https://invinciblevs.com/wp-content/uploads/2025/07/Bulletproof_v3-scaled.webp",
+        "rights": "© Skybound / Robert Kirkman, Inc. All rights reserved.",
+        "usage": "reference-only; not cleared for sale or public card redistribution",
+        "credit": "Official Invincible VS fighter illustration",
+        "artist": "Quarter Up / Skybound Game Studios"
+      },
+      "rank": {
+        "letter": "A",
+        "scope": "Zandale Randolph — Flight and superhuman endurance",
+        "basis": "Strong flying combatant and durable member of the Guardians.",
+        "limits": "Not comparable to the upper Viltrumite elite.",
+        "references": [
+          "https://imagecomics.com/comics/series/invincible",
+          "https://invinciblevs.com/bulletproof"
+        ]
+      },
+      "pose": {
+        "x": -130,
+        "y": -120,
+        "width": 1190
+      }
+    },
+    {
+      "id": "thula-viltrumite",
+      "character": "thula",
+      "name": "Thula",
+      "title": "Thula",
+      "form": "Viltrumite fighter / braided-blade",
+      "formId": "viltrumite",
+      "number": 4,
+      "continuity": "invincible-comics-core",
+      "aliases": [
+        "Thula",
+        "Thula"
+      ],
+      "source": {
+        "provider": "skybound-invincible-vs",
+        "page": "https://invinciblevs.com/thula",
+        "image": "https://invinciblevs.com/wp-content/uploads/2025/07/Thula_v3-scaled.webp",
+        "rights": "© Skybound / Robert Kirkman, Inc. All rights reserved.",
+        "usage": "reference-only; not cleared for sale or public card redistribution",
+        "credit": "Official Invincible VS fighter illustration",
+        "artist": "Quarter Up / Skybound Game Studios"
+      },
+      "rank": {
+        "letter": "S",
+        "scope": "Thula — Viltrumite fighter / braided-blade",
+        "basis": "Experienced Viltrumite warrior with exceptional speed, force and a bladed braid.",
+        "limits": "Below the strongest Viltrumite heavyweights in direct feats.",
+        "references": [
+          "https://imagecomics.com/comics/series/invincible",
+          "https://invinciblevs.com/thula"
+        ]
+      },
+      "pose": {
+        "x": -120,
+        "y": -145,
+        "width": 1220
+      }
+    },
+    {
+      "id": "rex-splode-standard",
+      "character": "rex",
+      "name": "Rex Sloan",
+      "title": "Rex Splode",
+      "form": "Explosive-charge equipment",
+      "formId": "standard",
+      "number": 5,
+      "continuity": "invincible-comics-core",
+      "aliases": [
+        "Rex Sloan",
+        "Rex Splode"
+      ],
+      "source": {
+        "provider": "skybound-invincible-vs",
+        "page": "https://invinciblevs.com/rex-splode",
+        "image": "https://invinciblevs.com/wp-content/uploads/2025/08/REXSPLODE-scaled.webp",
+        "rights": "© Skybound / Robert Kirkman, Inc. All rights reserved.",
+        "usage": "reference-only; not cleared for sale or public card redistribution",
+        "credit": "Official Invincible VS fighter illustration",
+        "artist": "Quarter Up / Skybound Game Studios"
+      },
+      "rank": {
+        "letter": "C",
+        "scope": "Rex Sloan — Explosive-charge equipment",
+        "basis": "Converts objects into explosive projectiles with training and quick reactions.",
+        "limits": "Explosive output depends on usable charged material.",
+        "references": [
+          "https://imagecomics.com/comics/series/invincible",
+          "https://invinciblevs.com/rex-splode"
+        ]
+      },
+      "pose": {
+        "x": -100,
+        "y": -105,
+        "width": 1180
+      }
+    },
+    {
+      "id": "battle-beast-armed",
+      "character": "battle-beast",
+      "name": "Thokk",
+      "title": "Battle Beast",
+      "form": "Armored warrior / mace",
+      "formId": "standard-armored",
+      "number": 6,
+      "continuity": "invincible-comics-core",
+      "aliases": [
+        "Thokk",
+        "Battle Beast"
+      ],
+      "source": {
+        "provider": "skybound-invincible-vs",
+        "page": "https://invinciblevs.com/battle-beast",
+        "image": "https://invinciblevs.com/wp-content/uploads/2025/08/BattleBeast-scaled.webp",
+        "rights": "© Skybound / Robert Kirkman, Inc. All rights reserved.",
+        "usage": "reference-only; not cleared for sale or public card redistribution",
+        "credit": "Official Invincible VS fighter illustration",
+        "artist": "Quarter Up / Skybound Game Studios"
+      },
+      "rank": {
+        "letter": "SSS",
+        "scope": "Thokk — Armored warrior / mace",
+        "basis": "Brawled Thragg across a prolonged, exceptionally close duel and fought near the world's peak physical combat tier.",
+        "limits": "Thragg ultimately killed Battle Beast; this is not an automatic victory over Thragg.",
+        "references": [
+          "https://imagecomics.com/comics/series/invincible",
+          "https://invinciblevs.com/battle-beast"
+        ]
+      },
+      "pose": {
+        "x": -255,
+        "y": -190,
+        "width": 1470
+      }
+    },
+    {
+      "id": "omni-man-classic",
+      "character": "omni-man",
+      "name": "Nolan Grayson",
+      "title": "Omni-Man",
+      "form": "Classic Viltrumite uniform",
+      "formId": "classic",
+      "number": 7,
+      "continuity": "invincible-comics-core",
+      "aliases": [
+        "Nolan Grayson",
+        "Omni-Man"
+      ],
+      "source": {
+        "provider": "skybound-invincible-vs",
+        "page": "https://invinciblevs.com/omni-man",
+        "image": "https://invinciblevs.com/wp-content/uploads/2025/09/omni-man-scaled.webp",
+        "rights": "© Skybound / Robert Kirkman, Inc. All rights reserved.",
+        "usage": "reference-only; not cleared for sale or public card redistribution",
+        "credit": "Official Invincible VS fighter illustration",
+        "artist": "Quarter Up / Skybound Game Studios"
+      },
+      "rank": {
+        "letter": "SS",
+        "scope": "Nolan Grayson — Classic Viltrumite uniform",
+        "basis": "Veteran Viltrumite with extraordinary flight, strength, durability and combat experience.",
+        "limits": "Below Thragg and not interchangeable with endgame Mark.",
+        "references": [
+          "https://imagecomics.com/comics/series/invincible",
+          "https://invinciblevs.com/omni-man"
+        ]
+      },
+      "pose": {
+        "x": -125,
+        "y": -170,
+        "width": 1240
+      }
+    },
+    {
+      "id": "cecil-director",
+      "character": "cecil",
+      "name": "Cecil Stedman",
+      "title": "Cecil",
+      "form": "GDA director / civilian body",
+      "formId": "director",
+      "number": 8,
+      "continuity": "invincible-comics-core",
+      "aliases": [
+        "Cecil Stedman",
+        "Cecil"
+      ],
+      "source": {
+        "provider": "skybound-invincible-vs",
+        "page": "https://invinciblevs.com/cecil",
+        "image": "https://invinciblevs.com/wp-content/uploads/2025/10/cecil-scaled.webp",
+        "rights": "© Skybound / Robert Kirkman, Inc. All rights reserved.",
+        "usage": "reference-only; not cleared for sale or public card redistribution",
+        "credit": "Official Invincible VS fighter illustration",
+        "artist": "Quarter Up / Skybound Game Studios"
+      },
+      "rank": {
+        "letter": "F",
+        "scope": "Cecil Stedman — GDA director / civilian body",
+        "basis": "Human-level direct physical combat; strategic coordination depends on agency resources.",
+        "limits": "Grade measures personal combat, not the GDA's military reach.",
+        "references": [
+          "https://imagecomics.com/comics/series/invincible",
+          "https://invinciblevs.com/cecil"
+        ]
+      },
+      "pose": {
+        "x": -130,
+        "y": -90,
+        "width": 1200
+      }
+    },
+    {
+      "id": "monster-girl-transformed",
+      "character": "monster-girl",
+      "name": "Amanda",
+      "title": "Monster Girl",
+      "form": "Monster transformation",
+      "formId": "transformed",
+      "number": 9,
+      "continuity": "invincible-comics-core",
+      "aliases": [
+        "Amanda",
+        "Monster Girl"
+      ],
+      "source": {
+        "provider": "skybound-invincible-vs",
+        "page": "https://invinciblevs.com/monster-girl",
+        "image": "https://invinciblevs.com/wp-content/uploads/2025/10/monstergirl-scaled.webp",
+        "rights": "© Skybound / Robert Kirkman, Inc. All rights reserved.",
+        "usage": "reference-only; not cleared for sale or public card redistribution",
+        "credit": "Official Invincible VS fighter illustration",
+        "artist": "Quarter Up / Skybound Game Studios"
+      },
+      "rank": {
+        "letter": "B",
+        "scope": "Amanda — Monster transformation",
+        "basis": "A powerful transformed bruiser with high raw strength and toughness.",
+        "limits": "Does not scale to Viltrumite warleaders.",
+        "references": [
+          "https://imagecomics.com/comics/series/invincible",
+          "https://invinciblevs.com/monster-girl"
+        ]
+      },
+      "pose": {
+        "x": -250,
+        "y": -125,
+        "width": 1480
+      }
+    },
+    {
+      "id": "robot-armor",
+      "character": "robot",
+      "name": "Rudy Connors",
+      "title": "Robot",
+      "form": "Individual robotic armor",
+      "formId": "standard-armor",
+      "number": 10,
+      "continuity": "invincible-comics-core",
+      "aliases": [
+        "Rudy Connors",
+        "Robot"
+      ],
+      "source": {
+        "provider": "skybound-invincible-vs",
+        "page": "https://invinciblevs.com/robot",
+        "image": "https://invinciblevs.com/wp-content/uploads/2025/10/robot.webp",
+        "rights": "© Skybound / Robert Kirkman, Inc. All rights reserved.",
+        "usage": "reference-only; not cleared for sale or public card redistribution",
+        "credit": "Official Invincible VS fighter illustration",
+        "artist": "Quarter Up / Skybound Game Studios"
+      },
+      "rank": {
+        "letter": "B",
+        "scope": "Rudy Connors — Individual robotic armor",
+        "basis": "Capable combat suit backed by sophisticated control and battlefield calculation.",
+        "limits": "A single suit is not Robot's later army or all contingency planning.",
+        "references": [
+          "https://imagecomics.com/comics/series/invincible",
+          "https://invinciblevs.com/robot"
+        ]
+      },
+      "pose": {
+        "x": -140,
+        "y": -120,
+        "width": 1210
+      }
+    },
+    {
+      "id": "ella-elementalist",
+      "character": "ella",
+      "name": "Ella Mental",
+      "title": "Ella Mental",
+      "form": "Four-element totem / Invincible VS",
+      "formId": "totem",
+      "number": 11,
+      "continuity": "invincible-vs-game",
+      "aliases": [
+        "Ella Mental",
+        "Ella Mental"
+      ],
+      "source": {
+        "provider": "skybound-invincible-vs",
+        "page": "https://invinciblevs.com/ella-mental",
+        "image": "https://invinciblevs.com/wp-content/uploads/2025/11/APPROVED_KeyArt_EllaMental-scaled.png",
+        "rights": "© Skybound / Robert Kirkman, Inc. All rights reserved.",
+        "usage": "reference-only; not cleared for sale or public card redistribution",
+        "credit": "Official Invincible VS fighter illustration",
+        "artist": "Quarter Up / Skybound Game Studios"
+      },
+      "rank": {
+        "letter": "B",
+        "scope": "Ella Mental — Four-element totem / Invincible VS",
+        "basis": "Game-original elemental control can pressure opponents at range.",
+        "limits": "Invincible VS original; comic-series comparisons are provisional.",
+        "references": [
+          "https://imagecomics.com/comics/series/invincible",
+          "https://invinciblevs.com/ella-mental"
+        ]
+      },
+      "pose": {
+        "x": -130,
+        "y": -100,
+        "width": 1320
+      }
+    },
+    {
+      "id": "anissa-viltrumite",
+      "character": "anissa",
+      "name": "Anissa",
+      "title": "Anissa",
+      "form": "Viltrumite uniform",
+      "formId": "viltrumite",
+      "number": 12,
+      "continuity": "invincible-comics-core",
+      "aliases": [
+        "Anissa",
+        "Anissa"
+      ],
+      "source": {
+        "provider": "skybound-invincible-vs",
+        "page": "https://invinciblevs.com/anissa",
+        "image": "https://invinciblevs.com/wp-content/uploads/2026/01/anissa-full.webp",
+        "rights": "© Skybound / Robert Kirkman, Inc. All rights reserved.",
+        "usage": "reference-only; not cleared for sale or public card redistribution",
+        "credit": "Official Invincible VS fighter illustration",
+        "artist": "Quarter Up / Skybound Game Studios"
+      },
+      "rank": {
+        "letter": "S",
+        "scope": "Anissa — Viltrumite uniform",
+        "basis": "Elite Viltrumite whose strength and speed overwhelm most Earth's heroes.",
+        "limits": "Not shown above Thragg or Conquest.",
+        "references": [
+          "https://imagecomics.com/comics/series/invincible",
+          "https://invinciblevs.com/anissa"
+        ]
+      },
+      "pose": {
+        "x": -125,
+        "y": -145,
+        "width": 1200
+      }
+    },
+    {
+      "id": "lucan-viltrumite",
+      "character": "lucan",
+      "name": "Lucan",
+      "title": "Lucan",
+      "form": "Viltrumite uniform",
+      "formId": "viltrumite",
+      "number": 13,
+      "continuity": "invincible-comics-core",
+      "aliases": [
+        "Lucan",
+        "Lucan"
+      ],
+      "source": {
+        "provider": "skybound-invincible-vs",
+        "page": "https://invinciblevs.com/lucan",
+        "image": "https://invinciblevs.com/wp-content/uploads/2026/01/lucan-full-scaled.webp",
+        "rights": "© Skybound / Robert Kirkman, Inc. All rights reserved.",
+        "usage": "reference-only; not cleared for sale or public card redistribution",
+        "credit": "Official Invincible VS fighter illustration",
+        "artist": "Quarter Up / Skybound Game Studios"
+      },
+      "rank": {
+        "letter": "S",
+        "scope": "Lucan — Viltrumite uniform",
+        "basis": "Skilled Viltrumite grappler and brutal planetary enforcer.",
+        "limits": "Below the absolute Viltrumite combat peak.",
+        "references": [
+          "https://imagecomics.com/comics/series/invincible",
+          "https://invinciblevs.com/lucan"
+        ]
+      },
+      "pose": {
+        "x": -115,
+        "y": -150,
+        "width": 1220
+      }
+    },
+    {
+      "id": "powerplex-energy",
+      "character": "powerplex",
+      "name": "Scott Duvall",
+      "title": "Powerplex",
+      "form": "Kinetic-electrical amplification",
+      "formId": "powerplex",
+      "number": 14,
+      "continuity": "invincible-comics-core",
+      "aliases": [
+        "Scott Duvall",
+        "Powerplex"
+      ],
+      "source": {
+        "provider": "skybound-invincible-vs",
+        "page": "https://invinciblevs.com/powerplex",
+        "image": "https://invinciblevs.com/wp-content/uploads/2026/02/Powerplex-scaled.webp",
+        "rights": "© Skybound / Robert Kirkman, Inc. All rights reserved.",
+        "usage": "reference-only; not cleared for sale or public card redistribution",
+        "credit": "Official Invincible VS fighter illustration",
+        "artist": "Quarter Up / Skybound Game Studios"
+      },
+      "rank": {
+        "letter": "B",
+        "scope": "Scott Duvall — Kinetic-electrical amplification",
+        "basis": "Converts absorbed impacts and supplied power into dangerous electrical attacks.",
+        "limits": "Highly matchup-dependent; output is not reliable Viltrumite parity.",
+        "references": [
+          "https://imagecomics.com/comics/series/invincible",
+          "https://invinciblevs.com/powerplex"
+        ]
+      },
+      "pose": {
+        "x": -120,
+        "y": -90,
+        "width": 1190
+      }
+    },
+    {
+      "id": "dupli-kate-standard",
+      "character": "dupli-kate",
+      "name": "Kate Cha",
+      "title": "Dupli-Kate",
+      "form": "Self-duplication",
+      "formId": "standard",
+      "number": 15,
+      "continuity": "invincible-comics-core",
+      "aliases": [
+        "Kate Cha",
+        "Dupli-Kate"
+      ],
+      "source": {
+        "provider": "skybound-invincible-vs",
+        "page": "https://invinciblevs.com/dupli-kate",
+        "image": "https://invinciblevs.com/wp-content/uploads/2026/03/DupliKate.webp",
+        "rights": "© Skybound / Robert Kirkman, Inc. All rights reserved.",
+        "usage": "reference-only; not cleared for sale or public card redistribution",
+        "credit": "Official Invincible VS fighter illustration",
+        "artist": "Quarter Up / Skybound Game Studios"
+      },
+      "rank": {
+        "letter": "C",
+        "scope": "Kate Cha — Self-duplication",
+        "basis": "Can make physical duplicates and swarm opponents with coordination.",
+        "limits": "Her copies remain vulnerable to sufficiently powerful strikes.",
+        "references": [
+          "https://imagecomics.com/comics/series/invincible",
+          "https://invinciblevs.com/dupli-kate"
+        ]
+      },
+      "pose": {
+        "x": -100,
+        "y": -110,
+        "width": 1180
+      }
+    },
+    {
+      "id": "allen-coalition",
+      "character": "allen",
+      "name": "Allen",
+      "title": "Allen the Alien",
+      "form": "Coalition of Planets uniform",
+      "formId": "coalition",
+      "number": 16,
+      "continuity": "invincible-comics-core",
+      "aliases": [
+        "Allen",
+        "Allen the Alien"
+      ],
+      "source": {
+        "provider": "skybound-invincible-vs",
+        "page": "https://invinciblevs.com/allen",
+        "image": "https://invinciblevs.com/wp-content/uploads/2026/03/allen-full-body.webp",
+        "rights": "© Skybound / Robert Kirkman, Inc. All rights reserved.",
+        "usage": "reference-only; not cleared for sale or public card redistribution",
+        "credit": "Official Invincible VS fighter illustration",
+        "artist": "Quarter Up / Skybound Game Studios"
+      },
+      "rank": {
+        "letter": "SS",
+        "scope": "Allen — Coalition of Planets uniform",
+        "basis": "Post-recovery Unopan toughness and strength allow combat with major Viltrumites.",
+        "limits": "His power changes after recoveries; this generic portrayal must not stand for all stages.",
+        "references": [
+          "https://imagecomics.com/comics/series/invincible",
+          "https://invinciblevs.com/allen"
+        ]
+      },
+      "pose": {
+        "x": -140,
+        "y": -150,
+        "width": 1270
+      }
+    },
+    {
+      "id": "titan-rock",
+      "character": "titan",
+      "name": "Titan",
+      "title": "Titan",
+      "form": "Rock-plated form",
+      "formId": "stone",
+      "number": 17,
+      "continuity": "invincible-comics-core",
+      "aliases": [
+        "Titan",
+        "Titan"
+      ],
+      "source": {
+        "provider": "skybound-invincible-vs",
+        "page": "https://invinciblevs.com/titan",
+        "image": "https://invinciblevs.com/wp-content/uploads/2026/03/titan-full-scaled.webp",
+        "rights": "© Skybound / Robert Kirkman, Inc. All rights reserved.",
+        "usage": "reference-only; not cleared for sale or public card redistribution",
+        "credit": "Official Invincible VS fighter illustration",
+        "artist": "Quarter Up / Skybound Game Studios"
+      },
+      "rank": {
+        "letter": "C",
+        "scope": "Titan — Rock-plated form",
+        "basis": "Stone plating offers durable close-quarters offense and defense.",
+        "limits": "No evidence for elite Viltrumite combat parity.",
+        "references": [
+          "https://imagecomics.com/comics/series/invincible",
+          "https://invinciblevs.com/titan"
+        ]
+      },
+      "pose": {
+        "x": -90,
+        "y": -105,
+        "width": 1210
+      }
+    },
+    {
+      "id": "conquest-viltrumite",
+      "character": "conquest",
+      "name": "Conquest",
+      "title": "Conquest",
+      "form": "Veteran Viltrumite / prosthetic arm",
+      "formId": "prosthetic",
+      "number": 18,
+      "continuity": "invincible-comics-core",
+      "aliases": [
+        "Conquest",
+        "Conquest"
+      ],
+      "source": {
+        "provider": "skybound-invincible-vs",
+        "page": "https://invinciblevs.com/conquest",
+        "image": "https://invinciblevs.com/wp-content/uploads/2026/03/conquest-full-scaled.webp",
+        "rights": "© Skybound / Robert Kirkman, Inc. All rights reserved.",
+        "usage": "reference-only; not cleared for sale or public card redistribution",
+        "credit": "Official Invincible VS fighter illustration",
+        "artist": "Quarter Up / Skybound Game Studios"
+      },
+      "rank": {
+        "letter": "SS",
+        "scope": "Conquest — Veteran Viltrumite / prosthetic arm",
+        "basis": "Extremely destructive veteran Viltrumite, a severe opponent for Mark.",
+        "limits": "His strength is still beneath Thragg's apex.",
+        "references": [
+          "https://imagecomics.com/comics/series/invincible",
+          "https://invinciblevs.com/conquest"
+        ]
+      },
+      "pose": {
+        "x": -145,
+        "y": -155,
+        "width": 1270
+      }
+    },
+    {
+      "id": "universa-energy",
+      "character": "universa",
+      "name": "Universa",
+      "title": "Universa",
+      "form": "Staff-powered energy attacks",
+      "formId": "staff",
+      "number": 19,
+      "continuity": "invincible-comics-core",
+      "aliases": [
+        "Universa",
+        "Universa"
+      ],
+      "source": {
+        "provider": "skybound-invincible-vs",
+        "page": "https://invinciblevs.com/universa",
+        "image": "https://invinciblevs.com/wp-content/uploads/2026/06/universa-full.webp",
+        "rights": "© Skybound / Robert Kirkman, Inc. All rights reserved.",
+        "usage": "reference-only; not cleared for sale or public card redistribution",
+        "credit": "Official Invincible VS fighter illustration",
+        "artist": "Quarter Up / Skybound Game Studios"
+      },
+      "rank": {
+        "letter": "A",
+        "scope": "Universa — Staff-powered energy attacks",
+        "basis": "Energy weapon amplifies striking and projected power.",
+        "limits": "Dependent on her staff and not a top-tier Viltrumite.",
+        "references": [
+          "https://imagecomics.com/comics/series/invincible",
+          "https://invinciblevs.com/universa"
+        ]
+      },
+      "pose": {
+        "x": -135,
+        "y": -135,
+        "width": 1250
+      }
+    },
+    {
+      "id": "immortal-modern",
+      "character": "immortal",
+      "name": "The Immortal",
+      "title": "Immortal",
+      "form": "Modern Guardians costume",
+      "formId": "modern",
+      "number": 20,
+      "continuity": "invincible-comics-core",
+      "aliases": [
+        "The Immortal",
+        "Immortal"
+      ],
+      "source": {
+        "provider": "skybound-invincible-vs",
+        "page": "https://invinciblevs.com/the-immortal",
+        "image": "https://invinciblevs.com/wp-content/uploads/2026/06/immortal-full.webp",
+        "rights": "© Skybound / Robert Kirkman, Inc. All rights reserved.",
+        "usage": "reference-only; not cleared for sale or public card redistribution",
+        "credit": "Official Invincible VS fighter illustration",
+        "artist": "Quarter Up / Skybound Game Studios"
+      },
+      "rank": {
+        "letter": "A",
+        "scope": "The Immortal — Modern Guardians costume",
+        "basis": "Flight, strength and regenerative persistence make him a formidable Earth hero.",
+        "limits": "Defeated decisively by Omni-Man; regeneration does not equal physical parity.",
+        "references": [
+          "https://imagecomics.com/comics/series/invincible",
+          "https://invinciblevs.com/the-immortal"
+        ]
+      },
+      "pose": {
+        "x": -115,
+        "y": -115,
+        "width": 1190
+      }
+    },
+    {
+      "id": "angstrom-dimensions",
+      "character": "angstrom",
+      "name": "Angstrom Levy",
+      "title": "Angstrom Levy",
+      "form": "Dimensional portal manipulation",
+      "formId": "portals",
+      "number": 21,
+      "continuity": "invincible-comics-core",
+      "aliases": [
+        "Angstrom Levy",
+        "Angstrom Levy"
+      ],
+      "source": {
+        "provider": "skybound-invincible-vs",
+        "page": "https://invinciblevs.com/angstrom-levy",
+        "image": "https://invinciblevs.com/wp-content/uploads/2026/10/Angstrom-scaled.webp",
+        "rights": "© Skybound / Robert Kirkman, Inc. All rights reserved.",
+        "usage": "reference-only; not cleared for sale or public card redistribution",
+        "credit": "Official Invincible VS fighter illustration",
+        "artist": "Quarter Up / Skybound Game Studios"
+      },
+      "rank": {
+        "letter": "A",
+        "scope": "Angstrom Levy — Dimensional portal manipulation",
+        "basis": "Dimensional gateways are a powerful battlefield-control and escape ability.",
+        "limits": "His base body's durability is not remotely Viltrumite-class.",
+        "references": [
+          "https://imagecomics.com/comics/series/invincible",
+          "https://invinciblevs.com/angstrom-levy"
+        ]
+      },
+      "pose": {
+        "x": -150,
+        "y": -140,
+        "width": 1290
+      }
+    }
+  ],
+  "pending": [
+    {
+      "id": "mark-blue-suit",
+      "character": "mark",
+      "form": "blue-black",
+      "rank": "S",
+      "notes": "Blue-and-black era; requires matching blue-suit cutout.",
+      "status": "pending-artwork-and-form-review"
+    },
+    {
+      "id": "mark-emperor",
+      "character": "mark",
+      "form": "emperor-era",
+      "rank": "SSS",
+      "notes": "Late-comics Emperor Mark; never recolor a yellow-blue pose and relabel.",
+      "status": "pending-artwork-and-form-review"
+    },
+    {
+      "id": "atom-eve-limit-break",
+      "character": "atom-eve",
+      "form": "limiter-off",
+      "rank": "SSS",
+      "notes": "High-end matter rewrite is conditional; needs depicted source panel/cover.",
+      "status": "pending-artwork-and-form-review"
+    },
+    {
+      "id": "thragg-grand-regent",
+      "character": "thragg",
+      "form": "grand-regent",
+      "rank": "SSS",
+      "notes": "Apex Viltrumite antagonist and Battle Beast's lethal opponent.",
+      "status": "pending-artwork-and-form-review"
+    },
+    {
+      "id": "thragg-final-duel",
+      "character": "thragg",
+      "form": "final-fight",
+      "rank": "SSS",
+      "notes": "Final battle variant requires accurate comic appearance.",
+      "status": "pending-artwork-and-form-review"
+    },
+    {
+      "id": "battle-beast-duel",
+      "character": "battle-beast",
+      "form": "thragg-duel",
+      "rank": "SSS",
+      "notes": "Battle Beast wounded during Thragg duel needs unique fight-era illustration.",
+      "status": "pending-artwork-and-form-review"
+    },
+    {
+      "id": "robot-global-arsenal",
+      "character": "robot",
+      "form": "global-army",
+      "rank": "SS",
+      "notes": "Robot's distributed forces and preparation are not one suit.",
+      "status": "pending-artwork-and-form-review"
+    },
+    {
+      "id": "oliver-kid-omni-man",
+      "character": "oliver",
+      "form": "kid-omni-man",
+      "rank": "B",
+      "notes": "Oliver's early fighting era requires own illustration.",
+      "status": "pending-artwork-and-form-review"
+    },
+    {
+      "id": "oliver-adult",
+      "character": "oliver",
+      "form": "adult-viltrumite",
+      "rank": "S",
+      "notes": "Later Oliver is a separate edition from Kid Omni-Man.",
+      "status": "pending-artwork-and-form-review"
+    },
+    {
+      "id": "thaedus",
+      "character": "thaedus",
+      "form": "coalition-leader",
+      "rank": "S",
+      "notes": "Former Viltrumite resistance founder requires matching official visual.",
+      "status": "pending-artwork-and-form-review"
+    },
+    {
+      "id": "dinosaurus",
+      "character": "dinosaurus",
+      "form": "transformed",
+      "rank": "S",
+      "notes": "Destructive transformed body, unique source needed.",
+      "status": "pending-artwork-and-form-review"
+    },
+    {
+      "id": "space-racer",
+      "character": "space-racer",
+      "form": "infinity-ray",
+      "rank": "S",
+      "notes": "Weapon-dependent threat; do not equate durability with attack lethality.",
+      "status": "pending-artwork-and-form-review"
+    },
+    {
+      "id": "tech-jacket",
+      "character": "tech-jacket",
+      "form": "standard-tech-jacket",
+      "rank": "A",
+      "notes": "Advanced Geldarian armor; visual must be actual character, not Robot.",
+      "status": "pending-artwork-and-form-review"
+    },
+    {
+      "id": "black-samson",
+      "character": "black-samson",
+      "form": "armor",
+      "rank": "C",
+      "notes": "Armor-enhanced Guardian; acquire accurate source.",
+      "status": "pending-artwork-and-form-review"
+    },
+    {
+      "id": "shrinking-rae",
+      "character": "shrinking-rae",
+      "form": "standard",
+      "rank": "C",
+      "notes": "Shrinking/infiltration abilities, precise combat context matters.",
+      "status": "pending-artwork-and-form-review"
+    },
+    {
+      "id": "mauler-twins",
+      "character": "mauler-twins",
+      "form": "duo",
+      "rank": "C",
+      "notes": "Duo/composite subject; requires two identified character cutouts.",
+      "status": "pending-artwork-and-form-review"
+    },
+    {
+      "id": "levy-reinforced",
+      "character": "angstrom",
+      "form": "enhanced-brain-body",
+      "rank": "A",
+      "notes": "Post-transformation Angstrom artwork distinct from regular Levy.",
+      "status": "pending-artwork-and-form-review"
+    },
+    {
+      "id": "mark-sun-battle",
+      "character": "mark",
+      "form": "thragg-sun-duel",
+      "rank": "SSS",
+      "notes": "Final Thragg fight is not the standard yellow-suit game portrait.",
+      "status": "pending-artwork-and-form-review"
+    },
+    {
+      "id": "viltrumite-mark-alternate",
+      "character": "evil-mark",
+      "form": "invincible-war",
+      "rank": "S",
+      "notes": "Invincible War variant must retain its own correct costume.",
+      "status": "pending-artwork-and-form-review"
+    },
+    {
+      "id": "debbie-grayson",
+      "character": "debbie",
+      "form": "civilian",
+      "rank": "F",
+      "notes": "Human noncombatant story identity; optional Character family, not fantasy strength.",
+      "status": "pending-artwork-and-form-review"
+    }
+  ]
+}
