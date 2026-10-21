@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { rm } from 'node:fs/promises'
 import { openSharedStorage } from './shared-storage.js'
 import { createJosiahAssistant, likelyNeedsWeb, summaryWindowFor } from './josiah-assistant.js'
+import { compactCommandReference } from './profile-assistant.js'
 
 assert.equal(summaryWindowFor('summarize the last 6 hours'), 6)
 assert.equal(summaryWindowFor('what happened today?'), 24)
@@ -89,6 +90,22 @@ assert(!prompt.includes('.anime'))
 assert(!prompt.includes('.movie'))
 assert.equal(calls.at(-1).allowWeb, false)
 assert(String(calls.at(-1).system).includes('Never call yourself a bot'))
+
+
+{
+  // NIGHT has hundreds of commands; including every usage in every casual
+  // reply overloads the one shared Groq key's token-per-minute allowance.
+  const largeCatalog = Array.from({ length:257 }, (_, i) => ({
+    name:'tool' + i, capability:'general',
+    description:'Perform a long operational tool function. '.repeat(12),
+    usage:'.tool' + i + ' <args>',
+  }))
+  const compact = compactCommandReference(largeCatalog, null, 'How do I use .tool184?')
+  assert(compact.length <= 8500)
+  assert(compact.includes('.tool184 <args>'))
+  assert(compact.includes('COMMAND INDEX'))
+  assert(!compact.includes('Perform a long operational tool function. '.repeat(12) + '\nPerform'))
+}
 
 calls.length = 0
 const summary = await assistant.summarize({
