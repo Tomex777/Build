@@ -1,4 +1,23 @@
 {
   "version": 1,
-  "sources": {}
+  "sources": {
+    "dante-hunter": {
+      "sha256": "b354d8445e34b4ede81bca2478deb0ed95e807f696463d2d4a2fbf4b5dc4854d",
+      "originalSha256": "e2d0f4b72f0dc5d4a64f437e8eb11fe3324762eb7f8136a48fd391a4b1d1c240",
+      "width": 1104,
+      "height": 1750,
+      "originalWidth": 874,
+      "originalHeight": 1386,
+      "image": "https://static.wikia.nocookie.net/vsbattles/images/6/6c/Dante-DevilMayCry2025.png/revision/latest?cb=20250530143031"
+    },
+    "lady-darkcom": {
+      "sha256": "f7be2f71ad0c2d98ddbcbf2a6269745ba22bc31fd0d37de386f674c2d7e12162",
+      "originalSha256": "67fa7d823ae7059b1134aeba4f57897a8e36e10ccc27f44dfcccc7710cd6dbbf",
+      "width": 727,
+      "height": 1884,
+      "originalWidth": 727,
+      "originalHeight": 1884,
+      "image": "https://static.wikia.nocookie.net/devilmaycry/images/1/16/Lady_Mary_Ann_Arkham_%28Netflix%29.png/revision/latest?cb=20251018210824"
+    }
+  }
 }
