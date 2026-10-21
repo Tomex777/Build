@@ -1,0 +1,35 @@
+name: NIGHT Play Sling Siege Gameplay QA
+
+on:
+  pull_request:
+    paths:
+      - 'night-play/sling-siege/**'
+      - '.github/workflows/night-play-sling-siege-qa.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  playtest:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install real Chromium
+        run: |
+          npm install --no-save playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Play Sling Siege on five viewport sizes
+        run: node night-play/sling-siege/mobile-smoke.mjs
+      - name: Preserve render screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sling-siege-chromium-evidence
+          path: night-play/sling-siege/visual-output/*.png
+          retention-days: 14
+          if-no-files-found: warn
