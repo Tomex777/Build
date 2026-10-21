@@ -68,16 +68,26 @@ const rec = await nami.answer({
 assert.equal(rec.ok, true)
 assert(rec.text.includes('Mushishi'))
 const prompt = calls.at(-1).messages[0].content
-assert(prompt.includes('.anime'))
-assert(prompt.includes('Browse/search anime and download episodes.'))
-assert(prompt.includes('.manga'))
-assert(prompt.includes('Search manga.'))
+assert(!prompt.includes('.anime'))
+assert(!prompt.includes('.manga'))
+assert(prompt.length < 3500)
 assert(!prompt.includes('.ping'))
 assert(!prompt.includes('.movie'))
 assert(!prompt.includes('.music'))
 assert(prompt.includes('mention token: [[mention:mimi]]'))
-assert(String(calls.at(-1).system).includes('operational specialty is anime and manga'))
-assert(String(calls.at(-1).system).includes('Never call yourself a bot'))
+assert(String(calls.at(-1).system).includes('anime/manga specialist'))
+assert(String(calls.at(-1).system).includes('fellow fans'))
+
+calls.length = 0
+await nami.answer({
+  chatJid:'anime@g.us',
+  text:'How do I use .anime to find Frieren?',
+  senderName:'Teddy',
+  isGroup:true,
+  groupPersonalities,
+})
+assert(calls.at(-1).messages[0].content.includes('.anime'))
+assert(!calls.at(-1).messages[0].content.includes('.music'))
 
 calls.length = 0
 const current = await nami.answer({
