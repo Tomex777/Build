@@ -1,0 +1,399 @@
+{
+  "version": 1,
+  "series": "invincible",
+  "universe": "invincible",
+  "scope": "in-universe",
+  "scale": "night-universe-power-v1",
+  "status": "editorial-proposal",
+  "notes": "Main comic character baselines graded separately from the game-original Ella Mental. VS concept art does not establish a new costume or peak form.",
+  "assessments": {
+    "mark-original": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "S",
+      "formId": "yellow-blue",
+      "artworkSHA256": "d6ff238412dbac6118a5e0c4a5b46768e97e465ff41c909806b9b137106572e6",
+      "scope": "Mark Grayson — Yellow-and-blue suit",
+      "basis": "Original-costume Viltrumite hybrid with growing strength, speed and durability.",
+      "limits": "This is not the emperor/end-of-series appearance.",
+      "references": [
+        "https://invinciblevs.com/invincible",
+        "https://invinciblevs.com/wp-content/uploads/2025/07/Invincible_v2-scaled.webp",
+        "https://imagecomics.com/comics/series/invincible",
+        "https://invinciblevs.com/invincible"
+      ],
+      "universe": "invincible",
+      "continuity": "invincible-comics-core"
+    },
+    "atom-eve-normal": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "A",
+      "formId": "standard-matter",
+      "artworkSHA256": "70c389c2e04aeea278720e0412945551d0c3dc18f51b2660344dc47d64b48775",
+      "scope": "Samantha Eve Wilkins — Standard hero / matter manipulation",
+      "basis": "Matter manipulation and constructs offer unusual versatility; ordinary mental blocks apply.",
+      "limits": "Does not depict a limiter-off revival state.",
+      "references": [
+        "https://invinciblevs.com/atom-eve",
+        "https://invinciblevs.com/wp-content/uploads/2025/07/AtomEve_v2-scaled.webp",
+        "https://imagecomics.com/comics/series/invincible",
+        "https://invinciblevs.com/atom-eve"
+      ],
+      "universe": "invincible",
+      "continuity": "invincible-comics-core"
+    },
+    "bulletproof-standard": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "A",
+      "formId": "standard",
+      "artworkSHA256": "1ee60302c9e9cdfa45d3031d2252f3df9d714111bb33cf7acafebc74ee0271b6",
+      "scope": "Zandale Randolph — Flight / endurance",
+      "basis": "Strong flying combatant and durable member of the Guardians.",
+      "limits": "Not comparable to the upper Viltrumite elite.",
+      "references": [
+        "https://invinciblevs.com/bulletproof",
+        "https://invinciblevs.com/wp-content/uploads/2025/07/Bulletproof_v3-scaled.webp",
+        "https://imagecomics.com/comics/series/invincible",
+        "https://invinciblevs.com/bulletproof"
+      ],
+      "universe": "invincible",
+      "continuity": "invincible-comics-core"
+    },
+    "thula-viltrumite": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "S",
+      "formId": "viltrumite",
+      "artworkSHA256": "1cfc9b4bd1b1f2097cc119a6226d184cfeac507cc13873ecfbd4451ef76af9d7",
+      "scope": "Thula — Viltrumite fighter / braided-blade",
+      "basis": "Experienced Viltrumite warrior with exceptional speed, force and a bladed braid.",
+      "limits": "Below the strongest Viltrumite heavyweights in direct feats.",
+      "references": [
+        "https://invinciblevs.com/thula",
+        "https://invinciblevs.com/wp-content/uploads/2025/07/Thula_v3-scaled.webp",
+        "https://imagecomics.com/comics/series/invincible",
+        "https://invinciblevs.com/thula"
+      ],
+      "universe": "invincible",
+      "continuity": "invincible-comics-core"
+    },
+    "rex-splode-standard": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "C",
+      "formId": "standard",
+      "artworkSHA256": "79f81aca44401bf5af1c609bd9fe63db3679159ac7af6b6c149d106c30f4a4b0",
+      "scope": "Rex Sloan — Explosive-charge equipment",
+      "basis": "Converts objects into explosive projectiles with training and quick reactions.",
+      "limits": "Explosive output depends on usable charged material.",
+      "references": [
+        "https://invinciblevs.com/rex-splode",
+        "https://invinciblevs.com/wp-content/uploads/2025/08/REXSPLODE-scaled.webp",
+        "https://imagecomics.com/comics/series/invincible",
+        "https://invinciblevs.com/rex-splode"
+      ],
+      "universe": "invincible",
+      "continuity": "invincible-comics-core"
+    },
+    "battle-beast-armed": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "SSS",
+      "formId": "standard-armored",
+      "artworkSHA256": "a21f71940fb3ce48df880c99d50e2bc4fb91aa8aeb710e28de256e6edccb9528",
+      "scope": "Thokk — Armored warrior / mace",
+      "basis": "Brawled Thragg across a prolonged, exceptionally close duel and fought near the world's peak physical combat tier.",
+      "limits": "Thragg ultimately killed Battle Beast; this is not an automatic victory over Thragg.",
+      "references": [
+        "https://invinciblevs.com/battle-beast",
+        "https://invinciblevs.com/wp-content/uploads/2025/08/BattleBeast-scaled.webp",
+        "https://imagecomics.com/comics/series/invincible",
+        "https://invinciblevs.com/battle-beast"
+      ],
+      "universe": "invincible",
+      "continuity": "invincible-comics-core",
+      "featReview": {
+        "status": "verified",
+        "universe": "invincible",
+        "continuity": "invincible-comics-core",
+        "formId": "standard-armored",
+        "artworkSHA256": "a21f71940fb3ce48df880c99d50e2bc4fb91aa8aeb710e28de256e6edccb9528",
+        "locator": "Invincible (comic) #115–120, Battle Beast versus Grand Regent Thragg",
+        "claim": "Battle Beast sustains a brutal duel with Thragg, who ultimately kills him.",
+        "reference": "https://comicbook.com/comics/list/the-10-most-powerful-members-of-the-invincible-universe-ranked/"
+      }
+    },
+    "omni-man-classic": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "SS",
+      "formId": "classic",
+      "artworkSHA256": "d347ad1c5b81792789d3fe5acb232a724c79c2d0967cad4e15993bfaaf41dac3",
+      "scope": "Nolan Grayson — Classic Viltrumite uniform",
+      "basis": "Veteran Viltrumite with extraordinary flight, strength, durability and combat experience.",
+      "limits": "Below Thragg and not interchangeable with endgame Mark.",
+      "references": [
+        "https://invinciblevs.com/omni-man",
+        "https://invinciblevs.com/wp-content/uploads/2025/09/omni-man-scaled.webp",
+        "https://imagecomics.com/comics/series/invincible",
+        "https://invinciblevs.com/omni-man"
+      ],
+      "universe": "invincible",
+      "continuity": "invincible-comics-core"
+    },
+    "cecil-director": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "F",
+      "formId": "director",
+      "artworkSHA256": "53473bba1d51a435f68c87983216d6b8df7eeb77ce1f31339fd5faea9228a1aa",
+      "scope": "Cecil Stedman — GDA director / civilian body",
+      "basis": "Human-level direct physical combat; strategic coordination depends on agency resources.",
+      "limits": "Grade measures personal combat, not the GDA's military reach.",
+      "references": [
+        "https://invinciblevs.com/cecil",
+        "https://invinciblevs.com/wp-content/uploads/2025/10/cecil-scaled.webp",
+        "https://imagecomics.com/comics/series/invincible",
+        "https://invinciblevs.com/cecil"
+      ],
+      "universe": "invincible",
+      "continuity": "invincible-comics-core"
+    },
+    "monster-girl-transformed": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "B",
+      "formId": "transformed",
+      "artworkSHA256": "872b056b161c0cda00c9106a239a454049640c4a036c4c0185730c9d4ed0aa6c",
+      "scope": "Amanda — Monster transformation",
+      "basis": "A powerful transformed bruiser with high raw strength and toughness.",
+      "limits": "Does not scale to Viltrumite warleaders.",
+      "references": [
+        "https://invinciblevs.com/monster-girl",
+        "https://invinciblevs.com/wp-content/uploads/2025/10/monstergirl-scaled.webp",
+        "https://imagecomics.com/comics/series/invincible",
+        "https://invinciblevs.com/monster-girl"
+      ],
+      "universe": "invincible",
+      "continuity": "invincible-comics-core"
+    },
+    "robot-armor": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "B",
+      "formId": "standard-armor",
+      "artworkSHA256": "796185afeb854d9e26368e35fa81824104a664e691e70ec613d59294467fb54b",
+      "scope": "Rudy Connors — Individual robotic armor",
+      "basis": "Capable combat suit backed by sophisticated control and battlefield calculation.",
+      "limits": "A single suit is not Robot's later army or all contingency planning.",
+      "references": [
+        "https://invinciblevs.com/robot",
+        "https://invinciblevs.com/wp-content/uploads/2025/10/robot.webp",
+        "https://imagecomics.com/comics/series/invincible",
+        "https://invinciblevs.com/robot"
+      ],
+      "universe": "invincible",
+      "continuity": "invincible-comics-core"
+    },
+    "ella-elementalist": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "B",
+      "formId": "totem",
+      "artworkSHA256": "acc723788df16100f9074fbe44722da708935212fa1ec1591915ec4dd3020130",
+      "scope": "Ella Mental — Four-element totem / Invincible VS",
+      "basis": "Game-original elemental control can pressure opponents at range.",
+      "limits": "Invincible VS original; comic-series comparisons are provisional.",
+      "references": [
+        "https://invinciblevs.com/ella-mental",
+        "https://invinciblevs.com/wp-content/uploads/2025/11/APPROVED_KeyArt_EllaMental-scaled.png",
+        "https://imagecomics.com/comics/series/invincible",
+        "https://invinciblevs.com/ella-mental"
+      ],
+      "universe": "invincible",
+      "continuity": "invincible-vs-game"
+    },
+    "anissa-viltrumite": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "S",
+      "formId": "viltrumite",
+      "artworkSHA256": "9b2e2991e6b4bf791c4738f5904b940469b162507f1206ce77d9cbad91b8da56",
+      "scope": "Anissa — Viltrumite uniform",
+      "basis": "Elite Viltrumite whose strength and speed overwhelm most Earth's heroes.",
+      "limits": "Not shown above Thragg or Conquest.",
+      "references": [
+        "https://invinciblevs.com/anissa",
+        "https://invinciblevs.com/wp-content/uploads/2026/01/anissa-full.webp",
+        "https://imagecomics.com/comics/series/invincible",
+        "https://invinciblevs.com/anissa"
+      ],
+      "universe": "invincible",
+      "continuity": "invincible-comics-core"
+    },
+    "lucan-viltrumite": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "S",
+      "formId": "viltrumite",
+      "artworkSHA256": "b6d73d25d3725c1a7d6a7ccb23812cf16389fab8ba669935a88c726f69f6a398",
+      "scope": "Lucan — Viltrumite uniform",
+      "basis": "Skilled Viltrumite grappler and brutal planetary enforcer.",
+      "limits": "Below the absolute Viltrumite combat peak.",
+      "references": [
+        "https://invinciblevs.com/lucan",
+        "https://invinciblevs.com/wp-content/uploads/2026/01/lucan-full-scaled.webp",
+        "https://imagecomics.com/comics/series/invincible",
+        "https://invinciblevs.com/lucan"
+      ],
+      "universe": "invincible",
+      "continuity": "invincible-comics-core"
+    },
+    "powerplex-energy": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "B",
+      "formId": "powerplex",
+      "artworkSHA256": "68e1906f22a6994d53ad6a8a7eaa3ec53ddce117d34ed68b949ba605b7c711aa",
+      "scope": "Scott Duvall — Kinetic energy conversion",
+      "basis": "Converts absorbed impacts and supplied power into dangerous electrical attacks.",
+      "limits": "Highly matchup-dependent; output is not reliable Viltrumite parity.",
+      "references": [
+        "https://invinciblevs.com/powerplex",
+        "https://invinciblevs.com/wp-content/uploads/2026/02/Powerplex-scaled.webp",
+        "https://imagecomics.com/comics/series/invincible",
+        "https://invinciblevs.com/powerplex"
+      ],
+      "universe": "invincible",
+      "continuity": "invincible-comics-core"
+    },
+    "dupli-kate-standard": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "C",
+      "formId": "standard",
+      "artworkSHA256": "e9fc5729fa25bcd3050ed4fdf0a423d54638396ccc3969fb7224ef6e23fbef60",
+      "scope": "Kate Cha — Self-duplication",
+      "basis": "Can make physical duplicates and swarm opponents with coordination.",
+      "limits": "Her copies remain vulnerable to sufficiently powerful strikes.",
+      "references": [
+        "https://invinciblevs.com/dupli-kate",
+        "https://invinciblevs.com/wp-content/uploads/2026/03/DupliKate.webp",
+        "https://imagecomics.com/comics/series/invincible",
+        "https://invinciblevs.com/dupli-kate"
+      ],
+      "universe": "invincible",
+      "continuity": "invincible-comics-core"
+    },
+    "allen-coalition": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "SS",
+      "formId": "coalition",
+      "artworkSHA256": "ff09fd30b9d4242d21b2b7c4e6510cc7802f86d4219708597cb6bfb945e5c88c",
+      "scope": "Allen — Coalition of Planets uniform",
+      "basis": "Post-recovery Unopan toughness and strength allow combat with major Viltrumites.",
+      "limits": "His power changes after recoveries; this generic portrayal must not stand for all stages.",
+      "references": [
+        "https://invinciblevs.com/allen",
+        "https://invinciblevs.com/wp-content/uploads/2026/03/allen-full-body.webp",
+        "https://imagecomics.com/comics/series/invincible",
+        "https://invinciblevs.com/allen"
+      ],
+      "universe": "invincible",
+      "continuity": "invincible-comics-core"
+    },
+    "titan-rock": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "C",
+      "formId": "stone",
+      "artworkSHA256": "016ac43fac317378494dfde6987d79e46d6e737da225350df72ed1cb8ae47de9",
+      "scope": "Titan — Rock-plated form",
+      "basis": "Stone plating offers durable close-quarters offense and defense.",
+      "limits": "No evidence for elite Viltrumite combat parity.",
+      "references": [
+        "https://invinciblevs.com/titan",
+        "https://invinciblevs.com/wp-content/uploads/2026/03/titan-full-scaled.webp",
+        "https://imagecomics.com/comics/series/invincible",
+        "https://invinciblevs.com/titan"
+      ],
+      "universe": "invincible",
+      "continuity": "invincible-comics-core"
+    },
+    "conquest-viltrumite": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "SS",
+      "formId": "prosthetic",
+      "artworkSHA256": "7e681e8859772daff187402a5ddd40003c3d8df2f96578098bbf579ce006745f",
+      "scope": "Conquest — Veteran Viltrumite / prosthetic arm",
+      "basis": "Extremely destructive veteran Viltrumite, a severe opponent for Mark.",
+      "limits": "His strength is still beneath Thragg's apex.",
+      "references": [
+        "https://invinciblevs.com/conquest",
+        "https://invinciblevs.com/wp-content/uploads/2026/03/conquest-full-scaled.webp",
+        "https://imagecomics.com/comics/series/invincible",
+        "https://invinciblevs.com/conquest"
+      ],
+      "universe": "invincible",
+      "continuity": "invincible-comics-core"
+    },
+    "universa-energy": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "A",
+      "formId": "staff",
+      "artworkSHA256": "be0f638d1540b67372ea08afcda4361841bf76004fbeac854463333e18c81112",
+      "scope": "Universa — Staff-powered energy attacks",
+      "basis": "Energy weapon amplifies striking and projected power.",
+      "limits": "Dependent on her staff and not a top-tier Viltrumite.",
+      "references": [
+        "https://invinciblevs.com/universa",
+        "https://invinciblevs.com/wp-content/uploads/2026/06/universa-full.webp",
+        "https://imagecomics.com/comics/series/invincible",
+        "https://invinciblevs.com/universa"
+      ],
+      "universe": "invincible",
+      "continuity": "invincible-comics-core"
+    },
+    "immortal-modern": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "A",
+      "formId": "modern",
+      "artworkSHA256": "036b2b43636ec4f98c963ee141b252565e97dd0d9a87e620d60e18e174c7f166",
+      "scope": "The Immortal — Modern Guardians costume",
+      "basis": "Flight, strength and regenerative persistence make him a formidable Earth hero.",
+      "limits": "Defeated decisively by Omni-Man; regeneration does not equal physical parity.",
+      "references": [
+        "https://invinciblevs.com/the-immortal",
+        "https://invinciblevs.com/wp-content/uploads/2026/06/immortal-full.webp",
+        "https://imagecomics.com/comics/series/invincible",
+        "https://invinciblevs.com/the-immortal"
+      ],
+      "universe": "invincible",
+      "continuity": "invincible-comics-core"
+    },
+    "angstrom-dimensions": {
+      "scale": "night-universe-power-v1",
+      "status": "proposed",
+      "rank": "A",
+      "formId": "portals",
+      "artworkSHA256": "2affab3e7815c46daa5454f6c403481ce605af3154be689623552e253cec31b3",
+      "scope": "Angstrom Levy — Dimensional portals",
+      "basis": "Dimensional gateways are a powerful battlefield-control and escape ability.",
+      "limits": "His base body's durability is not remotely Viltrumite-class.",
+      "references": [
+        "https://invinciblevs.com/angstrom-levy",
+        "https://invinciblevs.com/wp-content/uploads/2026/10/Angstrom-scaled.webp",
+        "https://imagecomics.com/comics/series/invincible",
+        "https://invinciblevs.com/angstrom-levy"
+      ],
+      "universe": "invincible",
+      "continuity": "invincible-comics-core"
+    }
+  }
+}

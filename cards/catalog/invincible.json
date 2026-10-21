@@ -1,0 +1,1397 @@
+{
+  "version": 1,
+  "series": "invincible",
+  "name": "Invincible / NIGHT Collection",
+  "dimensions": [
+    3000,
+    4800
+  ],
+  "artworkPolicy": {
+    "distinctPerEdition": true
+  },
+  "tierPolicy": {
+    "mode": "power-selects-design"
+  },
+  "rightsNote": "Official Invincible VS assets copyright Skybound. No public or commercial reuse authorized.",
+  "cards": [
+    {
+      "id": "mark-original",
+      "character": "mark",
+      "name": "Mark Grayson",
+      "title": "Invincible",
+      "form": "Yellow-and-blue suit",
+      "formId": "yellow-blue",
+      "number": 1,
+      "aliases": [
+        "Mark Grayson",
+        "Invincible"
+      ],
+      "designs": [
+        "emberglass"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "skybound-invincible-vs",
+        "page": "https://invinciblevs.com/invincible",
+        "image": "https://invinciblevs.com/wp-content/uploads/2025/07/Invincible_v2-scaled.webp",
+        "rights": "© Skybound / Robert Kirkman, Inc. All rights reserved.",
+        "usage": "reference-only; not cleared for sale or public card redistribution",
+        "credit": "Official Invincible VS fighter illustration",
+        "artist": "Quarter Up / Skybound Game Studios",
+        "localPath": "artwork/invincible/mark-original.png",
+        "sha256": "d6ff238412dbac6118a5e0c4a5b46768e97e465ff41c909806b9b137106572e6",
+        "width": 885,
+        "height": 1800,
+        "originalSha256": "7ad3b4935e5f6a269327982a72667a8bab9a019cc2fc442905b2c7b55dc03b14",
+        "originalWidth": 1258,
+        "originalHeight": 2560,
+        "processing": "Aspect-preserving Lanczos3 resize from official alpha portrait to 1800px height; native detail unchanged"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          885,
+          1800
+        ],
+        "bottomPadding": 0.16,
+        "edgeFade": 0.005,
+        "bottomFade": 0.015,
+        "focal": [
+          0.5,
+          0.33
+        ],
+        "artworkPlacement": {
+          "emberglass": {
+            "x": 23,
+            "y": 87,
+            "width": 953
+          }
+        },
+        "placementAudit": {
+          "subjectBounds": [
+            25,
+            7,
+            861,
+            1788
+          ],
+          "visibleTop": 95,
+          "sourceAspect": 0.49166666666666664
+        }
+      }
+    },
+    {
+      "id": "atom-eve-normal",
+      "character": "atom-eve",
+      "name": "Samantha Eve Wilkins",
+      "title": "Atom Eve",
+      "form": "Standard hero / matter manipulation",
+      "formId": "standard-matter",
+      "number": 2,
+      "aliases": [
+        "Samantha Eve Wilkins",
+        "Atom Eve"
+      ],
+      "designs": [
+        "nocturne"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "skybound-invincible-vs",
+        "page": "https://invinciblevs.com/atom-eve",
+        "image": "https://invinciblevs.com/wp-content/uploads/2025/07/AtomEve_v2-scaled.webp",
+        "rights": "© Skybound / Robert Kirkman, Inc. All rights reserved.",
+        "usage": "reference-only; not cleared for sale or public card redistribution",
+        "credit": "Official Invincible VS fighter illustration",
+        "artist": "Quarter Up / Skybound Game Studios",
+        "localPath": "artwork/invincible/atom-eve-normal.png",
+        "sha256": "70c389c2e04aeea278720e0412945551d0c3dc18f51b2660344dc47d64b48775",
+        "width": 1261,
+        "height": 1800,
+        "originalSha256": "94f063caf4bafd546cf5e9d55719c172cd54dfb2d90d9588ce60e1ac33a9e24e",
+        "originalWidth": 1794,
+        "originalHeight": 2560,
+        "processing": "Aspect-preserving Lanczos3 resize from official alpha portrait to 1800px height; native detail unchanged"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          1261,
+          1800
+        ],
+        "bottomPadding": 0.16,
+        "edgeFade": 0.005,
+        "bottomFade": 0.015,
+        "focal": [
+          0.5,
+          0.33
+        ],
+        "artworkPlacement": {
+          "nocturne": {
+            "x": 32,
+            "y": 85,
+            "width": 933
+          }
+        },
+        "placementAudit": {
+          "subjectBounds": [
+            25,
+            13,
+            1241,
+            1774
+          ],
+          "visibleTop": 95,
+          "sourceAspect": 0.7005555555555556
+        }
+      }
+    },
+    {
+      "id": "bulletproof-standard",
+      "character": "bulletproof",
+      "name": "Zandale Randolph",
+      "title": "Bulletproof",
+      "form": "Flight / endurance",
+      "formId": "standard",
+      "number": 3,
+      "aliases": [
+        "Zandale Randolph",
+        "Bulletproof"
+      ],
+      "designs": [
+        "nocturne"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "skybound-invincible-vs",
+        "page": "https://invinciblevs.com/bulletproof",
+        "image": "https://invinciblevs.com/wp-content/uploads/2025/07/Bulletproof_v3-scaled.webp",
+        "rights": "© Skybound / Robert Kirkman, Inc. All rights reserved.",
+        "usage": "reference-only; not cleared for sale or public card redistribution",
+        "credit": "Official Invincible VS fighter illustration",
+        "artist": "Quarter Up / Skybound Game Studios",
+        "localPath": "artwork/invincible/bulletproof-standard.png",
+        "sha256": "1ee60302c9e9cdfa45d3031d2252f3df9d714111bb33cf7acafebc74ee0271b6",
+        "width": 752,
+        "height": 1800,
+        "originalSha256": "63c09ffc0b116b76e2ada69cebb9a939453f9d31a3d84a63369938024ac00591",
+        "originalWidth": 1069,
+        "originalHeight": 2560,
+        "processing": "Aspect-preserving Lanczos3 resize from official alpha portrait to 1800px height; native detail unchanged"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          752,
+          1800
+        ],
+        "bottomPadding": 0.16,
+        "edgeFade": 0.005,
+        "bottomFade": 0.015,
+        "focal": [
+          0.5,
+          0.33
+        ],
+        "artworkPlacement": {
+          "nocturne": {
+            "x": 21,
+            "y": 71,
+            "width": 965
+          }
+        },
+        "placementAudit": {
+          "subjectBounds": [
+            23,
+            19,
+            724,
+            1784
+          ],
+          "visibleTop": 95,
+          "sourceAspect": 0.4177777777777778
+        }
+      }
+    },
+    {
+      "id": "thula-viltrumite",
+      "character": "thula",
+      "name": "Thula",
+      "title": "Thula",
+      "form": "Viltrumite fighter / braided-blade",
+      "formId": "viltrumite",
+      "number": 4,
+      "aliases": [
+        "Thula"
+      ],
+      "designs": [
+        "emberglass"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "skybound-invincible-vs",
+        "page": "https://invinciblevs.com/thula",
+        "image": "https://invinciblevs.com/wp-content/uploads/2025/07/Thula_v3-scaled.webp",
+        "rights": "© Skybound / Robert Kirkman, Inc. All rights reserved.",
+        "usage": "reference-only; not cleared for sale or public card redistribution",
+        "credit": "Official Invincible VS fighter illustration",
+        "artist": "Quarter Up / Skybound Game Studios",
+        "localPath": "artwork/invincible/thula-viltrumite.png",
+        "sha256": "1cfc9b4bd1b1f2097cc119a6226d184cfeac507cc13873ecfbd4451ef76af9d7",
+        "width": 1209,
+        "height": 1800,
+        "originalSha256": "c4a6d0fa844a150efae45667728ed5eecadd0c5f7720d3085986dc9c0ade42b3",
+        "originalWidth": 1719,
+        "originalHeight": 2560,
+        "processing": "Aspect-preserving Lanczos3 resize from official alpha portrait to 1800px height; native detail unchanged"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          1209,
+          1800
+        ],
+        "bottomPadding": 0.16,
+        "edgeFade": 0.005,
+        "bottomFade": 0.015,
+        "focal": [
+          0.5,
+          0.33
+        ],
+        "artworkPlacement": {
+          "emberglass": {
+            "x": 13,
+            "y": 89,
+            "width": 963
+          }
+        },
+        "placementAudit": {
+          "subjectBounds": [
+            46,
+            7,
+            1176,
+            1772
+          ],
+          "visibleTop": 95,
+          "sourceAspect": 0.6716666666666666
+        }
+      }
+    },
+    {
+      "id": "rex-splode-standard",
+      "character": "rex",
+      "name": "Rex Sloan",
+      "title": "Rex Splode",
+      "form": "Explosive-charge equipment",
+      "formId": "standard",
+      "number": 5,
+      "aliases": [
+        "Rex Sloan",
+        "Rex Splode"
+      ],
+      "designs": [
+        "crimson"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "skybound-invincible-vs",
+        "page": "https://invinciblevs.com/rex-splode",
+        "image": "https://invinciblevs.com/wp-content/uploads/2025/08/REXSPLODE-scaled.webp",
+        "rights": "© Skybound / Robert Kirkman, Inc. All rights reserved.",
+        "usage": "reference-only; not cleared for sale or public card redistribution",
+        "credit": "Official Invincible VS fighter illustration",
+        "artist": "Quarter Up / Skybound Game Studios",
+        "localPath": "artwork/invincible/rex-splode-standard.png",
+        "sha256": "79f81aca44401bf5af1c609bd9fe63db3679159ac7af6b6c149d106c30f4a4b0",
+        "width": 982,
+        "height": 1800,
+        "originalSha256": "24b7e715bb65cb080e862fafe972fd83323da9a1453143f4e6726572cfc335ac",
+        "originalWidth": 1397,
+        "originalHeight": 2560,
+        "processing": "Aspect-preserving Lanczos3 resize from official alpha portrait to 1800px height; native detail unchanged"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          982,
+          1800
+        ],
+        "bottomPadding": 0.16,
+        "edgeFade": 0.005,
+        "bottomFade": 0.015,
+        "focal": [
+          0.5,
+          0.33
+        ],
+        "artworkPlacement": {
+          "crimson": {
+            "x": 39,
+            "y": 82,
+            "width": 923
+          }
+        },
+        "placementAudit": {
+          "subjectBounds": [
+            12,
+            14,
+            970,
+            1775
+          ],
+          "visibleTop": 95,
+          "sourceAspect": 0.5455555555555556
+        }
+      }
+    },
+    {
+      "id": "battle-beast-armed",
+      "character": "battle-beast",
+      "name": "Thokk",
+      "title": "Battle Beast",
+      "form": "Armored warrior / mace",
+      "formId": "standard-armored",
+      "number": 6,
+      "aliases": [
+        "Thokk",
+        "Battle Beast"
+      ],
+      "designs": [
+        "eclipse"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "skybound-invincible-vs",
+        "page": "https://invinciblevs.com/battle-beast",
+        "image": "https://invinciblevs.com/wp-content/uploads/2025/08/BattleBeast-scaled.webp",
+        "rights": "© Skybound / Robert Kirkman, Inc. All rights reserved.",
+        "usage": "reference-only; not cleared for sale or public card redistribution",
+        "credit": "Official Invincible VS fighter illustration",
+        "artist": "Quarter Up / Skybound Game Studios",
+        "localPath": "artwork/invincible/battle-beast-armed.png",
+        "sha256": "a21f71940fb3ce48df880c99d50e2bc4fb91aa8aeb710e28de256e6edccb9528",
+        "width": 1758,
+        "height": 1800,
+        "originalSha256": "599221e3fa4a19dbbd5cd1c965b2d2c746b68d460cb237753cbf3b1875a7feba",
+        "originalWidth": 2500,
+        "originalHeight": 2560,
+        "processing": "Aspect-preserving Lanczos3 resize from official alpha portrait to 1800px height; native detail unchanged"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          1758,
+          1800
+        ],
+        "bottomPadding": 0.16,
+        "edgeFade": 0.005,
+        "bottomFade": 0.015,
+        "focal": [
+          0.5,
+          0.33
+        ],
+        "artworkPlacement": {
+          "eclipse": {
+            "x": -34,
+            "y": 88,
+            "width": 1066
+          }
+        },
+        "placementAudit": {
+          "subjectBounds": [
+            32,
+            11,
+            1730,
+            1762
+          ],
+          "visibleTop": 95,
+          "sourceAspect": 0.9766666666666667
+        }
+      }
+    },
+    {
+      "id": "omni-man-classic",
+      "character": "omni-man",
+      "name": "Nolan Grayson",
+      "title": "Omni-Man",
+      "form": "Classic Viltrumite uniform",
+      "formId": "classic",
+      "number": 7,
+      "aliases": [
+        "Nolan Grayson",
+        "Omni-Man"
+      ],
+      "designs": [
+        "obsidian"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "skybound-invincible-vs",
+        "page": "https://invinciblevs.com/omni-man",
+        "image": "https://invinciblevs.com/wp-content/uploads/2025/09/omni-man-scaled.webp",
+        "rights": "© Skybound / Robert Kirkman, Inc. All rights reserved.",
+        "usage": "reference-only; not cleared for sale or public card redistribution",
+        "credit": "Official Invincible VS fighter illustration",
+        "artist": "Quarter Up / Skybound Game Studios",
+        "localPath": "artwork/invincible/omni-man-classic.png",
+        "sha256": "d347ad1c5b81792789d3fe5acb232a724c79c2d0967cad4e15993bfaaf41dac3",
+        "width": 1166,
+        "height": 1800,
+        "originalSha256": "571b59f03de783f64695d8352e6c301e7a3fdb729f1a54fcc4069f4fe4e8c8b5",
+        "originalWidth": 1659,
+        "originalHeight": 2560,
+        "processing": "Aspect-preserving Lanczos3 resize from official alpha portrait to 1800px height; native detail unchanged"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          1166,
+          1800
+        ],
+        "bottomPadding": 0.16,
+        "edgeFade": 0.005,
+        "bottomFade": 0.015,
+        "focal": [
+          0.5,
+          0.33
+        ],
+        "artworkPlacement": {
+          "obsidian": {
+            "x": 41,
+            "y": 86,
+            "width": 917
+          }
+        },
+        "placementAudit": {
+          "subjectBounds": [
+            11,
+            12,
+            1156,
+            1777
+          ],
+          "visibleTop": 95,
+          "sourceAspect": 0.6477777777777778
+        }
+      }
+    },
+    {
+      "id": "cecil-director",
+      "character": "cecil",
+      "name": "Cecil Stedman",
+      "title": "Cecil",
+      "form": "GDA director / civilian body",
+      "formId": "director",
+      "number": 8,
+      "aliases": [
+        "Cecil Stedman",
+        "Cecil"
+      ],
+      "designs": [
+        "vanguard"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "skybound-invincible-vs",
+        "page": "https://invinciblevs.com/cecil",
+        "image": "https://invinciblevs.com/wp-content/uploads/2025/10/cecil-scaled.webp",
+        "rights": "© Skybound / Robert Kirkman, Inc. All rights reserved.",
+        "usage": "reference-only; not cleared for sale or public card redistribution",
+        "credit": "Official Invincible VS fighter illustration",
+        "artist": "Quarter Up / Skybound Game Studios",
+        "localPath": "artwork/invincible/cecil-director.png",
+        "sha256": "53473bba1d51a435f68c87983216d6b8df7eeb77ce1f31339fd5faea9228a1aa",
+        "width": 895,
+        "height": 1800,
+        "originalSha256": "e4c391de6ec3654e8144121939befa7e094eca279748ffe415178e8304b6d918",
+        "originalWidth": 1273,
+        "originalHeight": 2560,
+        "processing": "Aspect-preserving Lanczos3 resize from official alpha portrait to 1800px height; native detail unchanged"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          895,
+          1800
+        ],
+        "bottomPadding": 0.16,
+        "edgeFade": 0.005,
+        "bottomFade": 0.015,
+        "focal": [
+          0.5,
+          0.33
+        ],
+        "artworkPlacement": {
+          "vanguard": {
+            "x": 51,
+            "y": 72,
+            "width": 1100
+          }
+        },
+        "placementAudit": {
+          "subjectBounds": [
+            31,
+            19,
+            699,
+            1776
+          ],
+          "visibleTop": 95,
+          "sourceAspect": 0.49722222222222223
+        }
+      }
+    },
+    {
+      "id": "monster-girl-transformed",
+      "character": "monster-girl",
+      "name": "Amanda",
+      "title": "Monster Girl",
+      "form": "Monster transformation",
+      "formId": "transformed",
+      "number": 9,
+      "aliases": [
+        "Amanda",
+        "Monster Girl"
+      ],
+      "designs": [
+        "tidelight"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "skybound-invincible-vs",
+        "page": "https://invinciblevs.com/monster-girl",
+        "image": "https://invinciblevs.com/wp-content/uploads/2025/10/monstergirl-scaled.webp",
+        "rights": "© Skybound / Robert Kirkman, Inc. All rights reserved.",
+        "usage": "reference-only; not cleared for sale or public card redistribution",
+        "credit": "Official Invincible VS fighter illustration",
+        "artist": "Quarter Up / Skybound Game Studios",
+        "localPath": "artwork/invincible/monster-girl-transformed.png",
+        "sha256": "872b056b161c0cda00c9106a239a454049640c4a036c4c0185730c9d4ed0aa6c",
+        "width": 1828,
+        "height": 1800,
+        "originalSha256": "93787335b98dca62996b65f0b0feb5d3b8216628425090791d886b82b9885f0b",
+        "originalWidth": 2560,
+        "originalHeight": 2521,
+        "processing": "Aspect-preserving Lanczos3 resize from official alpha portrait to 1800px height; native detail unchanged"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          1828,
+          1800
+        ],
+        "bottomPadding": 0.16,
+        "edgeFade": 0.005,
+        "bottomFade": 0.015,
+        "focal": [
+          0.5,
+          0.33
+        ],
+        "artworkPlacement": {
+          "tidelight": {
+            "x": -24,
+            "y": 61,
+            "width": 1056
+          }
+        },
+        "placementAudit": {
+          "subjectBounds": [
+            15,
+            58,
+            1798,
+            1737
+          ],
+          "visibleTop": 95,
+          "sourceAspect": 1.0155555555555555
+        }
+      }
+    },
+    {
+      "id": "robot-armor",
+      "character": "robot",
+      "name": "Rudy Connors",
+      "title": "Robot",
+      "form": "Individual robotic armor",
+      "formId": "standard-armor",
+      "number": 10,
+      "aliases": [
+        "Rudy Connors",
+        "Robot"
+      ],
+      "designs": [
+        "tidelight"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "skybound-invincible-vs",
+        "page": "https://invinciblevs.com/robot",
+        "image": "https://invinciblevs.com/wp-content/uploads/2025/10/robot.webp",
+        "rights": "© Skybound / Robert Kirkman, Inc. All rights reserved.",
+        "usage": "reference-only; not cleared for sale or public card redistribution",
+        "credit": "Official Invincible VS fighter illustration",
+        "artist": "Quarter Up / Skybound Game Studios",
+        "localPath": "artwork/invincible/robot-armor.png",
+        "sha256": "796185afeb854d9e26368e35fa81824104a664e691e70ec613d59294467fb54b",
+        "width": 752,
+        "height": 1800,
+        "originalSha256": "17ad182bee8bf52e4550c83e98dd78ce6397cf8c12d2fb244ee6aaf637bca458",
+        "originalWidth": 1069,
+        "originalHeight": 2560,
+        "processing": "Aspect-preserving Lanczos3 resize from official alpha portrait to 1800px height; native detail unchanged"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          752,
+          1800
+        ],
+        "bottomPadding": 0.16,
+        "edgeFade": 0.005,
+        "bottomFade": 0.015,
+        "focal": [
+          0.5,
+          0.33
+        ],
+        "artworkPlacement": {
+          "tidelight": {
+            "x": 6,
+            "y": 83,
+            "width": 1100
+          }
+        },
+        "placementAudit": {
+          "subjectBounds": [
+            85,
+            8,
+            591,
+            1794
+          ],
+          "visibleTop": 95,
+          "sourceAspect": 0.4177777777777778
+        }
+      }
+    },
+    {
+      "id": "ella-elementalist",
+      "character": "ella",
+      "name": "Ella Mental",
+      "title": "Ella Mental",
+      "form": "Four-element totem / Invincible VS",
+      "formId": "totem",
+      "number": 11,
+      "aliases": [
+        "Ella Mental"
+      ],
+      "designs": [
+        "tidelight"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "skybound-invincible-vs",
+        "page": "https://invinciblevs.com/ella-mental",
+        "image": "https://invinciblevs.com/wp-content/uploads/2025/11/APPROVED_KeyArt_EllaMental-scaled.png",
+        "rights": "© Skybound / Robert Kirkman, Inc. All rights reserved.",
+        "usage": "reference-only; not cleared for sale or public card redistribution",
+        "credit": "Official Invincible VS fighter illustration",
+        "artist": "Quarter Up / Skybound Game Studios",
+        "localPath": "artwork/invincible/ella-elementalist.png",
+        "sha256": "acc723788df16100f9074fbe44722da708935212fa1ec1591915ec4dd3020130",
+        "width": 1233,
+        "height": 1800,
+        "originalSha256": "7e1f93c7a40d80bd23ca9d1e45dd52137f89cb7ee81643d9b7d7a313a9f9f6f3",
+        "originalWidth": 1753,
+        "originalHeight": 2560,
+        "processing": "Aspect-preserving Lanczos3 resize from official alpha portrait to 1800px height; native detail unchanged"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          1233,
+          1800
+        ],
+        "bottomPadding": 0.16,
+        "edgeFade": 0.005,
+        "bottomFade": 0.015,
+        "focal": [
+          0.5,
+          0.33
+        ],
+        "artworkPlacement": {
+          "tidelight": {
+            "x": -24,
+            "y": 66,
+            "width": 1043
+          }
+        },
+        "placementAudit": {
+          "subjectBounds": [
+            88,
+            34,
+            1152,
+            1726
+          ],
+          "visibleTop": 95,
+          "sourceAspect": 0.685
+        }
+      }
+    },
+    {
+      "id": "anissa-viltrumite",
+      "character": "anissa",
+      "name": "Anissa",
+      "title": "Anissa",
+      "form": "Viltrumite uniform",
+      "formId": "viltrumite",
+      "number": 12,
+      "aliases": [
+        "Anissa"
+      ],
+      "designs": [
+        "emberglass"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "skybound-invincible-vs",
+        "page": "https://invinciblevs.com/anissa",
+        "image": "https://invinciblevs.com/wp-content/uploads/2026/01/anissa-full.webp",
+        "rights": "© Skybound / Robert Kirkman, Inc. All rights reserved.",
+        "usage": "reference-only; not cleared for sale or public card redistribution",
+        "credit": "Official Invincible VS fighter illustration",
+        "artist": "Quarter Up / Skybound Game Studios",
+        "localPath": "artwork/invincible/anissa-viltrumite.png",
+        "sha256": "9b2e2991e6b4bf791c4738f5904b940469b162507f1206ce77d9cbad91b8da56",
+        "width": 752,
+        "height": 1800,
+        "originalSha256": "e92c1bf8e6f1f118c78dec7c1a4372073dbf1306f43b7b86fe0aa579676fc2ae",
+        "originalWidth": 1069,
+        "originalHeight": 2560,
+        "processing": "Aspect-preserving Lanczos3 resize from official alpha portrait to 1800px height; native detail unchanged"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          752,
+          1800
+        ],
+        "bottomPadding": 0.16,
+        "edgeFade": 0.005,
+        "bottomFade": 0.015,
+        "focal": [
+          0.5,
+          0.33
+        ],
+        "artworkPlacement": {
+          "emberglass": {
+            "x": 25,
+            "y": 82,
+            "width": 952
+          }
+        },
+        "placementAudit": {
+          "subjectBounds": [
+            20,
+            10,
+            731,
+            1792
+          ],
+          "visibleTop": 95,
+          "sourceAspect": 0.4177777777777778
+        }
+      }
+    },
+    {
+      "id": "lucan-viltrumite",
+      "character": "lucan",
+      "name": "Lucan",
+      "title": "Lucan",
+      "form": "Viltrumite uniform",
+      "formId": "viltrumite",
+      "number": 13,
+      "aliases": [
+        "Lucan"
+      ],
+      "designs": [
+        "emberglass"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "skybound-invincible-vs",
+        "page": "https://invinciblevs.com/lucan",
+        "image": "https://invinciblevs.com/wp-content/uploads/2026/01/lucan-full-scaled.webp",
+        "rights": "© Skybound / Robert Kirkman, Inc. All rights reserved.",
+        "usage": "reference-only; not cleared for sale or public card redistribution",
+        "credit": "Official Invincible VS fighter illustration",
+        "artist": "Quarter Up / Skybound Game Studios",
+        "localPath": "artwork/invincible/lucan-viltrumite.png",
+        "sha256": "b6d73d25d3725c1a7d6a7ccb23812cf16389fab8ba669935a88c726f69f6a398",
+        "width": 1177,
+        "height": 1800,
+        "originalSha256": "e347833036829a3ff18b13e9c728dd7ba561af74f05dc8ec6021286241f9f95e",
+        "originalWidth": 1674,
+        "originalHeight": 2560,
+        "processing": "Aspect-preserving Lanczos3 resize from official alpha portrait to 1800px height; native detail unchanged"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          1177,
+          1800
+        ],
+        "bottomPadding": 0.16,
+        "edgeFade": 0.005,
+        "bottomFade": 0.015,
+        "focal": [
+          0.5,
+          0.33
+        ],
+        "artworkPlacement": {
+          "emberglass": {
+            "x": 35,
+            "y": 91,
+            "width": 935
+          }
+        },
+        "placementAudit": {
+          "subjectBounds": [
+            19,
+            5,
+            1152,
+            1789
+          ],
+          "visibleTop": 95,
+          "sourceAspect": 0.6538888888888889
+        }
+      }
+    },
+    {
+      "id": "powerplex-energy",
+      "character": "powerplex",
+      "name": "Scott Duvall",
+      "title": "Powerplex",
+      "form": "Kinetic energy conversion",
+      "formId": "powerplex",
+      "number": 14,
+      "aliases": [
+        "Scott Duvall",
+        "Powerplex"
+      ],
+      "designs": [
+        "tidelight"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "skybound-invincible-vs",
+        "page": "https://invinciblevs.com/powerplex",
+        "image": "https://invinciblevs.com/wp-content/uploads/2026/02/Powerplex-scaled.webp",
+        "rights": "© Skybound / Robert Kirkman, Inc. All rights reserved.",
+        "usage": "reference-only; not cleared for sale or public card redistribution",
+        "credit": "Official Invincible VS fighter illustration",
+        "artist": "Quarter Up / Skybound Game Studios",
+        "localPath": "artwork/invincible/powerplex-energy.png",
+        "sha256": "68e1906f22a6994d53ad6a8a7eaa3ec53ddce117d34ed68b949ba605b7c711aa",
+        "width": 1087,
+        "height": 1800,
+        "originalSha256": "31c557569cf7dd5925fba97caac6ef4ad17f887e23a421193ad5b36e6ab7d1cd",
+        "originalWidth": 1546,
+        "originalHeight": 2560,
+        "processing": "Aspect-preserving Lanczos3 resize from official alpha portrait to 1800px height; native detail unchanged"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          1087,
+          1800
+        ],
+        "bottomPadding": 0.16,
+        "edgeFade": 0.005,
+        "bottomFade": 0.015,
+        "focal": [
+          0.5,
+          0.33
+        ],
+        "artworkPlacement": {
+          "tidelight": {
+            "x": 0,
+            "y": 78,
+            "width": 1001
+          }
+        },
+        "placementAudit": {
+          "subjectBounds": [
+            54,
+            18,
+            1031,
+            1782
+          ],
+          "visibleTop": 95,
+          "sourceAspect": 0.6038888888888889
+        }
+      }
+    },
+    {
+      "id": "dupli-kate-standard",
+      "character": "dupli-kate",
+      "name": "Kate Cha",
+      "title": "Dupli-Kate",
+      "form": "Self-duplication",
+      "formId": "standard",
+      "number": 15,
+      "aliases": [
+        "Kate Cha",
+        "Dupli-Kate"
+      ],
+      "designs": [
+        "crimson"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "skybound-invincible-vs",
+        "page": "https://invinciblevs.com/dupli-kate",
+        "image": "https://invinciblevs.com/wp-content/uploads/2026/03/DupliKate.webp",
+        "rights": "© Skybound / Robert Kirkman, Inc. All rights reserved.",
+        "usage": "reference-only; not cleared for sale or public card redistribution",
+        "credit": "Official Invincible VS fighter illustration",
+        "artist": "Quarter Up / Skybound Game Studios",
+        "localPath": "artwork/invincible/dupli-kate-standard.png",
+        "sha256": "e9fc5729fa25bcd3050ed4fdf0a423d54638396ccc3969fb7224ef6e23fbef60",
+        "width": 1336,
+        "height": 1800,
+        "originalSha256": "b827cbe77417efb6f253980253491790b9cdfd3d2c03632af23d94647e59b405",
+        "originalWidth": 1900,
+        "originalHeight": 2560,
+        "processing": "Aspect-preserving Lanczos3 resize from official alpha portrait to 1800px height; native detail unchanged"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          1336,
+          1800
+        ],
+        "bottomPadding": 0.16,
+        "edgeFade": 0.005,
+        "bottomFade": 0.015,
+        "focal": [
+          0.5,
+          0.33
+        ],
+        "artworkPlacement": {
+          "crimson": {
+            "x": 23,
+            "y": 90,
+            "width": 950
+          }
+        },
+        "placementAudit": {
+          "subjectBounds": [
+            38,
+            7,
+            1304,
+            1794
+          ],
+          "visibleTop": 95,
+          "sourceAspect": 0.7422222222222222
+        }
+      }
+    },
+    {
+      "id": "allen-coalition",
+      "character": "allen",
+      "name": "Allen",
+      "title": "Allen the Alien",
+      "form": "Coalition of Planets uniform",
+      "formId": "coalition",
+      "number": 16,
+      "aliases": [
+        "Allen",
+        "Allen the Alien"
+      ],
+      "designs": [
+        "obsidian"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "skybound-invincible-vs",
+        "page": "https://invinciblevs.com/allen",
+        "image": "https://invinciblevs.com/wp-content/uploads/2026/03/allen-full-body.webp",
+        "rights": "© Skybound / Robert Kirkman, Inc. All rights reserved.",
+        "usage": "reference-only; not cleared for sale or public card redistribution",
+        "credit": "Official Invincible VS fighter illustration",
+        "artist": "Quarter Up / Skybound Game Studios",
+        "localPath": "artwork/invincible/allen-coalition.png",
+        "sha256": "ff09fd30b9d4242d21b2b7c4e6510cc7802f86d4219708597cb6bfb945e5c88c",
+        "width": 1258,
+        "height": 1800,
+        "originalSha256": "6deaa7d2471a5adf07ccc9e33eb360159c9c5910099765f7e5087d3a7d494732",
+        "originalWidth": 1789,
+        "originalHeight": 2560,
+        "processing": "Aspect-preserving Lanczos3 resize from official alpha portrait to 1800px height; native detail unchanged"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          1258,
+          1800
+        ],
+        "bottomPadding": 0.16,
+        "edgeFade": 0.005,
+        "bottomFade": 0.015,
+        "focal": [
+          0.5,
+          0.33
+        ],
+        "artworkPlacement": {
+          "obsidian": {
+            "x": 41,
+            "y": 86,
+            "width": 920
+          }
+        },
+        "placementAudit": {
+          "subjectBounds": [
+            12,
+            12,
+            1242,
+            1779
+          ],
+          "visibleTop": 95,
+          "sourceAspect": 0.6988888888888889
+        }
+      }
+    },
+    {
+      "id": "titan-rock",
+      "character": "titan",
+      "name": "Titan",
+      "title": "Titan",
+      "form": "Rock-plated form",
+      "formId": "stone",
+      "number": 17,
+      "aliases": [
+        "Titan"
+      ],
+      "designs": [
+        "crimson"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "skybound-invincible-vs",
+        "page": "https://invinciblevs.com/titan",
+        "image": "https://invinciblevs.com/wp-content/uploads/2026/03/titan-full-scaled.webp",
+        "rights": "© Skybound / Robert Kirkman, Inc. All rights reserved.",
+        "usage": "reference-only; not cleared for sale or public card redistribution",
+        "credit": "Official Invincible VS fighter illustration",
+        "artist": "Quarter Up / Skybound Game Studios",
+        "localPath": "artwork/invincible/titan-rock.png",
+        "sha256": "016ac43fac317378494dfde6987d79e46d6e737da225350df72ed1cb8ae47de9",
+        "width": 860,
+        "height": 1800,
+        "originalSha256": "b0a2026e4db88f16d4bbf54aff64e525a7a1cd1232a41b25bacd2dc5bd821b2c",
+        "originalWidth": 1223,
+        "originalHeight": 2560,
+        "processing": "Aspect-preserving Lanczos3 resize from official alpha portrait to 1800px height; native detail unchanged"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          860,
+          1800
+        ],
+        "bottomPadding": 0.16,
+        "edgeFade": 0.005,
+        "bottomFade": 0.015,
+        "focal": [
+          0.5,
+          0.33
+        ],
+        "artworkPlacement": {
+          "crimson": {
+            "x": 39,
+            "y": 84,
+            "width": 930
+          }
+        },
+        "placementAudit": {
+          "subjectBounds": [
+            10,
+            10,
+            842,
+            1793
+          ],
+          "visibleTop": 95,
+          "sourceAspect": 0.4777777777777778
+        }
+      }
+    },
+    {
+      "id": "conquest-viltrumite",
+      "character": "conquest",
+      "name": "Conquest",
+      "title": "Conquest",
+      "form": "Veteran Viltrumite / prosthetic arm",
+      "formId": "prosthetic",
+      "number": 18,
+      "aliases": [
+        "Conquest"
+      ],
+      "designs": [
+        "obsidian"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "skybound-invincible-vs",
+        "page": "https://invinciblevs.com/conquest",
+        "image": "https://invinciblevs.com/wp-content/uploads/2026/03/conquest-full-scaled.webp",
+        "rights": "© Skybound / Robert Kirkman, Inc. All rights reserved.",
+        "usage": "reference-only; not cleared for sale or public card redistribution",
+        "credit": "Official Invincible VS fighter illustration",
+        "artist": "Quarter Up / Skybound Game Studios",
+        "localPath": "artwork/invincible/conquest-viltrumite.png",
+        "sha256": "7e681e8859772daff187402a5ddd40003c3d8df2f96578098bbf579ce006745f",
+        "width": 1049,
+        "height": 1800,
+        "originalSha256": "a74269081b3f0682fd50dfb817d4148ecae72616fdc1e80e78387485ec5d9bb1",
+        "originalWidth": 1492,
+        "originalHeight": 2560,
+        "processing": "Aspect-preserving Lanczos3 resize from official alpha portrait to 1800px height; native detail unchanged"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          1049,
+          1800
+        ],
+        "bottomPadding": 0.16,
+        "edgeFade": 0.005,
+        "bottomFade": 0.015,
+        "focal": [
+          0.5,
+          0.33
+        ],
+        "artworkPlacement": {
+          "obsidian": {
+            "x": 38,
+            "y": 73,
+            "width": 928
+          }
+        },
+        "placementAudit": {
+          "subjectBounds": [
+            14,
+            25,
+            1031,
+            1789
+          ],
+          "visibleTop": 95,
+          "sourceAspect": 0.5827777777777777
+        }
+      }
+    },
+    {
+      "id": "universa-energy",
+      "character": "universa",
+      "name": "Universa",
+      "title": "Universa",
+      "form": "Staff-powered energy attacks",
+      "formId": "staff",
+      "number": 19,
+      "aliases": [
+        "Universa"
+      ],
+      "designs": [
+        "nocturne"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "skybound-invincible-vs",
+        "page": "https://invinciblevs.com/universa",
+        "image": "https://invinciblevs.com/wp-content/uploads/2026/06/universa-full.webp",
+        "rights": "© Skybound / Robert Kirkman, Inc. All rights reserved.",
+        "usage": "reference-only; not cleared for sale or public card redistribution",
+        "credit": "Official Invincible VS fighter illustration",
+        "artist": "Quarter Up / Skybound Game Studios",
+        "localPath": "artwork/invincible/universa-energy.png",
+        "sha256": "be0f638d1540b67372ea08afcda4361841bf76004fbeac854463333e18c81112",
+        "width": 1461,
+        "height": 1800,
+        "originalSha256": "a20a7bebc559f5a2c810e945cbd46ceb2cc2021ef019a19216d21d1c31a3d24f",
+        "originalWidth": 2078,
+        "originalHeight": 2560,
+        "processing": "Aspect-preserving Lanczos3 resize from official alpha portrait to 1800px height; native detail unchanged"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          1461,
+          1800
+        ],
+        "bottomPadding": 0.16,
+        "edgeFade": 0.005,
+        "bottomFade": 0.015,
+        "focal": [
+          0.5,
+          0.33
+        ],
+        "artworkPlacement": {
+          "nocturne": {
+            "x": 33,
+            "y": 92,
+            "width": 965
+          }
+        },
+        "placementAudit": {
+          "subjectBounds": [
+            25,
+            4,
+            1388,
+            1780
+          ],
+          "visibleTop": 95,
+          "sourceAspect": 0.8116666666666666
+        }
+      }
+    },
+    {
+      "id": "immortal-modern",
+      "character": "immortal",
+      "name": "The Immortal",
+      "title": "Immortal",
+      "form": "Modern Guardians costume",
+      "formId": "modern",
+      "number": 20,
+      "aliases": [
+        "The Immortal",
+        "Immortal"
+      ],
+      "designs": [
+        "nocturne"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "skybound-invincible-vs",
+        "page": "https://invinciblevs.com/the-immortal",
+        "image": "https://invinciblevs.com/wp-content/uploads/2026/06/immortal-full.webp",
+        "rights": "© Skybound / Robert Kirkman, Inc. All rights reserved.",
+        "usage": "reference-only; not cleared for sale or public card redistribution",
+        "credit": "Official Invincible VS fighter illustration",
+        "artist": "Quarter Up / Skybound Game Studios",
+        "localPath": "artwork/invincible/immortal-modern.png",
+        "sha256": "036b2b43636ec4f98c963ee141b252565e97dd0d9a87e620d60e18e174c7f166",
+        "width": 844,
+        "height": 1800,
+        "originalSha256": "41379e4afd37980246fd448307965b4397d35ae178b7c9a8a1192c1c6134c6c4",
+        "originalWidth": 1200,
+        "originalHeight": 2560,
+        "processing": "Aspect-preserving Lanczos3 resize from official alpha portrait to 1800px height; native detail unchanged"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          844,
+          1800
+        ],
+        "bottomPadding": 0.16,
+        "edgeFade": 0.005,
+        "bottomFade": 0.015,
+        "focal": [
+          0.5,
+          0.33
+        ],
+        "artworkPlacement": {
+          "nocturne": {
+            "x": 32,
+            "y": 81,
+            "width": 969
+          }
+        },
+        "placementAudit": {
+          "subjectBounds": [
+            16,
+            12,
+            800,
+            1788
+          ],
+          "visibleTop": 95,
+          "sourceAspect": 0.4688888888888889
+        }
+      }
+    },
+    {
+      "id": "angstrom-dimensions",
+      "character": "angstrom",
+      "name": "Angstrom Levy",
+      "title": "Angstrom Levy",
+      "form": "Dimensional portals",
+      "formId": "portals",
+      "number": 21,
+      "aliases": [
+        "Angstrom Levy"
+      ],
+      "designs": [
+        "nocturne"
+      ],
+      "status": "candidate",
+      "source": {
+        "provider": "skybound-invincible-vs",
+        "page": "https://invinciblevs.com/angstrom-levy",
+        "image": "https://invinciblevs.com/wp-content/uploads/2026/10/Angstrom-scaled.webp",
+        "rights": "© Skybound / Robert Kirkman, Inc. All rights reserved.",
+        "usage": "reference-only; not cleared for sale or public card redistribution",
+        "credit": "Official Invincible VS fighter illustration",
+        "artist": "Quarter Up / Skybound Game Studios",
+        "localPath": "artwork/invincible/angstrom-dimensions.png",
+        "sha256": "2affab3e7815c46daa5454f6c403481ce605af3154be689623552e253cec31b3",
+        "width": 2250,
+        "height": 1800,
+        "originalSha256": "9a902a0c0e2f50c875cc6cc2a15f09abce110b53c0dfd06426f1d27a1c8f8030",
+        "originalWidth": 2560,
+        "originalHeight": 2048,
+        "processing": "Aspect-preserving Lanczos3 resize from official alpha portrait to 1800px height; native detail unchanged"
+      },
+      "recipe": {
+        "crop": [
+          0,
+          0,
+          2250,
+          1800
+        ],
+        "bottomPadding": 0.16,
+        "edgeFade": 0.005,
+        "bottomFade": 0.015,
+        "focal": [
+          0.5,
+          0.33
+        ],
+        "artworkPlacement": {
+          "nocturne": {
+            "x": -51,
+            "y": 57,
+            "width": 1100
+          }
+        },
+        "placementAudit": {
+          "subjectBounds": [
+            77,
+            77,
+            2179,
+            1765
+          ],
+          "visibleTop": 95,
+          "sourceAspect": 1.25
+        }
+      }
+    }
+  ],
+  "pendingForms": []
+}
