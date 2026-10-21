@@ -26,6 +26,7 @@ function start(){if(!runner?.canvas)return;
   // Original Runner starts with an opening zoom animation on Chrome's error
   // page. NIGHT uses its own Start overlay but keeps Chromium physics intact.
   runner.activated=true;runner.playingIntro=false;runner.tRex.playingIntro=false;
+  runner.tRex.xPos=50; // Chromium's normal post-intro running position.
   runner.containerEl.style.width=runner.dimensions.WIDTH+'px';
   runner.play();
  }else if(paused){runner.play()}
@@ -106,6 +107,11 @@ function pulse(){
 window.addEventListener('load',()=>{
  if(typeof window.Runner!=='function'){overlay('UNAVAILABLE','Game did not load','Refresh to try again.','Retry');return}
  runner=new window.Runner('#main-frame-error');
+ // Native Chromium pixel counters remain available for scoring, but NIGHT
+ // shows the score just once in its shared HUD.
+ const hideNativeMeter=()=>{if(runner.distanceMeter)runner.distanceMeter.draw=()=>{}};
+ hideNativeMeter();
+ runner.tRex.xPos=50;
  window.__nightDinoTest={snapshot:()=>({
   ready:!!runner.canvas,playing:runner.playing,paused,dead,started,
   dinosaurY:runner.tRex?.yPos,groundY:runner.tRex?.groundYPos,
