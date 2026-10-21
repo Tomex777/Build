@@ -90,4 +90,54 @@ function response(status, body = {}, headers = {}) {
   assert.equal(payload.tool_choice, 'auto')
 }
 
+
+{
+  // One configured key must recover after a real retry-after window instead
+  // of permanently going silent or disguising 429 as "no healthy keys".
+  let time = 1000
+  let calls = 0
+  const ai = createSmartAI({
+    env:{ GROQ_API_KEY:'single', GROQ_SMART_MODELS:'openai/gpt-oss-20b' },
+    now:() => time,
+    fetchImpl:async () => {
+      calls += 1
+      return calls === 1
+        ? response(429, {}, { 'retry-after':'90' })
+        : response(200, { choices:[{ message:{ content:'recovered' } }] })
+    },
+  })
+  const failed = await ai.complete({ messages:[{ role:'user', content:'test' }] })
+  assert.equal(failed.ok, false)
+  assert.equal(failed.reason, 'http-429')
+  assert.equal(ai.health()[0].coolingDown, true)
+  assert.equal((await ai.complete({ messages:[{ role:'user', content:'too soon' }] })).reason, 'cooldown')
+  assert.equal(calls, 1)
+  time += 91000
+  assert.equal((await ai.complete({ messages:[{ role:'user', content:'now' }] })).text, 'recovered')
+}
+{
+  // A slow provider must not occupy a chat indefinitely by chaining models.
+  let time = 1000
+  let calls = 0
+  const ai = createSmartAI({
+    env:{
+      GROQ_API_KEY:'single',
+      GROQ_SMART_MODELS:'openai/gpt-oss-120b,openai/gpt-oss-20b',
+      MSCC_AI_TOTAL_TIMEOUT_MS:'35000',
+    },
+    now:() => time,
+    fetchImpl:async () => {
+      calls += 1
+      time += 40000
+      const error = new Error('request timed out')
+      error.name = 'TimeoutError'
+      throw error
+    },
+  })
+  const result = await ai.complete({ messages:[{ role:'user', content:'test' }] })
+  assert.equal(result.ok, false)
+  assert.equal(result.reason, 'timeout')
+  assert.equal(calls, 1)
+}
+
 console.log('PASS smart AI selftest')
