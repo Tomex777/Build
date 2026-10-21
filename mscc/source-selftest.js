@@ -110,6 +110,14 @@ out = await registry.execute({ capability:'music', userKey:'2341', pinnedSource:
 if (out.status !== 'ok' || out.source.id !== 'api' || !out.pinned) throw new Error('Internal managed-source pinning failed')
 out = await registry.execute({ capability:'music', userKey:'2341', excludedSources:['youtube'], payload:{query:'song'} })
 if (out.status !== 'ok' || out.source.id !== 'api') throw new Error('Managed source exclusion did not advance to fallback')
+// A temporary source exclusion must outrank a user's remembered default,
+// explicit selection, and even internal pinning; excluded providers cannot run.
+out = await registry.execute({ capability:'anime', userKey:'2341', excludedSources:['alpha'], payload:{query:'Bleach'} })
+if (out.status !== 'ok' || out.source.id === 'alpha') throw new Error('Excluded saved default was executed')
+out = await registry.execute({ capability:'anime', userKey:'2341', excludedSources:['alpha'], explicitSource:'alpha', payload:{query:'Bleach'} })
+if (out.status !== 'unknown-source') throw new Error('Excluded explicitly selected provider executed')
+out = await registry.execute({ capability:'music', userKey:'2341', excludedSources:['api'], pinnedSource:'api', payload:{query:'song'} })
+if (out.status !== 'unknown-source') throw new Error('Excluded pinned provider executed')
 const musicOrder = registry.list('music').map(source => source.id).join('|')
 if (musicOrder !== 'youtube|api') throw new Error('Managed music source list is not priority ordered')
 

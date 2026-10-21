@@ -128,7 +128,45 @@ assert(String(calls.at(-1).system).includes('WhatsApp group'))
   assert(how.includes('.dl <url>'))
   assert.equal(compactCommandReference(lazy, null, 'Can you send me a joke?'), '')
   assert(!compact.includes('Perform a long operational tool function. '.repeat(12) + '\nPerform'))
+  const capabilities = compactCommandReference([
+    { name:'ping', capability:'general', description:'Check uptime.' },
+    { name:'dl', capability:'media', description:'Download links.' },
+    { name:'sticker', capability:'media', description:'Make stickers.' },
+    { name:'ban', capability:'group', adminOnly:true, description:'Ban a member.' },
+    { name:'token', capability:'general', ownerOnly:true, description:'Owner token.' },
+  ], null, 'What can you do?')
+  assert(capabilities.includes('.ping'))
+  assert(capabilities.includes('.dl'))
+  assert(!capabilities.includes('.ban'), 'general answer must not advertise admin actions')
+  assert(!capabilities.includes('.token'), 'general answer must not advertise owner actions')
+  assert(capabilities.includes('typed separately'))
+  assert(capabilities.length <= 1050)
+  assert.equal(compactCommandReference(lazy, null, 'Help me'), '')
 }
+
+calls.length = 0
+await assistant.answer({
+  chatJid:'group@g.us',
+  text:'What can you do?',
+  senderName:'Teddy',
+  isGroup:true,
+})
+assert(calls.at(-1).messages[0].content.includes('RELEVANT REAL COMMANDS'))
+assert(calls.at(-1).messages[0].content.includes('.ping'))
+assert(calls.at(-1).system.includes('Never repeatedly ask how their day is'))
+
+await assistant.answer({
+  chatJid:'group@g.us',
+  text:'What is in this photo?',
+  senderName:'Teddy',
+  attachmentType:'image',
+  isGroup:true,
+})
+const mediaPrompt = calls.at(-1).messages[0].content
+assert(mediaPrompt.includes('CURRENT ATTACHMENT: [image]'))
+assert(mediaPrompt.includes('cannot inspect the media contents'))
+assert(calls.at(-1).system.includes('never claim to have seen or heard them') ||
+  calls.at(-1).system.includes('Never claim to have seen or heard them'))
 
 calls.length = 0
 const summary = await assistant.summarize({

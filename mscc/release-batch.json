@@ -1,10 +1,11 @@
 {
-  "releaseId": "night-play-bot-bridge-recovery-20261021",
+  "releaseId": "night-ai-chat-typing-and-bot-audit-20261021",
   "baseBranch": "mscc-azure",
-  "baseCommit": "215e06b47102dba976b36dc19a4fefe173849820",
+  "baseCommit": "4437d28ace9a92a796f054a77369463f7d5bc896",
   "pullRequests": [
-    544
+    549,
+    550
   ],
-  "preparedAt": "2026-10-21T11:49:10.180Z",
-  "notes": "Protected Azure recovery release: take the current approved integration head, including existing NIGHT Play signed HTTPS bot ingress, after correcting malformed Cortex legacy passive GET probe in PR #544. The preceding run #39591193608 failed and rolled back before installing its combined group-chat AI/Cortex 1.0.7 payload; those already-merged changes are included in this retry. Require exact-head Azure, Integrated Readiness and Cortex Contract CI checks, one protected mscc-production deployment approval and postdeploy signed NIGHT Play ingress/Cortex verification. Preserve WhatsApp auth/session files, secrets, nginx Cortex routes, existing account linking keys and SQLite data; do not execute MEGA POST discovery. Do not claim WhatsApp end-to-end until verified by real accounts."
+  "preparedAt": "2026-10-21T21:03:48.840Z",
+  "notes": "Single approved NIGHT release batch: restore previous pending recovery of signed NIGHT Play bot bridge and guarded Cortex Agent 1.0.7 from current mscc-azure; include tested #549 natural AI chat / media handling / typing and #550 aggressive regression, account durability, source isolation and routing repairs. Supersedes unapproved Azure workflow run 39595137000. Only deploy after exact-head MSCC Azure, Integrated Readiness and Cortex Contract checks all succeed; request one protected mscc-production approval; preserve WhatsApp auth/sessions, Azure and MEGA credentials, SQLite, group/chat state and Cloud passive discovery. Verify production installer, active SHA, signed ingress, group and DM chat after deployment."
 }

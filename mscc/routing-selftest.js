@@ -120,5 +120,24 @@ if (store.findMessage({ accountId:'A', messageId:'m1', chatJid:'g@g.us', partici
   throw new Error('Disk-backed message lookup failed')
 }
 
+// Broken group metadata for one account or an invalid configured score must
+// not prevent a healthy eligible account from executing the group command.
+const rescue = await chooseGroupExecutor({
+  groupJid:'fallback@g.us', capability:'anime',
+  accounts:[make('invalid'), make('unreachable'), make('healthy')],
+  scoreFor:id => id === 'invalid' ? NaN : id === 'unreachable' ? 10 : 5,
+  isMember:async account => {
+    if (account.id === 'unreachable') throw new Error('group metadata failed')
+    return true
+  },
+  getSticky:()=>'', setSticky:()=>{},
+})
+if (rescue !== 'healthy') throw new Error('One broken route prevented all eligible bots from replying')
+for (const invalid of [NaN, Infinity, '', false, null, undefined]) {
+  if (canExecuteDirect({ accountId:'test', scoreFor:() => invalid })) {
+    throw new Error('Invalid capability score was treated as a public command entitlement')
+  }
+}
+
 store.close()
 console.log('MSCC routing/storage self-test OK')
