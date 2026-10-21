@@ -40,7 +40,11 @@ try{
   assert.equal(initial.groundY,93,'original Chromium ground geometry');
   const overflow=await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth);
   assert.ok(overflow<=1,'no horizontal overflow at '+width);
+  const arena=await page.locator('#stage').boundingBox();
   const rect=await page.locator('.runner-canvas').boundingBox();
+  const expectedHeight=height>=800?(width<700?550:500):width<700?340:220;
+  assert.ok(arena.height>=expectedHeight,'game arena must stay tall on '+width+'x'+height+': '+arena.height);
+  assert.ok(arena.height>=rect.height+150,'more sky/visible space, not a stretched dinosaur');
   assert.equal(rect.height,150,'original pixel-space height, not stretched');
   assert.ok(rect.width>290&&rect.width<=600,'Chromium native game width');
   await page.locator('#overlayAction').click();
@@ -88,7 +92,7 @@ try{
    assert.ok((await snap(page)).distanceRan<200,'new round resets distance');
   }
   assert.deepEqual(errors,[],'no browser exceptions at '+width);
-  console.log('PASS',width,{overflow,originalJumpVelocity:initial.jumpVelocity,canvasWidth:rect.width});
+  console.log('PASS',width,{overflow,arenaHeight:arena.height,originalJumpVelocity:initial.jumpVelocity,canvasWidth:rect.width,canvasHeight:rect.height});
   await page.close();
  }
 }finally{if(browser)await browser.close();await new Promise(done=>server.close(done));}
