@@ -1,0 +1,46 @@
+name: NIGHT Shield Hero Preview Segments
+
+on:
+  push:
+    branches: [feature/cards-shield-hero-20261020]
+    paths:
+      - '.github/workflows/cards-shieldhero-preview-chunks.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  split:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: true
+      - name: Split existing reviewed gallery into API-readable transfer chunks
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import json, hashlib
+          source=Path('cards/shieldhero-preview/index.html')
+          raw=source.read_bytes()
+          assert b'NIGHT / SHIELD HERO' in raw and b'data:image/' in raw and len(raw)>1000000
+          text=raw.decode('utf-8')
+          size=450000
+          parts=[text[i:i+size] for i in range(0,len(text),size)]
+          directory=Path('cards/shieldhero-preview/segments')
+          directory.mkdir(parents=True, exist_ok=True)
+          for old in directory.glob('part-*.txt'): old.unlink()
+          for i,part in enumerate(parts): (directory/f'part-{i:03}.txt').write_text(part,encoding='utf-8')
+          (directory/'manifest.json').write_text(json.dumps({'parts':len(parts),'sha256':hashlib.sha256(raw).hexdigest(),'bytes':len(raw)},indent=2)+'\n')
+          print(f'Split {len(raw)} bytes into {len(parts)} UTF-8 chunks with SHA-256 lock')
+          PY
+      - name: Commit transport chunks without changing approved master cards
+        run: |
+          git config user.name 'NIGHT Cards Preview Transport'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add cards/shieldhero-preview/segments
+          if ! git diff --cached --quiet; then
+            git commit -m "cards(shieldhero): make reviewed preview transferable without re-rendering"
+            git push origin "HEAD:$GITHUB_REF_NAME"
+          fi
