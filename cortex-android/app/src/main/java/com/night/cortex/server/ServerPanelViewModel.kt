@@ -265,21 +265,43 @@ class ServerPanelViewModel(application: Application) : AndroidViewModel(applicat
     }
 
     fun power(action: HostingPowerAction) {
-        if (!_state.value.configured) return
+        if (!_state.value.configured || _state.value.loading) return
         viewModelScope.launch {
-            busy("Power command sent.") {
-                withContext(Dispatchers.IO) { api().power(action) }
-                if (action == HostingPowerAction.RESTART) {
-                    _state.value = _state.value.copy(
-                        cloudCredentialsPendingRestart = false,
-                        cloudDashboard = null,
-                        cloudServiceIssue = null,
-                    )
+            busy {
+                // The POST acknowledgement already contains NIGHT's state.
+                // The Console's separate stream refreshes logs. Never delay or
+                // misclassify a power operation by waiting for GET /logs.
+                val snapshot = withContext(Dispatchers.IO) { api().power(action) }
+                val running = snapshot.state == "active"
+                val stopped = snapshot.state == "inactive"
+                val applied = when (action) {
+                    HostingPowerAction.RESTART, HostingPowerAction.START -> running
+                    HostingPowerAction.STOP -> stopped
                 }
-                val (snapshot, logs) = withContext(Dispatchers.IO) {
-                    api().let { it.snapshot() to it.logs() }
+                val label = when (action) {
+                    HostingPowerAction.RESTART -> "Restart"
+                    HostingPowerAction.START -> "Start"
+                    HostingPowerAction.STOP -> "Stop"
                 }
-                _state.value = _state.value.copy(snapshot = snapshot, logs = logs)
+                _state.value = _state.value.copy(
+                    snapshot = snapshot,
+                    cloudCredentialsPendingRestart =
+                        if (action == HostingPowerAction.RESTART && running) false
+                        else _state.value.cloudCredentialsPendingRestart,
+                    cloudDashboard =
+                        if (action == HostingPowerAction.RESTART && running) null
+                        else _state.value.cloudDashboard,
+                    cloudServiceIssue =
+                        if (action == HostingPowerAction.RESTART && running) null
+                        else _state.value.cloudServiceIssue,
+                    message = if (applied) {
+                        if (action == HostingPowerAction.RESTART) {
+                            "NIGHT restarted. WhatsApp accounts may need time to reconnect."
+                        } else "$label completed. NIGHT is ${snapshot.state}."
+                    } else {
+                        "$label was acknowledged, but NIGHT is ${snapshot.state}. Check server logs before trying again."
+                    },
+                )
             }
         }
     }
