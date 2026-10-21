@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {createHash} from 'node:crypto';
+import {validateRomanceComposition} from './manhwa-duo.mjs';
 
 const ROOT = fileURLToPath(new URL('../', import.meta.url));
 const FAMILIES = new Set(['power', 'character', 'romance']);
@@ -91,6 +92,26 @@ export async function loadManhwaRoster(file = path.join(ROOT,'catalog/manhwa-ros
  * The legacy renderer accepts one transparent source image per card.
  * Two-person romance editions require an explicit, provenance-preserving
  * dual-layer composition and cannot silently be flattened here. */
+const validatePinnedManhwaSource=(card,art,subject)=>{
+  if (art?.subject !== subject || art.form !== card.form || !safeURL(art.page)
+    || !safeURL(art.image) || !hex64.test(art.sha256)
+    || !Number.isInteger(art.width) || !Number.isInteger(art.height)
+    || art.width < 500 || art.height < 900 || !nonempty(art.credit)
+    || !nonempty(art.rights) || art.usage !== 'reference-only'
+    || art.status !== 'source-pinned-candidate' || art.transparencyVerified !== true
+    || !/^artwork\\/manhwa\\/[a-z0-9-/]+\\.(png|webp)$/i.test(art.localPath)
+    || art.localPath.includes('..'))
+    throw Error('Invalid pinned art identity / provenance for '+card.id+' / '+subject);
+  const [x,y,w,h] = art.crop ?? [];
+  if (![x,y,w,h].every(Number.isInteger) || x<0 || y<0 || w<1 || h<1
+    || x+w>art.width || y+h>art.height
+    || !Array.isArray(art.focal) || art.focal.length!==2
+    || art.focal.some(n=>!Number.isFinite(n)||n<0||n>1))
+    throw Error('Invalid pinned art crop / focal point for '+card.id+' / '+subject);
+  return art;
+};
+/** Art remains source-pinned candidates, never approved/public just for being
+ * in a lock. Romance records two full independent source identities. */
 export function validateArtLock(roster, lock) {
   validateManhwaRoster(roster);
   if (lock?.version !== 1 || lock.collection !== roster.id || !lock.editions
@@ -100,22 +121,16 @@ export function validateArtLock(roster, lock) {
   for (const [id,art] of Object.entries(lock.editions)) {
     const card = byId.get(id);
     if (!card) throw Error('Unknown locked manhwa edition: '+id);
-    if (card.subjects.length !== 1) throw Error('Two-subject romance requires separately pinned layers: '+id);
-    if (art.subject !== card.subjects[0] || art.form !== card.form || !safeURL(art.page)
-      || !safeURL(art.image) || !hex64.test(art.sha256)
-      || !Number.isInteger(art.width) || !Number.isInteger(art.height)
-      || art.width < 500 || art.height < 900 || !nonempty(art.credit)
-      || !nonempty(art.rights) || art.usage !== 'reference-only'
-      || art.status !== 'source-pinned-candidate' || art.transparencyVerified !== true
-      || !/^artwork\/manhwa\/[a-z0-9-/]+\.(png|webp)$/i.test(art.localPath)
-      || art.localPath.includes('..'))
-      throw Error('Invalid pinned art identity / provenance for '+id);
-    const [x,y,w,h] = art.crop ?? [];
-    if (![x,y,w,h].every(Number.isInteger) || x<0 || y<0 || w<1 || h<1
-      || x+w>art.width || y+h>art.height
-      || !Array.isArray(art.focal) || art.focal.length!==2
-      || art.focal.some(n=>!Number.isFinite(n)||n<0||n>1))
-      throw Error('Invalid pinned art crop / focal point for '+id);
+    if (card.family === 'romance') {
+      if (!Array.isArray(art?.subjects) || art.subjects.length !== 2
+        || new Set(art.subjects.map(s=>s.localPath)).size !== 2)
+        throw Error('Two-subject romance requires separately pinned layers: '+id);
+      card.subjects.forEach((subject,i)=>validatePinnedManhwaSource(card,art.subjects[i],subject));
+      validateRomanceComposition(art.composition);
+    } else {
+      if (art?.subjects) throw Error('Solo manhwa art cannot impersonate a duo: '+id);
+      validatePinnedManhwaSource(card,art,card.subjects[0]);
+    }
   }
   return lock;
 }
@@ -136,6 +151,33 @@ export function toRendererCard(edition, art, number) {
     recipe: {crop:art.crop,focal:art.focal,bottomPadding:0.28}
   };
 }
+/** Two separately SHA-locked subjects: the resulting staged derivative retains
+ * both original identities, crop recipes, credit and distribution restrictions.
+ * It is NOT a fabricated original portrait or an independent license. */
+export function toRomanceRendererCard(edition, duo, number){
+  if(edition.family!=='romance'||edition.subjects.length!==2
+    || !Array.isArray(duo?.subjects)||duo.subjects.length!==2
+    || duo.subjects.some((s,i)=>s.subject!==edition.subjects[i]||s.form!==edition.form
+      ||!hex64.test(s.sha256)))
+    throw Error('Cannot render romance without both verified matching subjects');
+  validateRomanceComposition(duo.composition);
+  const [left,right]=duo.subjects;
+  const source=art=>({page:art.page,image:art.image,sha256:art.sha256,
+    width:art.width,height:art.height,localPath:art.localPath,
+    artist:art.credit,credit:art.credit,rights:art.rights,usage:'reference-only'});
+  return {
+    id:edition.id,number,character:edition.id,
+    name:edition.title,title:edition.title.slice(0,36),form:edition.form,
+    formId:edition.id,aliases:[...new Set([edition.title,...edition.subjects,...(edition.aliases??[])])],
+    designs:[edition.design.finish],family:'romance',status:'candidate',
+    source:source(left),secondSource:source(right),
+    recipe:{crop:left.crop,focal:left.focal,bottomPadding:0},
+    secondRecipe:{crop:right.crop,focal:right.focal,bottomPadding:0},
+    romanceComposition:duo.composition,
+    sourceSubjects:[...edition.subjects]
+  };
+}
+
 export async function verifyLocalSource(art, root = ROOT) {
   const full = path.resolve(root, art.localPath);
   if (!full.startsWith(path.resolve(root)+path.sep)) throw Error('Art path leaves project directory');
