@@ -362,6 +362,10 @@ jobs:
             http://127.0.0.1:47831/api/cortex/host/power)
           test "$response_code" = 400
           sudo systemctl is-active --quiet night.service
+          # Restore the original CI baseline (no NIGHT service running) before
+          # Startup Runner tests; otherwise they correctly return HTTP 409.
+          sudo systemctl stop night.service
+          sudo systemctl is-active --quiet night.service && exit 1 || true
           echo 'PASS Cortex real HTTP power API: restart, stop, start, invalid action on disposable systemd unit'
       - name: Verify controlled Startup runner
         shell: bash
