@@ -47,6 +47,7 @@ import com.night.cortex.ui.theme.CortexSurface2
 internal fun CloudSetupPage(
     state: ServerPanelState,
     onRefresh: () -> Unit,
+    onDiscover: () -> Unit,
     onSave: (String, String, () -> Unit) -> Unit,
     onAutoAssign: (Set<String>, String?) -> Unit,
     onVerify: (String) -> Unit,
@@ -170,12 +171,12 @@ internal fun CloudSetupPage(
                     when {
                         state.authFailed -> "The Cortex access token was rejected. Update your server connection; MEGA sign-in was not attempted."
                         state.cloudCredentialsPendingRestart -> if (configured) {
-                            "Saved to Azure, not yet active. Restart NIGHT to apply your MEGA email and password, then refresh to test sign-in."
+                            "Saved to Azure, not yet active. Restart NIGHT to apply your MEGA email and password. Refresh does not sign in to MEGA."
                         } else {
                             "MEGA setting saved. Enter the remaining credential, then restart NIGHT to apply both."
                         }
                         state.cloudServiceIssue != null -> state.cloudServiceIssue
-                        dashboard?.configured == true -> "MEGA is configured. Primary account quota can be verified."
+                        dashboard?.configured == true -> "Credentials are saved. Refresh never signs in to MEGA. Use Discover shared folders only when your MEGA account is secure."
                         state.cloudConnectionFailed -> "Cloud service unavailable. Credentials were not checked."
                         dashboard == null -> "Cloud status not loaded. Check the Agent connection."
                         state.cloudSetupIssue != null -> "Cloud API responded, but ENV is unavailable: " + state.cloudSetupIssue
@@ -230,8 +231,13 @@ internal fun CloudSetupPage(
                     fontSize = 12.sp,
                     color = CortexMuted,
                 )
+                OutlinedButton(
+                    onClick = onDiscover,
+                    enabled = !state.loading && configured && !state.cloudCredentialsPendingRestart,
+                ) { Text("Discover shared folders (MEGA sign-in)") }
                 Text(
-                    "Detected folder invitations: ${mounts.size}",
+                    if (state.cloudMountsLoaded) "Detected folder invitations: ${mounts.size}"
+                    else "Not checked. Discover will sign in to MEGA from the Azure server.",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,
                 )
