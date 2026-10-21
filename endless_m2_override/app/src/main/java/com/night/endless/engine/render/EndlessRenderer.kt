@@ -920,7 +920,7 @@ class EndlessRenderer(
         if (id == "titan") drawAtmosphereSky(1)
         else if (id == "europa") drawAtmosphereSky(2)
         Matrix.perspectiveM(projection,0,67f,width.toFloat()/height,.0002f,36f)
-        val eyeY = ExtendedSurfaceMesh.heightAt(id,extendedSurfaceX,extendedSurfaceZ)+.00078
+        val eyeY = terrain.groundHeightAt(extendedSurfaceX,extendedSurfaceZ)+.00078
         val lx=sin(yaw)*cos(pitch);val ly=sin(pitch);val lz=-cos(yaw)*cos(pitch)
         Matrix.setLookAtM(view,0,0f,eyeY.toFloat(),0f,
             lx.toFloat(),(eyeY+ly).toFloat(),lz.toFloat(),0f,1f,0f)
