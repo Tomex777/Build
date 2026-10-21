@@ -337,6 +337,10 @@ User=$USER
 Group=$USER
 WorkingDirectory=$BASE/current
 EnvironmentFile=$ENV_FILE
+# Managed Cortex additions are an optional, private overlay. NIGHT reads this
+# file on start after the original system-managed /etc/mscc.env; the Agent no
+# longer needs privileged filesystem writes inside its hardened sandbox.
+EnvironmentFile=-/var/lib/cortex/mscc-overrides.env
 # Atomic cross-process singleton lock for this MSCC runtime. A second
 # service/manual instance must never mutate the same WhatsApp Signal keys.
 # flock holds the lock for the Node process lifetime; systemd tears down

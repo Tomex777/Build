@@ -1,11 +1,11 @@
 {
-  "releaseId": "night-cortex-owner-rpc-20261021",
+  "releaseId": "night-cortex-cloud-env-overlay-20261021",
   "baseBranch": "mscc-azure",
-  "baseCommit": "fc22c4352216d3fc9162e1833109303724f7f18d",
+  "baseCommit": "dd490e992ef8a65d23c8f700898d48c00da6a7d1",
   "pullRequests": [
-    523,
-    524
+    527,
+    528
   ],
-  "preparedAt": "2026-10-20T23:35:03.984Z",
-  "notes": "Cortex emergency repair after protected Azure runs #39505566864 and #39513191643 failed on Settings POST HTTP 500/503 and rolled back. NIGHT's local loopback-only Settings RPC owns in-memory and disk persistence; matching Cortex Agent #524 merged at dd4a272909b73b4aada53c846dea7d45240f953c is pinned by exact source and Git blob SHA, eliminating brittle elevated settings writer on that route. Protected release verifies unchanged Settings POST/readback, new agent activity audit record, unchanged LOG_LEVEL ENV POST/readback; preserves all Cortex bearer tokens, MEGA credentials and WhatsApp auth files. Requires one fresh protected mscc-production approval; do not claim fixed until live write proofs and phone check pass. Do not rerun earlier failed jobs; no unrelated bot changes."
+  "preparedAt": "2026-10-21T00:12:54.137Z",
+  "notes": "Repair actual cloud credentials/save failures after three protected rollbacks (#39505566864 Settings 500, #39513191643 protected Settings helper 503, #39516352302 environment POST 500). Last deployment verified canonical NIGHT Settings and new audit; ENV was sole failing POST. Cortex Agent #527 passed real dummy MEGA email/password and LOG_LEVEL save tests to private Agent-owned overlay without privileged /etc writes, with masked responses and readback. NIGHT loads /etc/mscc.env followed by private overlay on restart; no auto restart for credential saves. Configure per-host read-only ACL for NIGHT service user and protect original WhatsApp sessions/token/MEGA data. Protected Azure gate must test unchanged Settings & ENV POST/readback and new activity audit before success. One fresh mscc-production approval required only after final CI; no TheNkiri or unrelated feature changes."
 }
