@@ -13,7 +13,7 @@ html=html.replaceAll('NIGHT / BLEACH','NIGHT / INVINCIBLE')
 // intentionally strips them for BLEACH, so changing the filter alone is not enough.
 const source=JSON.parse(await fs.readFile(inside('catalog/invincible-sources.json'),'utf8'));
 const lookup=new Map(source.sources.map(c=>[c.id,c]));
-const dataPattern=/<script id="collection-data" type="application\\/json">([\\s\\S]*?)<\\/script>/;
+const dataPattern=/<script id="collection-data" type="application\/json">([\s\S]*?)<\/script>/;
 const found=html.match(dataPattern);
 if(!found)throw Error('Cannot find embedded collection data for identity enrichment');
 const cards=JSON.parse(found[1]);
