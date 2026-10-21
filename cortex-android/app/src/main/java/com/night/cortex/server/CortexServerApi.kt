@@ -658,9 +658,25 @@ class CortexServerApi(
                 }
                 val bytes = out.toByteArray()
                 if (code !in 200..299) {
+                    // Only inspect the server's allowlisted power failure code.
+                    // Never echo response bodies, token material or systemd logs.
+                    val powerIssue = if (path == "/api/cortex/host/power") {
+                        val reason = runCatching {
+                            JSONObject(String(bytes, Charsets.UTF_8)).optString("reasonCode")
+                        }.getOrNull()
+                        when (reason) {
+                            "power-permission" ->
+                                "Cortex is connected but Azure denied the NIGHT service control command. Server permissions need repair."
+                            "power-timeout" ->
+                                "NIGHT restart timed out. It might still be running; refresh Status before trying again."
+                            "power-service" ->
+                                "Azure could not complete the NIGHT service operation. Check NIGHT status and logs."
+                            else -> null
+                        }
+                    } else null
                     throw CortexHttpException(
                         statusCode = code,
-                        message = safeHttpError(code),
+                        message = powerIssue ?: safeHttpError(code),
                     )
                 }
                 return bytes
