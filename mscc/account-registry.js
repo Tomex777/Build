@@ -1,4 +1,5 @@
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises'
+import { randomUUID } from 'node:crypto'
 import { dirname, join, resolve } from 'node:path'
 
 const ID_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/
@@ -47,6 +48,8 @@ export class AccountRegistry {
     this.legacy = legacy
     this.records = new Map()
     this.nextSequence = 1
+    this._mutations = Promise.resolve()
+    this._saves = Promise.resolve()
   }
 
   list() {
@@ -146,84 +149,120 @@ export class AccountRegistry {
     return this.list()
   }
 
-  async save() {
-    await mkdir(dirname(this.file), { recursive: true })
-    const tmp = this.file + '.tmp'
-    await writeFile(tmp, JSON.stringify({
+  // Serialize the entire registry mutation, not just its disk write. Without
+  // this lock, two overlapping save() calls can write to the same .tmp file or
+  // persist an older snapshot after a newer account change.
+  _mutate(action) {
+    const task = this._mutations.catch(() => {}).then(async () => {
+      const before = new Map([...this.records].map(([id, row]) => [id, { ...row }]))
+      const sequence = this.nextSequence
+      try {
+        const result = await action()
+        await this.save()
+        return result
+      } catch (error) {
+        // An HTTP/API error must never leave a non-persisted account mutation
+        // visible to the running bot. Authentication directories are untouched.
+        this.records = before
+        this.nextSequence = sequence
+        throw error
+      }
+    })
+    this._mutations = task.catch(() => {})
+    return task
+  }
+
+  save() {
+    const content = JSON.stringify({
       version: 2,
       savedAt: Date.now(),
       nextSequence: this.nextSequence,
       accounts: this.list(),
-    }, null, 2))
-    await rename(tmp, this.file)
+    }, null, 2)
+    const task = this._saves.catch(() => {}).then(async () => {
+      await mkdir(dirname(this.file), { recursive: true })
+      const tmp = this.file + '.' + randomUUID() + '.tmp'
+      try {
+        await writeFile(tmp, content, { mode: 0o600 })
+        await rename(tmp, this.file)
+      } finally {
+        // A failed rename must not leave sensitive registry snapshots on disk.
+        await rm(tmp, { force: true }).catch(() => {})
+      }
+    })
+    this._saves = task.catch(() => {})
+    return task
   }
 
-  async create({ phoneNumber, displayName = '' }) {
-    if (this.records.size >= this.maxAccounts) {
-      throw new Error(`Account limit reached (${this.records.size}/${this.maxAccounts})`)
-    }
-    const number = digits(phoneNumber)
-    if (!PHONE_RE.test(number)) throw new Error('Phone number must contain 7 to 15 digits')
-    if ([...this.records.values()].some(row => row.phoneNumber === number)) {
-      throw new Error('That WhatsApp number is already registered')
-    }
+  create({ phoneNumber, displayName = '' }) {
+    return this._mutate(async () => {
+      if (this.records.size >= this.maxAccounts) {
+        throw new Error(`Account limit reached (${this.records.size}/${this.maxAccounts})`)
+      }
+      const number = digits(phoneNumber)
+      if (!PHONE_RE.test(number)) throw new Error('Phone number must contain 7 to 15 digits')
+      if ([...this.records.values()].some(row => row.phoneNumber === number)) {
+        throw new Error('That WhatsApp number is already registered')
+      }
 
-    const firstAccount = this.records.size === 0
-    let id
-    if (firstAccount) {
-      id = 'A'
-      this.nextSequence = Math.max(this.nextSequence, 2)
-    } else {
-      do {
-        id = `account-${this.nextSequence++}`
-      } while (this.records.has(id))
-    }
-
-    const record = {
-      id,
-      phoneNumber: number,
-      displayName: String(displayName || '').trim().slice(0, 48) || defaultDisplayName(id, firstAccount ? 'owner' : 'linked'),
-      authDir: firstAccount ? join(this.authRoot, 'A') : join(this.authRoot, id),
-      role: firstAccount ? 'owner' : 'linked',
-      paused: false,
-      createdAt: Date.now(),
-    }
-    this.records.set(id, record)
-    await mkdir(record.authDir, { recursive: true })
-    await this.save()
-    return { ...record }
+      const firstAccount = this.records.size === 0
+      let id
+      if (firstAccount) {
+        id = 'A'
+        this.nextSequence = Math.max(this.nextSequence, 2)
+      } else {
+        do {
+          id = `account-${this.nextSequence++}`
+        } while (this.records.has(id))
+      }
+      const record = {
+        id,
+        phoneNumber: number,
+        displayName: String(displayName || '').trim().slice(0, 48) || defaultDisplayName(id, firstAccount ? 'owner' : 'linked'),
+        authDir: firstAccount ? join(this.authRoot, 'A') : join(this.authRoot, id),
+        role: firstAccount ? 'owner' : 'linked',
+        paused: false,
+        createdAt: Date.now(),
+      }
+      await mkdir(record.authDir, { recursive: true })
+      this.records.set(id, record)
+      return { ...record }
+    })
   }
 
-  async setPaused(value, paused) {
-    const id = this.resolveId(value)
-    if (!id) throw new Error('Unknown account')
-    const record = this.records.get(id)
-    record.paused = paused === true
-    await this.save()
-    return { ...record }
+  setPaused(value, paused) {
+    return this._mutate(() => {
+      const id = this.resolveId(value)
+      if (!id) throw new Error('Unknown account')
+      const record = this.records.get(id)
+      record.paused = paused === true
+      return { ...record }
+    })
   }
 
-  async rename(value, displayName) {
-    const id = this.resolveId(value)
-    if (!id) throw new Error('Unknown account')
-    const record = this.records.get(id)
-    const name = String(displayName || '').trim().slice(0, 48)
-    if (!name) throw new Error('Friendly name cannot be empty')
-    record.displayName = name
-    await this.save()
-    return { ...record }
+  rename(value, displayName) {
+    return this._mutate(() => {
+      const id = this.resolveId(value)
+      if (!id) throw new Error('Unknown account')
+      const record = this.records.get(id)
+      const name = String(displayName || '').trim().slice(0, 48)
+      if (!name) throw new Error('Friendly name cannot be empty')
+      record.displayName = name
+      return { ...record }
+    })
   }
 
-  async remove(value) {
-    const id = this.resolveId(value)
-    if (!id) throw new Error('Unknown account')
-    const record = this.records.get(id)
-    if (record.role === 'owner') {
-      throw new Error('Account A is the permanent main control account and cannot be removed')
-    }
-    this.records.delete(id)
-    await this.save()
-    return { ...record, authPreserved: true }
+  remove(value) {
+    return this._mutate(() => {
+      const id = this.resolveId(value)
+      if (!id) throw new Error('Unknown account')
+      const record = this.records.get(id)
+      if (record.role === 'owner') {
+        throw new Error('Account A is the permanent main control account and cannot be removed')
+      }
+      this.records.delete(id)
+      return { ...record, authPreserved: true }
+    })
   }
 }
 
