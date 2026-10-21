@@ -35,6 +35,23 @@ internal class SurfaceDetailRenderer(
     val foregroundAnchorX: Float get() = anchorX.toFloat()
     val foregroundAnchorZ: Float get() = anchorZ.toFloat()
 
+    /**
+     * Sample the actual visible 1.05m foreground triangles under the eye.
+     * The analytic coarse terrain does not contain metre-scale uplift, and
+     * using it directly for the camera can place the eye inside Europa's
+     * ridges or above Titan's dunes. Prepare first so the sample and the
+     * next draw have exactly the same moving patch anchor.
+     *
+     * Call only on the GL thread, alongside prepare()/draw().
+     */
+    fun groundHeightAt(x: Double, z: Double): Double {
+        prepare(x, z)
+        return SurfaceDetailMesh.surfaceHeightAt(
+            x, z, anchorX, anchorZ, elevation,
+            geologyRelief ?: SurfaceDetailMesh::defaultMicroRelief
+        )
+    }
+
     private var anchorX = Double.NaN
     private var anchorZ = Double.NaN
     private var patchVertices: FloatBuffer? = null
