@@ -407,9 +407,12 @@ function paintJump(){
 // one drawImage each. They have clear silhouettes at 320px phone widths.
 const RUNNER_ART_BASE='/action/art/';
 const runnerArt={};
-for(const key of ['flyer-up','flyer-down','glider','pillar','stone','barrel']){
- const img=new Image();img.decoding='async';img.src=RUNNER_ART_BASE+key+'.svg';
- runnerArt[key]=img;
+function loadRunnerArt(){
+ for(const key of ['flyer-up','flyer-down','glider','pillar','stone','barrel']){
+  if(runnerArt[key])continue;
+  const img=new Image();img.decoding='async';img.src=RUNNER_ART_BASE+key+'.svg';
+  runnerArt[key]=img;
+ }
 }
 function runnerObstacleSprite(o){
  if(o.kind==='flying')return runnerArt[Math.floor(state.clock*10)%2?'flyer-up':'flyer-down'];
@@ -961,6 +964,7 @@ function pause(){
 }
 function selectGame(type){
  if(!defs[type])type='slice';game=type;
+ if(game==='runner')loadRunnerArt();
  const url=new URL(location.href);url.searchParams.set('game',game);history.replaceState({},'',url.pathname+url.search);
  const def=defs[game];$('title').textContent=def.title;$('subtitle').textContent=def.subtitle;
  $('rules').textContent=def.rules;document.title=def.title+' · NIGHT Play';
