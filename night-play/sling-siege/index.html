@@ -102,7 +102,7 @@ function siegeStage(n){
 }
 for(let n=7;n<=100;n++)levels.push(siegeStage(n));
 const mats={wood:{hp:2,color:'#bd8d52',line:'#7c5937',mass:2.8},glass:{hp:1,color:'#a9e6db',line:'#4d9895',mass:1.8},stone:{hp:4,color:'#9babb1',line:'#61767b',mass:5.2}};
-let levelIdx=0,level=null,shots=0,used=0,score=0,camera=0,viewW=900,cssScale=1,sound=true,paused=false,dragging=false,gameState='intro',charge={x:SLING.x,y:SLING.y},ball=null,particles=[],tickId=0,last=0,acc=0,settle=0,follow=0,aimKeyboard=false,audioCtx=null;
+let levelIdx=0,level=null,shots=0,used=0,score=0,camera=0,viewW=900,cssScale=1,skyPaddingWorld=0,sound=true,paused=false,dragging=false,gameState='intro',charge={x:SLING.x,y:SLING.y},ball=null,particles=[],tickId=0,last=0,acc=0,settle=0,follow=0,aimKeyboard=false,audioCtx=null;
 let bests={};try{bests=JSON.parse(localStorage.getItem('night-play-sling-siege-bests')||'{}')}catch{bests={}}
 let unlocked=1,aimGuide=true;
 try{unlocked=clamp(Number(localStorage.getItem('night-play-sling-siege-unlocked'))||1,1,levels.length);aimGuide=localStorage.getItem('night-play-sling-siege-guide')!=='off'}catch{}
@@ -141,7 +141,7 @@ if(ball&&ball.alive){if(ball.x>BOARD_W+60||ball.y>BOARD_H+70||ball.age>7.5){ball
 if(level.enemies.every(o=>!o.alive)){complete();return}
 if(!ball||!ball.alive){if(shots<=0)failure();else loadBall();}
 }
-function paintBackdrop(){const g=ctx.createLinearGradient(0,0,0,GROUND);g.addColorStop(0,'#a6cad1');g.addColorStop(.54,'#e6e4bd');g.addColorStop(1,'#d9dcc2');ctx.fillStyle=g;ctx.fillRect(0,0,BOARD_W,BOARD_H);
+function paintBackdrop(){const g=ctx.createLinearGradient(0,0,0,GROUND);g.addColorStop(0,'#a6cad1');g.addColorStop(.54,'#e6e4bd');g.addColorStop(1,'#d9dcc2');ctx.fillStyle=g;ctx.fillRect(0,-skyPaddingWorld,BOARD_W,BOARD_H+skyPaddingWorld);
 ctx.fillStyle='#f5efd2bb';ctx.beginPath();ctx.arc(758,102,50,0,TAU);ctx.fill();
 ctx.fillStyle='#7aa49b58';ctx.beginPath();ctx.moveTo(0,393);for(let x=0;x<=BOARD_W;x+=12)ctx.lineTo(x,365+25*Math.sin(x*.009)+19*Math.cos(x*.023));ctx.lineTo(BOARD_W,GROUND);ctx.lineTo(0,GROUND);ctx.fill();
 ctx.fillStyle='#5b88766b';ctx.beginPath();ctx.moveTo(0,440);for(let x=0;x<=BOARD_W;x+=12)ctx.lineTo(x,427+16*Math.sin(x*.015)+9*Math.cos(x*.035));ctx.lineTo(BOARD_W,GROUND);ctx.lineTo(0,GROUND);ctx.fill();
@@ -160,12 +160,12 @@ if(b.material==='stone'){ctx.strokeStyle='#dae6e4aa';ctx.beginPath();ctx.moveTo(
 if(b.hp<b.maxHp){ctx.strokeStyle=m.line;ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(b.w*.4,4);ctx.lineTo(b.w*.62,b.h*.5);ctx.lineTo(b.w*.53,b.h-4);ctx.stroke()}ctx.restore()}
 function drawEnemy(e){ctx.save();ctx.translate(e.x,e.y);ctx.shadowColor='#38295b65';ctx.shadowBlur=8;ctx.fillStyle='#8767b5';ctx.beginPath();for(let i=0;i<6;i++){let a=-Math.PI/2+i*TAU/6;ctx.lineTo(Math.cos(a)*e.r,Math.sin(a)*e.r)}ctx.closePath();ctx.fill();ctx.strokeStyle='#514578';ctx.lineWidth=2;ctx.stroke();ctx.shadowBlur=0;ctx.fillStyle='#dcd4ff';ctx.beginPath();ctx.arc(-6,-2,3.8,0,TAU);ctx.arc(6,-2,3.8,0,TAU);ctx.fill();ctx.fillStyle='#3f315a';ctx.fillRect(-7,-2,2.5,3);ctx.fillRect(5,-2,2.5,3);ctx.strokeStyle='#392952';ctx.lineWidth=1.7;ctx.beginPath();ctx.arc(0,6,5,.15,Math.PI-.15);ctx.stroke();ctx.restore();}
 function paintAim(){if(gameState!=='ready'||!aimGuide)return;const vx=(SLING.x-charge.x)*7.7,vy=(SLING.y-charge.y)*7.7;if(Math.hypot(vx,vy)<4)return;ctx.fillStyle='#fff7df';ctx.strokeStyle='#346a58';ctx.lineWidth=1;for(let i=1;i<=22;i++){const t=i*.075,x=charge.x+vx*t,y=charge.y+vy*t+.5*GRAVITY*t*t;if(y>GROUND-19||x>BOARD_W)break;ctx.globalAlpha=.8-i*.03;ctx.beginPath();ctx.arc(x,y,Math.max(1.8,4-i*.07),0,TAU);ctx.fill()}ctx.globalAlpha=1}
-function draw(){if(!level)return;let bounds=canvas.getBoundingClientRect(),w=bounds.width||900;viewW=w<600?720:900;let h=w*BOARD_H/viewW;canvas.style.height=h+'px';let dpr=Math.min(window.devicePixelRatio||1,2);const pw=Math.max(1,Math.round(w*dpr)),ph=Math.max(1,Math.round(h*dpr));if(canvas.width!==pw||canvas.height!==ph){canvas.width=pw;canvas.height=ph}cssScale=w/viewW;ctx.setTransform(canvas.width/viewW,0,0,canvas.height/BOARD_H,0,0);const wanted=gameState==='flying'&&ball?clamp(ball.x-viewW*.53,0,BOARD_W-viewW):0;camera+=(wanted-camera)*.15;if(!Number.isFinite(camera))camera=0;
+function draw(){if(!level)return;let bounds=canvas.getBoundingClientRect(),w=bounds.width||900;viewW=w<600?720:900;const naturalH=w*BOARD_H/viewW;let h=w<600?Math.min(naturalH+190,Math.max(naturalH,window.innerHeight*.58)):naturalH;canvas.style.height=h+'px';let dpr=Math.min(window.devicePixelRatio||1,2);const pw=Math.max(1,Math.round(w*dpr)),ph=Math.max(1,Math.round(h*dpr));if(canvas.width!==pw||canvas.height!==ph){canvas.width=pw;canvas.height=ph}cssScale=w/viewW;skyPaddingWorld=Math.max(0,(h-naturalH)/cssScale);ctx.setTransform(canvas.width/viewW,0,0,canvas.width/viewW,0,skyPaddingWorld*canvas.width/viewW);const wanted=gameState==='flying'&&ball?clamp(ball.x-viewW*.53,0,BOARD_W-viewW):0;camera+=(wanted-camera)*.15;if(!Number.isFinite(camera))camera=0;
 ctx.save();ctx.translate(-camera,0);paintBackdrop();drawSlingBack();drawBand();for(const b of level.blocks)if(b.alive)drawBlock(b);for(const e of level.enemies)if(e.alive)drawEnemy(e);paintAim();if(gameState==='ready')orb(charge.x,charge.y,19);else if(ball&&ball.alive)orb(ball.x,ball.y,19);drawSlingFront();
 for(let i=particles.length-1;i>=0;i--){let p=particles[i];ctx.globalAlpha=clamp(p.life/.65,0,1);rect(p.x,p.y,p.r,p.r,p.color,1)}ctx.globalAlpha=1;ctx.restore();
 if(w<600){ctx.fillStyle='#ffffffa8';rect(6,11,119,23,'#ffffffa8',6);ctx.fillStyle='#315d4a';ctx.font='700 12px system-ui';ctx.fillText(camera>24?'← SLING     FORT →':'SLING  →  FORT',16,27)}
 }
-function pointer(e){let r=canvas.getBoundingClientRect();return {x:camera+(e.clientX-r.left)/r.width*viewW,y:(e.clientY-r.top)/r.height*BOARD_H}}
+function pointer(e){let r=canvas.getBoundingClientRect(),scale=r.width/viewW;return {x:camera+(e.clientX-r.left)/scale,y:(e.clientY-r.top-skyPaddingWorld*scale)/scale}}
 function pull(p){let x=p.x-SLING.x,y=p.y-SLING.y,d=Math.hypot(x,y),factor=d>MAX_PULL?MAX_PULL/d:1;charge={x:SLING.x+x*factor,y:SLING.y+y*factor};draw()}
 canvas.addEventListener('pointerdown',e=>{if(gameState!=='ready'||paused||!$('overlay').hidden)return;let p=pointer(e);if(Math.hypot(p.x-charge.x,p.y-charge.y)>69)return;e.preventDefault();canvas.setPointerCapture(e.pointerId);dragging=true;aimKeyboard=false;$('board').classList.add('aiming');pull(p)});
 canvas.addEventListener('pointermove',e=>{if(!dragging)return;e.preventDefault();pull(pointer(e))});
