@@ -32,55 +32,9 @@ try{
  }
  const snap=p=>p.evaluate(()=>window.__nightActionTest.snapshot());
  const condition=(p,f)=>p.waitForFunction(f,null,{timeout:7000,polling:16});
- // Idle collision followed by actual restart.
- {
-  const p=await open('runner',.18);
-  await condition(p,()=>window.__nightActionTest.snapshot().over);
-  assert.equal((await snap(p)).passed,0,'low flyer catches idle runner');
-  await p.screenshot({path:path.join(output,'agent3-runner-collision.jpg')});
-  await p.locator('#overlayStart').click();
-  assert.equal((await snap(p)).over,false);assert.equal((await snap(p)).score,0);
-  results.push('idle flyer hit and real restart');await p.close();
- }
- // Real keyboard jump at a live upcoming flying hazard.
- {
-  const p=await open('runner',.18);
-  await condition(p,()=>window.__nightActionTest.snapshot().obstacles.some(o=>o.kind==='flying'&&o.x<190));
-  await p.keyboard.press('Space');
-  assert.ok((await snap(p)).player.vy<0);
-  await condition(p,()=>{const s=window.__nightActionTest.snapshot();return s.passed>=1||s.over});
-  assert.equal((await snap(p)).over,false,'timed jump clears flyer');
-  results.push('timed jump cleared flyer');await p.close();
- }
- // High gliders require duck; walking beneath them is not invulnerable.
- {
-  const p=await open('runner',.4);
-  await condition(p,()=>window.__nightActionTest.snapshot().obstacles.some(o=>o.kind==='glider'&&o.x<178));
-  await p.keyboard.down('ArrowDown');
-  await condition(p,()=>{const s=window.__nightActionTest.snapshot();return s.passed>=1||s.over});
-  assert.equal((await snap(p)).over,false,'slide clears high glider');
-  await p.keyboard.up('ArrowDown');
-  results.push('slide cleared glider');await p.close();
- }
- // Touchscreen swipe down must not trigger the previous accidental jump.
- {
-  const p=await open('runner',.18);
-  const b=await p.locator('#screen').boundingBox(),x=b.x+b.width*.55,y=b.y+b.height*.55;
-  const c=await p.context().newCDPSession(p);
-  await c.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x,y}]});
-  await c.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x,y:y+65}]});
-  await p.waitForTimeout(80);
-  assert.equal((await snap(p)).player.duck,true,'mobile swipe down ducked');
-  await c.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
-  assert.equal((await snap(p)).player.vy,0,'mobile swipe did not jump');
-  await p.screenshot({path:path.join(output,'agent3-runner-touch-duck.jpg')});
-  await p.waitForTimeout(700);
-  assert.equal((await snap(p)).player.duck,false,'swipe duck expires');
-  await p.touchscreen.tap(x,y);await p.waitForTimeout(60);
-  assert.ok((await snap(p)).player.vy<0,'touchscreen tap jumps');
-  results.push('touchscreen duck then tap jump');await p.close();
- }
- for(const width of [320,360,390,412,1280])for(const game of ['jump','runner']){
+ // Chromium Dino replaces the retired custom runner; its independent real-touch
+ // collision and restart test runs separately in this workflow.
+ for(const width of [320,360,390,412,1280])for(const game of ['jump']){
   const p=await open(game,game==='jump'?.5:.18,width);
   const state=await snap(p);
   if(game==='jump'){
