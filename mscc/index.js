@@ -436,7 +436,6 @@ let settingsMtimeMs = 0
 let settingsPollTimer = null
 
 const handledReply = new Map()
-const aiFailureNotices = new Map()
 const handledDelete = new Map()
 const handledAuto = new Map()
 const groupNames = new Map()
@@ -1528,25 +1527,7 @@ async function handleProfileAssistant(account, msg, authority, rawText) {
       reason,
       durationMs:Date.now() - aiStartedAt,
     })
-    // Only one failure notice per chat/minute, and only on an explicitly
-    // activated request. Never override the Cortex DM-off setting.
-    if (!senderPersonality && account?.sock) {
-      const noticeKey = account.id + '|' + chat
-      const now = Date.now()
-      if (now - (aiFailureNotices.get(noticeKey) || 0) >= 60000) {
-        aiFailureNotices.set(noticeKey, now)
-        if (aiFailureNotices.size > 256) {
-          for (const [key, at] of aiFailureNotices) if (now - at > 60000) aiFailureNotices.delete(key)
-        }
-        const overloaded = ['http-429', 'cooldown', 'no-healthy-keys'].includes(reason)
-        await sendAssistantReply(account, msg, overloaded
-          ? 'I hit a temporary AI limit. Please try again shortly.'
-          : 'I could not finish that reply. Please try again shortly.', {
-          presence,
-          allowPersonalityMentions:false,
-        })
-      }
-    }
+    // Internal activity log only. No automatic failure report or chat reply.
     return true
   }
   const reaction = parseReactionSoundDirective(result.text)
