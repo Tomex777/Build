@@ -1416,9 +1416,16 @@ async function writeEnvironmentViaHelper(key, value) {
     child.once('error', reject);
     child.once('exit', (code) => {
       if (code === 0) return resolve();
-      reject(Object.assign(new Error('Environment update helper failed'), {
-        statusCode: 500,
-        cause: stderr.slice(0, 500),
+      // Do not surface sudo stderr; it may include local paths or contents.
+      // Diagnose only fixed filesystem and sudo error categories.
+      const category = /read-only file system/i.test(stderr) ? 'filesystem-readonly'
+        : /permission denied|operation not permitted/i.test(stderr) ? 'filesystem-permission'
+        : /sudo:|not allowed to execute|password is required/i.test(stderr) ? 'sudo-policy'
+        : /setfacl:/i.test(stderr) ? 'access-control-list'
+        : 'helper-failure';
+      console.warn('Cortex environment helper failed:', category, 'exit', Number(code) || 1);
+      reject(Object.assign(new Error('NIGHT environment save failed: ' + category), {
+        statusCode: 503,
       }));
     });
     child.stdin.end(value);
