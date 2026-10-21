@@ -54,15 +54,23 @@ jobs:
         run: |
           npm run gallery -- --series shieldhero --out dist/shieldhero --file dist/ShieldHero-Collection.html
           node bin/shieldhero-gallery.mjs dist/ShieldHero-Collection.html
-      - name: Stage pinned source manifest on the collection branch
+      - name: Stage generated self-contained card gallery on the preview source branch
         if: success() && github.event_name == 'push'
         working-directory: .
         run: |
           git config user.name 'NIGHT Cards Provenance'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add cards/catalog/shieldhero-source-lock.json cards/catalog/shieldhero.json cards/catalog/power/shieldhero.json
+          mkdir -p cards/shieldhero-preview
+          cp cards/dist/ShieldHero-Collection.html cards/shieldhero-preview/index.html
+          node --input-type=module <<'JS'
+          import fs from 'node:fs';
+          const html=fs.readFileSync('cards/shieldhero-preview/index.html','utf8');
+          if(!html.includes('NIGHT / SHIELD HERO')||!html.includes('data:image/')||html.length<1000000)
+            throw Error('Refusing to stage incomplete or non-embedded Shield Hero gallery');
+          JS
+          git add cards/shieldhero-preview/index.html cards/catalog/shieldhero-source-lock.json cards/catalog/shieldhero.json cards/catalog/power/shieldhero.json
           if ! git diff --cached --quiet; then
-            git commit -m "cards(shieldhero): pin verified native artwork checksums and form assessments"
+            git commit -m "cards(shieldhero): publish source-pinned preview gallery and assessments"
             git push origin "HEAD:$GITHUB_REF_NAME"
           fi
       - name: Candidate master images, phone proofs, gallery and source report
