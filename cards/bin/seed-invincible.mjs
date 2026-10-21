@@ -19,7 +19,7 @@ const old=await fs.readFile(inside('catalog/invincible.json'),'utf8').then(JSON.
 const cards=[],assessments={},identity=new Set(),urls=new Set(),artSHAs=new Set();
 async function fetchOfficial(url) {
   const target=new URL(url);
-  if(target.origin!=='https://invinciblevs.com'||!/^\\/wp-content\\/uploads\\/20\\d\\d\\/\\d\\d\\/[A-Za-z0-9_.-]+\\.(?:webp|png)$/.test(target.pathname))throw Error('Unapproved host or image path '+url);
+  if(target.origin!=='https://invinciblevs.com'||!/^\/wp-content\/uploads\/20\d\d\/\d\d\/[A-Za-z0-9_.-]+\.(?:webp|png)$/.test(target.pathname))throw Error('Unapproved host or image path '+url);
   const res=await fetch(url,{signal:AbortSignal.timeout(45000),headers:{'User-Agent':'Mozilla/5.0 (NIGHT collectible artwork research; rights reserved)','Accept':'image/webp,image/png,*/*'}});
   if(!res.ok||new URL(res.url).origin!==target.origin)throw Error('Official source inaccessible '+url+' HTTP '+res.status);
   const chunks=[];let length=0;
@@ -29,7 +29,7 @@ async function fetchOfficial(url) {
 for(const item of sourceList.sources){
   if(!/^[a-z0-9-]+$/.test(item.id)||identity.has(item.id)||urls.has(item.source.image))throw Error('Duplicate source identity '+item.id);
   identity.add(item.id);urls.add(item.source.image);
-  const originalFile='artwork/invincible/original/'+item.id+(/\\.png$/.test(item.source.image)?'.png':'.webp');
+  const originalFile='artwork/invincible/original/'+item.id+(/\.png$/.test(item.source.image)?'.png':'.webp');
   const file='artwork/invincible/'+item.id+'.png';
   let original;
   try{original=await fs.readFile(inside(originalFile));}
@@ -71,7 +71,7 @@ const catalog={version:1,series:'invincible',name:'Invincible / NIGHT Collection
  pendingForms:[]};
 const power={version:1,series:'invincible',universe:'invincible',scope:'in-universe',scale:'night-universe-power-v1',
  status:'editorial-proposal',notes:'Main comic character baselines graded separately from the game-original Ella Mental. VS concept art does not establish a new costume or peak form.',assessments};
-await atomic(inside('catalog/invincible.json'),JSON.stringify(catalog,null,2)+'\\n');
-await atomic(inside('catalog/power/invincible.json'),JSON.stringify(power,null,2)+'\\n');
-if(shouldWrite)await atomic(inside('catalog/invincible-source-lock.json'),JSON.stringify(lock,null,2)+'\\n');
+await atomic(inside('catalog/invincible.json'),JSON.stringify(catalog,null,2)+'\n');
+await atomic(inside('catalog/power/invincible.json'),JSON.stringify(power,null,2)+'\n');
+if(shouldWrite)await atomic(inside('catalog/invincible-source-lock.json'),JSON.stringify(lock,null,2)+'\n');
 console.log('Prepared '+cards.length+' genuine illustrated candidates. Pending artwork/forms: '+sourceList.pending.length+'. No visual approvals granted.');
