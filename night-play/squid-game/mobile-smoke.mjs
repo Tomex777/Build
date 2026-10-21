@@ -24,7 +24,7 @@ try{
  // Wait for an actual WebGL attempt before collecting 3D screenshots.
  await page.waitForFunction(()=>{
   const canvas=document.getElementById('webgl');
-  return document.getElementById('arena').classList.contains('fallback3d') || (canvas.width!==960 && canvas.height!==560);
+  return document.getElementById('loadError').style.display==='block' || (canvas.width!==960 && canvas.height!==560);
  },null,{timeout:20000});
  const usedFallback=await page.locator('#arena').evaluate(el=>el.classList.contains('fallback3d'));
  if(usedFallback)console.warn('3D WebGL could not initialize in CI; screenshot coverage is 2.5D fallback, not genuine 3D.');
