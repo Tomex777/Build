@@ -40,6 +40,10 @@ const COMMAND_SETTINGS_FILE = path.resolve(process.env.CORTEX_COMMAND_SETTINGS_F
 const COMMAND_SETTINGS_SCHEMA_FILE = path.resolve(process.env.CORTEX_COMMAND_SETTINGS_SCHEMA_FILE || '/var/lib/mscc/data/cortex-settings-schema.json');
 const RUNTIME_REGISTRY_FILE = path.resolve(process.env.CORTEX_RUNTIME_REGISTRY_FILE || '/var/lib/mscc/data/cortex-runtime-registry.json');
 const MANAGED_ENV_FILE = path.resolve(process.env.CORTEX_MSCC_ENV_FILE || '/etc/mscc.env');
+const MANAGED_ENV_OVERLAY_FILE = process.env.CORTEX_MSCC_ENV_OVERLAY_FILE
+  ? path.resolve(process.env.CORTEX_MSCC_ENV_OVERLAY_FILE)
+  : (MANAGED_ENV_FILE === '/etc/mscc.env' ? '/var/lib/cortex/mscc-overrides.env' : '');
+const MANAGED_ENV_READER = String(process.env.CORTEX_MSCC_ENV_READER_USER || '');
 const ENVIRONMENT_SCHEMA_FILE = path.resolve(process.env.CORTEX_ENV_SCHEMA_FILE || '/var/lib/mscc/data/cortex-environment-schema.json');
 const DEFAULT_ENVIRONMENT_SCHEMA = [
   { key: 'OWNER_NUMBER', label: 'Owner number', description: 'Primary private-control WhatsApp number.', secret: true, type: 'phone', requiresRestart: true },
@@ -1287,10 +1291,10 @@ function unquoteEnvironmentValue(value) {
   return text;
 }
 
-async function managedEnvironmentValues() {
+async function readEnvironmentFile(file) {
   let content = '';
   try {
-    content = await fs.readFile(MANAGED_ENV_FILE, 'utf8');
+    content = await fs.readFile(file, 'utf8');
   } catch (error) {
     if (error?.code !== 'ENOENT') throw error;
   }
@@ -1301,6 +1305,13 @@ async function managedEnvironmentValues() {
     values[match[1]] = unquoteEnvironmentValue(match[2]);
   }
   return values;
+}
+
+async function managedEnvironmentValues() {
+  const base = await readEnvironmentFile(MANAGED_ENV_FILE);
+  if (!MANAGED_ENV_OVERLAY_FILE) return base;
+  // The later EnvironmentFile takes precedence when NIGHT restarts.
+  return { ...base, ...await readEnvironmentFile(MANAGED_ENV_OVERLAY_FILE) };
 }
 
 function validateEnvironmentValue(entry, input) {
@@ -1406,6 +1417,47 @@ async function writeEnvironmentDirect(key, value) {
   }
 }
 
+async function writeEnvironmentOverlay(key, value) {
+  if (!MANAGED_ENV_OVERLAY_FILE ||
+      !/^[a-z_][a-z0-9_-]*$/.test(MANAGED_ENV_READER)) {
+    throw Object.assign(new Error('NIGHT environment overlay is not configured'), { statusCode: 503 });
+  }
+  const dir = path.dirname(MANAGED_ENV_OVERLAY_FILE);
+  const info = await fs.lstat(dir);
+  if (!info.isDirectory() || info.isSymbolicLink()) {
+    throw Object.assign(new Error('Unsafe managed environment directory'), { statusCode: 503 });
+  }
+  let before = '';
+  try {
+    const previous = await fs.lstat(MANAGED_ENV_OVERLAY_FILE);
+    if (!previous.isFile() || previous.isSymbolicLink() || previous.size > 1024 * 1024) {
+      throw Object.assign(new Error('Unsafe managed environment override'), { statusCode: 503 });
+    }
+    before = await fs.readFile(MANAGED_ENV_OVERLAY_FILE, 'utf8');
+  } catch (error) {
+    if (error?.code !== 'ENOENT') throw error;
+  }
+  const lines = before.split(/\r?\n/).filter(Boolean);
+  const next = lines.filter((line) => !line.startsWith(key + '='));
+  next.push(key + '=' + value);
+  const temp = path.join(dir, '.mscc-override-' + crypto.randomUUID());
+  try {
+    // An Agent-owned private overlay replaces root-only /etc/mscc.env writes.
+    // Only the MSCC service user has read ACL, never the temporary job runner.
+    const handle = await fs.open(temp, 'wx', 0o600);
+    try {
+      await handle.writeFile(next.join('\n') + '\n', 'utf8');
+      await handle.sync();
+    } finally {
+      await handle.close();
+    }
+    await exec('/usr/bin/setfacl', ['-m', 'u:' + MANAGED_ENV_READER + ':r--', temp]);
+    await fs.rename(temp, MANAGED_ENV_OVERLAY_FILE);
+  } finally {
+    await fs.rm(temp, { force: true }).catch(() => {});
+  }
+}
+
 async function writeEnvironmentViaHelper(key, value) {
   await new Promise((resolve, reject) => {
     const child = spawn('/usr/bin/sudo', ['-n', SERVICE_CONTROL_HELPER, 'env-set', key], {
@@ -1416,9 +1468,16 @@ async function writeEnvironmentViaHelper(key, value) {
     child.once('error', reject);
     child.once('exit', (code) => {
       if (code === 0) return resolve();
-      reject(Object.assign(new Error('Environment update helper failed'), {
-        statusCode: 500,
-        cause: stderr.slice(0, 500),
+      // Do not surface sudo stderr; it may include local paths or contents.
+      // Diagnose only fixed filesystem and sudo error categories.
+      const category = /read-only file system/i.test(stderr) ? 'filesystem-readonly'
+        : /permission denied|operation not permitted/i.test(stderr) ? 'filesystem-permission'
+        : /sudo:|not allowed to execute|password is required/i.test(stderr) ? 'sudo-policy'
+        : /setfacl:/i.test(stderr) ? 'access-control-list'
+        : 'helper-failure';
+      console.warn('Cortex environment helper failed:', category, 'exit', Number(code) || 1);
+      reject(Object.assign(new Error('NIGHT environment save failed: ' + category), {
+        statusCode: 503,
       }));
     });
     child.stdin.end(value);
@@ -1434,13 +1493,23 @@ async function setEnvironmentValue(key, input) {
   // string. Quotes/backslashes are preserved without shell evaluation.
   const fileValue = entry.key.startsWith('MSCC_MEGA_') ? JSON.stringify(value) : value;
 
-  try {
-    await writeEnvironmentDirect(entry.key, fileValue);
-  } catch (error) {
-    if (!['EACCES', 'EPERM', 'EROFS'].includes(error?.code)) throw error;
-    await writeEnvironmentViaHelper(entry.key, fileValue);
+  if (MANAGED_ENV_OVERLAY_FILE) {
+    await writeEnvironmentOverlay(entry.key, fileValue);
+  } else {
+    // Local development / standalone Cortex users retain their existing
+    // environment path. Production never writes through this privileged helper.
+    try {
+      await writeEnvironmentDirect(entry.key, fileValue);
+    } catch (error) {
+      if (!['EACCES', 'EPERM', 'EROFS'].includes(error?.code)) throw error;
+      await writeEnvironmentViaHelper(entry.key, fileValue);
+    }
   }
 
+  const persisted = await managedEnvironmentValues();
+  if (persisted[entry.key] !== value) {
+    throw Object.assign(new Error('NIGHT environment override readback failed'), { statusCode: 503 });
+  }
   await recordActivity('server:environment.update', {
     key: entry.key,
     restartRequired: entry.requiresRestart,
