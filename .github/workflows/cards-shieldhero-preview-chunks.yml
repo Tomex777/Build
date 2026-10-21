@@ -35,6 +35,14 @@ jobs:
           (directory/'manifest.json').write_text(json.dumps({'parts':len(parts),'sha256':hashlib.sha256(raw).hexdigest(),'bytes':len(raw)},indent=2)+'\n')
           print(f'Split {len(raw)} bytes into {len(parts)} UTF-8 chunks with SHA-256 lock')
           PY
+      - name: Verify browser-readable GitHub gallery source and exact content hash
+        run: |
+          url="https://raw.githubusercontent.com/Tomex777/Build/feature/cards-shield-hero-20261020/cards/shieldhero-preview/index.html"
+          curl --fail --location --silent --show-error --retry 3 --dump-header /tmp/shield-headers "$url" -o /tmp/shield-gallery.html
+          grep -iq '^access-control-allow-origin: \*' /tmp/shield-headers
+          echo '799ea0ece11f0b561bba2f6ad049b69b6a43e044c184eccd231f5eb6d4985e26  /tmp/shield-gallery.html' | sha256sum --check
+          test "$(wc -c </tmp/shield-gallery.html)" -eq 7663329
+          echo 'Verified CORS and original SHA-256 for hosted NIGHT Shield Hero gallery'
       - name: Commit transport chunks without changing approved master cards
         run: |
           git config user.name 'NIGHT Cards Preview Transport'
