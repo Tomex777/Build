@@ -90,7 +90,7 @@ assert(prompt.length < 5000)
 assert(!prompt.includes('.anime'))
 assert(!prompt.includes('.movie'))
 assert.equal(calls.at(-1).allowWeb, false)
-assert(String(calls.at(-1).system).includes('group member'))
+assert(String(calls.at(-1).system).includes('WhatsApp group'))
 
 
 {
