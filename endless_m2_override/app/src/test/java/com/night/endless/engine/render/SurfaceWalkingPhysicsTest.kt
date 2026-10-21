@@ -48,6 +48,23 @@ class SurfaceWalkingPhysicsTest {
         assertEquals("lost parallel movement", .0010, moved.second, 1e-10)
     }
 
+    @Test fun largeInjectedMotionStillCannotTunnelThroughNarrowCliffs() {
+        // The 96-sample bound must limit total travel, not silently turn
+        // 30cm steps into 250m leaps on an outlier touch displacement.
+        val ridge: (Double, Double) -> Double = { x, _ ->
+            if (x in .00032..00056) .005 else 0.0
+        }
+        val moved = SurfaceWalkingPhysics.move(0.0, 0.0, 2.0, 0.0, ridge)
+        assertTrue("large delta skipped the ridge", moved.first < .00032)
+        assertTrue("walk never approached ridge", moved.first >= .0002)
+    }
+
+    @Test fun flatOutlierMovementIsDistanceBounded() {
+        val position = SurfaceWalkingPhysics.move(0.0, 0.0, 2.0, 0.0) { _, _ -> 0.0 }
+        assertTrue(position.first > 0.0)
+        assertTrue("large input moved more than 28.8 metres", position.first <= .0096 + 1e-12)
+    }
+
     @Test fun rejectsInvalidTerrainAndKeepsBoundaries() {
         val flat: (Double, Double) -> Double = { _, _ -> 0.0 }
         val bounded = SurfaceWalkingPhysics.move(7.999, 7.999, 1.0, 1.0, flat)
