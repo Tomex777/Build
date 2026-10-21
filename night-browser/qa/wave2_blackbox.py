@@ -355,6 +355,7 @@ class Device:
     def upload(self):
         """Select a synthetic file through Android DocumentsUI and verify exact posted bytes."""
         from wave2_fixture import UPLOAD_BYTES
+        self.ensure_regular()  # SAF may not be evaluated as ordinary after private QA.
         filename = "night-qa-upload.txt"
         local = self.out / filename
         local.write_bytes(UPLOAD_BYTES)
@@ -410,6 +411,7 @@ class Device:
         if path not in expected:
             raise AssertionError("No reference fixture for download")
         filename, original = expected[path]
+        self.ensure_regular()  # App-owned Library downloads must never use incognito.
         prior = self.app_download_names()
         self.go(path)
         self.click("Save file", timeout=25)
@@ -528,6 +530,7 @@ class Device:
         return "Repeat confirmation survived app restart without downloading"
 
     def time_machine(self):
+        self.ensure_regular()  # Persisted PDF capture is deliberately unavailable in private.
         self.go("/landing")
         # Fixture HTTP requests may arrive before Gecko paints the committed page.
         self.verify_title("NIGHT QA REDIRECT LANDING")
