@@ -34,4 +34,11 @@ assert.deepEqual(parsed.selected.map(item => item.number), ['12','12.5','13'])
 assert.equal(parseNumberSelection('500', entries).ok, false)
 assert.equal(parseNumberSelection('1,a,3', entries).ok, false)
 
+// The selection cap must apply to individual picks and mixed input, not just ranges.
+assert.equal(parseNumberSelection('1,2,3', entries, { maxSelected:2 }).error, 'too-many')
+assert.equal(parseNumberSelection('1,3-5', entries, { maxSelected:3 }).error, 'too-many')
+assert.equal(parseNumberSelection('1,1,2', entries, { maxSelected:2 }).ok, true)
+assert.equal(parseNumberSelection('1', entries, { maxSelected:0 }).error, 'too-many')
+assert.equal(parseNumberSelection('1,2', entries, { maxSelected:1 }).error, 'too-many')
+
 console.log('PASS numeric media selection parser')
