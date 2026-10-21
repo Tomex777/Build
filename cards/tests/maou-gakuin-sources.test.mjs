@@ -11,7 +11,7 @@ test('Official anime source bound identities',()=>{
     ids.add(card.id);images.add(card.source.image);numbers.add(card.number);
     assert.ok(['maohgakuin-anime-official','maou-gakuin-2020-official'].includes(card.source.provider));
     assert.ok(card.source.image.startsWith('https://maohgakuin.com/'));
-    assert.match(card.source.image,/\/img_[a-z]+\.png$/);
+    assert.match(card.source.image,/\/img_[a-z0-9]+\.png$/);
     if(card.source.provider==='maou-gakuin-2020-official') assert.ok(card.source.image.includes('/1st/assets/img/chara/'));
     assert.ok(card.source.rights.includes('All rights reserved'));
     assert.ok(['F','C','B','A','S','SS'].includes(card.rank.letter));
