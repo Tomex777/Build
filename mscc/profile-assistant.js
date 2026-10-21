@@ -138,7 +138,7 @@ export function compactCommandReference(commands = [], filter = null, question =
   // Only look up command data when someone explicitly asks about NIGHT's
   // ability to perform an operation. Ordinary conversation (including
   // "send me a joke" or a discussion about downloads) gets no catalog.
-  const capabilityQuestion = /\b(?:can|could|does|do|will|would|how|which)\s+(?:you|night|the bot|josia|nami|mimi)\b.{0,80}\b(?:download|fetch|extract|convert|transcribe|translate|remove|sticker|send)\b/i.test(input)
+  const capabilityQuestion = /\b(?:can|could|does|do|will|would|how|which)\s+(?:you|i|night|the bot|josia|nami|mimi)\b.{0,80}\b(?:download|fetch|extract|convert|transcribe|translate|remove|stickers?)\b/i.test(input)
   const explicitOperation = /^\s*(?:download|fetch|extract|convert|transcribe|translate|remove background|make a sticker)\b/i.test(input)
   if (!names.length && !asksForCommands && !capabilityQuestion && !explicitOperation) return ''
 
