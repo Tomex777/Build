@@ -89,6 +89,7 @@ import { partyInputDestination } from './utils/party-games.js'
 import { wordChainInputDestination } from './utils/word-chain.js'
 import { createJosiahAssistant } from './josiah-assistant.js'
 import { assistantInputPolicy } from './assistant-media-policy.js'
+import { createAssistantTyping } from './assistant-typing.js'
 import { createNamiAssistant } from './nami-assistant.js'
 import { createMiMiAssistant } from './mimi-assistant.js'
 import { chooseProfileAsset, groupIntro, presentationFor, profileHeader, readProfileAsset } from './profile-presentation.js'
@@ -1507,57 +1508,68 @@ async function handleProfileAssistant(account, msg, authority, rawText) {
   const text = stripAssistantAddress(input.text, profile?.displayName || assistant.displayName || 'Personality')
     || 'Someone addressed you by name.'
   const aiStartedAt = Date.now()
-
-  const result = await assistant.answer({
-    chatJid:chat,
-    text,
-    senderName:String(msg.pushName || '').trim() || authority.senderNumber || 'User',
-    quotedText:quote.text,
-    quotedSpeaker:quote.speaker,
-    attachmentType:input.attachmentType,
-    groupName,
-    isGroup:isGroup(chat),
-    groupPersonalities:presence,
-    senderPersonality,
-    // No extra model call: this is a small optional instruction in the existing reply.
-    reactionSoundPolicy:isGroup(chat) && !senderPersonality ? await reactionSounds.promptFor(chat) : '',
+  const typingSocket = account.sock
+  const typing = createAssistantTyping({
+    sock:typingSocket,
+    chat,
+    canSignal:() => account.sock === typingSocket && account.connected === true,
   })
-  if (!result?.ok || !result.text) {
-    // A provider failure is NOT a successful AI response. Cortex can now
-    // distinguish rate limits, cooldowns, auth failures and timeouts without
-    // recording prompt text, phone numbers, or private credentials.
-    const reason = String(result?.reason || 'unavailable').slice(0, 64)
-    await recordActivity('ai.failed', {
+  typing.start()
+  try {
+    const result = await assistant.answer({
+      chatJid:chat,
+      text,
+      senderName:String(msg.pushName || '').trim() || authority.senderNumber || 'User',
+      quotedText:quote.text,
+      quotedSpeaker:quote.speaker,
+      attachmentType:input.attachmentType,
+      groupName,
+      isGroup:isGroup(chat),
+      groupPersonalities:presence,
+      senderPersonality,
+      // No extra model call: this is a small optional instruction in the existing reply.
+      reactionSoundPolicy:isGroup(chat) && !senderPersonality ? await reactionSounds.promptFor(chat) : '',
+    })
+    if (!result?.ok || !result.text) {
+      // A provider failure is NOT a successful AI response. Cortex can now
+      // distinguish rate limits, cooldowns, auth failures and timeouts without
+      // recording prompt text, phone numbers, or private credentials.
+      const reason = String(result?.reason || 'unavailable').slice(0, 64)
+      await recordActivity('ai.failed', {
+        account:account.id,
+        profile:profile?.id || assistant.profileId || '',
+        group:isGroup(chat),
+        activation:activation.reason,
+        reason,
+        durationMs:Date.now() - aiStartedAt,
+      })
+      // Silent failure: retain only internal diagnostics for troubleshooting.
+      return true
+    }
+    const reaction = parseReactionSoundDirective(result.text)
+    if (!reaction.text) return false
+
+    await typing.beforeSend(reaction.text)
+    await sendAssistantReply(account, msg, reaction.text, {
+      presence,
+      allowPersonalityMentions:!senderPersonality,
+    })
+    // Only one sound after the normal text, never on AI-to-AI replies.
+    if (reaction.id && isGroup(chat) && !senderPersonality) {
+      await reactionSounds.play(account.sock, chat, reaction.id, { automatic:true })
+    }
+    await recordActivity('ai.responded', {
       account:account.id,
       profile:profile?.id || assistant.profileId || '',
       group:isGroup(chat),
       activation:activation.reason,
-      reason,
+      usedWeb:result.usedWeb === true,
       durationMs:Date.now() - aiStartedAt,
     })
-    // Silent failure: retain only internal diagnostics for troubleshooting.
     return true
+  } finally {
+    typing.stop()
   }
-  const reaction = parseReactionSoundDirective(result.text)
-  if (!reaction.text) return false
-
-  await sendAssistantReply(account, msg, reaction.text, {
-    presence,
-    allowPersonalityMentions:!senderPersonality,
-  })
-  // Only one sound after the normal text, never on AI-to-AI replies.
-  if (reaction.id && isGroup(chat) && !senderPersonality) {
-    await reactionSounds.play(account.sock, chat, reaction.id, { automatic:true })
-  }
-  await recordActivity('ai.responded', {
-    account:account.id,
-    profile:profile?.id || assistant.profileId || '',
-    group:isGroup(chat),
-    activation:activation.reason,
-    usedWeb:result.usedWeb === true,
-    durationMs:Date.now() - aiStartedAt,
-  })
-  return true
 }
 
 function publicSudoNumbers() {
