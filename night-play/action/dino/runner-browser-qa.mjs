@@ -27,7 +27,7 @@ const origin='http://127.0.0.1:'+server.address().port;
 const snap=page=>page.evaluate(()=>window.__nightDinoTest.snapshot());
 let browser;
 try{
- browser=await chromium.launch({headless:true,args:['--no-sandbox']});
+ browser=await chromium.launch({headless:true,channel:'chrome',args:['--no-sandbox']});
  for(const [width,height] of [[320,568],[360,740],[390,844],[412,915],[1280,800]]){
   const page=await browser.newPage({viewport:{width,height},hasTouch:true,isMobile:width<700});
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
