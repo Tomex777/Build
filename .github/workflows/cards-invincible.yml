@@ -62,19 +62,15 @@ jobs:
         run: |
           node bin/invincible-gallery.mjs dist/invincible/index.html
           node bin/invincible-gallery.mjs dist/NIGHT-Invincible-Collection.html
-      - name: Commit immutable source references and genuine lightweight gallery
+      - name: Commit immutable source metadata only (art remains in the review artifact)
         if: success() && github.event_name == 'push'
         working-directory: .
         run: |
           git config user.name 'NIGHT Cards Provenance'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          mkdir -p cards/previews/invincible
-          cp cards/dist/invincible/index.html cards/previews/invincible/index.html
-          cp cards/dist/invincible/*--view.jpg cards/previews/invincible/
-          cp cards/dist/invincible/*--phone.png cards/previews/invincible/
-          git add cards/catalog/invincible-source-lock.json cards/catalog/invincible.json cards/catalog/power/invincible.json cards/artwork/invincible cards/previews/invincible
+          git add cards/catalog/invincible-source-lock.json cards/catalog/invincible.json cards/catalog/power/invincible.json
           if ! git diff --cached --quiet; then
-            git commit -m "cards(invincible): pin verified original art and save actual rendered previews"
+            git commit -m "cards(invincible): pin official source fingerprints and proposed grades"
             git pull --rebase origin "$GITHUB_REF_NAME"
             git push origin "HEAD:$GITHUB_REF_NAME"
           fi
