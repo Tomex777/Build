@@ -7,7 +7,24 @@ const NS_MUTE = 'group-user-mute'
 const NS_WARN = 'group-user-warning'
 const URL_RE = /(?:https?:\/\/|www\.|\b[a-z0-9][a-z0-9-]{1,62}\.(?:com|net|org|io|co|me|app|dev|gg|tv|ly|ng|xyz|info|site|link|online)\b)/i
 const GROUP_MENTION_RE = /(^|\s)@(?:all|everyone|group)(?=\s|$|[.!?,:;])/i
+// Per-sender spam history must not grow forever on a busy, long-running bot.
 const spamWindows = new Map()
+const SPAM_WINDOW_MS = 20_000
+const MAX_SPAM_TRACKED_SENDERS = 4096
+let spamChecks = 0
+
+function pruneSpamWindows(now) {
+  for (const [identity, rows] of spamWindows) {
+    const lastSeen = rows.at(-1)?.at
+    if (!Number.isFinite(lastSeen) || lastSeen > now || now - lastSeen > SPAM_WINDOW_MS) {
+      spamWindows.delete(identity)
+    }
+  }
+  // Map insertion order follows recent activity (each update re-inserts).
+  while (spamWindows.size >= MAX_SPAM_TRACKED_SENDERS) {
+    spamWindows.delete(spamWindows.keys().next().value)
+  }
+}
 
 export const DEFAULT_GROUP_POLICY = Object.freeze({
   antiLink:false,
@@ -178,10 +195,14 @@ function spamViolation(group, senderPhone, text, now = Date.now()) {
   const normalized = String(text || '').replace(/\s+/g,' ').trim().toLowerCase()
   if (!normalized) return ''
 
+  if (++spamChecks % 128 === 0 || spamWindows.size >= MAX_SPAM_TRACKED_SENDERS) {
+    pruneSpamWindows(now)
+  }
   const prior = spamWindows.get(key) || []
   const rows = [...prior, { at:now, text:normalized }]
-    .filter(row => now - Number(row.at || 0) <= 15000)
+    .filter(row => now >= Number(row.at) && now - Number(row.at) <= SPAM_WINDOW_MS)
     .slice(-12)
+  spamWindows.delete(key)
   spamWindows.set(key, rows)
 
   const last10 = rows.filter(row => now - row.at <= 10000)
@@ -312,4 +333,6 @@ export const _test = {
   URL_RE,
   GROUP_MENTION_RE,
   removeMentionTokens,
+  spamViolation,
+  spamWindowSize: () => spamWindows.size,
 }
