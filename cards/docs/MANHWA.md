@@ -15,7 +15,7 @@
 
 **Story spotlight** covers significant characters without giving everyone an invented combat ranking. In particular, *Study Group* has a grounded fighting/school narrative and receives no fantasy F–EX ladder. Scenes of Gamin's protection of his friends, Hankyeong's mentorship, and study-group friendships are appropriate source-specific spotlight designs.
 
-**Romance duo** is a separate family, with two individually identified subjects and an actual relationship theme rather than power grading. Initial story-spoiler concepts are Gong-ja × Raviel (*SSS-Class Revival Hunter*) and Sirone × Amy (*Infinite Mage*). Each must use authentic **two-subject art** from the correct story continuity; neither can be fabricated by relabeling a solo portrait. The shared NIGHT finishes are a starting material choice, not a new romance-exclusive frame design.
+**Romance duo** is a separate family, with two individually identified subjects and an actual relationship theme rather than power grading. Initial story-spoiler concepts are Gong-ja × Raviel (*SSS-Class Revival Hunter*) and Sirone × Amy (*Infinite Mage*). Each must use authentic **two-subject art** from the correct story continuity; neither can be fabricated by relabeling a solo portrait. The shared NIGHT finishes are a starting material choice, not a new romance-exclusive frame design. The two-source compositor is now implemented but its source locks remain empty.
 
 ## Expanded cast and strict publication boundaries
 
@@ -67,13 +67,17 @@ node bin/manhwa-review.mjs
 
 The page filters all 82 records by series, family, and translated aliases; plot-spoiler cards are hidden by default. **It is a list of candidate identities, not CSS copies of the actual collectible-card artwork.** The dedicated CI workflow uploads its HTML and machine-readable summary as `NIGHT-Manhwa-82-Candidate-Roster`. The preview is not the main NIGHT website and needs no art distribution permissions.
 
+## Standalone Vercel review preview
+
+A dedicated research roster has been deployed at [night-manhwa-card-preview.vercel.app](https://night-manhwa-card-preview.vercel.app). This deployment is **not** the main NIGHT cards production website, and lists candidates with source checks instead of artwork. The repository's Git-to-Vercel integration is currently unavailable for this new project; the authenticated preview was created from the exact generated HTML/JSON and is not automatically updated from pushes. Rebuild and redeploy after catalogue changes. Vercel project: `prj_SO76fLpxkVXWrFoEOl9ye72Ku2ox`, deployment: `dpl_B6wnaWfCWqgXk3xFq8ASiATuuinG`.
+
 ## Steps to actual cards
 
 1. Find legitimate rights-cleared/permissioned **manhwa** character cutouts for the depicted forms. Do not silently substitute an anime adaptation or novel-era image. Record the original source and its permission.
 2. For a solo edition, place the *unchanged* official transparent original under `cards/artwork/manhwa/<series>/<id>.png` and add its verified native dimensions, SHA-256, exact artwork URL, rights, crop, focal point and subject/form identity to `cards/catalog/manhwa-art-lock.json`. This folder is ignored by Git; preserve source files separately and never commit without rights.
 3. Run `cd cards && npm ci && node bin/manhwa.mjs audit && node bin/manhwa.mjs prepare`. This preflights exact bytes, dimensions and alpha, and emits `catalog/<series>.json` **only for series with verified art**. Original source changes invalidate its lock; recheck and repin explicitly.
 4. Render an acquired solo set with `npm run build -- --series sss-revival --width 3000 --out dist/sss-revival` (or the other series), then check depth and all phone proofs and seek actual visual approval.
-5. Two-subject romance requires a proper provenance-preserving two-layer composition feature; the preparer deliberately refuses to flatten/pretend a duo is ready.
+5. Two-subject romance is supported by the two-original-source compositor (`src/manhwa-duo.mjs`). Add an entry in the art lock shaped as `{subjects:[leftArt,rightArt],composition:{mode:'two-subject-source-locked',left:{x:0,y:55,width:930},right:{x:665,y:0,width:930}}}`. Each `leftArt`/`rightArt` needs the same separate identity, source URL, SHA-256, rights, crop and focal fields as a solo lock. The compositor places both cutouts into a transparent staged derivative for the existing **Tidelight** renderer; neither subject is silently substituted. Adjust the two stage placements per source subject and inspect the result. A combined PNG is a renderer derivative, **not** newly licensed original art.
 6. Never publish to the live NIGHT site or bot until art is licensed, physically reviewed and a separate integration/release is approved.
 
-No fabricated artwork, unearned ranks, mystery source licenses, visual-approval flags or production deployment exist in this foundation.
+No fabricated artwork, unearned ranks, mystery source licenses or visual-approval flags exist. A separately protected Vercel **research roster** preview exists, but no illustrated manhwa card has been publicly shipped to the NIGHT main cards website.
