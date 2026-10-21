@@ -1,11 +1,12 @@
 {
-  "releaseId": "night-cortex-mega-passive-ai-onekey-20261021",
+  "releaseId": "night-cortex-agent-v107-personality-ai-20261021",
   "baseBranch": "mscc-azure",
-  "baseCommit": "d9dc60ca64b84c54cf1ff8e738da0cf019dec648",
+  "baseCommit": "b6dde2b6abb5214bb0d566d13b9154656dff41ac",
   "pullRequests": [
-    531,
-    533
+    538,
+    541,
+    540
   ],
-  "preparedAt": "2026-10-21T06:33:08.656Z",
-  "notes": "One protected release candidate combines passing NIGHT Cloud security PR #531 and one-key group AI reliability PR #533. GET /cloud and old GET /cloud/discover do not initiate MEGA authentication even for installed old APKs; remote Discover requires an intentional action only after companion Agent/Android PR #532 is validated and deployed. AI conserves tokens, enforces bounded request latency, preserves group-only policy and logs reasoned failures; no changes to keys, Cortex bearer token, MEGA credentials, existing WhatsApp sessions, or sudo. Integrates exact separately green PR heads into one source branch; require all exact integration-head Azure/Readiness/Contract checks passing. Merge only after review, then protected mscc-production approval and explicit live nonsecret verification; no automatic NIGHT restart or MEGA sign-in tests."
+  "preparedAt": "2026-10-21T11:16:36.750Z",
+  "notes": "ONE protected Azure release combines the already validated, guarded Cortex Agent 1.0.7 release #542 (feature #541 and Android/Agent #538) with tested group-chat-only Josia/Nami/MiMi personality and lazy read-only command lookup #540. Previous passive MEGA/one-key AI production rollout #39556468780 completed successfully; preserve its protections, including no MEGA sign-in on Cloud GET and inert legacy discovery. Do not change saved credentials, bearer token, WhatsApp auth/session files or sudo; no automatic MEGA POST authentication. Enforce exact integration-head Azure, Readiness and Cortex Contract checks, then one protected mscc-production approval. After Azure installation verify authenticated settings/environment readbacks, passive Cloud, agent API and actual WhatsApp group personality response/DM opt-out; never claim end-user live verification from static tests."
 }

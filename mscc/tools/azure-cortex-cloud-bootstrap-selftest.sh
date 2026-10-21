@@ -7,11 +7,11 @@ INSTALL="$ROOT/install-azure.sh"
 bash -n "$UPGRADE" "$INSTALL"
 # Updater can only fetch an approved, fixed Cortex Agent revision and exact
 # Git blob hashes. Never let environment variables or SSH input set its SHA.
-grep -Fq 'readonly SOURCE_SHA=18a3a89f730689f675b0103c25b16b8c11b8134c' "$UPGRADE"
-grep -Fq 'readonly AGENT_BLOB=8aacac2287e96a19a7fd68cfa645c8f13a0e8f51' "$UPGRADE"
-grep -Fq 'readonly PREVIOUS_AGENT_BLOB=558a8394d574aec9b8798e39d9d4475f6b6bf4a9' "$UPGRADE"
+grep -Fq 'readonly SOURCE_SHA=b6175f37c53f6ca1f86f062d1da60a40101d3c17' "$UPGRADE"
+grep -Fq 'readonly AGENT_BLOB=68e1f21daecd59b4831394d188ce8b59f5d57ff7' "$UPGRADE"
+grep -Fq 'readonly PREVIOUS_AGENT_BLOB=8aacac2287e96a19a7fd68cfa645c8f13a0e8f51' "$UPGRADE"
 grep -Fq 'readonly HELPER_BLOB=8bc55110b92f60bfe31b8097cbc5dad32ae0a820' "$UPGRADE"
-grep -Fq 'readonly PREVIOUS_HELPER_BLOB=4e0fa0455c604d3793a72254a1c3b4e260b67f4e' "$UPGRADE"
+grep -Fq 'readonly PREVIOUS_HELPER_BLOB=8bc55110b92f60bfe31b8097cbc5dad32ae0a820' "$UPGRADE"
 grep -Fq 'readonly INSTALL_BLOB=e5ac0fe87511310cc4248aa261a6cb185e3afe9d' "$UPGRADE"
 grep -Fq 'readonly PACKAGE_BLOB=c2032a0fddf20a85e0cb1e9201bfd28652c046ba' "$UPGRADE"
 grep -Fq 'readonly SERVICE_BLOB=82518da0a5a09d5148671aac1d8d3cfa3d7fb7fc' "$UPGRADE"
@@ -50,7 +50,19 @@ grep -Fq 'MSCC_MEGA_PASSWORD' "$UPGRADE"
 grep -Fq 'http://127.0.0.1:47831/api/cortex/host/environment' "$UPGRADE"
 grep -Fq 'http://127.0.0.1:47831/api/cortex/host/cloud' "$UPGRADE"
 grep -Fq "Cortex Cloud settings endpoint verified with protected credential masking." "$UPGRADE"
-grep -Fq "Cortex Agent -> MSCC Community Cloud endpoint verified." "$UPGRADE"
+grep -Fq "Cortex Agent -> MSCC passive Cloud endpoint verified (no MEGA login)." "$UPGRADE"
+# Guard against running a read-only probe on the older NIGHT server, where
+# GET /cloud previously authenticated to MEGA.
+grep -Fq 'readonly NIGHT_PROJECT=/opt/mscc/current' "$UPGRADE"
+grep -Fq 'Protected passive MEGA server release is not installed; refusing Agent upgrade before any Cloud request.' "$UPGRADE"
+grep -Fq 'signInRequired: true' "$UPGRADE"
+grep -Fq 'Legacy Cortex MEGA discovery GET verified inert; no sign-in requested.' "$UPGRADE"
+grep -Fq 'Legacy MEGA discovery GET is not safely passive.' "$UPGRADE"
+passive_guard_line="$(grep -nF 'readonly NIGHT_PROJECT=/opt/mscc/current' "$UPGRADE" | head -n 1 | cut -d: -f1)"
+cloud_probe_line="$(grep -nF 'CLOUD_TOKEN="$(sudo -n sed -n' "$UPGRADE" | head -n 1 | cut -d: -f1)"
+[[ "$passive_guard_line" -lt "$cloud_probe_line" ]] || {
+  echo 'Passive MEGA server guard must run before Cloud request.' >&2; exit 1;
+}
 # Agent's root helper writes a sibling env temp file under strict sandboxing.
 # UNIX permissions + sudo helper still protect private system files.
 grep -Fq 'readonly ENV_WRITER_OVERRIDE=' "$UPGRADE"
