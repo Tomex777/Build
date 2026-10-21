@@ -22,8 +22,9 @@ class CortexServerApi(
 ) {
     private val base = normalizeHttpsEndpoint(baseUrl)
 
-    fun snapshot(): HostingSnapshot {
-        val json = getJson("/api/cortex/host/status")
+    fun snapshot(): HostingSnapshot = parseSnapshot(getJson("/api/cortex/host/status"))
+
+    private fun parseSnapshot(json: JSONObject): HostingSnapshot {
         val runtime = json.optJSONObject("runtime")
         return HostingSnapshot(
             state = json.optString("state", "unknown"),
@@ -49,13 +50,17 @@ class CortexServerApi(
         return json.optJSONArray("lines").strings().map(SensitiveLogRedactor::sanitize)
     }
 
-    fun power(action: HostingPowerAction) {
+    /** The power endpoint already returns the service status after systemctl.
+     * Use that acknowledgement, not an unrelated logs request, as the result.
+     * A failed console refresh must never mark a successful restart as failed.
+     */
+    fun power(action: HostingPowerAction): HostingSnapshot {
         val value = when (action) {
             HostingPowerAction.START -> "start"
             HostingPowerAction.RESTART -> "restart"
             HostingPowerAction.STOP -> "stop"
         }
-        postJson("/api/cortex/host/power", JSONObject().put("action", value))
+        return parseSnapshot(postJson("/api/cortex/host/power", JSONObject().put("action", value)))
     }
 
     fun listFiles(path: String): List<HostingFileEntry> {
@@ -653,9 +658,25 @@ class CortexServerApi(
                 }
                 val bytes = out.toByteArray()
                 if (code !in 200..299) {
+                    // Only inspect the server's allowlisted power failure code.
+                    // Never echo response bodies, token material or systemd logs.
+                    val powerIssue = if (path == "/api/cortex/host/power") {
+                        val reason = runCatching {
+                            JSONObject(String(bytes, Charsets.UTF_8)).optString("reasonCode")
+                        }.getOrNull()
+                        when (reason) {
+                            "power-permission" ->
+                                "Cortex is connected but Azure denied the NIGHT service control command. Server permissions need repair."
+                            "power-timeout" ->
+                                "NIGHT restart timed out. It might still be running; refresh Status before trying again."
+                            "power-service" ->
+                                "Azure could not complete the NIGHT service operation. Check NIGHT status and logs."
+                            else -> null
+                        }
+                    } else null
                     throw CortexHttpException(
                         statusCode = code,
-                        message = safeHttpError(code),
+                        message = powerIssue ?: safeHttpError(code),
                     )
                 }
                 return bytes

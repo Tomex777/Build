@@ -105,14 +105,31 @@ if (!TOKEN || TOKEN.length < 24) {
   process.exit(1);
 }
 
-async function controlManagedService(action, timeout = 30_000) {
+async function controlManagedService(action, timeout = 60_000) {
   if (!['start', 'stop', 'restart', 'enable', 'disable'].includes(action)) {
     throw Object.assign(new Error('Invalid service control action'), { statusCode: 400 });
   }
-  if (typeof process.getuid === 'function' && process.getuid() === 0) {
-    return exec('systemctl', [action, MANAGED_SERVICE], { timeout });
+  try {
+    if (typeof process.getuid === 'function' && process.getuid() === 0) {
+      return await exec('systemctl', [action, MANAGED_SERVICE], { timeout });
+    }
+    return await exec('/usr/bin/sudo', ['-n', SERVICE_CONTROL_HELPER, action], { timeout });
+  } catch (error) {
+    // systemctl may legitimately take >30 seconds when waiting for the
+    // managed service to release its singleton lock. Do not retry an
+    // uncertain restart automatically: that could interrupt WhatsApp twice.
+    // Categorize the failure without exposing systemd journal text.
+    const reason = error?.killed || error?.signal === 'SIGTERM'
+      ? 'timeout'
+      : /sudo:|not allowed to execute|password is required|a password is required/i
+        .test(String(error?.stderr || '')) ? 'permission'
+      : 'service';
+    console.warn('Cortex power control failed:', action, reason);
+    throw Object.assign(new Error('Managed service power command failed'), {
+      statusCode: 503,
+      reasonCode: 'power-' + reason,
+    });
   }
-  return exec('/usr/bin/sudo', ['-n', SERVICE_CONTROL_HELPER, action], { timeout });
 }
 
 function json(res, status, body) {
@@ -2191,7 +2208,14 @@ async function handler(req, res) {
       return;
     }
     const statusCode = Number(error?.statusCode) || 500;
-    return json(res, statusCode, { error: publicErrorMessage(statusCode) });
+    // A limited, non-secret category helps the phone distinguish a rejected
+    // service-manager request from an unsuccessful restart or HTTP outage.
+    const reasonCode = ['power-permission', 'power-timeout', 'power-service']
+      .includes(error?.reasonCode) ? error.reasonCode : undefined;
+    return json(res, statusCode, {
+      error: publicErrorMessage(statusCode),
+      ...(reasonCode ? { reasonCode } : {}),
+    });
   }
 }
 
