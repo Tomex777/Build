@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { Readable } from 'node:stream'
 import {
-  megaConfig, megaRecentFiles, megaStorageStatus, safeMegaName,
+  megaConfig, megaRecentFiles, megaStorageDashboard, megaStorageStatus, safeMegaName,
   uploadMegaMedia, validateMegaSize,
 } from './mega-storage.js'
 
@@ -53,6 +53,23 @@ assert.equal(validateMegaSize(2 * 1024 * 1024 * 1024), 2 * 1024 * 1024 * 1024)
 assert.throws(() => validateMegaSize(2 * 1024 * 1024 * 1024 + 1), /2 GiB/)
 await assert.rejects(() => megaStorageStatus({ env:{}, StorageClass:FakeStorage }), /not configured/)
 assert.equal(closeCount, 0)
+// Cloud status is passive: no MEGA auth attempts even with stored credentials
+// that might now be stale or suspected of compromise. A third-party login is
+// reserved for an explicit on-demand action.
+class ForbiddenLogin {
+  constructor() { throw new Error('unexpected automatic MEGA authentication') }
+}
+const passive = await megaStorageDashboard({env, passive:true, StorageClass:ForbiddenLogin})
+assert.equal(passive.configured,true)
+assert.equal(passive.connected,false)
+assert.equal(passive.used,null)
+assert.equal(passive.total,null)
+assert.equal(passive.targets[0].detected,false)
+assert.match(passive.note,/sign-in was not attempted/)
+assert.equal(closeCount, 0)
+const missing = await megaStorageDashboard({env:{}, passive:true, StorageClass:ForbiddenLogin})
+assert.equal(missing.configured,false)
+assert.equal(closeCount,0)
 
 const stored = await uploadMegaMedia({
   name:'media.png', size:3, source:async () => Readable.from([Buffer.from('abc')]),
