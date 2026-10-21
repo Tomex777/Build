@@ -7,11 +7,13 @@ const $=id=>document.getElementById(id);
 const soundKey='night-play-action-sfx-v1';
 const bestKey='night-play-v1-action-runner-chromium';
 let runner=null,started=false,paused=false,dead=false,sound=true,loadedSound=false;
-let best=0,activePointer=null,duckPointer=null,pointerDownY=0,score=0;
-try{sound=localStorage.getItem(soundKey)!=='off';best=Math.max(0,Number(localStorage.getItem(bestKey))||0)}catch{}
+let best=0,lastPersistedBest=0,lastSaveAt=0,activePointer=null,duckPointer=null,pointerDownY=0,score=0;
+try{sound=localStorage.getItem(soundKey)!=='off';best=Math.max(0,Number(localStorage.getItem(bestKey))||0);lastPersistedBest=best}catch{}
 $('best').textContent=String(best);
+function persistBest(){if(best<=lastPersistedBest)return;try{localStorage.setItem(bestKey,String(best));lastPersistedBest=best;lastSaveAt=performance.now()}catch{}}
 function displayScore(n){score=Math.max(0,Math.floor(n));$('score').textContent=String(score);
- if(score>best){best=score;$('best').textContent=String(best);try{localStorage.setItem(bestKey,String(best))}catch{}}}
+ if(score>best){best=score;$('best').textContent=String(best)}
+ if(best>lastPersistedBest&&performance.now()-lastSaveAt>2000)persistBest();}
 function overlay(tag,title,copy,action){$('overlayTag').textContent=tag;$('overlayTitle').textContent=title;$('overlayCopy').textContent=copy;$('overlayAction').textContent=action;$('overlay').hidden=false}
 function hideOverlay(){$('overlay').hidden=true}
 function pauseIcon(isPaused){$('pauseButton').setAttribute('aria-label',isPaused?'Resume game':'Pause game');
@@ -35,7 +37,7 @@ function start(){if(!runner?.canvas)return;
 }
 function pause(){if(!runner||!started||dead)return;
  if(paused){runner.play();paused=false;hideOverlay()}
- else{runner.stop();paused=true;overlay('PAUSED','Endless Runner','Your run is on hold.','Resume')}
+ else{runner.stop();paused=true;persistBest();overlay('PAUSED','Endless Runner','Your run is on hold.','Resume')}
  pauseIcon(paused);
 }
 function jumpStart(){if(!runner||!started||paused||dead)return;
@@ -86,9 +88,12 @@ $('duckButton').addEventListener('pointerup',releaseDuck);
 $('duckButton').addEventListener('pointercancel',releaseDuck);
 $('duckButton').addEventListener('lostpointercapture',releaseDuck);
 window.addEventListener('keydown',e=>{
- if($('settingsDialog').open)return;
- if(e.code==='KeyP'){e.preventDefault();pause()}
  if(['Space','ArrowDown','ArrowUp'].includes(e.code))e.preventDefault();
+ if($('settingsDialog').open||!$('overlay').hidden){
+  if(['Space','ArrowDown','ArrowUp'].includes(e.code))e.stopImmediatePropagation();
+  return;
+ }
+ if(e.code==='KeyP'){e.preventDefault();pause()}
 },true);
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&started&&!paused&&!dead)pause()});
 window.addEventListener('blur',()=>{if(started&&!paused&&!dead)pause()});
@@ -98,7 +103,7 @@ function pulse(){
    runner.distanceMeter.getActualDistance(Math.ceil(runner.distanceRan)):runner.distanceRan*.025;
   if(started)displayScore(measured);
   if(started&&runner.crashed&&!dead){
-   dead=true;paused=false;duckEnd();activePointer=null;
+   dead=true;paused=false;duckEnd();activePointer=null;persistBest();
    overlay('GAME OVER','Run ended','Score '+score+' · Best '+best,'Play again');pauseIcon(false);
   }
  }
@@ -107,6 +112,8 @@ function pulse(){
 window.addEventListener('load',()=>{
  if(typeof window.Runner!=='function'){overlay('UNAVAILABLE','Game did not load','Refresh to try again.','Retry');return}
  runner=new window.Runner('#main-frame-error');
+ const nativeSound=runner.playSound.bind(runner);
+ runner.playSound=buffer=>{if(sound)nativeSound(buffer)};
  // Native Chromium pixel counters remain available for scoring, but NIGHT
  // shows the score just once in its shared HUD.
  const hideNativeMeter=()=>{if(runner.distanceMeter)runner.distanceMeter.draw=()=>{}};
