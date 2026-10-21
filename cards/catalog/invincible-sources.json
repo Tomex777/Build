@@ -86,7 +86,7 @@
       "character": "bulletproof",
       "name": "Zandale Randolph",
       "title": "Bulletproof",
-      "form": "Flight and superhuman endurance",
+      "form": "Flight / endurance",
       "formId": "standard",
       "number": 3,
       "continuity": "invincible-comics-core",
@@ -105,7 +105,7 @@
       },
       "rank": {
         "letter": "A",
-        "scope": "Zandale Randolph — Flight and superhuman endurance",
+        "scope": "Zandale Randolph — Flight / endurance",
         "basis": "Strong flying combatant and durable member of the Guardians.",
         "limits": "Not comparable to the upper Viltrumite elite.",
         "references": [
@@ -504,7 +504,7 @@
       "character": "powerplex",
       "name": "Scott Duvall",
       "title": "Powerplex",
-      "form": "Kinetic-electrical amplification",
+      "form": "Kinetic energy conversion",
       "formId": "powerplex",
       "number": 14,
       "continuity": "invincible-comics-core",
@@ -523,7 +523,7 @@
       },
       "rank": {
         "letter": "B",
-        "scope": "Scott Duvall — Kinetic-electrical amplification",
+        "scope": "Scott Duvall — Kinetic energy conversion",
         "basis": "Converts absorbed impacts and supplied power into dangerous electrical attacks.",
         "limits": "Highly matchup-dependent; output is not reliable Viltrumite parity.",
         "references": [
@@ -770,7 +770,7 @@
       "character": "angstrom",
       "name": "Angstrom Levy",
       "title": "Angstrom Levy",
-      "form": "Dimensional portal manipulation",
+      "form": "Dimensional portals",
       "formId": "portals",
       "number": 21,
       "continuity": "invincible-comics-core",
@@ -789,7 +789,7 @@
       },
       "rank": {
         "letter": "A",
-        "scope": "Angstrom Levy — Dimensional portal manipulation",
+        "scope": "Angstrom Levy — Dimensional portals",
         "basis": "Dimensional gateways are a powerful battlefield-control and escape ability.",
         "limits": "His base body's durability is not remotely Viltrumite-class.",
         "references": [
