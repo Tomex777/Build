@@ -99,7 +99,7 @@ const validatePinnedManhwaSource=(card,art,subject)=>{
     || art.width < 500 || art.height < 900 || !nonempty(art.credit)
     || !nonempty(art.rights) || art.usage !== 'reference-only'
     || art.status !== 'source-pinned-candidate' || art.transparencyVerified !== true
-    || !/^artwork\\/manhwa\\/[a-z0-9-/]+\\.(png|webp)$/i.test(art.localPath)
+    || !/^artwork\/manhwa\/[a-z0-9/-]+\.(png|webp)$/i.test(art.localPath)
     || art.localPath.includes('..'))
     throw Error('Invalid pinned art identity / provenance for '+card.id+' / '+subject);
   const [x,y,w,h] = art.crop ?? [];
