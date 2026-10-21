@@ -1,0 +1,291 @@
+{
+  "source": "https://raw.githubusercontent.com/HaiKonofanDesu/konofan-assets-jp-sortet/main/Assets/AddressableAssetsStore/UnityAssets/Battle/Sprite/CharacterImage/",
+  "rights": "Unofficial extracted archive of copyright-protected licensed game assets; audit only",
+  "results": [
+    {
+      "character": "kazuma",
+      "id": 100,
+      "url": "https://raw.githubusercontent.com/HaiKonofanDesu/konofan-assets-jp-sortet/main/Assets/AddressableAssetsStore/UnityAssets/Battle/Sprite/CharacterImage/character_100.png",
+      "source": "KonoSuba Fantastic Days extracted game image, unofficial archive; copyrighted reference only",
+      "sha256": "5c74a58915fbf9b187224127d5e24b1cad552f2a7c2d3ba9268e2221500c51e4",
+      "bytes": 191104,
+      "width": 376,
+      "height": 838,
+      "format": "png",
+      "hasAlpha": true,
+      "alphaMin": 0,
+      "alphaMax": 255,
+      "cutoutDimensions": [
+        376,
+        838
+      ],
+      "eligible": false
+    },
+    {
+      "character": "aqua",
+      "id": 101,
+      "url": "https://raw.githubusercontent.com/HaiKonofanDesu/konofan-assets-jp-sortet/main/Assets/AddressableAssetsStore/UnityAssets/Battle/Sprite/CharacterImage/character_101.png",
+      "source": "KonoSuba Fantastic Days extracted game image, unofficial archive; copyrighted reference only",
+      "sha256": "c088527341dda7cc77c28f0249b4377c8d1118b41628c93cf10420bc4ce88e40",
+      "bytes": 252683,
+      "width": 445,
+      "height": 853,
+      "format": "png",
+      "hasAlpha": true,
+      "alphaMin": 0,
+      "alphaMax": 255,
+      "cutoutDimensions": [
+        445,
+        853
+      ],
+      "eligible": false
+    },
+    {
+      "character": "megumin",
+      "id": 102,
+      "url": "https://raw.githubusercontent.com/HaiKonofanDesu/konofan-assets-jp-sortet/main/Assets/AddressableAssetsStore/UnityAssets/Battle/Sprite/CharacterImage/character_102.png",
+      "source": "KonoSuba Fantastic Days extracted game image, unofficial archive; copyrighted reference only",
+      "sha256": "89e38dadcccb9647c4dea240cbf640ad0164f66626a00e36b40438d5d9afe1d7",
+      "bytes": 222108,
+      "width": 389,
+      "height": 826,
+      "format": "png",
+      "hasAlpha": true,
+      "alphaMin": 0,
+      "alphaMax": 255,
+      "cutoutDimensions": [
+        389,
+        826
+      ],
+      "eligible": false
+    },
+    {
+      "character": "darkness",
+      "id": 103,
+      "url": "https://raw.githubusercontent.com/HaiKonofanDesu/konofan-assets-jp-sortet/main/Assets/AddressableAssetsStore/UnityAssets/Battle/Sprite/CharacterImage/character_103.png",
+      "source": "KonoSuba Fantastic Days extracted game image, unofficial archive; copyrighted reference only",
+      "sha256": "c759cdb3941d84861424aefaa9a7555a7dd4fe7e20109dbdaf0d882b7e35338f",
+      "bytes": 254133,
+      "width": 354,
+      "height": 885,
+      "format": "png",
+      "hasAlpha": true,
+      "alphaMin": 0,
+      "alphaMax": 255,
+      "cutoutDimensions": [
+        354,
+        885
+      ],
+      "eligible": false
+    },
+    {
+      "character": "chris",
+      "id": 104,
+      "url": "https://raw.githubusercontent.com/HaiKonofanDesu/konofan-assets-jp-sortet/main/Assets/AddressableAssetsStore/UnityAssets/Battle/Sprite/CharacterImage/character_104.png",
+      "source": "KonoSuba Fantastic Days extracted game image, unofficial archive; copyrighted reference only",
+      "sha256": "9846546ff82222a08d07f30ed2f6c62249bc1b17b358a38030a260fa4ae956bd",
+      "bytes": 200287,
+      "width": 363,
+      "height": 811,
+      "format": "png",
+      "hasAlpha": true,
+      "alphaMin": 0,
+      "alphaMax": 255,
+      "cutoutDimensions": [
+        363,
+        811
+      ],
+      "eligible": false
+    },
+    {
+      "character": "wiz",
+      "id": 105,
+      "url": "https://raw.githubusercontent.com/HaiKonofanDesu/konofan-assets-jp-sortet/main/Assets/AddressableAssetsStore/UnityAssets/Battle/Sprite/CharacterImage/character_105.png",
+      "source": "KonoSuba Fantastic Days extracted game image, unofficial archive; copyrighted reference only",
+      "sha256": "8e9edfe060979f059fdd7c517f305aa56719c69f6d2f5abd8c9e04433e34a9cd",
+      "bytes": 185381,
+      "width": 319,
+      "height": 898,
+      "format": "png",
+      "hasAlpha": true,
+      "alphaMin": 0,
+      "alphaMax": 255,
+      "cutoutDimensions": [
+        319,
+        898
+      ],
+      "eligible": false
+    },
+    {
+      "character": "yunyun",
+      "id": 106,
+      "url": "https://raw.githubusercontent.com/HaiKonofanDesu/konofan-assets-jp-sortet/main/Assets/AddressableAssetsStore/UnityAssets/Battle/Sprite/CharacterImage/character_106.png",
+      "source": "KonoSuba Fantastic Days extracted game image, unofficial archive; copyrighted reference only",
+      "sha256": "782010e310e0e0689c1de614308a34c1742afbb1dcc5d1f08846692c2f5e9f57",
+      "bytes": 167536,
+      "width": 303,
+      "height": 807,
+      "format": "png",
+      "hasAlpha": true,
+      "alphaMin": 0,
+      "alphaMax": 255,
+      "cutoutDimensions": [
+        303,
+        807
+      ],
+      "eligible": false
+    },
+    {
+      "character": "iris",
+      "id": 107,
+      "url": "https://raw.githubusercontent.com/HaiKonofanDesu/konofan-assets-jp-sortet/main/Assets/AddressableAssetsStore/UnityAssets/Battle/Sprite/CharacterImage/character_107.png",
+      "source": "KonoSuba Fantastic Days extracted game image, unofficial archive; copyrighted reference only",
+      "sha256": "72418859616fb4351cdf41be52cb45b4560dafbd84314bec08bfcaf92d5a6157",
+      "bytes": 250881,
+      "width": 478,
+      "height": 802,
+      "format": "png",
+      "hasAlpha": true,
+      "alphaMin": 0,
+      "alphaMax": 255,
+      "cutoutDimensions": [
+        478,
+        802
+      ],
+      "eligible": false
+    },
+    {
+      "character": "komekko",
+      "id": 108,
+      "url": "https://raw.githubusercontent.com/HaiKonofanDesu/konofan-assets-jp-sortet/main/Assets/AddressableAssetsStore/UnityAssets/Battle/Sprite/CharacterImage/character_108.png",
+      "source": "KonoSuba Fantastic Days extracted game image, unofficial archive; copyrighted reference only",
+      "sha256": "4880945cfb2745c26466dcc0201e95140e2d440fc2eb8999780f1447c91e57b3",
+      "bytes": 162812,
+      "width": 447,
+      "height": 666,
+      "format": "png",
+      "hasAlpha": true,
+      "alphaMin": 0,
+      "alphaMax": 255,
+      "cutoutDimensions": [
+        447,
+        666
+      ],
+      "eligible": false
+    },
+    {
+      "character": "cecily",
+      "id": 109,
+      "url": "https://raw.githubusercontent.com/HaiKonofanDesu/konofan-assets-jp-sortet/main/Assets/AddressableAssetsStore/UnityAssets/Battle/Sprite/CharacterImage/character_109.png",
+      "source": "KonoSuba Fantastic Days extracted game image, unofficial archive; copyrighted reference only",
+      "sha256": "a594c9680eef1fed0ac18071c269005f17adbfbfae9edf7efdad413901589c0f",
+      "bytes": 254217,
+      "width": 436,
+      "height": 821,
+      "format": "png",
+      "hasAlpha": true,
+      "alphaMin": 0,
+      "alphaMax": 255,
+      "cutoutDimensions": [
+        436,
+        821
+      ],
+      "eligible": false
+    },
+    {
+      "character": "arue",
+      "id": 110,
+      "url": "https://raw.githubusercontent.com/HaiKonofanDesu/konofan-assets-jp-sortet/main/Assets/AddressableAssetsStore/UnityAssets/Battle/Sprite/CharacterImage/character_110.png",
+      "source": "KonoSuba Fantastic Days extracted game image, unofficial archive; copyrighted reference only",
+      "sha256": "ea91c6fe83f96b37f5eb671e3ecd68a8ce71f680be49996d7eb226e6f9e22ca2",
+      "bytes": 173198,
+      "width": 346,
+      "height": 839,
+      "format": "png",
+      "hasAlpha": true,
+      "alphaMin": 0,
+      "alphaMax": 255,
+      "cutoutDimensions": [
+        346,
+        839
+      ],
+      "eligible": false
+    },
+    {
+      "character": "mitsurugi",
+      "id": 111,
+      "url": "https://raw.githubusercontent.com/HaiKonofanDesu/konofan-assets-jp-sortet/main/Assets/AddressableAssetsStore/UnityAssets/Battle/Sprite/CharacterImage/character_111.png",
+      "source": "KonoSuba Fantastic Days extracted game image, unofficial archive; copyrighted reference only",
+      "sha256": "e8df2383577c27bbb7480589e456b21d34f191e19b7e97983c1521647b9a7387",
+      "bytes": 284242,
+      "width": 467,
+      "height": 893,
+      "format": "png",
+      "hasAlpha": true,
+      "alphaMin": 0,
+      "alphaMax": 255,
+      "cutoutDimensions": [
+        467,
+        893
+      ],
+      "eligible": false
+    },
+    {
+      "character": "dust",
+      "id": 112,
+      "url": "https://raw.githubusercontent.com/HaiKonofanDesu/konofan-assets-jp-sortet/main/Assets/AddressableAssetsStore/UnityAssets/Battle/Sprite/CharacterImage/character_112.png",
+      "source": "KonoSuba Fantastic Days extracted game image, unofficial archive; copyrighted reference only",
+      "sha256": "5a0147e3053c1ff328e0fcf0b99aed47035b22d07e9cab896ec64eec97af136f",
+      "bytes": 164012,
+      "width": 258,
+      "height": 870,
+      "format": "png",
+      "hasAlpha": true,
+      "alphaMin": 0,
+      "alphaMax": 255,
+      "cutoutDimensions": [
+        258,
+        870
+      ],
+      "eligible": false
+    },
+    {
+      "character": "rain",
+      "id": 125,
+      "url": "https://raw.githubusercontent.com/HaiKonofanDesu/konofan-assets-jp-sortet/main/Assets/AddressableAssetsStore/UnityAssets/Battle/Sprite/CharacterImage/character_125.png",
+      "source": "KonoSuba Fantastic Days extracted game image, unofficial archive; copyrighted reference only",
+      "sha256": "fb5055c0a5e27cdc2b8c46e934622a4e8237913445bd16b77c24414c8ca56cb0",
+      "bytes": 251251,
+      "width": 418,
+      "height": 859,
+      "format": "png",
+      "hasAlpha": true,
+      "alphaMin": 0,
+      "alphaMax": 255,
+      "cutoutDimensions": [
+        418,
+        859
+      ],
+      "eligible": false
+    },
+    {
+      "character": "vanir",
+      "id": 128,
+      "url": "https://raw.githubusercontent.com/HaiKonofanDesu/konofan-assets-jp-sortet/main/Assets/AddressableAssetsStore/UnityAssets/Battle/Sprite/CharacterImage/character_128.png",
+      "source": "KonoSuba Fantastic Days extracted game image, unofficial archive; copyrighted reference only",
+      "sha256": "49db10414556e2a8a7a95025864338759be4c8b44382587bbc28b52ede35f8c8",
+      "bytes": 189368,
+      "width": 333,
+      "height": 1004,
+      "format": "png",
+      "hasAlpha": true,
+      "alphaMin": 0,
+      "alphaMax": 255,
+      "cutoutDimensions": [
+        333,
+        1004
+      ],
+      "eligible": false
+    }
+  ]
+}

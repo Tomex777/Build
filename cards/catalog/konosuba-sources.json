@@ -1,0 +1,528 @@
+{
+  "version": 1,
+  "series": "konosuba",
+  "name": "KonoSuba / NIGHT Collection",
+  "dimensions": [
+    3000,
+    4800
+  ],
+  "sourcePage": "https://konosuba.com/3rd/character/",
+  "rights": "Official anime assets are copyright-protected reference-only artwork; no commercial redistribution permission is implied.",
+  "status": "source-backed-candidates-not-visually-approved",
+  "sources": [
+    {
+      "id": "aqua-adventurer",
+      "number": 1,
+      "character": "aqua",
+      "name": "Aqua",
+      "title": "Aqua",
+      "form": "Archpriest / embodied goddess",
+      "formId": "adventurer-goddess",
+      "continuity": "konosuba-main",
+      "source": {
+        "provider": "konosuba-anime-3rd",
+        "page": "https://konosuba.com/3rd/character/",
+        "image": "https://konosuba.com/3rd/character/img/aqua.png",
+        "rights": "© Natsume Akatsuki, Kurone Mishima / KADOKAWA / KONOSUBA Production Committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "KonoSuba official anime site"
+      },
+      "rank": {
+        "letter": "SSS",
+        "scope": "Aqua — Archpriest / embodied goddess",
+        "basis": "Purifies poisoned waters, defeats undead through divine holy arts, restores allies and resurrects the recently dead.",
+        "limits": "Anti-undead and anti-devil specialization; intelligence and battle choices impair practical outcomes.",
+        "references": [
+          "https://konosuba.com/3rd/character/",
+          "https://konosuba.com/2nd/story/?id=10&mode=detail"
+        ]
+      },
+      "feat": {
+        "status": "verified",
+        "locator": "KonoSuba season 2, episode 10: poisoned hot-spring purification / Hans confrontation",
+        "claim": "Aqua attempts purification of a corrupted hot-spring source and helps overcome the poison slime; her divine purification has enormous specialised impact.",
+        "reference": "https://konosuba.com/2nd/story/?id=10&mode=detail"
+      }
+    },
+    {
+      "id": "vanir-masked",
+      "number": 2,
+      "character": "vanir",
+      "name": "Vanir",
+      "title": "Vanir",
+      "form": "Masked devil / manifested body",
+      "formId": "masked-manifestation",
+      "continuity": "konosuba-main",
+      "source": {
+        "provider": "konosuba-anime-3rd",
+        "page": "https://konosuba.com/3rd/character/",
+        "image": "https://konosuba.com/3rd/character/img/vanir.png",
+        "rights": "© Natsume Akatsuki, Kurone Mishima / KADOKAWA / KONOSUBA Production Committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "KonoSuba official anime site"
+      },
+      "rank": {
+        "letter": "SSS",
+        "scope": "Vanir — Masked devil / manifested body",
+        "basis": "Duke of Hell with foresight, devastating magic, possession and enough extra lives that he cannot count them.",
+        "limits": "Can lose a manifested body; holy purifiers are dangerous and clairvoyance has exclusions.",
+        "references": [
+          "https://konosuba.com/3rd/character/",
+          "https://cgtranslations.me/konosuba-qa-vanir/"
+        ]
+      },
+      "feat": {
+        "status": "verified",
+        "locator": "Natsume Akatsuki character Q&A (pre-volume 17), Vanir: extra lives; main novel volume 3, castle/dungeon incident",
+        "claim": "Vanir claims so many accumulated extra lives he cannot remember the number; destruction of one manifested body is not permanent defeat.",
+        "reference": "https://cgtranslations.me/konosuba-qa-vanir/"
+      }
+    },
+    {
+      "id": "wiz-lich",
+      "number": 3,
+      "character": "wiz",
+      "name": "Wiz",
+      "title": "Wiz",
+      "form": "Lich / archwizard",
+      "formId": "lich",
+      "continuity": "konosuba-main",
+      "source": {
+        "provider": "konosuba-anime-3rd",
+        "page": "https://konosuba.com/3rd/character/",
+        "image": "https://konosuba.com/3rd/character/img/wiz.png",
+        "rights": "© Natsume Akatsuki, Kurone Mishima / KADOKAWA / KONOSUBA Production Committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "KonoSuba official anime site"
+      },
+      "rank": {
+        "letter": "SS",
+        "scope": "Wiz — Lich / archwizard",
+        "basis": "Extremely powerful lich mage with devastating spellcraft, drain touch and unusual undead survival.",
+        "limits": "Holy purification remains a critical counter; shopkeeper outfit is not a separate power form.",
+        "references": [
+          "https://konosuba.com/3rd/character/"
+        ]
+      }
+    },
+    {
+      "id": "iris-royal",
+      "number": 4,
+      "character": "iris",
+      "name": "Iris",
+      "title": "Iris",
+      "form": "Royal heir / trained combatant",
+      "formId": "royal-heir",
+      "continuity": "konosuba-main",
+      "source": {
+        "provider": "konosuba-anime-3rd",
+        "page": "https://konosuba.com/3rd/character/",
+        "image": "https://konosuba.com/3rd/character/img/iris.png",
+        "rights": "© Natsume Akatsuki, Kurone Mishima / KADOKAWA / KONOSUBA Production Committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "KonoSuba official anime site"
+      },
+      "rank": {
+        "letter": "S",
+        "scope": "Iris — Royal heir / trained combatant",
+        "basis": "Royal training, inherited magic and exceptional combat potential established in the novels.",
+        "limits": "Official portrait is civilian dress; no Aigis armour or ultimate equipment is claimed here.",
+        "references": [
+          "https://konosuba.com/3rd/character/"
+        ]
+      }
+    },
+    {
+      "id": "megumin-explosion",
+      "number": 5,
+      "character": "megumin",
+      "name": "Megumin",
+      "title": "Megumin",
+      "form": "Explosion Archwizard",
+      "formId": "explosion-archwizard",
+      "continuity": "konosuba-main",
+      "source": {
+        "provider": "konosuba-anime-3rd",
+        "page": "https://konosuba.com/3rd/character/",
+        "image": "https://konosuba.com/3rd/character/img/megumin.png",
+        "rights": "© Natsume Akatsuki, Kurone Mishima / KADOKAWA / KONOSUBA Production Committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "KonoSuba official anime site"
+      },
+      "rank": {
+        "letter": "S",
+        "scope": "Megumin — Explosion Archwizard",
+        "basis": "Exceptional one-shot destructive Explosion magic capable of defeating formidable enemies.",
+        "limits": "Normally unable to cast again without rest or externally supplied mana.",
+        "references": [
+          "https://konosuba.com/3rd/character/"
+        ]
+      }
+    },
+    {
+      "id": "yunyun-archwizard",
+      "number": 6,
+      "character": "yunyun",
+      "name": "Yunyun",
+      "title": "Yunyun",
+      "form": "Crimson Demon / archwizard",
+      "formId": "archwizard",
+      "continuity": "konosuba-main",
+      "source": {
+        "provider": "konosuba-anime-3rd",
+        "page": "https://konosuba.com/3rd/character/",
+        "image": "https://konosuba.com/3rd/character/img/yunyun.png",
+        "rights": "© Natsume Akatsuki, Kurone Mishima / KADOKAWA / KONOSUBA Production Committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "KonoSuba official anime site"
+      },
+      "rank": {
+        "letter": "S",
+        "scope": "Yunyun — Crimson Demon / archwizard",
+        "basis": "Advanced, flexible elemental magic, tactical awareness and reliable repeat casting.",
+        "limits": "Less peak one-hit destructive output than Explosion magic.",
+        "references": [
+          "https://konosuba.com/3rd/character/"
+        ]
+      }
+    },
+    {
+      "id": "mitsurugi-gram",
+      "number": 7,
+      "character": "mitsurugi",
+      "name": "Kyouya Mitsurugi",
+      "title": "Kyouya Mitsurugi",
+      "form": "Swordmaster / Gram",
+      "formId": "gram-wielder",
+      "continuity": "konosuba-main",
+      "source": {
+        "provider": "konosuba-anime-3rd",
+        "page": "https://konosuba.com/3rd/character/",
+        "image": "https://konosuba.com/3rd/character/img/mitsurugi.png",
+        "rights": "© Natsume Akatsuki, Kurone Mishima / KADOKAWA / KONOSUBA Production Committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "KonoSuba official anime site"
+      },
+      "rank": {
+        "letter": "S",
+        "scope": "Kyouya Mitsurugi — Swordmaster / Gram",
+        "basis": "A powerful swordfighter using the divinely granted magical sword Gram.",
+        "limits": "Power is weapon-dependent; removing Gram drastically changes this assessment.",
+        "references": [
+          "https://konosuba.com/3rd/character/"
+        ]
+      }
+    },
+    {
+      "id": "darkness-crusader",
+      "number": 8,
+      "character": "darkness",
+      "name": "Darkness",
+      "title": "Darkness",
+      "form": "Crusader / frontline defender",
+      "formId": "crusader",
+      "continuity": "konosuba-main",
+      "source": {
+        "provider": "konosuba-anime-3rd",
+        "page": "https://konosuba.com/3rd/character/",
+        "image": "https://konosuba.com/3rd/character/img/darkness.png",
+        "rights": "© Natsume Akatsuki, Kurone Mishima / KADOKAWA / KONOSUBA Production Committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "KonoSuba official anime site"
+      },
+      "rank": {
+        "letter": "A",
+        "scope": "Darkness — Crusader / frontline defender",
+        "basis": "Near-unmatched damage absorption, endurance and exceptional physical strength.",
+        "limits": "Attacks seldom connect; durability must not be mistaken for reliable offensive output.",
+        "references": [
+          "https://konosuba.com/3rd/character/"
+        ]
+      }
+    },
+    {
+      "id": "kazuma-adventurer",
+      "number": 9,
+      "character": "kazuma",
+      "name": "Kazuma Satou",
+      "title": "Kazuma Satou",
+      "form": "Versatile adventurer",
+      "formId": "adventurer",
+      "continuity": "konosuba-main",
+      "source": {
+        "provider": "konosuba-anime-3rd",
+        "page": "https://konosuba.com/3rd/character/",
+        "image": "https://konosuba.com/3rd/character/img/kazuma.png",
+        "rights": "© Natsume Akatsuki, Kurone Mishima / KADOKAWA / KONOSUBA Production Committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "KonoSuba official anime site"
+      },
+      "rank": {
+        "letter": "A",
+        "scope": "Kazuma Satou — Versatile adventurer",
+        "basis": "Excellent luck and tactical skill; Steal, Bind, Drain Touch and combinations compensate for lower stats.",
+        "limits": "Not a direct physical equal of top generals; Demon King victory is highly conditional.",
+        "references": [
+          "https://konosuba.com/3rd/character/"
+        ]
+      }
+    },
+    {
+      "id": "chris-thief",
+      "number": 10,
+      "character": "chris",
+      "name": "Chris",
+      "title": "Chris",
+      "form": "Thief / mortal identity",
+      "formId": "thief",
+      "continuity": "konosuba-main",
+      "source": {
+        "provider": "konosuba-anime-3rd",
+        "page": "https://konosuba.com/3rd/character/",
+        "image": "https://konosuba.com/3rd/character/img/chris.png",
+        "rights": "© Natsume Akatsuki, Kurone Mishima / KADOKAWA / KONOSUBA Production Committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "KonoSuba official anime site"
+      },
+      "rank": {
+        "letter": "B",
+        "scope": "Chris — Thief / mortal identity",
+        "basis": "Exceptional luck, movement, stealth, escape and thief utility.",
+        "limits": "This is not unrestricted Eris; hidden divine identity does not automatically grant full heavenly authority.",
+        "references": [
+          "https://konosuba.com/3rd/character/"
+        ]
+      }
+    },
+    {
+      "id": "rain-mage",
+      "number": 11,
+      "character": "rain",
+      "name": "Rain",
+      "title": "Rain",
+      "form": "Royal mage / escort",
+      "formId": "royal-mage",
+      "continuity": "konosuba-main",
+      "source": {
+        "provider": "konosuba-anime-3rd",
+        "page": "https://konosuba.com/3rd/character/",
+        "image": "https://konosuba.com/3rd/character/img/lain.png",
+        "rights": "© Natsume Akatsuki, Kurone Mishima / KADOKAWA / KONOSUBA Production Committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "KonoSuba official anime site"
+      },
+      "rank": {
+        "letter": "B",
+        "scope": "Rain — Royal mage / escort",
+        "basis": "Competent court mage and royal escort with sustained spellcasting.",
+        "limits": "Not established above elite archwizards in direct offence.",
+        "references": [
+          "https://konosuba.com/3rd/character/"
+        ]
+      }
+    },
+    {
+      "id": "megumin-student",
+      "number": 12,
+      "character": "megumin",
+      "name": "Megumin",
+      "title": "Megumin",
+      "form": "Crimson Demon / academy student",
+      "formId": "academy-student",
+      "continuity": "konosuba-bakuen",
+      "source": {
+        "provider": "konosuba-anime-bakuen",
+        "page": "https://konosuba.com/bakuen/character/",
+        "image": "https://konosuba.com/bakuen/character/img/megmin.png",
+        "rights": "© Natsume Akatsuki, Kurone Mishima / KADOKAWA / KONOSUBA Production Committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "KonoSuba official anime site"
+      },
+      "rank": {
+        "letter": "C",
+        "scope": "Megumin — Crimson Demon / academy student",
+        "basis": "Gifted Crimson Demon magic student before developing her later Explosion-focused combat specialization.",
+        "limits": "Early academy form; must not receive late-series repeated Explosion feats.",
+        "references": [
+          "https://konosuba.com/bakuen/character/"
+        ]
+      }
+    },
+    {
+      "id": "megumin-journey",
+      "number": 13,
+      "character": "megumin",
+      "name": "Megumin",
+      "title": "Megumin",
+      "form": "Explosion / first adventures",
+      "formId": "novice-explosion",
+      "continuity": "konosuba-bakuen",
+      "source": {
+        "provider": "konosuba-anime-bakuen",
+        "page": "https://konosuba.com/bakuen/character/",
+        "image": "https://konosuba.com/bakuen/character/img/megmin-2.png",
+        "rights": "© Natsume Akatsuki, Kurone Mishima / KADOKAWA / KONOSUBA Production Committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "KonoSuba official anime site"
+      },
+      "rank": {
+        "letter": "A",
+        "scope": "Megumin — Explosion / first adventures",
+        "basis": "Newly acquired top-tier Explosion magic and strong raw magical potential.",
+        "limits": "Single cast exhausts her and battle experience is still limited.",
+        "references": [
+          "https://konosuba.com/bakuen/character/"
+        ]
+      }
+    },
+    {
+      "id": "yunyun-student",
+      "number": 14,
+      "character": "yunyun",
+      "name": "Yunyun",
+      "title": "Yunyun",
+      "form": "Crimson Demon / academy student",
+      "formId": "academy-student",
+      "continuity": "konosuba-bakuen",
+      "source": {
+        "provider": "konosuba-anime-bakuen",
+        "page": "https://konosuba.com/bakuen/character/",
+        "image": "https://konosuba.com/bakuen/character/img/yunyun.png",
+        "rights": "© Natsume Akatsuki, Kurone Mishima / KADOKAWA / KONOSUBA Production Committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "KonoSuba official anime site"
+      },
+      "rank": {
+        "letter": "C",
+        "scope": "Yunyun — Crimson Demon / academy student",
+        "basis": "Magically gifted Crimson Demon apprentice with conventional tactical discipline.",
+        "limits": "Earlier training stage lacks mature archwizard mastery.",
+        "references": [
+          "https://konosuba.com/bakuen/character/"
+        ]
+      }
+    },
+    {
+      "id": "yunyun-journey",
+      "number": 15,
+      "character": "yunyun",
+      "name": "Yunyun",
+      "title": "Yunyun",
+      "form": "Crimson Demon / early adventurer",
+      "formId": "early-adventurer",
+      "continuity": "konosuba-bakuen",
+      "source": {
+        "provider": "konosuba-anime-bakuen",
+        "page": "https://konosuba.com/bakuen/character/",
+        "image": "https://konosuba.com/bakuen/character/img/yunyun-2.png",
+        "rights": "© Natsume Akatsuki, Kurone Mishima / KADOKAWA / KONOSUBA Production Committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "KonoSuba official anime site"
+      },
+      "rank": {
+        "letter": "B",
+        "scope": "Yunyun — Crimson Demon / early adventurer",
+        "basis": "Advanced spell training with a versatile combat toolkit compared with the average adventurer.",
+        "limits": "Earlier experience level, not the late-series specialist.",
+        "references": [
+          "https://konosuba.com/bakuen/character/"
+        ]
+      }
+    },
+    {
+      "id": "komekko-child",
+      "number": 16,
+      "character": "komekko",
+      "name": "Komekko",
+      "title": "Komekko",
+      "form": "Crimson Demon / young prodigy",
+      "formId": "young-prodigy",
+      "continuity": "konosuba-bakuen",
+      "source": {
+        "provider": "konosuba-anime-bakuen",
+        "page": "https://konosuba.com/bakuen/character/",
+        "image": "https://konosuba.com/bakuen/character/img/komekko.png",
+        "rights": "© Natsume Akatsuki, Kurone Mishima / KADOKAWA / KONOSUBA Production Committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "KonoSuba official anime site"
+      },
+      "rank": {
+        "letter": "D",
+        "scope": "Komekko — Crimson Demon / young prodigy",
+        "basis": "Surprising affinity for dangerous creatures and summoned entities, with natural Crimson Demon talent.",
+        "limits": "Her summoning success is situation-dependent; she lacks proven sustained duelling feats.",
+        "references": [
+          "https://konosuba.com/bakuen/character/"
+        ]
+      }
+    },
+    {
+      "id": "arue-student",
+      "number": 17,
+      "character": "arue",
+      "name": "Arue",
+      "title": "Arue",
+      "form": "Crimson Demon / academy student",
+      "formId": "academy-student",
+      "continuity": "konosuba-bakuen",
+      "source": {
+        "provider": "konosuba-anime-bakuen",
+        "page": "https://konosuba.com/bakuen/character/",
+        "image": "https://konosuba.com/bakuen/character/img/arue.png",
+        "rights": "© Natsume Akatsuki, Kurone Mishima / KADOKAWA / KONOSUBA Production Committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "KonoSuba official anime site"
+      },
+      "rank": {
+        "letter": "C",
+        "scope": "Arue — Crimson Demon / academy student",
+        "basis": "Trained Crimson Demon magical talent with potential offensive spellcasting.",
+        "limits": "School-era student; no inferred late-series ultimate techniques.",
+        "references": [
+          "https://konosuba.com/bakuen/character/"
+        ]
+      }
+    },
+    {
+      "id": "cecily-priest",
+      "number": 18,
+      "character": "cecily",
+      "name": "Cecily",
+      "title": "Cecily",
+      "form": "Axis Cult / priest",
+      "formId": "axis-priest",
+      "continuity": "konosuba-bakuen",
+      "source": {
+        "provider": "konosuba-anime-bakuen",
+        "page": "https://konosuba.com/bakuen/character/",
+        "image": "https://konosuba.com/bakuen/character/img/cecili.png",
+        "rights": "© Natsume Akatsuki, Kurone Mishima / KADOKAWA / KONOSUBA Production Committee. All rights reserved.",
+        "usage": "reference-only",
+        "credit": "KonoSuba official anime site"
+      },
+      "rank": {
+        "letter": "C",
+        "scope": "Cecily — Axis Cult / priest",
+        "basis": "Religious spellcaster with healing and clerical utility.",
+        "limits": "Limited demonstrated high-end offensive feats and low tactical reliability.",
+        "references": [
+          "https://konosuba.com/bakuen/character/"
+        ]
+      }
+    }
+  ],
+  "unillustratedPriority": [
+    "Aqua — unrestricted divine form",
+    "Vanir — true infernal body",
+    "Eris — divine form",
+    "Wolbach — complete goddess",
+    "Maxwell — duke of Hell",
+    "Demon King's Daughter",
+    "Megumin — manatite-assisted repeat Explosion",
+    "Iris — Aigis armour",
+    "Demon King — aged",
+    "Hans — poison slime",
+    "Sylvia — chimera",
+    "Beldia — dullahan"
+  ]
+}
