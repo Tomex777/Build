@@ -1,12 +1,10 @@
 {
-  "releaseId": "night-cortex-agent-v107-personality-ai-20261021",
+  "releaseId": "night-play-bot-bridge-recovery-20261021",
   "baseBranch": "mscc-azure",
-  "baseCommit": "b6dde2b6abb5214bb0d566d13b9154656dff41ac",
+  "baseCommit": "215e06b47102dba976b36dc19a4fefe173849820",
   "pullRequests": [
-    538,
-    541,
-    540
+    544
   ],
-  "preparedAt": "2026-10-21T11:16:36.750Z",
-  "notes": "ONE protected Azure release combines the already validated, guarded Cortex Agent 1.0.7 release #542 (feature #541 and Android/Agent #538) with tested group-chat-only Josia/Nami/MiMi personality and lazy read-only command lookup #540. Previous passive MEGA/one-key AI production rollout #39556468780 completed successfully; preserve its protections, including no MEGA sign-in on Cloud GET and inert legacy discovery. Do not change saved credentials, bearer token, WhatsApp auth/session files or sudo; no automatic MEGA POST authentication. Enforce exact integration-head Azure, Readiness and Cortex Contract checks, then one protected mscc-production approval. After Azure installation verify authenticated settings/environment readbacks, passive Cloud, agent API and actual WhatsApp group personality response/DM opt-out; never claim end-user live verification from static tests."
+  "preparedAt": "2026-10-21T11:49:10.180Z",
+  "notes": "Protected Azure recovery release: take the current approved integration head, including existing NIGHT Play signed HTTPS bot ingress, after correcting malformed Cortex legacy passive GET probe in PR #544. The preceding run #39591193608 failed and rolled back before installing its combined group-chat AI/Cortex 1.0.7 payload; those already-merged changes are included in this retry. Require exact-head Azure, Integrated Readiness and Cortex Contract CI checks, one protected mscc-production deployment approval and postdeploy signed NIGHT Play ingress/Cortex verification. Preserve WhatsApp auth/session files, secrets, nginx Cortex routes, existing account linking keys and SQLite data; do not execute MEGA POST discovery. Do not claim WhatsApp end-to-end until verified by real accounts."
 }
