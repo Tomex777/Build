@@ -22,8 +22,9 @@ class CortexServerApi(
 ) {
     private val base = normalizeHttpsEndpoint(baseUrl)
 
-    fun snapshot(): HostingSnapshot {
-        val json = getJson("/api/cortex/host/status")
+    fun snapshot(): HostingSnapshot = parseSnapshot(getJson("/api/cortex/host/status"))
+
+    private fun parseSnapshot(json: JSONObject): HostingSnapshot {
         val runtime = json.optJSONObject("runtime")
         return HostingSnapshot(
             state = json.optString("state", "unknown"),
@@ -49,13 +50,17 @@ class CortexServerApi(
         return json.optJSONArray("lines").strings().map(SensitiveLogRedactor::sanitize)
     }
 
-    fun power(action: HostingPowerAction) {
+    /** The power endpoint already returns the service status after systemctl.
+     * Use that acknowledgement, not an unrelated logs request, as the result.
+     * A failed console refresh must never mark a successful restart as failed.
+     */
+    fun power(action: HostingPowerAction): HostingSnapshot {
         val value = when (action) {
             HostingPowerAction.START -> "start"
             HostingPowerAction.RESTART -> "restart"
             HostingPowerAction.STOP -> "stop"
         }
-        postJson("/api/cortex/host/power", JSONObject().put("action", value))
+        return parseSnapshot(postJson("/api/cortex/host/power", JSONObject().put("action", value)))
     }
 
     fun listFiles(path: String): List<HostingFileEntry> {
