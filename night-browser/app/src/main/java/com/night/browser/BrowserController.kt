@@ -20,6 +20,20 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.UUID
 
+/**
+ * Gecko allows exactly one runtime per Android process. MainActivity can be
+ * recreated without the process dying (density/theme changes, multi-window,
+ * or a system Activity relaunch). Keep Gecko itself at process scope while
+ * each BrowserController still owns and closes only its own tab sessions.
+ */
+private object BrowserRuntimeHolder {
+    private var runtime: GeckoRuntime? = null
+
+    @Synchronized
+    fun obtain(context: Context): GeckoRuntime = runtime
+        ?: GeckoRuntime.create(context.applicationContext).also { runtime = it }
+}
+
 class BrowserTab(
     val id: String,
     val session: GeckoSession,
@@ -49,7 +63,7 @@ class BrowserController(
     private val platform: BrowserPlatformHost
 ) {
     val store = JourneyStore(appContext)
-    private val runtime: GeckoRuntime = GeckoRuntime.create(appContext)
+    private val runtime: GeckoRuntime = BrowserRuntimeHolder.obtain(appContext)
     val siteStudioStore = SiteStudioStore(appContext)
     val siteStudio = SiteStudioBridge(runtime, siteStudioStore)
     private val tabStore = TabSessionStore(appContext)
