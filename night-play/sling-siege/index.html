@@ -225,7 +225,7 @@ $('sound').addEventListener('click',()=>{sound=!sound;try{localStorage.setItem('
 $('aimGuide').addEventListener('click',()=>{aimGuide=!aimGuide;try{localStorage.setItem('night-play-sling-siege-guide',aimGuide?'on':'off')}catch{}ui()});
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&!paused&&$('overlay').hidden)togglePause()});
 window.addEventListener('resize',draw);
-window.__slingTest={get state(){return {gameState,levelIdx,levelCount:levels.length,unlocked,paused,shots,used,score,ball:ball?{...ball}:null,enemies:level.enemies.map(e=>({...e})),blocks:level.blocks.map(b=>({...b})),camera,debrisActive}},reset:()=>reset(false),fireAt:(dx,dy)=>{if(gameState!=='ready')return false;pull({x:SLING.x-dx,y:SLING.y-dy});return fire()},next:()=>next(),step:(n=1)=>{for(let i=0;i<n;i++)physics(1/120);draw()},pointer,pull};
+window.__slingTest={get state(){return {gameState,levelIdx,levelCount:levels.length,unlocked,paused,shots,used,score,ball:ball?{...ball}:null,enemies:level.enemies.map(e=>({...e})),blocks:level.blocks.map(b=>({...b})),camera,debrisActive}},reset:()=>reset(false),dislodgeSupportsForTest:()=>{if(gameState!=='ready')throw Error('reset first');for(const b of level.blocks.slice(0,2))b.alive=false;debrisActive=true;debrisStillFor=0;},fireAt:(dx,dy)=>{if(gameState!=='ready')return false;pull({x:SLING.x-dx,y:SLING.y-dy});return fire()},next:()=>next(),step:(n=1)=>{for(let i=0;i<n;i++)physics(1/120);draw()},pointer,pull};
 reset(true);tickId=requestAnimationFrame(frame);
 })();
 </script>
