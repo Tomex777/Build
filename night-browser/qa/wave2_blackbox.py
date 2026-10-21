@@ -303,6 +303,36 @@ class Device:
         self.click("New private tab")
         return "Private tab created, regular cookie control observed"
 
+    def ensure_regular(self):
+        """Select a real normal Gecko tab, not only the regular grid filter.
+
+        A previous report-only API36 run claimed private-cookie PASS then kept
+        downloading inside a private tab. That caused a legitimate private SAF
+        prompt to poison every following download/PDF case. Never silently
+        skip profile restoration or count a test of the wrong profile as PASS.
+        """
+        self.click("Tabs")
+        regular = next((n for n in self.ui() if re.fullmatch(
+            r"Regular\s+\d+", n.get("text", "") or n.get("content-desc", ""))), None)
+        if regular is None:
+            raise AssertionError("Regular tab filter absent; cannot verify normal downloads")
+        label = regular.get("text", "") or regular.get("content-desc", "")
+        self.click(label)
+        until = time.monotonic() + 12
+        while self.find("New tab") is None:
+            if time.monotonic() >= until:
+                raise AssertionError("Regular filter selected but normal New tab is absent")
+            time.sleep(.5)
+        self.click("New tab")
+        until = time.monotonic() + 12
+        while self.find("Quick access") is None:
+            if time.monotonic() >= until:
+                raise AssertionError("Normal tab did not become active; private-mode state persists")
+            time.sleep(.5)
+        if self.find("New private tab") is not None:
+            raise AssertionError("Private tab controls remain active on normal Home")
+        return "Normal Gecko tab selected and regular Home verified"
+
     def cookie_isolation(self):
         try:
             self.go("/cookie/echo")
@@ -313,15 +343,10 @@ class Device:
                 raise AssertionError("PRIVATE COOKIE LEAK to same origin")
             return "Control cookie present in regular, absent in private"
         finally:
-            # Return to regular browsing so PDF/history tests don't write
-            # snapshots or form data into a private session.
-            self.click("Tabs")
-            regular = next((n for n in self.ui() if re.fullmatch(
-                r"Regular\s+\d+", n.get("text", "") or n.get("content-desc", ""))), None)
-            if regular:
-                label = regular.get("text", "") or regular.get("content-desc", "")
-                self.click(label)
-                self.click("New tab")
+            # This is a real acceptance condition, never a best-effort cleanup.
+            # The old 'if regular' skipped selection while returning PASS and
+            # later opened private-download consent dialogs in ordinary tests.
+            self.ensure_regular()
 
     def upload(self):
         """Select a synthetic file through Android DocumentsUI and verify exact posted bytes."""
