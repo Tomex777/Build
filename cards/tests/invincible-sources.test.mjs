@@ -14,7 +14,8 @@ test('21 unique official Skybound portraits, bound to the right fighter',()=>{
   assert.equal(c.source.usage,'reference-only; not cleared for sale or public card redistribution');
   assert.ok(['F','C','B','A','S','SS','SSS'].includes(c.rank.letter));
   assert.ok(c.rank.basis&&c.rank.limits&&c.rank.scope);
-  assert.ok(c.pose.width>=1100&&c.pose.y<0,'Must compose characters over frame');
+  assert.ok(!Object.hasOwn(c,'pose'),'Placement must be silhouette-derived to prevent clipped heads');
+  assert.ok((c.form.split(' / ')[0]).length<=28,'Displayed edition must fit actual NIGHT typography: '+c.id);
  }
 });
 test('Iconic upper-tier characters get their own cards; do not fake inaccessible forms',()=>{
