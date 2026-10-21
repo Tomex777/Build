@@ -3,7 +3,7 @@
 import fs from 'node:fs/promises';
 import sharp from 'sharp';
 import {inside,atomic} from '../src/catalogue.mjs';
-import {loadManhwaRoster,validateArtLock,collectionSummary,toRendererCard,verifyLocalSource} from '../src/manhwa.mjs';
+import {loadManhwaRoster,validateArtLock,collectionSummary,toRendererCard,toRomanceRendererCard,verifyLocalSource} from '../src/manhwa.mjs';
 
 const roster = await loadManhwaRoster();
 const lock = validateArtLock(roster,JSON.parse(await fs.readFile(inside('catalog/manhwa-art-lock.json'),'utf8')));
@@ -23,14 +23,20 @@ if (command === 'audit') {
     for (const c of candidates) {
       const art=lock.editions[c.id];
       if (!art) continue;
-      await verifyLocalSource(art);
-      const meta = await sharp(inside(art.localPath),{limitInputPixels:30_000_000}).metadata();
-      if (meta.width!==art.width || meta.height!==art.height || !meta.hasAlpha
-        || !['png','webp'].includes(meta.format))
-        throw Error('Native transparency / dimension mismatch: '+c.id);
-      const raw=await sharp(inside(art.localPath)).ensureAlpha().stats();
-      if (raw.channels[3].min>32)throw Error('Art has no meaningful transparent pixels: '+c.id);
-      prepared.push(toRendererCard(c,art,candidates.indexOf(c)+1));
+      const parts = c.family === 'romance' ? art.subjects : [art];
+      for (const part of parts) {
+        await verifyLocalSource(part);
+        const meta = await sharp(inside(part.localPath),{limitInputPixels:30_000_000}).metadata();
+        if (meta.width!==part.width || meta.height!==part.height || !meta.hasAlpha
+          || !['png','webp'].includes(meta.format))
+          throw Error('Native transparency / dimension mismatch: '+c.id+' / '+part.subject);
+        const raw=await sharp(inside(part.localPath)).ensureAlpha().stats();
+        if (raw.channels[3].min>32)
+          throw Error('Art has no meaningful transparent pixels: '+c.id+' / '+part.subject);
+      }
+      prepared.push(c.family === 'romance'
+        ? toRomanceRendererCard(c,art,candidates.indexOf(c)+1)
+        : toRendererCard(c,art,candidates.indexOf(c)+1));
     }
     if (!prepared.length) { console.log(series.name,'— no pinned cutouts; rendering blocked'); continue; }
     const preparedIds=new Set(prepared.map(c=>c.id));
@@ -40,7 +46,7 @@ if (command === 'audit') {
       rightsNote:series.rights+' Reference only; no redistribution approval.',
       cards:prepared,pendingForms:candidates.filter(c=>!preparedIds.has(c.id)).map(c=>({
         id:c.id,character:c.subjects.join(' + '),form:c.form,family:c.family,
-        reason:'Unacquired form-accurate art or unimplemented multi-subject composition.'
+        reason:'Unacquired or unverified form-accurate transparent cutout(s).'
       }))};
     await atomic(inside('catalog/'+series.id+'.json'),JSON.stringify(data,null,2)+'\n');
     total+=prepared.length;
