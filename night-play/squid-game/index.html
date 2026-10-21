@@ -61,7 +61,7 @@ h1{font-size:clamp(27px,5vw,43px);letter-spacing:-.045em;line-height:1.13;margin
 <button type="button" class="mode" role="tab" aria-selected="false" data-mode="twofive">2.5D perspective</button>
 <button type="button" class="mode" role="tab" aria-selected="true" data-mode="three">3D arena</button>
 </div></div>
-<section class="arena" id="arena" data-style="three" aria-label="Playable arena">
+<section class="arena fallback3d" id="arena" data-style="three" aria-label="Playable arena">
 <div class="stage" id="stage"><canvas id="draw" width="960" height="560" aria-label="Arena artwork"></canvas><canvas id="webgl" width="960" height="560" aria-label="3D arena"></canvas>
 <div class="overhead"><div class="light" id="light" role="status" aria-live="polite"><i></i><span id="lightLabel">WAITING FOR START</span></div><div class="players" id="players">12 ENTERED</div></div>
 <div class="bottom-screen"><div class="track"><span id="progress"></span></div><div class="track-text"><span>START</span><span id="distance">0 / 100 M</span><span>FINISH</span></div></div>
