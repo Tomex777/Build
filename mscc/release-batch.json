@@ -1,11 +1,11 @@
 {
-  "releaseId": "night-cortex-cloud-env-overlay-20261021",
+  "releaseId": "night-cortex-mega-passive-ai-onekey-20261021",
   "baseBranch": "mscc-azure",
-  "baseCommit": "dd490e992ef8a65d23c8f700898d48c00da6a7d1",
+  "baseCommit": "d9dc60ca64b84c54cf1ff8e738da0cf019dec648",
   "pullRequests": [
-    527,
-    528
+    531,
+    533
   ],
-  "preparedAt": "2026-10-21T00:12:54.137Z",
-  "notes": "Repair actual cloud credentials/save failures after three protected rollbacks (#39505566864 Settings 500, #39513191643 protected Settings helper 503, #39516352302 environment POST 500). Last deployment verified canonical NIGHT Settings and new audit; ENV was sole failing POST. Cortex Agent #527 passed real dummy MEGA email/password and LOG_LEVEL save tests to private Agent-owned overlay without privileged /etc writes, with masked responses and readback. NIGHT loads /etc/mscc.env followed by private overlay on restart; no auto restart for credential saves. Configure per-host read-only ACL for NIGHT service user and protect original WhatsApp sessions/token/MEGA data. Protected Azure gate must test unchanged Settings & ENV POST/readback and new activity audit before success. One fresh mscc-production approval required only after final CI; no TheNkiri or unrelated feature changes."
+  "preparedAt": "2026-10-21T06:33:08.656Z",
+  "notes": "One protected release candidate combines passing NIGHT Cloud security PR #531 and one-key group AI reliability PR #533. GET /cloud and old GET /cloud/discover do not initiate MEGA authentication even for installed old APKs; remote Discover requires an intentional action only after companion Agent/Android PR #532 is validated and deployed. AI conserves tokens, enforces bounded request latency, preserves group-only policy and logs reasoned failures; no changes to keys, Cortex bearer token, MEGA credentials, existing WhatsApp sessions, or sudo. Integrates exact separately green PR heads into one source branch; require all exact integration-head Azure/Readiness/Contract checks passing. Merge only after review, then protected mscc-production approval and explicit live nonsecret verification; no automatic NIGHT restart or MEGA sign-in tests."
 }
