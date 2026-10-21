@@ -153,7 +153,7 @@ function render(){if(mode==='three'){if(three)three.render();else{render25();if(
 function frame(t){let dt=Math.min(.045,Math.max(0,(t-last)/1000||0));last=t;update(dt);render();raf=requestAnimationFrame(frame)}
 $('start').addEventListener('click',start);
 const run=$('run');
-run.addEventListener('pointerdown',e=>{if(!playing)return;e.preventDefault();run.setPointerCapture?.(e.pointerId);move=true;run.classList.add('active')});
+run.addEventListener('pointerdown',e=>{if(!playing)return;e.preventDefault();try{if(typeof run.setPointerCapture==='function')run.setPointerCapture(e.pointerId)}catch{/* Synthetic events lack a real active pointer. */}move=true;run.classList.add('active')});
 for(const ev of ['pointerup','pointercancel','lostpointercapture','pointerleave'])run.addEventListener(ev,stopMove);
 window.addEventListener('blur',stopMove);document.addEventListener('visibilitychange',()=>{if(document.hidden)stopMove()});
 document.addEventListener('keydown',e=>{if(e.repeat||!playing||e.target.matches('input,textarea,select,button'))return;if(e.code==='Space'||e.code==='ArrowUp'){e.preventDefault();move=true;run.classList.add('active')}});
