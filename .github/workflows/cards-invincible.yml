@@ -7,6 +7,7 @@ on:
       - 'cards/catalog/invincible*'
       - 'cards/bin/seed-invincible.mjs'
       - 'cards/bin/invincible-gallery.mjs'
+      - 'cards/bin/invincible-contact.mjs'
       - 'cards/tests/invincible-sources.test.mjs'
       - '.github/workflows/cards-invincible.yml'
   workflow_dispatch:
@@ -56,6 +57,8 @@ jobs:
             node -e "const fs=require('fs');const f='dist/invincible/build.json';if(fs.existsSync(f))console.error(JSON.stringify(JSON.parse(fs.readFileSync(f)).failures,null,2))"
             exit 1
           }
+      - name: Correct franchise label on actual phone proof contact sheets
+        run: node bin/invincible-contact.mjs dist/invincible
       - name: Export offline gallery from real card master previews
         run: npm run gallery -- --series invincible --out dist/invincible --file dist/NIGHT-Invincible-Collection.html
       - name: Apply Invincible gallery labels (no new templates)
