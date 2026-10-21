@@ -184,7 +184,7 @@ export class SourceRegistry {
     if (!available.length) return { status:'no-sources', capability:cap, sources:[] }
 
     if (pinnedSource) {
-      const source = this.get(cap, pinnedSource)
+      const source = available.find(item => item.id === String(pinnedSource).trim().toLowerCase())
       if (!source) return { status:'unknown-source', capability:cap, sourceId:String(pinnedSource), sources:available }
       try {
         const result = await runSource(source)
@@ -199,7 +199,7 @@ export class SourceRegistry {
     }
 
     if (explicitSource) {
-      const source = this.get(cap, explicitSource)
+      const source = available.find(item => item.id === String(explicitSource).trim().toLowerCase())
       if (!source) return { status:'unknown-source', capability:cap, sourceId:String(explicitSource), sources:available }
       try {
         const result = await runSource(source)
@@ -247,7 +247,7 @@ export class SourceRegistry {
       return { status:'choice-required', capability:cap, sources:available }
     }
 
-    const preferred = this.get(cap, defaultId)
+    const preferred = available.find(source => source.id === defaultId)
     const fallbacks = available
       .filter(source => source.id !== preferred?.id)
       .sort((a,b) => {
