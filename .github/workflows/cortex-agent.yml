@@ -315,6 +315,54 @@ jobs:
           done
           cat /tmp/cortex-agent.log
           exit 1
+      - name: Exercise Cortex Start Stop Restart against disposable systemd unit
+        shell: bash
+        run: |
+          set -euo pipefail
+          # No WhatsApp bot is running in this CI. This disposable systemd
+          # service is the only unit any HTTP power test can control.
+          if sudo systemctl cat night.service >/dev/null 2>&1; then
+            echo 'Refusing to overwrite a pre-existing systemd unit.' >&2
+            exit 1
+          fi
+          sudo tee /etc/systemd/system/night.service >/dev/null <<'UNIT'
+          [Unit]
+          Description=Cortex disposable CI power acceptance
+          [Service]
+          Type=simple
+          ExecStart=/usr/bin/sleep infinity
+          Restart=no
+          [Install]
+          WantedBy=multi-user.target
+          UNIT
+          CI_USER="$(id -un)"
+          sudo tee /etc/sudoers.d/cortex-power-ci >/dev/null <<EOF
+          $CI_USER ALL=(root) NOPASSWD: /usr/local/libexec/cortex-agent-control start, /usr/local/libexec/cortex-agent-control stop, /usr/local/libexec/cortex-agent-control restart
+          EOF
+          sudo chmod 0440 /etc/sudoers.d/cortex-power-ci
+          sudo visudo -cf /etc/sudoers.d/cortex-power-ci >/dev/null
+          sudo systemctl daemon-reload
+          sudo systemctl start night.service
+          AUTH='Authorization: Bearer test-token-12345678901234567890'
+          for action in restart stop start; do
+            response=$(curl -fsS --max-time 30 \
+              -H "$AUTH" -H 'Content-Type: application/json' \
+              -d "{\"action\":\"$action\"}" \
+              http://127.0.0.1:47831/api/cortex/host/power)
+            POWER_RESPONSE="$response" ACTION="$action" node - <<'CHECK'
+          const assert=require('node:assert/strict')
+          const actual=JSON.parse(process.env.POWER_RESPONSE)
+          assert.equal(actual.state,process.env.ACTION==='stop'?'inactive':'active')
+          assert.ok(Number.isFinite(actual.diskLimitBytes) && actual.diskLimitBytes>0)
+          CHECK
+          done
+          response_code=$(curl --silent --show-error -o /tmp/cortex-power-invalid.json \
+            -w '%{http_code}' -H "$AUTH" -H 'Content-Type: application/json' \
+            -d '{"action":"reboot"}' \
+            http://127.0.0.1:47831/api/cortex/host/power)
+          test "$response_code" = 400
+          sudo systemctl is-active --quiet night.service
+          echo 'PASS Cortex real HTTP power API: restart, stop, start, invalid action on disposable systemd unit'
       - name: Verify controlled Startup runner
         shell: bash
         run: |
