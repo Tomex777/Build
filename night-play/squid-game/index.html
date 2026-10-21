@@ -55,13 +55,13 @@ h1{font-size:clamp(27px,5vw,43px);letter-spacing:-.045em;line-height:1.13;margin
 <body>
 <header class="game-head"><a class="game-brand" href="/dashboard" aria-label="NIGHT Play home"><svg viewBox="0 0 108 108" aria-hidden="true"><rect width="108" height="108" fill="#0b0f11"/><path fill="#f4f5f6" d="M24 54A30 30 0 0 1 84 54Z M22 66h64v6H22z"/></svg>NIGHT <small>PLAY</small></a><a class="back" href="/party/">Party games</a></header>
 <main class="main">
-<div class="intro"><div><div class="eyebrow">ARENA / ART DIRECTION</div><h1>Choose how the arena feels.</h1><p>Three playable visual treatments. Same forward control, same red-light rules. Compare the camera, characters and movement before we scale up.</p></div>
+<div class="intro"><div><div class="eyebrow">ARENA / ART DIRECTION</div><h1>Red Light, Green Light.</h1><p>The 3D arena is now the default. Compare camera styles while we refine the full game before online rooms.</p></div>
 <div class="modes" role="tablist" aria-label="Arena visual style">
-<button type="button" class="mode" role="tab" aria-selected="true" data-mode="two">2D illustrated</button>
+<button type="button" class="mode" role="tab" aria-selected="false" data-mode="two">2D illustrated</button>
 <button type="button" class="mode" role="tab" aria-selected="false" data-mode="twofive">2.5D perspective</button>
-<button type="button" class="mode" role="tab" aria-selected="false" data-mode="three">3D arena</button>
+<button type="button" class="mode" role="tab" aria-selected="true" data-mode="three">3D arena</button>
 </div></div>
-<section class="arena" id="arena" data-style="two" aria-label="Playable arena">
+<section class="arena" id="arena" data-style="three" aria-label="Playable arena">
 <div class="stage" id="stage"><canvas id="draw" width="960" height="560" aria-label="Arena artwork"></canvas><canvas id="webgl" width="960" height="560" aria-label="3D arena"></canvas>
 <div class="overhead"><div class="light" id="light" role="status" aria-live="polite"><i></i><span id="lightLabel">WAITING FOR START</span></div><div class="players" id="players">12 ENTERED</div></div>
 <div class="bottom-screen"><div class="track"><span id="progress"></span></div><div class="track-text"><span>START</span><span id="distance">0 / 100 M</span><span>FINISH</span></div></div>
@@ -72,11 +72,11 @@ h1{font-size:clamp(27px,5vw,43px);letter-spacing:-.045em;line-height:1.13;margin
 <div class="buttons"><button type="button" class="primary" id="start">Start round</button><button type="button" class="run" id="run" disabled>HOLD FORWARD</button><button type="button" class="sound" id="sound" aria-pressed="false">Sound off</button></div></div>
 </section>
 <div class="notes"><div><h3>Game rule</h3><p><strong>Moving during red light gets you eliminated.</strong> Standing still is safe. The bot figures act independently, while you hold the forward button or <strong>Space / ↑</strong> to run. Release to stop.</p></div>
-<div><h3>Art comparison, not an online room yet</h3><p>There are 12 simulated contestants for visual and gameplay evaluation. After you choose the style, we can integrate real rooms, authoritative multiplayer movement, latency compensation and spectator mode. Sound uses original cues, not the show's copyrighted recording.</p></div></div>
+<div><h3>Local gameplay test</h3><p>There are 12 simulated contestants for visual and gameplay evaluation. After you choose the style, we can integrate real rooms, authoritative multiplayer movement, latency compensation and spectator mode. Sound uses original cues, not the show's copyrighted recording.</p></div></div>
 </main>
 <script type="module">
 const $=id=>document.getElementById(id),arena=$('arena'),canvas=$('draw'),ctx=canvas.getContext('2d'),stage=$('stage');
-let mode='two',three=null,threeError='',playing=false,finished=false,move=false,soundOn=false,audio=null;
+let mode='three',three=null,threeError='',playing=false,finished=false,move=false,soundOn=false,audio=null;
 let phase='ready',phaseClock=0,elapsed=0,round=0,last=0,raf=0,players=[],redGrace=0;
 const COLORS=['#388875','#6da992','#3e997f','#4a967c','#2d7c6f','#398e77','#60ab87','#2e886d','#5b9d79','#448f82','#53a391','#2b806f'];
 function reset(){players=Array.from({length:12},(_,i)=>({id:i+1,x:(i%6-2.5)*3.5+(i>5?1.3:0),lane:i,dist:i===0?0:Math.random()*4,alive:true,done:false,velocity:0,stride:Math.random()*6.28,shade:COLORS[i]}));players[0].x=0;playing=false;finished=false;move=false;phase='ready';phaseClock=0;elapsed=0;round=0;redGrace=0;stopMove();$('start').textContent='Start round';$('run').disabled=true;status('Ready, player 001?','Tap Start round. Hold FORWARD during green light. Release as soon as red light begins.');updateHUD();render();}
@@ -160,50 +160,226 @@ document.addEventListener('keydown',e=>{if(e.repeat||!playing||e.target.matches(
 document.addEventListener('keyup',e=>{if(e.code==='Space'||e.code==='ArrowUp')stopMove()});
 $('sound').addEventListener('click',()=>{soundOn=!soundOn;$('sound').textContent=soundOn?'Sound on':'Sound off';$('sound').setAttribute('aria-pressed',String(soundOn));if(soundOn)beep(680,.07)});
 document.querySelectorAll('.mode').forEach(btn=>btn.addEventListener('click',()=>{mode=btn.dataset.mode;arena.dataset.style=mode;document.querySelectorAll('.mode').forEach(b=>b.setAttribute('aria-selected',String(b===btn)));$('loadError').style.display='none';if(mode==='three'&&!three)initThree();updateHUD();render()}));
-reset();last=performance.now();raf=requestAnimationFrame(frame);
+reset();last=performance.now();raf=requestAnimationFrame(frame);initThree();
 async function initThree(){
-if(initThree.inflight||three)return;initThree.inflight=true;
-try{
-const T=await import('https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js');
-if(!stage.isConnected)return;
-const scene=new T.Scene();scene.background=new T.Color('#b9d6ce');scene.fog=new T.Fog('#b9d6ce',50,153);
-const camera=new T.PerspectiveCamera(55,960/560,.1,210);
-const renderer=new T.WebGLRenderer({canvas:$('webgl'),antialias:true,alpha:false,powerPreference:'high-performance'});
-renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.6));renderer.setSize(Math.max(320,stage.clientWidth),Math.max(220,stage.clientHeight),false);camera.aspect=stage.clientWidth/stage.clientHeight;camera.updateProjectionMatrix();
-renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFSoftShadowMap;renderer.outputColorSpace=T.SRGBColorSpace;
-scene.add(new T.HemisphereLight('#fff5dc','#688b76',2.2));
-const sun=new T.DirectionalLight('#fff7da',2.5);sun.position.set(-17,36,-35);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);sun.shadow.camera.left=-40;sun.shadow.camera.right=40;sun.shadow.camera.top=40;sun.shadow.camera.bottom=-40;scene.add(sun);
-const mat=(c,roughness=1)=>new T.MeshStandardMaterial({color:c,roughness});
-const ground=new T.Mesh(new T.PlaneGeometry(100,150),mat('#bbad8d'));ground.rotation.x=-Math.PI/2;ground.position.z=-31;ground.receiveShadow=true;scene.add(ground);
-function box(w,h,d,c,x,y,z,parent=scene){const m=new T.Mesh(new T.BoxGeometry(w,h,d),mat(c));m.position.set(x,y,z);m.castShadow=true;m.receiveShadow=true;parent.add(m);return m}
-function sphere(r,c,x,y,z,parent=scene){const m=new T.Mesh(new T.SphereGeometry(r,16,12),mat(c));m.position.set(x,y,z);m.castShadow=true;parent.add(m);return m}
-for(let z=16;z>=-78;z-=8){box(26,.025,.12,'#e2d6b4',0,.03,z);}
-for(let side of [-1,1]){for(let z=22;z>=-88;z-=5){box(.13,2,.13,'#567967',side*17,1,z);box(.08,.06,5,'#90ac9c',side*17,1.5,z-2.5)}}
-box(30,.04,.25,'#faf1db',0,.07,-78);box(30,.04,.25,'#faf1db',0,.07,16);
-for(let side of [-1,1]){box(4,9,2,'#778f80',side*19,4.5,-82)}
-const guardian=new T.Group();scene.add(guardian);guardian.position.set(0,0,-87);
-box(1.9,3,1.25,'#b86453',0,4.3,0,guardian);box(1.45,.8,1.25,'#e8be95',0,6.25,0,guardian);sphere(1.1,'#e5b68f',0,7.15,0,guardian);sphere(1.14,'#333531',0,7.55,-.25,guardian);box(.45,1.8,.55,'#b86453',-1.24,4.6,0,guardian);box(.45,1.8,.55,'#b86453',1.24,4.6,0,guardian);
-const roots=[];
-for(const p of players){
- const root=new T.Group();scene.add(root);
- box(1.1,1.5,.62,p.shade,0,2.1,0,root);
- box(.08,1.45,.07,'#f6f1e5',0,2.1,.34,root);
- box(.9,.6,.65,p.shade,0,1.2,0,root);
- const arms=[],legs=[];
- for(const s of [-1,1]){const arm=new T.Group();arm.position.set(s*.68,2.7,0);root.add(arm);box(.36,1.12,.4,p.shade,0,-.55,0,arm);box(.06,1,.05,'#f2e9d7',s*.2,-.52,.23,arm);arms.push(arm);
- const leg=new T.Group();leg.position.set(s*.27,1.0,0);root.add(leg);box(.37,1.08,.4,'#326f5e',0,-.50,0,leg);box(.4,.22,.65,'#e8e8df',0,-1,.1,leg);legs.push(leg)}
- sphere(.43,'#bd8268',0,3.2,0,root);sphere(.45,'#252b29',0,3.42,-.075,root);
- box(.62,.35,.14,'#f2f2e6',0,2.35,.41,root);
- const c=document.createElement('canvas');c.width=128;c.height=64;const cctx=c.getContext('2d');cctx.fillStyle='#f5f5ed';cctx.fillRect(0,0,128,64);cctx.fillStyle='#16372b';cctx.font='bold 43px Arial';cctx.textAlign='center';cctx.fillText(String(p.id).padStart(3,'0'),64,48);
- const texture=new T.CanvasTexture(c);const number=new T.Mesh(new T.PlaneGeometry(.56,.28),new T.MeshBasicMaterial({map:texture,transparent:true,side:T.DoubleSide}));number.position.set(0,2.36,.492);root.add(number);
- if(p.id===1){const disc=new T.Mesh(new T.TorusGeometry(.9,.07,8,48),new T.MeshBasicMaterial({color:'#fff4ae'}));disc.rotation.x=-Math.PI/2;disc.position.y=.12;root.add(disc)}
- roots.push({root,arms,legs,p});
-}
-arena.classList.remove('fallback3d');three={render(){const w=Math.max(320,stage.clientWidth),h=Math.max(220,stage.clientHeight);if(renderer.domElement.width!==Math.round(w*renderer.getPixelRatio())||renderer.domElement.height!==Math.round(h*renderer.getPixelRatio())){renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()}const you=players[0];for(const r of roots){const p=players[r.p.id-1];r.root.position.set(p.x*.94,p.alive?0:-.4,17-p.dist);r.root.rotation.x=p.alive?0:-Math.PI/2;const wiggle=p.velocity?Math.sin(p.stride)*.65:0;r.arms[0].rotation.x=wiggle;r.arms[1].rotation.x=-wiggle;r.legs[0].rotation.x=-wiggle;r.legs[1].rotation.x=wiggle;r.root.visible=!p.done;}
-guardian.rotation.y=phase==='red'?Math.PI:0;
-const z=17-you.dist;camera.position.set(you.x*.13+9,9.3,z+21);camera.lookAt(you.x*.15,1.8,z-30);renderer.render(scene,camera);}};
-render();
-}catch(e){arena.classList.add('fallback3d');threeError='3D renderer could not load on this connection. 2D and 2.5D remain playable.';console.warn(e);$('loadError').textContent=threeError;$('loadError').style.display='block'}
-finally{initThree.inflight=false}
+ if(initThree.inflight||three)return;
+ initThree.inflight=true;
+ try{
+ const T=await import('https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js');
+ if(!stage.isConnected)return;
+ const scene=new T.Scene();
+ scene.background=new T.Color('#c5d7ce');
+ scene.fog=new T.FogExp2('#c5d7ce',.0078);
+ const camera=new T.PerspectiveCamera(58,1,.1,220);
+ const renderer=new T.WebGLRenderer({canvas:$('webgl'),antialias:true,alpha:false,powerPreference:'high-performance'});
+ const mobile=matchMedia('(max-width:720px)').matches;
+ renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,mobile?1.35:1.75));
+ renderer.outputColorSpace=T.SRGBColorSpace;
+ renderer.toneMapping=T.ACESFilmicToneMapping;
+ renderer.toneMappingExposure=1.35;
+ renderer.shadowMap.enabled=true;
+ renderer.shadowMap.type=T.PCFSoftShadowMap;
+ scene.add(new T.HemisphereLight('#fbf5e3','#6b8470',2.05));
+ const sun=new T.DirectionalLight('#fff6dd',2.65);
+ sun.position.set(-23,40,-50);
+ sun.castShadow=true;
+ sun.shadow.mapSize.set(mobile?512:1024,mobile?512:1024);
+ sun.shadow.camera.left=-40;sun.shadow.camera.right=40;
+ sun.shadow.camera.top=40;sun.shadow.camera.bottom=-40;
+ sun.shadow.camera.near=.5;sun.shadow.camera.far=125;
+ sun.shadow.normalBias=.03;
+ scene.add(sun);
+ const materials=new Map();
+ function mat(hex,roughness=.93){
+  const key=hex+'/'+roughness;
+  if(!materials.has(key))materials.set(key,new T.MeshStandardMaterial({color:hex,roughness}));
+  return materials.get(key);
+ }
+ function object(geometry,material,parent=scene,shadow=true){
+  const o=new T.Mesh(geometry,material);
+  if(shadow){o.castShadow=true;o.receiveShadow=true}
+  parent.add(o);return o;
+ }
+ function box(w,h,d,color,x,y,z,parent=scene,shadow=true){
+  const o=object(new T.BoxGeometry(w,h,d),mat(color),parent,shadow);
+  o.position.set(x,y,z);return o;
+ }
+ function sphere(r,color,x,y,z,parent=scene,segments=12){
+  const o=object(new T.SphereGeometry(r,segments,9),mat(color),parent);
+  o.position.set(x,y,z);return o;
+ }
+ function cylinder(rt,rb,h,color,x,y,z,parent=scene){
+  const o=object(new T.CylinderGeometry(rt,rb,h,9),mat(color),parent);
+  o.position.set(x,y,z);return o;
+ }
+ function limb(radius,length,color,parent,x,y,z){
+  const o=object(new T.CapsuleGeometry(radius,Math.max(.05,length-2*radius),4,8),mat(color),parent);
+  o.position.set(x,y,z);return o;
+ }
+ // All geometry touches the same ground plane: no floating arena/platform.
+ const outer=box(210,.15,235,'#8ea28b',0,-.13,-42);
+ outer.receiveShadow=true;outer.castShadow=false;
+ const track=box(35,.12,111,'#b8aa8c',0,-.01,-33.5);
+ track.castShadow=false;track.receiveShadow=true;
+ for(let z=7;z>-82;z-=10){
+  const line=box(34,.018,.085,'#d4c8a9',0,.057,z,scene,false);
+  line.material=mat('#d8ccb0');
+ }
+ for(let side of [-1,1]){
+  box(.27,.35,110,'#8b9b85',side*17.8,.14,-33,scene,false);
+  for(let z=18;z>=-91;z-=8){
+   cylinder(.12,.15,2.7,'#62796d',side*18,1.4,z);
+   box(.09,.1,8,'#a1b09d',side*18,1.95,z-4,scene,false);
+   box(.07,.09,8,'#849d8b',side*18,1.05,z-4,scene,false);
+  }
+  for(let z of [-67,-15,18]){
+   cylinder(.23,.29,7.6,'#56685e',side*21,3.8,z);
+   box(1.4,.65,1.1,'#f4e5c4',side*21,7.55,z);
+  }
+ }
+ // Soft low-poly vegetation is outside the playable track and never hides contestants.
+ for(let i=0;i<22;i++){
+  const side=i%2?-1:1,z=20-(i*17)%130,x=side*(25+(i*7)%19);
+  const height=3.5+(i%5)*.58;
+  cylinder(.28,.39,height,'#6b7151',x,height/2,z);
+  const crown=sphere(2.4+(i%3)*.3,['#64866e','#779a7b','#7b9370'][i%3],x,height+.65,z,scene,10);
+  crown.scale.set(1.0,1.15,.9);
+ }
+ for(let i=0;i<7;i++){
+  const hill=sphere(17+(i%3)*5,'#91aa96',-95+i*31,-10.5,-120-(i%2)*18,scene,10);
+  hill.scale.set(1,.6,.55);hill.castShadow=false;
+ }
+ // Clearly marked ground start and finish lines, both at runner foot level.
+ box(35,.026,.45,'#faf3e1',0,.077,17.1,scene,false);
+ box(35,.026,.58,'#fff7e2',0,.08,-82.9,scene,false);
+ for(let i=-8;i<9;i++){
+  if(i%2===0)box(2,.028,1.1,'#45564c',i*2,.082,-82.9,scene,false);
+ }
+ // Distant overhead finish gate, floodlights and a red/green light beacon.
+ for(const s of [-1,1])box(1.1,9.2,1,'#5c796d',s*14.8,4.55,-89.2);
+ box(31,1.3,1.3,'#476c62',0,9.1,-89.2);
+ box(14,.75,.14,'#e9e8d6',0,9.1,-88.46,scene,false);
+ const finishSign=document.createElement('canvas');finishSign.width=512;finishSign.height=100;
+ const sc=finishSign.getContext('2d');sc.clearRect(0,0,512,100);
+ sc.fillStyle='#273e35';sc.font='900 66px system-ui,Arial';sc.textAlign='center';sc.fillText('FINISH',256,74);
+ const signMat=new T.MeshBasicMaterial({map:new T.CanvasTexture(finishSign),transparent:true,depthWrite:false,side:T.DoubleSide});
+ const sign=object(new T.PlaneGeometry(10.2,1),signMat,scene,false);sign.position.set(0,9.08,-88.38);
+ const beacon=object(new T.SphereGeometry(.43,14,10),new T.MeshStandardMaterial({color:'#59da88',emissive:'#318d4f',emissiveIntensity:1.5}),scene,false);
+ beacon.position.set(0,10.3,-88.4);
+ // The guardian is fully modelled; only the head turns when the light changes.
+ const doll=new T.Group();scene.add(doll);doll.position.set(0,0,-94);
+ cylinder(.6,.78,1.2,'#735e45',0,.6,0,doll);
+ cylinder(.58,.85,2.7,'#d6a36e',0,3.12,0,doll);
+ box(2.15,1.55,1.24,'#e8b45b',0,4.7,0,doll);
+ box(2.18,.28,1.27,'#ad6c4c',0,4.05,0,doll);
+ for(const s of [-1,1]){
+  limb(.27,1.9,'#bb775e',doll,s*1.42,4.15,0);
+  limb(.32,2.05,'#e2b28c',doll,s*.53,1.5,0);
+  sphere(.30,'#b47b60',s*1.4,3.15,0,doll,10);
+ }
+ const head=new T.Group();doll.add(head);head.position.set(0,6.12,0);
+ sphere(.99,'#dfb18d',0,0,0,head,20);
+ const hair=sphere(1.05,'#292d29',0,.31,-.28,head,18);
+ hair.scale.set(1.02,.86,.89);
+ sphere(.52,'#252b28',-.87,-.05,-.13,head,12);
+ sphere(.52,'#252b28',.87,-.05,-.13,head,12);
+ for(const s of [-1,1]){
+  const eye=sphere(.105,'#252725',s*.37,.08,.85,head,10);
+  eye.scale.set(1,.75,.42);
+  box(.14,.05,.025,'#6f4b42',s*.37,-.42,.9,head,false);
+ }
+ const faceNose=sphere(.09,'#c58e78',0,-.2,.99,head,9);faceNose.scale.set(.8,1,.65);
+ // Shoulder, elbow, knee and ankle articulation rather than stiff box people.
+ const roots=[];
+ const skinTones=['#bf8b6d','#a36e55','#d4a181','#8d604d','#cc9478'];
+ const hairTones=['#1e2422','#342d27','#4c352c','#232b2b'];
+ for(const p of players){
+  const root=new T.Group();scene.add(root);
+  const body=new T.Group();root.add(body);
+  const green=p.shade,skin=skinTones[(p.id-1)%skinTones.length];
+  // Rounded padded tracksuit with proper shoulder proportions.
+  const torso=box(1.0,1.5,.63,green,0,2.05,0,body);
+  torso.scale.x=1.03;
+  box(.095,1.35,.02,'#f2eadb',0,2.07,-.34,body,false);
+  box(.76,.22,.14,'#e9e4d6',0,2.43,.38,body);
+  box(.95,.57,.66,green,0,1.14,0,body);
+  const neck=cylinder(.19,.2,.33,skin,0,2.96,0,body);
+  const face=sphere(.42,skin,0,3.36,-.07,body,16);
+  const hairstyle=sphere(.46,hairTones[(p.id-1)%4],0,3.59,-.01,body,12);
+  hairstyle.scale.set(1.03,.56,1.03);
+  for(const s of [-1,1])sphere(.17,hairTones[(p.id-1)%4],s*.30,3.49,-.06,body,9);
+  const arms=[],legs=[];
+  for(const s of [-1,1]){
+   const arm=new T.Group();arm.position.set(s*.65,2.69,0);body.add(arm);
+   limb(.235,1.13,green,arm,0,-.49,0);
+   box(.075,.83,.03,'#e6e6d7',s*.18,-.48,-.2,arm,false);
+   sphere(.18,skin,0,-1.07,0,arm,9);
+   arms.push(arm);
+   const leg=new T.Group();leg.position.set(s*.29,1.04,0);body.add(leg);
+   limb(.235,.92,'#306c5a',leg,0,-.43,0);
+   box(.42,.26,.77,'#e8e9e0',0,-.89,-.12,leg);
+   legs.push(leg);
+  }
+  // Actual back-number patch faces the chase camera; original 3-digit identity remains legible.
+  box(.73,.42,.036,'#f2eee0',0,2.20,.35,body);
+  const c=document.createElement('canvas');c.width=160;c.height=96;
+  const cctx=c.getContext('2d');cctx.fillStyle='#f2eee0';cctx.fillRect(0,0,160,96);
+  cctx.fillStyle='#1b342b';cctx.font='900 68px Arial';cctx.textAlign='center';
+  cctx.fillText(String(p.id).padStart(3,'0'),80,72);
+  const texture=new T.CanvasTexture(c);texture.colorSpace=T.SRGBColorSpace;
+  const number=object(new T.PlaneGeometry(.69,.40),new T.MeshBasicMaterial({map:texture,side:T.DoubleSide}),body,false);
+  number.position.set(0,2.205,.376);
+  const marker=p.id===1?object(new T.TorusGeometry(.88,.063,7,48),new T.MeshBasicMaterial({color:'#fff0a3'}),root,false):null;
+  if(marker){marker.rotation.x=-Math.PI/2;marker.position.y=.10}
+  // Ground contact shadow and movement dust only for the current character.
+  const dust=p.id===1?object(new T.SphereGeometry(.2,8,6),new T.MeshBasicMaterial({color:'#e9ddc4',transparent:true,opacity:.26,depthWrite:false}),root,false):null;
+  if(dust){dust.scale.set(2.9,.13,2);dust.position.set(0,.08,.45)}
+  roots.push({root,body,arms,legs,p,dust});
+ }
+ let cameraReady=false,lastRender=performance.now(),headAngle=Math.PI;
+ arena.classList.remove('fallback3d');
+ three={render(){
+  const width=Math.max(1,stage.clientWidth),height=Math.max(1,stage.clientHeight);
+  const size=renderer.getSize(new T.Vector2());
+  if(Math.abs(size.x-width)>1||Math.abs(size.y-height)>1){
+   renderer.setSize(width,height,false);camera.aspect=width/height;camera.updateProjectionMatrix();
+  }
+  const now=performance.now(),dt=Math.min(.06,(now-lastRender)/1000);lastRender=now;
+  const alpha=1-Math.exp(-dt*7);
+  headAngle+=( (phase==='red'?0:Math.PI)-headAngle)*Math.min(1,alpha*1.7);
+  head.rotation.y=headAngle;
+  const red=phase==='red';
+  beacon.material.color.set(red?'#ec6461':'#57dd8a');
+  beacon.material.emissive.set(red?'#c12825':'#318d4f');
+  const you=players[0];
+  for(const r of roots){
+   const p=players[r.p.id-1],walking=p.alive&&!p.done&&p.velocity;
+   const stride=walking?Math.sin(p.stride):0;
+   r.root.position.set(p.x*.94,p.alive?0:.4,17-p.dist);
+   r.root.rotation.z=p.alive?0:Math.PI*.49;
+   r.root.rotation.y=0;
+   r.body.position.y=walking?Math.abs(Math.cos(p.stride))*.075:0;
+   r.body.rotation.z=walking?Math.sin(p.stride)*.027:0;
+   r.arms[0].rotation.x=walking?stride*.55:0;
+   r.arms[1].rotation.x=walking?-stride*.55:0;
+   r.legs[0].rotation.x=walking?-stride*.65:0;
+   r.legs[1].rotation.x=walking?stride*.65:0;
+   if(r.dust){r.dust.visible=!!walking;r.dust.scale.set(2.9+Math.abs(stride),.13,1.6+Math.abs(stride))}
+   r.root.visible=!p.done;
+  }
+  // A restrained third-person tracking shot stays close enough to read the uniform.
+  const z=17-you.dist,preferredX=you.x*.94+4.6,preferredZ=z+15.3;
+  const desired=new T.Vector3(preferredX,7.15,preferredZ);
+  if(!cameraReady){camera.position.copy(desired);cameraReady=true}
+  else camera.position.lerp(desired,alpha);
+  camera.lookAt(you.x*.56,1.85,z-20);
+  renderer.render(scene,camera);
+ }};
+ render();
+ }catch(e){
+  arena.classList.add('fallback3d');
+  threeError='3D is not supported on this browser or connection. You can still play in 2D or 2.5D.';
+  console.warn(e);$('loadError').textContent=threeError;$('loadError').style.display='block';
+ }finally{initThree.inflight=false}
 }
 </script></body></html>
