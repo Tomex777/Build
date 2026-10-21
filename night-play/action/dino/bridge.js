@@ -111,6 +111,20 @@ function pulse(){
 }
 window.addEventListener('load',()=>{
  if(typeof window.Runner!=='function'){overlay('UNAVAILABLE','Game did not load','Refresh to try again.','Retry');return}
+ // Keep Chromium's untouched 150px physics world and jump arc, while its
+ // *rendering canvas* occupies the complete height of the shared NIGHT arena.
+ // Pixel sprites stay 1:1: the additional height is transparent world sky.
+ // Wrapping native scaling also handles high-DPI buffers and resize repaint.
+ const scaleNativeCanvas=window.Runner.updateCanvasScaling;
+ window.Runner.updateCanvasScaling=function(canvas,logicalWidth){
+  const nativeHeight=window.Runner.defaultDimensions.HEIGHT; // 150 gameplay units
+  const fullHeight=Math.max(nativeHeight,Math.round($('stage').clientHeight-33));
+  canvas.height=fullHeight; // clear/reset pixel buffer before upstream scales it
+  const scaled=scaleNativeCanvas.call(this,canvas,logicalWidth,fullHeight);
+  canvas.style.height=fullHeight+'px';
+  canvas.getContext('2d').translate(0,fullHeight-nativeHeight);
+  return scaled;
+ };
  runner=new window.Runner('#main-frame-error');
  const nativeSound=runner.playSound.bind(runner);
  runner.playSound=buffer=>{if(sound)nativeSound(buffer)};
@@ -125,6 +139,8 @@ window.addEventListener('load',()=>{
   jumping:runner.tRex?.jumping,ducking:runner.tRex?.ducking,
   obstacles:runner.horizon?.obstacles?.map(o=>({type:o.typeConfig?.type,x:o.xPos,y:o.yPos,w:o.width})),
   speed:runner.currentSpeed,score,best,distanceRan:runner.distanceRan,
+  canvasHeight:runner.canvas?.getBoundingClientRect().height,
+  arenaHeight:$('stage').getBoundingClientRect().height,
   gravity:runner.tRex?.config.GRAVITY,jumpVelocity:runner.tRex?.config.INIITAL_JUMP_VELOCITY
  }),jump:jumpStart,release:jumpEnd,pause,start};
  pulse();
