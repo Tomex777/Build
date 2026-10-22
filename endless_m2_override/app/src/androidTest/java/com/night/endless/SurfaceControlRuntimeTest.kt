@@ -24,7 +24,7 @@ import kotlin.math.abs
 import kotlin.math.hypot
 
 /**
- * Real Android multi-pointer MotionEvents against the installed GLES view.
+ * Real Android input-dispatcher multi-pointer events through the full installed-app window.
  * Covers a left physical joystick and independently owned right look finger;
  * does not pretend a compile or a synthetic preview is a device visual test.
  */
@@ -262,6 +262,10 @@ class SurfaceControlRuntimeTest {
     ) {
         assertEquals(ids.size, xs.size)
         assertEquals(ids.size, ys.size)
+        val location = IntArray(2)
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            view.getLocationOnScreen(location)
+        }
         val properties = Array(ids.size) { index ->
             MotionEvent.PointerProperties().apply {
                 id = ids[index]
@@ -270,8 +274,12 @@ class SurfaceControlRuntimeTest {
         }
         val coords = Array(ids.size) { index ->
             MotionEvent.PointerCoords().apply {
-                x = xs[index]
-                y = ys[index]
+                // Coordinates are *screen* pixels because the real Android
+                // input dispatcher must hit-test through our Compose HUD and
+                // AndroidView interop. Calling dispatchTouchEvent(view) would
+                // bypass overlays and miss a major actual UX regression.
+                x = xs[index] + location[0]
+                y = ys[index] + location[1]
                 pressure = 1f
                 size = 1f
             }
@@ -283,10 +291,13 @@ class SurfaceControlRuntimeTest {
         )
         val beforeDispatch = SystemClock.elapsedRealtimeNanos()
         try {
-            InstrumentationRegistry.getInstrumentation().runOnMainSync {
-                view.dispatchTouchEvent(event)
-            }
+            assertTrue("Android window did not accept injected ${action and MotionEvent.ACTION_MASK} touch",
+                InstrumentationRegistry.getInstrumentation().uiAutomation.injectInputEvent(
+                    event, true
+                ))
         } finally {
+            // End-to-end input injection latency (including OS dispatch),
+            // not pure controller processing or GPU draw timing.
             touchDeliveryMs += (SystemClock.elapsedRealtimeNanos() - beforeDispatch) / 1_000_000.0
             event.recycle()
         }
