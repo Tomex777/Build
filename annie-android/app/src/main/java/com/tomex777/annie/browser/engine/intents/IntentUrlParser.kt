@@ -163,7 +163,7 @@ object IntentUrlParser {
         val wwwMatch = WWW_URL_REGEX.find(trimmed)
         if (wwwMatch != null) {
             val candidate = "https://" + cleanTrailingPunctuation(wwwMatch.value)
-            if (SecurityPolicy.validateIntentUri(candidate)) {
+            if (validExternalUrl(candidate)) {
                 return candidate
             } else {
                 Log.w(TAG, "🛡️ Security policy rejected candidate www URL: $candidate")
@@ -171,7 +171,7 @@ object IntentUrlParser {
             }
         }
 
-        // 4. Safe direct internal schemes (e.g. about:blank, about:home)
+        // 4. Internal browser schemes are not accepted from another application
         if (colonIdx > 0) {
             val scheme = trimmed.substring(0, colonIdx).lowercase(Locale.ROOT).trim()
             if (scheme == "about") return null
@@ -180,7 +180,7 @@ object IntentUrlParser {
         // 5. Bare domain without scheme (e.g. "example.com" or "example.com/path")
         if (trimmed.contains('.') && !trimmed.contains(' ') && !trimmed.contains(':')) {
             val candidate = "https://$trimmed"
-            if (SecurityPolicy.validateIntentUri(candidate)) {
+            if (validExternalUrl(candidate)) {
                 return candidate
             }
         }
