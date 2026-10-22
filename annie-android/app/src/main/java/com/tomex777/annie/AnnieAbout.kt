@@ -28,6 +28,7 @@ internal fun AnnieAboutContent(onOpenSource: (String) -> Unit) {
     val context = LocalContext.current
     val version = remember { context.packageManager.getPackageInfo(context.packageName, 0).versionName.orEmpty() }
     var showLicense by remember { mutableStateOf(false) }
+    var showBrowserLicense by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 20.dp, vertical = 16.dp)
         .testTag("annie_about"), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text("Annie", fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
@@ -36,7 +37,13 @@ internal fun AnnieAboutContent(onOpenSource: (String) -> Unit) {
             modifier = Modifier.padding(top = 12.dp))
         Text("libVLC 3.7.4 · VideoLAN", fontSize = 13.sp)
         TextButton(onClick = { showLicense = true }) { Text("License") }
-        TextButton(onClick = { onOpenSource("https://code.videolan.org/videolan/libvlcjni") }) { Text("Source code") }
+        TextButton(onClick = { onOpenSource("https://code.videolan.org/videolan/libvlcjni") }) { Text("libVLC source") }
+        Text("Based on Omni Browser by RebelRoot (github.com/REBEL-ROOT/omni-browser)",
+            fontSize = 13.sp, modifier = Modifier.padding(top = 12.dp))
+        TextButton(onClick = { onOpenSource("https://github.com/REBEL-ROOT/omni-browser") }) {
+            Text("Original browser source")
+        }
+        TextButton(onClick = { showBrowserLicense = true }) { Text("Browser license (GPLv3)") }
     }
     if (showLicense) {
         val license = remember { context.assets.open("licenses/libvlc-LGPL-2.1.txt").bufferedReader().use { it.readText() } }
@@ -45,6 +52,20 @@ internal fun AnnieAboutContent(onOpenSource: (String) -> Unit) {
             title = { Text("GNU LGPL 2.1") },
             text = { Text(license, fontSize = 12.sp, modifier = Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) },
             confirmButton = { TextButton(onClick = { showLicense = false }) { Text("Close") } },
+        )
+    }
+    if (showBrowserLicense) {
+        val browserLicense = remember {
+            context.assets.open("licenses/omni-GPL-3.0.txt").bufferedReader().use { it.readText() }
+        }
+        AlertDialog(
+            onDismissRequest = { showBrowserLicense = false },
+            title = { Text("Omni Browser source license · GPLv3") },
+            text = {
+                Text(browserLicense, fontSize = 12.sp,
+                    modifier = Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()))
+            },
+            confirmButton = { TextButton(onClick = { showBrowserLicense = false }) { Text("Close") } },
         )
     }
 }

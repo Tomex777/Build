@@ -75,7 +75,27 @@
             android:name=".AnnieBrowserTabsActivity"
             android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboardHidden|keyboard"
             android:windowSoftInputMode="adjustResize"
-            android:exported="false" />
+            android:launchMode="singleTop"
+            android:exported="true">
+            <!-- External text, URLs and web searches enter the validated, normal
+                 Gecko browser. No file/content/javascript intent schemes allowed. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" />
+                <data android:scheme="http" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.WEB_SEARCH" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
         <activity
             android:name=".AnnieSpeechRecognitionActivity"
             android:exported="false"

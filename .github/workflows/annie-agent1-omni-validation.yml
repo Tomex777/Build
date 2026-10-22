@@ -1,0 +1,81 @@
+name: Annie Agent 1 Omni engine acceptance
+
+on:
+  pull_request:
+    branches: [annie-five-agent-recovery-20261022]
+    paths:
+      - 'annie-android/**'
+      - '.github/workflows/annie-agent1-omni-validation.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: annie-omni-engine-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compile-and-native:
+    runs-on: ubuntu-latest
+    timeout-minutes: 65
+    strategy:
+      fail-fast: false
+      matrix:
+        api: [26, 36]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.7.1'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Validate ABR, overlay and TypeScript compiler
+        run: |
+          set -euo pipefail
+          npm install -g typescript@5.9.3
+          python3 annie-android/ci/check-abr.py
+          python3 annie-android/ci/check-omni-provenance.py
+          python3 annie-android/scripts/test-repair-contract.py
+          python3 annie-android/scripts/repair-m0b-merge.py
+          sh annie-android/scripts/check-annie-types.sh
+      - name: Compile source, test serialization, package Android test app
+        run: |
+          gradle --no-daemon --stacktrace -p annie-android :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest
+      - name: Install emulator image
+        run: |
+          sdkmanager --install emulator
+          bash annie-android/ci/install-emulator-system-image.sh ${{ matrix.api }}
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Real Gecko and extension device acceptance
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -no-boot-anim -partition-size 4096
+          script: bash annie-android/ci/run-omni-agent1-tests.sh
+      - name: Preserve API evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: annie-agent1-omni-api${{ matrix.api }}
+          path: |
+            annie-android/build/agent1-omni-evidence/
+            annie-android/app/build/test-results/
+            annie-android/app/build/outputs/androidTest-results/
+          if-no-files-found: warn
+          retention-days: 7
