@@ -12,3 +12,58 @@ internal fun studioNewFileName(input: String, selectedType: String): String {
     require(selectedType in StudioFileTypes) { "Choose a supported file type" }
     return if (name.substringAfterLast('/').contains('.')) name else "$name.$selectedType"
 }
+
+
+/**
+ * Import a text document without running untrusted code. Every imported project
+ * starts disabled, even when its source language has an executable runtime.
+ * Native Studio edits do not silently change the source file's extension.
+ */
+internal fun studioImportTextDocument(
+    files: ScriptFiles,
+    displayName: String,
+    source: String,
+): Pair<String, String> {
+    val leaf = displayName.substringAfterLast('/').substringAfterLast('\\').trim()
+    val extension = leaf.substringAfterLast('.', "").lowercase()
+    require(extension in StudioFileTypes) {
+        "Choose a supported code document, or use ZIP to import a package"
+    }
+    require(source.length <= 2 * 1024 * 1024) { "Document is too large" }
+    if (extension == "js") {
+        val imported = files.importJavaScript(leaf, source)
+        return imported.nameWithoutExtension to imported.name
+    }
+
+    val normalizedBase = leaf.substringBeforeLast('.')
+        .replace(Regex("[^A-Za-z0-9_-]"), "_").trim('_').take(36).ifBlank { "imported" }
+    val existing = files.listProjects().map { it.id }.toSet()
+    var candidate = normalizedBase
+    var suffix = 2
+    while (candidate in existing) {
+        val tail = "_$suffix"
+        candidate = normalizedBase.take(48 - tail.length) + tail
+        suffix++
+    }
+
+    val executable = extension in setOf("ts", "py", "lua")
+    val fileName = if (executable) "$candidate.$extension" else {
+        val stem = leaf.substringBeforeLast('.')
+            .replace(Regex("[^A-Za-z0-9_.-]"), "_").trim('.', '_').take(70).ifBlank { "document" }
+        "$stem.$extension"
+    }
+    val root = if (executable) files.createScript(fileName) else files.createFolder(candidate)
+    val projectId = if (executable) root.nameWithoutExtension else root.name
+    val path = fileName
+    try {
+        if (!executable) files.createFile(projectId, path)
+        files.writeFile(projectId, path, source)
+        files.setEnabled(projectId, false)
+    } catch (failure: Throwable) {
+        // Remove only the project created by this import. Do not retain an
+        // enabled starter main.js or a partially imported script on failure.
+        runCatching { files.deleteProject(projectId) }
+        throw failure
+    }
+    return projectId to path
+}
