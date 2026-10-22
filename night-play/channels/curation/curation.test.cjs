@@ -474,3 +474,20 @@ test('blank or unbounded GUID cannot inherit a server-confirmed announcement',()
   {confirmedBySource:{valid:{verified:true,show:'Aurora',storyKey:'aurora:renew:season2'}}});
  assert.equal(good.confirmed,true);
 });
+
+test('GUID reused for another series cannot silently verify a different show',()=>{
+ const {interpretKDramaEntry}=require('./kdrama.cjs');
+ const ledger={reused:{verified:true,show:'Aurora',storyKey:'aurora:season2',platform:'Viki',availabilityRegion:'Nigeria',event:'renewal'}};
+ const falseMatch=interpretKDramaEntry({title:'“Moonlight” actors join new series',guid:'reused'},
+  {confirmedBySource:ledger,showAliases:['Moonlight']});
+ assert.equal(falseMatch.show,'Moonlight');
+ assert.equal(falseMatch.confirmed,false);
+ assert.equal(falseMatch.storyKey,null);
+ assert.equal(falseMatch.platform,'');
+ assert.equal(falseMatch.availabilityRegion,'');
+ assert.equal(falseMatch.event,'casting');
+ const real=interpretKDramaEntry({title:'“Aurora” renewed for new season',guid:'reused'}, {confirmedBySource:ledger});
+ assert.equal(real.confirmed,true);
+ assert.equal(real.storyKey,'aurora:season2');
+ assert.equal(real.platform,'Viki');
+});
