@@ -114,6 +114,7 @@ async function main(){
  base='http://127.0.0.1:'+server.address().port;
  fs.mkdirSync(output,{recursive:true});
  const browser=await chromium.launch({headless:true,channel:'chrome',args:['--no-sandbox']});
+ const findings=[];
  try{
   for(const width of [320,360,390,412,1280]){
    const ctx=await context(browser,'A',width,width===1280?900:844),page=await ctx.newPage(),errors=[];
@@ -158,8 +159,8 @@ async function main(){
   assert.equal(await page.locator('.review-card').count(),4);
   await page.screenshot({path:path.join(output,'review-four-candidates.png'),fullPage:true});
   const blockedCard=page.locator('.review-card').nth(3);
-  assert.equal(await blockedCard.getByRole('button',{name:'Approve'}).isEnabled(),false,
-    'Rights-unverified review-only meme cannot be approved for publishing');
+  if(await blockedCard.getByRole('button',{name:'Approve'}).isEnabled())
+    findings.push('P1: rights-unverified review-only meme Approve button is enabled');
   await page.locator('.review-card').first().getByRole('button',{name:'Approve'}).click();
   await page.locator('.review-card').first().getByText('Approved',{exact:true}).waitFor();
   assert.match(await page.locator('#approvedCount').innerText(),/^1 approved/);
@@ -167,16 +168,26 @@ async function main(){
   await page.getByRole('button',{name:'Next four'}).click();
   await page.locator('.review-card').first().getByRole('heading',{name:/sample 2/}).waitFor();
   await page.screenshot({path:path.join(output,'review-next-batch.png'),fullPage:true});
-  assert.ok((await page.locator('#approvedCount').innerText()).match(/[1-9]\d* approved/),
-    'P1: Previous approved choices must remain in visible selection tray across batches');
-  assert.equal(await page.getByRole('button',{name:'Publish approved'}).isEnabled(),true,
-    'Selections from earlier batches must remain publishable');
+  if(!/[1-9]\d* approved/.test(await page.locator('#approvedCount').innerText()))
+    findings.push('P1: approved items vanished from visible tray after Next four');
+  if(!await page.getByRole('button',{name:'Publish approved'}).isEnabled())
+    findings.push('P1: approved batch-one selection cannot publish after batch two');
   // Revocation must also fail closed even if an already loaded page has buttons.
   ownerARevoked=true;
-  await page.getByRole('button',{name:'Publish approved'}).click();
-  await page.locator('#reviewNotice:not([hidden])').waitFor();
+  if(await page.getByRole('button',{name:'Publish approved'}).isEnabled()){
+    await page.getByRole('button',{name:'Publish approved'}).click();
+    await page.locator('#reviewNotice:not([hidden])').waitFor();
+  }
+  const denied=await page.evaluate(async (channelId)=>{
+    const r=await fetch('/api/account',{method:'POST',credentials:'same-origin',
+      headers:{'content-type':'application/json'},
+      body:JSON.stringify({action:'channel:memes:publish',channelId,batchId:'qa_batch_1_00001',mode:'now'})});
+    return r.status;
+  },A);
+  assert.equal(denied,403,'Direct crafted POST denied after ownership revoked');
   assert.equal(jobs.length,0,'No posts can be queued after admin/owner revocation');
   await ctx.close();
+  if(findings.length)throw Error('Release-blocking A UI findings:\\n'+findings.join('\\n'));
   console.log('PASS A config five breakpoints, two owners, OFF-default, review carryover and revocation');
  } catch(err){
   fs.writeFileSync(path.join(output,'failure.json'),JSON.stringify({error:String(err.stack||err),requests,answers:[...answers]},null,2));
