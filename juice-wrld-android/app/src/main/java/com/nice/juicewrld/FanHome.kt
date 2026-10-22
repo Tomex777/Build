@@ -351,7 +351,8 @@ private fun FanHeader() {
                 .background(Brush.linearGradient(listOf(Lavender, Color(0xFF7850B8)))),
             contentAlignment = Alignment.Center
         ) {
-            Text("9", color = Night, fontSize = 24.sp, fontWeight = FontWeight.Black)
+            Text("999", color = Night, fontSize = 13.sp,
+                letterSpacing = (-1.5).sp, fontWeight = FontWeight.Black)
         }
         Spacer(Modifier.width(11.dp))
         Column {
