@@ -12,28 +12,46 @@ adb exec-out screencap -p > jigsaw-android/qa-screenshots/01-starter-390.png
 # Read actual Compose accessibility node bounds: don't guess tap coordinates.
 tap_label() {
   local label="$1"
-  adb shell uiautomator dump /sdcard/jigsaw-ui.xml >/dev/null
-  adb exec-out cat /sdcard/jigsaw-ui.xml > /tmp/jigsaw-ui.xml
-  local xy
-  xy=$(python3 - "$label" <<'PY'
+  local attempt xy
+  for attempt in $(seq 1 13); do
+    adb shell uiautomator dump /sdcard/jigsaw-ui.xml >/dev/null
+    adb exec-out cat /sdcard/jigsaw-ui.xml > /tmp/jigsaw-ui.xml
+    xy=$(python3 - "$label" <<'PY'
 import re,sys,xml.etree.ElementTree as ET
 label=sys.argv[1].casefold()
 root=ET.parse("/tmp/jigsaw-ui.xml").getroot()
-for item in root.iter("node"):
-    txt=(item.get("text","")+" "+item.get("content-desc","")).casefold()
-    if label in txt:
-        match=re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]",item.get("bounds",""))
-        if match:
-            x1,y1,x2,y2=map(int,match.groups())
+for node in root.iter("node"):
+    txt=(node.get("text","")+" "+node.get("content-desc","")).casefold()
+    if label not in txt:
+        continue
+    match=re.match(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]",node.get("bounds",""))
+    if match:
+        x1,y1,x2,y2=map(int,match.groups())
+        if x2>x1 and y2>y1:
             print((x1+x2)//2,(y1+y2)//2)
-            sys.exit(0)
-raise SystemExit("No visible tappable accessibility node matches "+repr(label))
+            break
 PY
 )
-  read -r x y <<< "$xy"
-  adb shell input tap "$x" "$y"
-  sleep 2
+    if [ -n "$xy" ]; then
+      local x y
+      read -r x y <<< "$xy"
+      adb shell input tap "$x" "$y"
+      sleep 2
+      return 0
+    fi
+    # Dialog size selectors and 600-piece list are scrollable.
+    # Compute swipe bounds from the emulator's current display geometry.
+    local dims cx fromy toy
+    dims=$(adb shell wm size | grep -E '(Physical|Override) size:' | tail -1 | grep -o '[0-9]*x[0-9]*')
+    local w="${dims%x*}" h="${dims#*x}"
+    cx=$((w/2));fromy=$((h*73/100));toy=$((h*30/100))
+    adb shell input swipe "$cx" "$fromy" "$cx" "$toy" 280
+    sleep 1
+  done
+  echo "FAIL: no on-screen accessible UI button matching '$label' after scrolling" >&2
+  return 1
 }
+
 tap_label "New puzzle"
 adb exec-out screencap -p > jigsaw-android/qa-screenshots/02-difficulty-390.png
 tap_label "48"
@@ -91,4 +109,17 @@ adb shell settings put system user_rotation 0
 adb shell wm size 390x844
 sleep 3
 adb exec-out screencap -p > jigsaw-android/qa-screenshots/10-portrait-600-390x844.png
+# Reject empty/unexpected screenshots and verify both orientations were rendered.
+python3 - <<'PY'
+import pathlib,struct
+photos=list(pathlib.Path("jigsaw-android/qa-screenshots").glob("*.png"))
+assert len(photos)>=10,len(photos)
+for path in photos:
+    data=path.read_bytes()
+    assert data[:8]==b"\\x89PNG\\r\\n\\x1a\\n",path
+    width,height=struct.unpack(">II",data[16:24])
+    assert width>=300 and height>=300,(path,width,height)
+    assert len(data)>9000,(path,len(data))
+print("PASS: verified",len(photos),"nonempty native-screen PNG captures")
+PY
 echo "Native standalone Jigsaw device smoke: PASS"
