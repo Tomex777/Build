@@ -14,11 +14,21 @@
         android:allowBackup="false"
         android:supportsRtl="true">
         <activity android:name=".MainActivity" android:exported="true"
+                  android:launchMode="singleTask"
                   android:windowSoftInputMode="stateAlwaysHidden|adjustResize"
                   android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <!-- Explicit user choice in Android's link-opening flow. No app-owned
+                 autoVerify hosts; external links enter only normal browser tabs. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="http" />
+                <data android:scheme="https" />
             </intent-filter>
         </activity>
         <activity android:name=".SavedPdfActivity" android:exported="false" />
