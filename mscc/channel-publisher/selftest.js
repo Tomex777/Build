@@ -38,7 +38,7 @@ assert.equal(db.prepare('SELECT name FROM play_channel_claims WHERE user_id=? AN
 assert.equal(svc.config(alice,channelId).branding.posterName,'TOMEX')
 await assert.rejects(svc.update(alice,channelId,0,{modules:{memes:false}},accounts),e=>e.status===409)
 role='SUBSCRIBER'
-await assert.rejects(svc.update(alice,channelId,1,{modules:{memes:false}},accounts),e=>e.status===403)
+await assert.rejects(svc.update(alice,channelId,1,{modules:{memes:true}},accounts),e=>e.status===403)
 role='ADMIN'
 const image=Buffer.from([137,80,78,71,13,10,26,10,1,2,3,4,5,6,7,8])
 const meme=i=>({image,mime:'image/png',caption:'Caption '+i,title:'Meme '+i,category:'anime',sourceName:'Approved source',sourceUrl:'https://example.org/licensed/'+i,rightsEvidence:i===0?null:{verifiedByServer:true,status:'cleared',licenseId:'license-'+i,sha256:createHash('sha256').update(image).digest('hex'),sourceUrl:'https://example.org/licensed/'+i}})
@@ -79,7 +79,9 @@ const next=reloaded.batch(alice,channelId,nextBatch)
 const reviewed=reloaded.review(alice,channelId,{batchId:nextBatch,candidateId:next.candidates[2].id,decision:'approved',caption:'DO NOT SEND IF DISABLED',expectedSelectionRevision:3})
 const scheduled=reloaded.enqueue(alice,channelId,{selectionId:reviewed.selection.id,expectedSelectionRevision:4,mode:'schedule',scheduledAt:new Date(time+5*60000).toISOString(),spacingMinutes:5})
 assert.equal(scheduled.jobs.length,1)
+accounts.get('A').connected=false
 await reloaded.update(alice,channelId,1,{modules:{memes:false}},accounts)
+accounts.get('A').connected=true
 assert.equal(reloaded.jobs(alice,channelId).jobs.find(j=>j.id===scheduled.jobs[0].id).status,'cancelled')
 let prepared=0
 const fakePrepare=async arg=>{prepared++;assert.equal(arg.verifiedDisplayName,displayName);assert.equal(arg.branding.posterName,'TOMEX');return {mediaBuffer:arg.mediaBuffer,caption:arg.text+'\n> TOMEX'}}
