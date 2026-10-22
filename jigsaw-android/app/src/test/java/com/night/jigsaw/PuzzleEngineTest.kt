@@ -131,6 +131,28 @@ class PuzzleEngineTest {
             locations,g.hintsRemaining,g.moves,g.preview,g.landscapeMode,g.activeZone,badGroups))
     }
 
+    @Test fun edgesOnlyHidesInteriorsWithoutBreakingJoinedGroups() {
+        val g=PuzzleGame.fresh(8,6,seed=7788)
+        g.edgesOnly=true
+        val edgeCount=g.pieces.count{g.isEdge(it)}
+        assertEquals(8*2+6*2-4,edgeCount)
+        assertEquals(edgeCount,g.pieces.count{g.visible(it)})
+        val edge=g.pieces[1]
+        val inner=g.pieces[9]
+        g.movePiece(1,420f,150f)
+        g.movePiece(9,420f,150f+g.pieceHeight)
+        assertFalse(g.release(9))
+        assertEquals(edge.groupId,inner.groupId)
+        assertTrue(g.visible(inner))
+        val positions=g.pieces.map{Triple(it.x,it.y,it.placed)}
+        val groups=g.pieces.map{it.groupId}
+        val restored=PuzzleGame.restore(g.cols,g.rows,g.seed,g.imageKey,
+            positions,g.hintsRemaining,g.moves,g.preview,g.landscapeMode,
+            g.activeZone,groups,g.edgesOnly)!!
+        assertTrue(restored.edgesOnly)
+        assertTrue(restored.visible(restored.pieces[9]))
+    }
+
     @Test fun neighborTabsAreComplementaryAndEdgesFlat() {
         val g = PuzzleGame.fresh(12, 12, seed = 782)
         for (r in 0 until 12) for (c in 0 until 12) {
