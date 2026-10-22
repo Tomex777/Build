@@ -530,7 +530,11 @@ class EndlessRenderer(
         val h = max(1, viewportHeight)
         if (isSurfaceMode()) {
             yaw += dx.coerceIn(-120f, 120f) * (2.0 * PI / h.toDouble()) * 0.22
-            pitch = (pitch - dy.coerceIn(-120f, 120f) * (2.0 * PI / h.toDouble()) * 0.22).coerceIn(-0.42, 0.42)
+            // A 24° pitch limit made the sky overhead impossible to inspect
+            // and nearly hid Tycho's Earth (~45° up). Allow a natural
+            // first-person view without crossing the 90° gimbal pole.
+            pitch = (pitch - dy.coerceIn(-120f, 120f) *
+                (2.0 * PI / h.toDouble()) * 0.22).coerceIn(-1.30, 1.30)
             return
         }
         val speed = if (overview) rotateSpeedOverview else rotateSpeedFocused
@@ -872,11 +876,22 @@ class EndlessRenderer(
         GLES30.glUniform1f(uniformLocation(marsSkyProgram, "uPitch"), pitch.toFloat())
         GLES30.glUniform1f(uniformLocation(marsSkyProgram, "uYaw"), yaw.toFloat())
         GLES30.glUniform1f(uniformLocation(marsSkyProgram, "uAspect"), width.toFloat() / height)
-        val parent = if (skyWorld == 2) textures["jupiter"] ?: 0 else 0
+        val parent = when (skyWorld) {
+            2 -> textures["jupiter"] ?: 0
+            3 -> textures["earth"] ?: 0
+            else -> 0
+        }
         GLES30.glActiveTexture(GLES30.GL_TEXTURE3)
         GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, parent)
-        GLES30.glUniform1i(uniformLocation(marsSkyProgram, "uJupiterTexture"), 3)
-        GLES30.glUniform1i(uniformLocation(marsSkyProgram, "uHasJupiterTexture"), if (parent == 0) 0 else 1)
+        GLES30.glUniform1i(uniformLocation(marsSkyProgram, "uParentTexture"), 3)
+        GLES30.glUniform1i(uniformLocation(marsSkyProgram, "uHasParentTexture"), if (parent == 0) 0 else 1)
+        if (skyWorld == 3) {
+            val earthDirection = MoonEarthSky.tychoDirection
+            GLES30.glUniform3f(
+                uniformLocation(marsSkyProgram, "uEarthDirection"),
+                earthDirection[0], earthDirection[1], earthDirection[2]
+            )
+        }
         GLES30.glDrawArrays(GLES30.GL_TRIANGLES, 0, 3)
         GLES30.glActiveTexture(GLES30.GL_TEXTURE3)
         GLES30.glBindTexture(GLES30.GL_TEXTURE_2D, 0)
@@ -901,6 +916,11 @@ class EndlessRenderer(
             lookX.toFloat(), (eyeY + lookY).toFloat(), lookZ.toFloat(),
             0f, 1f, 0f
         )
+        // Tycho's near-side Moon sky can show the Earth above the horizon.
+        // Like Apollo daylight exposure, the surrounding sky is starless and
+        // nearly black; Earth's actual ~1.9 degree disk is rendered using
+        // the same atlas as the planetary view, never as a screen-fixed icon.
+        drawSurfaceSky(3)
         // Lunar daylight exposure: sunlit ground needs a much shorter
         // exposure than stars. A camera exposing bright regolith shows an
         // almost black, STARLESS sky (Apollo photographs demonstrate this).
@@ -920,7 +940,7 @@ class EndlessRenderer(
         if (id == "titan") drawAtmosphereSky(1)
         else if (id == "europa") drawAtmosphereSky(2)
         Matrix.perspectiveM(projection,0,67f,width.toFloat()/height,.0002f,36f)
-        val eyeY = ExtendedSurfaceMesh.heightAt(id,extendedSurfaceX,extendedSurfaceZ)+.00078
+        val eyeY = terrain.groundHeightAt(extendedSurfaceX,extendedSurfaceZ)+.00078
         val lx=sin(yaw)*cos(pitch);val ly=sin(pitch);val lz=-cos(yaw)*cos(pitch)
         Matrix.setLookAtM(view,0,0f,eyeY.toFloat(),0f,
             lx.toFloat(),(eyeY+ly).toFloat(),lz.toFloat(),0f,1f,0f)
@@ -2322,14 +2342,16 @@ in vec2 vUv;
 uniform float uPitch;
 uniform float uYaw;
 uniform float uAspect;
-uniform int uSkyWorld; // 0 = Mars, 1 = Titan, 2 = Europa
-uniform sampler2D uJupiterTexture;
-uniform int uHasJupiterTexture;
+uniform int uSkyWorld; // 0 Mars, 1 Titan, 2 Europa, 3 Moon
+uniform vec3 uEarthDirection; // local +X east, +Y up, +Z north at Tycho
+uniform sampler2D uParentTexture;
+uniform int uHasParentTexture;
 out vec4 fragColor;
 
 const float TAN_HALF_FOV = 0.6619; // tan(67 deg / 2)
 const float JUPITER_ANGULAR_RADIUS = 0.1061; // asin(71492km / Europa orbit 671100km)
 const float JUPITER_POLAR_RATIO = 0.9351; // polar / equatorial radii
+const float EARTH_ANGULAR_RADIUS = 0.01659; // asin(6378.137km / 384400km)
 
 vec3 viewRay(vec2 uv) {
     vec2 ndc = uv * 2.0 - 1.0;
@@ -2380,7 +2402,7 @@ void main() {
         vec3 horizonHaze = vec3(.48,.285,.125);
         sky = mix(upperHaze,horizonHaze,airMass);
         sky += vec3(.065,.045,.023)*min(mie*.009,.27);
-    } else if (uSkyWorld == 2 && uHasJupiterTexture == 1 && ray.y > 0.0) {
+    } else if (uSkyWorld == 2 && uHasParentTexture == 1 && ray.y > 0.0) {
         // Europa's near-side Jupiter view: physically small, oblate and
         // directly illuminated by the same Sun used on the ice terrain.
         // Camera-space fixed direction is illustrative: no ephemeris claim.
@@ -2406,7 +2428,7 @@ void main() {
                 float latitude = asin(clamp(p.y, -1.0, 1.0));
                 vec2 uv = vec2(fract(.50 + longitude / 6.2831853),
                                .50 - latitude / 3.14159265);
-                vec3 clouds = texture(uJupiterTexture, uv).rgb;
+                vec3 clouds = texture(uParentTexture, uv).rgb;
 
                 // A sphere needs *solar lighting and a terminator*, not
                 // a uniformly bright photograph. Camera-facing outward
@@ -2425,6 +2447,45 @@ void main() {
                 vec3 radiance = clouds * phase * limb;
                 // No air or false blue glow around the disk on Europa.
                 sky = mix(sky, radiance, edgeAlpha);
+            }
+        }
+    } else if (uSkyWorld == 3 && uHasParentTexture == 1 && ray.y > 0.0) {
+        // Near-side Moon (Tycho): Earth is approximately 1.9 degrees
+        // across, at ~45 degrees elevation toward north-northeast. The
+        // actual vector is derived from Tycho's -43.31°,348.64°E site
+        // and the mean sub-Earth point (no time-dependent libration).
+        vec3 towardEarth = normalize(uEarthDirection);
+        vec3 east = normalize(cross(vec3(0.0, 1.0, 0.0), towardEarth));
+        vec3 north = normalize(cross(towardEarth, east));
+        vec2 p = vec2(dot(ray, east), dot(ray, north)) /
+            sin(EARTH_ANGULAR_RADIUS);
+        float r2 = dot(p, p);
+        if (dot(ray, towardEarth) > 0.0 && r2 < 1.045) {
+            float distanceFromCenter = sqrt(r2);
+            float fringe = max(fwidth(distanceFromCenter) * 1.4, .002);
+            float coverage = 1.0 - smoothstep(
+                1.0 - fringe, 1.0 + fringe, distanceFromCenter
+            );
+            if (coverage > 0.0) {
+                float depth = sqrt(max(1.0 - r2, 0.0));
+                float longitude = atan(p.x, depth);
+                float latitude = asin(clamp(p.y, -1.0, 1.0));
+                vec2 uv = vec2(fract(.5 + longitude / 6.2831853),
+                               .5 - latitude / 3.14159265);
+                vec3 earth = texture(uParentTexture, uv).rgb;
+                // Earth and Moon receive sunlight from the same physical
+                // direction. A lit, clouded globe has a phase and shaded
+                // limb; avoid a pasted, uniformly illuminated flat disk.
+                vec3 normalWorld = normalize(
+                    -towardEarth * depth + east * p.x + north * p.y
+                );
+                float incident = dot(
+                    normalWorld, normalize(vec3(-.74, .38, .31))
+                );
+                float daylight = smoothstep(-.025, .07, incident);
+                float phase = mix(.018, .19 + .81 * max(incident, 0.0), daylight);
+                float limb = .63 + .37 * pow(depth, .42);
+                sky = mix(sky, earth * phase * limb, coverage);
             }
         }
     }

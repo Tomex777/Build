@@ -131,6 +131,31 @@ class SurfaceDetailMeshTest {
         }
     }
 
+    @Test fun extendedWorldEyeHeightSamplesVisibleForegroundNotAnalyticGround() {
+        // The meter-resolution surface can rise 36cm above the approximate
+        // analytic baseline on Europa/Titan. At first-person height, using
+        // the baseline makes the camera clip into ridges and dunes.
+        val ground: (Double, Double) -> Double = { x, z -> x * .05 - z * .02 }
+        val illustrativeRidge: (Double, Double) -> Double = { _, _ -> .00012 }
+        val mesh = SurfaceDetailRenderer(
+            -.74, .38, .31,
+            coarseElevation = ground,
+            geologyRelief = illustrativeRidge,
+            drawStones = false,
+            elevation = ground
+        )
+        val px = .0026
+        val pz = -.0017
+        val sampled = mesh.groundHeightAt(px, pz)
+        val expected = SurfaceDetailMesh.surfaceHeightAt(
+            px, pz, mesh.foregroundAnchorX.toDouble(),
+            mesh.foregroundAnchorZ.toDouble(), ground, illustrativeRidge
+        )
+        assertEquals(expected, sampled, 1e-8)
+        assertTrue("camera ignored actual foreground ridge",
+            sampled - ground(px,pz) > .00010)
+    }
+
     @Test fun samplingOutsideForegroundUsesUnderlyingTerrain() {
         val elevation: (Double, Double) -> Double = { x, z -> .1 + x + z }
         assertEquals(elevation(.03, .01),

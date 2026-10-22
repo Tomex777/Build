@@ -35,6 +35,23 @@ internal class SurfaceDetailRenderer(
     val foregroundAnchorX: Float get() = anchorX.toFloat()
     val foregroundAnchorZ: Float get() = anchorZ.toFloat()
 
+    /**
+     * Sample the actual visible 1.05m foreground triangles under the eye.
+     * The analytic coarse terrain does not contain metre-scale uplift, and
+     * using it directly for the camera can place the eye inside Europa's
+     * ridges or above Titan's dunes. Prepare first so the sample and the
+     * next draw have exactly the same moving patch anchor.
+     *
+     * Call only on the GL thread, alongside prepare()/draw().
+     */
+    fun groundHeightAt(x: Double, z: Double): Double {
+        prepare(x, z)
+        return SurfaceDetailMesh.surfaceHeightAt(
+            x, z, anchorX, anchorZ, elevation,
+            geologyRelief ?: SurfaceDetailMesh::defaultMicroRelief
+        )
+    }
+
     private var anchorX = Double.NaN
     private var anchorZ = Double.NaN
     private var patchVertices: FloatBuffer? = null
@@ -146,12 +163,19 @@ internal class SurfaceDetailRenderer(
         }
 
         GLES30.glUniform1i(patchLocation, 1)
+        // Midfield overlaps the outer ~1.2m of this 58.8m square to
+        // close subpixel cracks. Bias near geometry toward the depth
+        // camera rather than shifting the physical terrain vertically;
+        // disable before decals and rock drawing so their depth is honest.
+        GLES30.glEnable(GLES30.GL_POLYGON_OFFSET_FILL)
+        GLES30.glPolygonOffset(-1.0f, -1.0f)
         bindAttributes(vertices)
         indices.position(0)
         GLES30.glDrawElements(
             GLES30.GL_TRIANGLES, patchCount, GLES30.GL_UNSIGNED_SHORT, indices
         )
         unbindAttributes()
+        GLES30.glDisable(GLES30.GL_POLYGON_OFFSET_FILL)
 
         shadowVertices?.takeIf { shadowCount > 0 }?.let {
             GLES30.glUniform1i(patchLocation, 3)

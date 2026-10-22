@@ -2,6 +2,7 @@ package com.night.endless.engine.render
 
 import android.content.Context
 import android.opengl.GLSurfaceView
+import android.view.Choreographer
 import android.view.GestureDetector
 import android.view.MotionEvent
 import android.view.ScaleGestureDetector
@@ -18,6 +19,31 @@ class EndlessGLView(
     private var lookPointerId = MotionEvent.INVALID_POINTER_ID
     private var lastLookX = 0f
     private var lastLookY = 0f
+    private var frameTickerActive = false
+
+    // Drive GLES from display vsync, not a busy GL-thread spin loop.
+    // This keeps the rendering thread asleep between display opportunities,
+    // leaving CPU time for the Compose HUD and two-finger touch processing.
+    // requestRender() coalesces on slow GPU frames and works at 60/90/120Hz.
+    private val frameTicker = object : Choreographer.FrameCallback {
+        override fun doFrame(frameTimeNanos: Long) {
+            if (!frameTickerActive || !isAttachedToWindow) return
+            requestRender()
+            Choreographer.getInstance().postFrameCallback(this)
+        }
+    }
+
+    private fun startFrameTicker() {
+        if (frameTickerActive || !isAttachedToWindow) return
+        frameTickerActive = true
+        requestRender()
+        Choreographer.getInstance().postFrameCallback(frameTicker)
+    }
+
+    private fun stopFrameTicker() {
+        frameTickerActive = false
+        Choreographer.getInstance().removeFrameCallback(frameTicker)
+    }
 
     /** True physical thumb position for a passive, non-touch-consuming Compose HUD. */
     var onSurfaceStickChanged: ((Float, Float) -> Unit)? = null
@@ -113,10 +139,26 @@ class EndlessGLView(
         return true
     }
 
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        startFrameTicker()
+    }
+
     override fun onDetachedFromWindow() {
+        stopFrameTicker()
         // A paused/detached surface must never keep walking after its touch ends.
         cancelSurfaceControls()
         super.onDetachedFromWindow()
+    }
+
+    override fun onPause() {
+        stopFrameTicker()
+        super.onPause()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        startFrameTicker()
     }
 
     private val scaler = ScaleGestureDetector(context, object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
@@ -154,7 +196,7 @@ class EndlessGLView(
         // to avoid quantized depth stripes at grazing viewing angles.
         setEGLConfigChooser(8, 8, 8, 0, 24, 0)
         setRenderer(endlessRenderer)
-        renderMode = RENDERMODE_CONTINUOUSLY
+        renderMode = RENDERMODE_WHEN_DIRTY
         preserveEGLContextOnPause = true
     }
 

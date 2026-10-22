@@ -604,31 +604,31 @@ private fun EndlessApp(
                             if (selected == "mars") {
                                 when (approach.stage) {
                                     "ORBIT", "CLOSE APPROACH" -> {
-                                        ControlButton("↓  Approach Mars", active = approach.stage == "CLOSE APPROACH") {
+                                        ControlButton("Approach Mars", icon = R.drawable.ic_endless_approach, active = approach.stage == "CLOSE APPROACH") {
                                             infoVisible = false
                                             glView?.endlessRenderer?.approachSelected()
                                         }
                                     }
                                     "ATMOSPHERE" -> {
-                                        ControlButton("↓  Descend to surface", active = true) {
+                                        ControlButton("Descend to surface", icon = R.drawable.ic_endless_approach, active = true) {
                                             glView?.endlessRenderer?.descendSelected()
                                         }
-                                        ControlButton("↑  Pull back") {
+                                        ControlButton("Pull back", icon = R.drawable.ic_endless_retreat) {
                                             glView?.endlessRenderer?.pullBackSelected()
                                         }
                                     }
                                     "SURFACE SKIM" -> {
-                                        ControlButton("◆  Land on Mars", active = true) {
+                                        ControlButton("Land on Mars", icon = R.drawable.ic_endless_land, active = true) {
                                             if (glView?.endlessRenderer?.landOnMars() == true) {
                                                 infoVisible = false
                                             }
                                         }
-                                        ControlButton("↑  Pull back") {
+                                        ControlButton("Pull back", icon = R.drawable.ic_endless_retreat) {
                                             glView?.endlessRenderer?.pullBackSelected()
                                         }
                                     }
                                     else -> {
-                                        ControlButton("↑  Pull back") {
+                                        ControlButton("Pull back", icon = R.drawable.ic_endless_retreat) {
                                             glView?.endlessRenderer?.pullBackSelected()
                                         }
                                     }
@@ -636,39 +636,39 @@ private fun EndlessApp(
                             } else if (selected == "moon") {
                                 when (approach.stage) {
                                     "ORBIT" -> {
-                                        ControlButton("↓  Approach Moon", active = true) {
+                                        ControlButton("Approach Moon", icon = R.drawable.ic_endless_approach, active = true) {
                                             infoVisible = false
                                             glView?.endlessRenderer?.approachSelected()
                                         }
                                     }
                                     "CLOSE APPROACH" -> {
-                                        ControlButton("↓  Enter low orbit", active = true) {
+                                        ControlButton("Enter low orbit", icon = R.drawable.ic_endless_approach, active = true) {
                                             glView?.endlessRenderer?.descendSelected()
                                         }
-                                        ControlButton("↑  Pull back") {
+                                        ControlButton("Pull back", icon = R.drawable.ic_endless_retreat) {
                                             glView?.endlessRenderer?.pullBackSelected()
                                         }
                                     }
                                     "LOW ORBIT" -> {
-                                        ControlButton("↓  Surface skim", active = true) {
+                                        ControlButton("Surface skim", icon = R.drawable.ic_endless_approach, active = true) {
                                             glView?.endlessRenderer?.descendSelected()
                                         }
-                                        ControlButton("↑  Pull back") {
+                                        ControlButton("Pull back", icon = R.drawable.ic_endless_retreat) {
                                             glView?.endlessRenderer?.pullBackSelected()
                                         }
                                     }
                                     "SURFACE SKIM" -> {
-                                        ControlButton("◆  Land on Moon", active = true) {
+                                        ControlButton("Land on Moon", icon = R.drawable.ic_endless_land, active = true) {
                                             if (glView?.endlessRenderer?.landOnMoon() == true) {
                                                 infoVisible = false
                                             }
                                         }
-                                        ControlButton("↑  Pull back") {
+                                        ControlButton("Pull back", icon = R.drawable.ic_endless_retreat) {
                                             glView?.endlessRenderer?.pullBackSelected()
                                         }
                                     }
                                     else -> {
-                                        ControlButton("↑  Pull back") {
+                                        ControlButton("Pull back", icon = R.drawable.ic_endless_retreat) {
                                             glView?.endlessRenderer?.pullBackSelected()
                                         }
                                     }
@@ -676,21 +676,21 @@ private fun EndlessApp(
                             } else if (selected == "venus") {
                                 when (approach.stage) {
                                     "ORBIT" -> {
-                                        ControlButton("↓  Approach Venus", active = true) {
+                                        ControlButton("Approach Venus", icon = R.drawable.ic_endless_approach, active = true) {
                                             infoVisible = false
                                             glView?.endlessRenderer?.approachSelected()
                                         }
                                     }
                                     "CLOSE APPROACH" -> {
-                                        ControlButton("↓  Cloud tops", active = true) {
+                                        ControlButton("Cloud tops", icon = R.drawable.ic_endless_approach, active = true) {
                                             glView?.endlessRenderer?.descendSelected()
                                         }
-                                        ControlButton("↑  Pull back") {
+                                        ControlButton("Pull back", icon = R.drawable.ic_endless_retreat) {
                                             glView?.endlessRenderer?.pullBackSelected()
                                         }
                                     }
                                     else -> {
-                                        ControlButton("↑  Pull back") {
+                                        ControlButton("Pull back", icon = R.drawable.ic_endless_retreat) {
                                             glView?.endlessRenderer?.pullBackSelected()
                                         }
                                     }
@@ -700,29 +700,29 @@ private fun EndlessApp(
                                 val name = bodyInfo[id]?.name ?: id
                                 when (approach.stage) {
                                     "ORBIT" -> {
-                                        ControlButton("Approach $name", active = true) {
+                                        ControlButton("Approach $name", icon = R.drawable.ic_endless_approach, active = true) {
                                             infoVisible = false
                                             glView?.endlessRenderer?.approachSelected()
                                         }
                                     }
                                     "CLOSE APPROACH", "LOW ORBIT" -> {
-                                        ControlButton("Descend", active = true) {
+                                        ControlButton("Descend", icon = R.drawable.ic_endless_approach, active = true) {
                                             glView?.endlessRenderer?.descendSelected()
                                         }
-                                        ControlButton("Pull back") {
+                                        ControlButton("Pull back", icon = R.drawable.ic_endless_retreat) {
                                             glView?.endlessRenderer?.pullBackSelected()
                                         }
                                     }
                                     "SURFACE SKIM" -> {
-                                        ControlButton("Land on $name", active = true) {
+                                        ControlButton("Land on $name", icon = R.drawable.ic_endless_land, active = true) {
                                             if (glView?.endlessRenderer?.landOnExtendedBody(id) == true)
                                                 infoVisible = false
                                         }
-                                        ControlButton("Pull back") {
+                                        ControlButton("Pull back", icon = R.drawable.ic_endless_retreat) {
                                             glView?.endlessRenderer?.pullBackSelected()
                                         }
                                     }
-                                    else -> ControlButton("Pull back") {
+                                    else -> ControlButton("Pull back", icon = R.drawable.ic_endless_retreat) {
                                         glView?.endlessRenderer?.pullBackSelected()
                                     }
                                 }
@@ -768,12 +768,12 @@ private fun EndlessApp(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     if (cosmicScale == CosmicScale.SOLAR_SYSTEM) {
-                        ControlButton(if (overview) "◉  Return" else "◉  Overview", active = overview) {
+                        ControlButton(if (overview) "Return" else "Overview", active = overview, icon = if (overview) R.drawable.ic_endless_return else R.drawable.ic_endless_overview) {
                             overview = glView?.endlessRenderer?.toggleOverview() ?: overview
                         }
                         DividerPill()
                     } else {
-                        ControlButton("⊙  Solar System") {
+                        ControlButton("Solar System", icon = R.drawable.ic_endless_solar) {
                             cosmicScale = CosmicScale.SOLAR_SYSTEM
                             scalePickerOpen = false
                         }
@@ -781,27 +781,27 @@ private fun EndlessApp(
                             modifier = Modifier.padding(horizontal = 6.dp))
                         DividerPill()
                     }
-                    ControlButton(if (paused) "▶  Play" else "Ⅱ  Pause", active = paused) {
+                    ControlButton(if (paused) "Play" else "Pause", active = paused, icon = if (paused) R.drawable.ic_endless_play else R.drawable.ic_endless_pause) {
                         paused = glView?.endlessRenderer?.togglePause() ?: paused
                     }
-                    ControlButton("▣  Now") { glView?.endlessRenderer?.resetTime() }
+                    ControlButton("Now", icon = R.drawable.ic_endless_now) { glView?.endlessRenderer?.resetTime() }
                     DividerPill()
-                    ControlButton("◀◀") { glView?.endlessRenderer?.slower(); speedLabel = glView?.endlessRenderer?.speedLabel() ?: speedLabel }
+                    ControlButton("Slow", icon = R.drawable.ic_endless_slow) { glView?.endlessRenderer?.slower(); speedLabel = glView?.endlessRenderer?.speedLabel() ?: speedLabel }
                     Text(speedLabel, color = Accent, fontSize = 10.sp, fontFamily = FontFamily.Monospace,
                         modifier = Modifier.padding(horizontal = 6.dp))
-                    ControlButton("▶▶") { glView?.endlessRenderer?.faster(); speedLabel = glView?.endlessRenderer?.speedLabel() ?: speedLabel }
+                    ControlButton("Fast", icon = R.drawable.ic_endless_fast) { glView?.endlessRenderer?.faster(); speedLabel = glView?.endlessRenderer?.speedLabel() ?: speedLabel }
                     if (cosmicScale == CosmicScale.SOLAR_SYSTEM) {
                         DividerPill()
-                        ControlButton("◎  Orbits", active = orbitsOn) {
+                        ControlButton("Orbits", icon = R.drawable.ic_endless_orbits, active = orbitsOn) {
                             orbitsOn = glView?.endlessRenderer?.toggleOrbits() ?: orbitsOn
                         }
-                        ControlButton("◆  Labels", active = labelsOn) { labelsOn = !labelsOn }
+                        ControlButton("Labels", icon = R.drawable.ic_endless_labels, active = labelsOn) { labelsOn = !labelsOn }
                     }
                     DividerPill()
-                    ControlButton("◇  Scale", active = scalePickerOpen) {
+                    ControlButton("Scale", icon = R.drawable.ic_endless_scale, active = scalePickerOpen) {
                         scalePickerOpen = !scalePickerOpen
                     }
-                    ControlButton("◷  History", active = historyOpen) {
+                    ControlButton("History", icon = R.drawable.ic_endless_history, active = historyOpen) {
                         scalePickerOpen = false
                         historyOpen = true
                         historyPlaying = false
@@ -1048,8 +1048,8 @@ private fun DeepTimePanel(
                 ControlButton("‹ Event", onClick = { onAdjacentEvent(-1) })
                 ControlButton("Event ›", onClick = { onAdjacentEvent(1) })
                 ControlButton("Speed ${listOf("0.5×", "1×", "5×", "20×")[speedIndex.coerceIn(0, 3)]}", onClick = onSpeed)
-                ControlButton(if (playing) "Ⅱ  Pause" else "▶  Play", active = playing, onClick = onPlay)
-                ControlButton("◎  Present", onClick = onPresent)
+                ControlButton(if (playing) "Pause" else "Play", active = playing, icon = if (playing) R.drawable.ic_endless_pause else R.drawable.ic_endless_play, onClick = onPlay)
+                ControlButton("Present", icon = R.drawable.ic_endless_now, onClick = onPresent)
                 ControlButton("×", onClick = onClose)
             }
             Row(
@@ -1159,7 +1159,7 @@ private fun InfoPanel(
             if (primaryActionLabel != null) {
                 Spacer(Modifier.height(6.dp))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    ControlButton("↗  $primaryActionLabel", active = true, onClick = onPrimaryAction)
+                    ControlButton("$primaryActionLabel", icon = R.drawable.ic_endless_approach, active = true, onClick = onPrimaryAction)
                 }
             }
             Spacer(Modifier.height(7.dp))
@@ -1369,17 +1369,37 @@ private fun SurfaceTakeoffControl(
 }
 
 @Composable
-private fun ControlButton(label: String, active: Boolean = false, modifier: Modifier = Modifier, onClick: () -> Unit) {
+private fun ControlButton(
+    label: String,
+    active: Boolean = false,
+    modifier: Modifier = Modifier,
+    icon: Int? = null,
+    onClick: () -> Unit
+) {
+    val foreground = if (active) Accent else Muted
     TextButton(
         modifier = modifier,
         onClick = onClick,
         shape = CircleShape,
         colors = ButtonDefaults.textButtonColors(
-            contentColor = if (active) Accent else Muted,
+            contentColor = foreground,
             containerColor = if (active) AccentBg else Color.Transparent
         ),
         contentPadding = PaddingValues(horizontal = 11.dp, vertical = 8.dp)
-    ) { Text(label, fontSize = 9.sp, maxLines = 1) }
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (icon != null) {
+                Icon(
+                    painter = painterResource(icon),
+                    contentDescription = null,
+                    tint = foreground,
+                    modifier = Modifier.size(14.dp)
+                )
+                Spacer(Modifier.width(5.dp))
+            }
+            Text(label, fontSize = 9.sp, maxLines = 1)
+        }
+    }
 }
 
 @Composable
