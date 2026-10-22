@@ -22,10 +22,36 @@ class PuzzleGame private constructor(
     companion object {
         const val WORLD_WIDTH = 1000f
         const val BOARD_LEFT = 80f
-        const val BOARD_TOP = 640f
         const val BOARD_WIDTH = 840f
         const val BOARD_HEIGHT = 630f
-        const val BOTTOM_SCATTER = 1330f
+
+        private data class ScatterLayout(
+            val perRow: Int, val stepX: Float, val stepY: Float,
+            val firstX: Float, val firstY: Float, val top: Float,
+            val bottom: Float, val end: Float
+        )
+
+        // Reserve enough tabletop for every real silhouette, including protruding tabs.
+        // Packing uses non-overlapping hit footprints rather than pile-on-top scatter.
+        private fun scatterLayout(cols: Int, rows: Int): ScatterLayout {
+            val pw=BOARD_WIDTH/cols
+            val ph=BOARD_HEIGHT/rows
+            val depth=min(pw,ph)*.30f
+            val stepX=pw+2f*depth+10f
+            val stepY=ph+2f*depth+10f
+            val perRow=(900f/stepX).toInt().coerceIn(1,16)
+            val count=cols*rows
+            val above=(count+1)/2
+            val below=count-above
+            val upperRows=(above+perRow-1)/perRow
+            val lowerRows=(below+perRow-1)/perRow
+            val firstX=(WORLD_WIDTH-perRow*stepX)/2f+depth+4f
+            val firstY=76f+depth
+            val boardTop=70f+upperRows*stepY+110f
+            val bottom=boardTop+BOARD_HEIGHT+110f
+            val end=bottom+lowerRows*stepY+110f
+            return ScatterLayout(perRow,stepX,stepY,firstX,firstY,boardTop,bottom,end)
+        }
 
         fun fresh(cols: Int, rows: Int, imageKey: String = "starter",
                   seed: Long = System.nanoTime()): PuzzleGame {
@@ -33,7 +59,8 @@ class PuzzleGame private constructor(
             val rng = Random(seed)
             val pw = BOARD_WIDTH / cols
             val ph = BOARD_HEIGHT / rows
-            val slotsPerRow = (830f / (pw * 1.13f)).toInt().coerceIn(1, 16)
+            val layout=scatterLayout(cols,rows)
+            val slotsPerRow = layout.perRow
             val total = cols * rows
             val topCount = (total + 1) / 2
             val topSlots = (0 until topCount).map { it to true }
@@ -43,11 +70,9 @@ class PuzzleGame private constructor(
                 val (slot, top) = slots[i]
                 val col = i % cols
                 val row = i / cols
-                val dx = pw * 1.13f
-                val dy = ph * 1.13f
-                val px = 74f + (slot % slotsPerRow) * dx + rng.nextFloat() * min(4f, pw * 0.025f)
-                val py = (if (top) 64f else BOTTOM_SCATTER) +
-                    (slot / slotsPerRow) * dy + rng.nextFloat() * min(4f, ph * 0.025f)
+                val px=layout.firstX + (slot%slotsPerRow)*layout.stepX
+                val py=(if(top) layout.firstY else layout.bottom +
+                    min(pw,ph)*.30f) + (slot/slotsPerRow)*layout.stepY
                 PuzzlePiece(i, row, col, px, py)
             }.toMutableList()
             return PuzzleGame(cols, rows, seed, imageKey, pieces)
@@ -75,6 +100,9 @@ class PuzzleGame private constructor(
         }
     }
 
+    private val layout=scatterLayout(cols,rows)
+    val boardTop: Float get() = layout.top
+    val worldHeight: Float get() = layout.end
     val count: Int get() = cols * rows
     val completed: Int get() = pieces.count { it.placed }
     val solved: Boolean get() = completed == count
@@ -82,7 +110,7 @@ class PuzzleGame private constructor(
     val pieceHeight: Float get() = BOARD_HEIGHT / rows
 
     fun targetX(piece: PuzzlePiece): Float = BOARD_LEFT + piece.col * pieceWidth
-    fun targetY(piece: PuzzlePiece): Float = BOARD_TOP + piece.row * pieceHeight
+    fun targetY(piece: PuzzlePiece): Float = boardTop + piece.row * pieceHeight
 
     /** 0 flat, +/-1: tabs on outward-facing edge. Neighbors must have opposite signs. */
     fun edge(row: Int, col: Int, direction: Int): Int {
