@@ -68,6 +68,16 @@ button{cursor:pointer}a{color:inherit;text-decoration:none}button,a,input,select
 .review-card .decision{font-size:11px;color:#2d6649;font-weight:730;margin-top:10px}
 .review-card .action-row{margin-top:12px}
 .review-card .action-row .btn{flex:1 1 80px}
+.selection-tray{margin:18px 0;padding:15px;border:1px solid #d4e1d6;background:#f5f9f5;border-radius:12px}
+.selection-tray h3{margin:0 0 12px;color:#294d39;font-size:14px;letter-spacing:-.15px}
+.selected-posts{display:grid;grid-template-columns:repeat(auto-fill,minmax(205px,1fr));gap:10px}
+.selected-item{display:grid;grid-template-columns:56px minmax(0,1fr);gap:9px;align-items:center;padding:8px;background:#fff;border:1px solid #dbe6db;border-radius:11px;min-width:0}
+.selected-item img{width:56px;height:56px;object-fit:cover;border-radius:7px;background:#e8ede8}
+.selected-copy{min-width:0;overflow-wrap:anywhere}
+.selected-copy strong,.selected-copy small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.selected-copy strong{font-size:11px;color:#293b2f}
+.selected-copy small{font-size:10px;margin-top:4px;color:#6b796e}
+.selected-item .btn{grid-column:1/-1;min-height:33px;padding:6px 10px;font-size:11px}
 .review-summary{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding-top:14px;border-top:1px solid var(--line)}
 .review-count{font-size:13px;font-weight:780}
 .preview-footnote{margin:0;color:#63736a;font-size:11px;line-height:1.5}
