@@ -296,6 +296,14 @@ internal fun AnnieBrowserChrome(
                     .border(1.dp, ChromeBorder, RoundedCornerShape(16.dp)),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                if (active.privateMode) {
+                    Icon(
+                        AnnieIcons.Lock,
+                        contentDescription = "Private browsing",
+                        tint = BrowserSoftText,
+                        modifier = Modifier.padding(start = 12.dp).size(18.dp),
+                    )
+                }
                 BasicTextField(
                     value = address,
                     onValueChange = {
@@ -309,7 +317,8 @@ internal fun AnnieBrowserChrome(
                         keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go,
                     ),
                     keyboardActions = KeyboardActions(onGo = { openUrl(address.text) }),
-                    modifier = Modifier.weight(1f).padding(start = 12.dp)
+                    modifier = Modifier.weight(1f)
+                        .padding(start = if (active.privateMode) 8.dp else 12.dp)
                         .onFocusChanged { focusState ->
                             // The URL is one editable field; select it all on entry,
                             // as in upstream Omni's responsive address bar.
