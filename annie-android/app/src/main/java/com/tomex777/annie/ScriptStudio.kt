@@ -340,6 +340,9 @@ private fun ScriptStudioContent(
         selectedProjectId = project.id
         selectedPath = path
         currentDirectory = path.substringBeforeLast('/', "")
+        // The old native editor may have been disposed after a previous file.
+        // Drop the reference before binding a different document.
+        codeEditor = null
         editorValue = TextFieldValue(source, selection = TextRange(source.length))
         savedSource = source
         status = ""
@@ -675,6 +678,7 @@ private fun ScriptStudioContent(
                 StudioTab(destination.title, page == destination || inFileSection, Modifier.weight(1f)) {
                     if (page != destination && saveBeforeNavigation()) {
                         codeEditor?.clearFocus()
+                        codeEditor = null
                         focusManager.clearFocus(force = true)
                         keyboardController?.hide()
                         page = destination
