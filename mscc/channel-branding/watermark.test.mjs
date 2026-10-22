@@ -61,4 +61,23 @@ await assert.rejects(()=>watermarkStaticImage({input:Buffer.alloc(8*1024*1024+1)
 await assert.rejects(()=>makeReusableWatermark({channelId:a,displayName:'Hi',opacity:.95,sharpLibrary:sharp}),/opacity/);
 assert.notEqual((await makeReusableWatermark({channelId:b,displayName:'Channel B',
   sharpLibrary:sharp,renderText:renderer,cache})).key,asset.key);
+
+const zwjName='NIGHT 👩🏽‍💻  🌈'; // U+200D is part of the authentic verified channel name.
+const noZwj='NIGHT 👩🏽💻  🌈';
+assert.notEqual(watermarkCacheKey({channelId:a,displayName:zwjName}),
+  watermarkCacheKey({channelId:a,displayName:noZwj}), 'Do not strip ZWJ or flatten emoji sequence');
+const rtlName='قناة الأشباح 🌙 NIGHT';
+const longName='N'.repeat(98)+'👩🏽‍💻'+' fin';
+const exact=[];
+const exactRenderer=async values=>{
+  exact.push(values.displayName);
+  return renderer(values);
+};
+await makeReusableWatermark({channelId:a,displayName:rtlName,colorEmojiVerified:true,
+  sharpLibrary:sharp,renderText:exactRenderer});
+await makeReusableWatermark({channelId:a,displayName:longName,colorEmojiVerified:true,
+  sharpLibrary:sharp,renderText:exactRenderer});
+assert.deepEqual(exact,[rtlName,longName],
+  'Renderer receives full Unicode/RTL/grapheme sequence, not sanitised/truncated metadata');
+
 console.log('Channel watermark: PASS — isolation, size limits, Unicode, alpha, cache, JPEG/PNG/WebP, animated rejection');
