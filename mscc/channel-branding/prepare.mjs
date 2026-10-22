@@ -15,8 +15,11 @@ export async function prepareChannelContent({
   if(typeof text!=='string')throw new TypeError('Post caption must be text.');
   if(mediaBuffer!==null&&!Buffer.isBuffer(mediaBuffer))throw new TypeError('Post media must be a Buffer.');
   if(branding===null||typeof branding!=='object'||Array.isArray(branding))throw new TypeError('Invalid branding config.');
-  if(approvedFallbackPng!==null&&!Buffer.isBuffer(approvedFallbackPng))
-    throw new TypeError('Approved watermark fallback must be a server-verified PNG Buffer.');
+  const fallbackOk=approvedFallbackPng===null||Buffer.isBuffer(approvedFallbackPng)||
+    (typeof approvedFallbackPng==='object'&&!Array.isArray(approvedFallbackPng)&&
+      Buffer.isBuffer(approvedFallbackPng.light)&&Buffer.isBuffer(approvedFallbackPng.dark));
+  if(!fallbackOk)
+    throw new TypeError('Approved watermark fallback must be a server-verified PNG Buffer or approved light/dark pair.');
   if(branding.captionReplacementsEnabled===true && branding.captionReplacements!==undefined &&
       !Array.isArray(branding.captionReplacements))throw new TypeError('Invalid saved caption replacement rules.');
   if(!['manual','automation'].includes(sourceKind))throw new Error('Invalid content authorship mode.');
