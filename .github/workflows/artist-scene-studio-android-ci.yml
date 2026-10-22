@@ -94,11 +94,18 @@ jobs:
           cp "$release_aab" "$AAB_UNSIGNED"
 
           gradle --stop || true
-          gradle --no-daemon :app:assembleRelease -Pandroid.injected.build.abi=arm64-v8a --rerun-tasks
-          arm64_apk="$(find app/build -type f -name '*.apk' -path '*release*' ! -path '*/release-artifacts/*' | head -n 1)"
-          test -n "$arm64_apk" && test -s "$arm64_apk"
+          # 'android.injected.build.abi' is an IDE deploy hint and did NOT
+          # prevent AGP 8 packaging x86_64 libraries in the arm64 APK on CI.
+          # Our build.gradle.kts turns this explicit property into ndk.abiFilters.
+          gradle --no-daemon :app:assembleRelease -Pmise.arm64Only=true --rerun-tasks
+          arm64_apk="app/build/outputs/apk/release/app-release-unsigned.apk"
+          test -s "$arm64_apk"
           cp "$arm64_apk" "$ARM64_UNSIGNED"
 
+          # Fail closed and print the packaged ABI for diagnosis. Do not label
+          # a universal binary as arm64 or silently strip native libraries.
+          unzip -Z1 "$UNIVERSAL_UNSIGNED" | grep '^lib/' | cut -d/ -f2 | sort -u
+          unzip -Z1 "$ARM64_UNSIGNED" | grep '^lib/' | cut -d/ -f2 | sort -u
           unzip -Z1 "$UNIVERSAL_UNSIGNED" | grep -q '^lib/arm64-v8a/'
           unzip -Z1 "$UNIVERSAL_UNSIGNED" | grep -q '^lib/x86_64/'
           unzip -Z1 "$ARM64_UNSIGNED" | grep -q '^lib/arm64-v8a/'
