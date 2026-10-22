@@ -179,6 +179,11 @@ class PuzzleStore(private val context: Context) {
     fun resume(seed: Long): PuzzleGame? =
         loadFrom(File(sessionsDir,seed.toString()+".json"))
 
+    fun discardSession(seed: Long, activeSeed: Long): Boolean {
+        if(seed==activeSeed)return false
+        return File(sessionsDir,seed.toString()+".json").delete()
+    }
+
     private fun loadFrom(source: File): PuzzleGame? = runCatching {
         if (!source.exists()) return null
         val obj=JSONObject(source.readText())
@@ -216,7 +221,8 @@ class PuzzleStore(private val context: Context) {
     /** User-controlled removal only. Never delete the photo used by the active
      * saved game: doing so would make its incomplete puzzle impossible to resume. */
     fun deletePhoto(key: String, currentImageKey: String): Boolean {
-        if(key=="starter" || key==currentImageKey)return false
+        if(key=="starter" || key==currentImageKey ||
+            unfinished().any{it.picture==key})return false
         val file=imageFile(key) ?: return false
         if(!file.exists())return false
         if(key!="custom") {
