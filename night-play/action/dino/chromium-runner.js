@@ -429,7 +429,11 @@
                 boxStyles.paddingLeft.length - 2));
 
             this.dimensions.WIDTH = this.outerContainerEl.offsetWidth - padding * 2;
-            this.dimensions.WIDTH = Math.min(DEFAULT_WIDTH, this.dimensions.WIDTH); //Arcade Mode
+            // NIGHT presentation viewport: uniformly magnify rendered sprites,
+            // preserving original Trex physics, jump timings and obstacle
+            // colliders in their native logical coordinate system.
+            this.dimensions.WIDTH = Math.min(DEFAULT_WIDTH,
+                Math.round(this.dimensions.WIDTH / (window.NIGHT_DINO_ZOOM || 1)));
             if (this.activated) {
                 // NIGHT layout manages resizing; no full-viewport transform.
             }
