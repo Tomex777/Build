@@ -20,6 +20,20 @@ class EndlessGLView(
     private var lastLookX = 0f
     private var lastLookY = 0f
     private var frameTickerActive = false
+    private var sceneOccluded = false
+    private var lastFrameRequestNanos = 0L
+
+    /**
+     * When the full-screen galactic/cosmic view covers the 3D solar system,
+     * preserve a low-rate orbital clock without burning a full GLES render
+     * every display refresh behind opaque Compose content.
+     */
+    fun setSceneOccluded(occluded: Boolean) {
+        if (sceneOccluded == occluded) return
+        sceneOccluded = occluded
+        lastFrameRequestNanos = 0L // First visible frame resumes immediately.
+        if (occluded) cancelSurfaceControls()
+    }
 
     // Drive GLES from display vsync, not a busy GL-thread spin loop.
     // This keeps the rendering thread asleep between display opportunities,
@@ -28,7 +42,11 @@ class EndlessGLView(
     private val frameTicker = object : Choreographer.FrameCallback {
         override fun doFrame(frameTimeNanos: Long) {
             if (!frameTickerActive || !isAttachedToWindow) return
-            requestRender()
+            if (!sceneOccluded || lastFrameRequestNanos == 0L ||
+                frameTimeNanos - lastFrameRequestNanos >= 200_000_000L) {
+                lastFrameRequestNanos = frameTimeNanos
+                requestRender()
+            }
             Choreographer.getInstance().postFrameCallback(this)
         }
     }
@@ -42,6 +60,7 @@ class EndlessGLView(
 
     private fun stopFrameTicker() {
         frameTickerActive = false
+        lastFrameRequestNanos = 0L
         Choreographer.getInstance().removeFrameCallback(frameTicker)
     }
 
