@@ -23,6 +23,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowForward
@@ -53,6 +55,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -60,6 +63,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -196,7 +200,7 @@ fun FanHome(player: FanPlayer = viewModel()) {
                                 color = White, fontWeight = FontWeight.ExtraBold
                             )
                             Spacer(Modifier.height(4.dp))
-                            Text("${songs.size} songs", fontSize = 12.sp, color = Gray)
+                            Text(songCountLabel(songs.size), fontSize = 12.sp, color = Gray)
                         }
                         if (songs.any { it.id in state.attached }) {
                             IconButton(
@@ -450,6 +454,9 @@ private fun moodColors(mood: Mood): List<Color> = when (mood) {
     else -> listOf(Color(0xFF6F5187), Color(0xFF241D34))
 }
 
+private fun songCountLabel(count: Int): String =
+    if (count == 1) "1 song" else "${count} songs"
+
 @Composable
 private fun FeelingCard(mood: Mood, selected: Boolean, count: Int, onClick: () -> Unit) {
     val shape = RoundedCornerShape(17.dp)
@@ -491,7 +498,7 @@ private fun FeelingCard(mood: Mood, selected: Boolean, count: Int, onClick: () -
         )
         Spacer(Modifier.height(3.dp))
         Text(
-            "${count} songs", color = White.copy(alpha = .77f),
+            songCountLabel(count), color = White.copy(alpha = .77f),
             fontSize = 11.sp, maxLines = 1
         )
     }
@@ -499,6 +506,7 @@ private fun FeelingCard(mood: Mood, selected: Boolean, count: Int, onClick: () -
 
 @Composable
 private fun FanSearch(text: String, onTextChange: (String) -> Unit, modifier: Modifier = Modifier) {
+    val keyboardController = LocalSoftwareKeyboardController.current
     Row(
         modifier.height(50.dp).clip(RoundedCornerShape(14.dp))
             .background(Panel)
@@ -511,6 +519,8 @@ private fun FanSearch(text: String, onTextChange: (String) -> Unit, modifier: Mo
         Spacer(Modifier.width(12.dp))
         BasicTextField(
             value = text, onValueChange = onTextChange, singleLine = true,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            keyboardActions = KeyboardActions(onSearch = { keyboardController?.hide() }),
             modifier = Modifier.weight(1f).semantics { contentDescription = "Search Juice WRLD songs" },
             cursorBrush = SolidColor(Lavender),
             textStyle = TextStyle(fontSize = 14.sp, color = White),
