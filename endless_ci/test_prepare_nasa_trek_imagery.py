@@ -1,12 +1,27 @@
 """Offline tests for NASA Trek georeferencing and tile indices."""
 import math
 import unittest
+from PIL import Image
 from prepare_nasa_trek_imagery import (
     SITE, HALF_EXTENT_KM, geographic_point, wmts_pixel,
-    required_tile_indices,
+    required_tile_indices, bilinear_rgb,
 )
 
 class TrekGeoreferencingTest(unittest.TestCase):
+    def test_wmts_resampling_interpolates_real_pixel_values(self):
+        # Each NASA source sample lives at its half-pixel center.
+        mosaic = Image.new("RGB", (2, 2))
+        mosaic.putpixel((0, 0), (20, 40, 60))
+        mosaic.putpixel((1, 0), (100, 120, 140))
+        mosaic.putpixel((0, 1), (180, 200, 220))
+        mosaic.putpixel((1, 1), (220, 240, 255))
+        src = mosaic.load()
+        self.assertEqual((20, 40, 60), bilinear_rgb(src, 2, 2, .5, .5))
+        self.assertEqual((100, 120, 140), bilinear_rgb(src, 2, 2, 1.5, .5))
+        self.assertEqual((130, 150, 169), bilinear_rgb(src, 2, 2, 1.0, 1.0))
+        self.assertEqual((20, 40, 60), bilinear_rgb(src, 2, 2, -10, -10))
+        self.assertEqual((220, 240, 255), bilinear_rgb(src, 2, 2, 12, 12))
+
     def test_sites_have_geographic_center(self):
         for world, site in SITE.items():
             lat, lon = geographic_point(site, 0, 0)
