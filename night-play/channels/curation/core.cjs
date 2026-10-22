@@ -1,5 +1,6 @@
 'use strict';
 const { createHash }=require('node:crypto');
+const { classifyHeadline }=require('./kdrama.cjs');
 const CATEGORIES=Object.freeze(['relatable','dark','wholesome','anime','nigerian','animals','relationships','other']);
 const SIMPLE_TAGS=new Set(['casting','releases','trailers','renewals','romance','platforms','other']);
 const IGNORED_QUERY=/^(utm_.+|fbclid|gclid|ref|ref_src|source)$/i;
@@ -10,7 +11,7 @@ const boundedPositiveInt=(v,cap)=>Number.isFinite(Number(v))?Math.max(0,Math.min
 const tokens=value=>String(value||'').normalize('NFKC').toLowerCase().replace(/[\p{P}\p{S}]+/gu,' ').split(/\s+/).filter(Boolean);
 function safeUrl(value){
  if(typeof value!=='string'||value.length>2048||!HTTPS.test(value))return null;
- try{const u=new URL(value);if(u.username||u.password||u.port||u.hostname==='localhost'||u.hostname.endsWith('.local')||/^\d+(?:\.\d+){3}$/.test(u.hostname)||u.hostname.includes('['))return null;
+ try{const u=new URL(value);if(u.username||u.password||u.port||u.hostname==='localhost'||(u.hostname.endsWith('.local')||u.hostname.endsWith('.localhost'))||/^\d+(?:\.\d+){3}$/.test(u.hostname)||u.hostname.includes('['))return null;
  u.hash='';for(const k of [...u.searchParams.keys()])if(IGNORED_QUERY.test(k))u.searchParams.delete(k);u.searchParams.sort();return u.toString();
  }catch{return null}
 }
@@ -84,29 +85,64 @@ function normalizeNews(record,source,{now=Date.now(),maxAgeDays=14}={}){
  if(!Number.isFinite(published)||published>now+3600000||published<now-maxAgeDays*86400000)return null;
  const title=String(record.title||'').replace(/\s+/g,' ').trim();if(title.length<8||title.length>240)return null;
  const tags=[...new Set((Array.isArray(record.tags)?record.tags:[]).filter(t=>SIMPLE_TAGS.has(t)))];
- const verification=record.rumor===true?'rumor':source.official===true&&record.confirmed===true?'official':'unverified';
+ const headline=classifyHeadline(title);
+ const spoiler=record.spoiler===true||headline.spoiler;
+ const rumor=record.rumor===true||headline.rumor;
+ const verification=rumor?'rumor':source.official===true&&record.confirmed===true?'official':'unverified';
  const show=String(record.show||'').trim().slice(0,100),event=String(record.event||'update').trim().slice(0,40);
  const summary=verification==='official'?(show?show+': '+event+'. Official announcement linked below.':'Official '+event+' announcement. See the source for details.'):'Details require review. See the attributed source before publishing.';
  const normalized=tokens(title).filter(t=>!['the','a','an','of','for','on','in','new','from','and','to'].includes(t));
  const explicitKey=typeof record.storyKey==='string'&&/^[A-Za-z0-9:._-]{4,120}$/.test(record.storyKey)?record.storyKey:null;
  const fingerprint=identifier('story',explicitKey||((show||'general').toLowerCase()+'|'+event+'|'+normalized.slice(0,10).sort().join(' ')));
- return Object.freeze({id:identifier('news',url),kind:'news',title,summary,publishedAt:new Date(published).toISOString(),show,tags,genre:String(record.genre||'').slice(0,48),platform:String(record.platform||'').slice(0,80),availabilityRegion:String(record.availabilityRegion||'').slice(0,80),spoiler:record.spoiler===true,eventDate:Number.isFinite(Date.parse(record.eventDate||''))?new Date(record.eventDate).toISOString():null,verification,requiresReview:verification!=='official'||record.spoiler===true,fingerprint,
- source:Object.freeze({id:String(source.id||'').slice(0,120),name:String(source.name||'').slice(0,120),url,provider:String(source.provider||'rss').slice(0,60),attributionRequired:true}),autoEligible:verification==='official'&&record.spoiler!==true});
+ return Object.freeze({id:identifier('news',url),kind:'news',title,summary,publishedAt:new Date(published).toISOString(),show,tags,genre:String(record.genre||'').slice(0,48),platform:String(record.platform||'').slice(0,80),availabilityRegion:String(record.availabilityRegion||'').slice(0,80),spoiler,event,eventDate:Number.isFinite(Date.parse(record.eventDate||''))?new Date(record.eventDate).toISOString():null,verification,requiresReview:verification!=='official'||spoiler,fingerprint,
+ source:Object.freeze({id:String(source.id||'').slice(0,120),name:String(source.name||'').slice(0,120),url,provider:String(source.provider||'rss').slice(0,60),attributionRequired:true}),autoEligible:verification==='official'&&!spoiler});
 }
-function chooseNews(items,{enabled=false,interests=[],shows=[],includeSpoilers=false,now=Date.now(),maxAgeDays=14,limit=4}={}){
- if(!enabled)return [];
+// Only collapse similarly dated, same-show/same-event headlines when the editorial
+// tokens strongly overlap. A matching server-confirmed storyKey takes precedence.
+const NEWS_STOP_WORDS=new Set(['the','a','an','of','for','on','in','new','from','and','to','by','as','at','with','is','its','will','has','official','officially','report','says','said','announced','announces','announcement']);
+function storyWords(item){
+ const out=new Set();
+ for(let word of tokens(item.title)){
+  if(NEWS_STOP_WORDS.has(word))continue;
+  word=word.replace(/^(renewal|renewed|renews)$/,'renew')
+    .replace(/^(confirmed|confirms|confirmation)$/,'confirm')
+    .replace(/^(premieres|premiered|premiering)$/,'premiere')
+    .replace(/^(releases|released)$/,'release');
+  if(word.length>1||/^\\d+$/.test(word))out.add(word);
+ }
+ return out;
+}
+function nearSameNews(a,b){
+ if(a.fingerprint&&a.fingerprint===b.fingerprint)return true;
+ if(!a.show||!b.show||tokens(a.show).join(' ')!==tokens(b.show).join(' ')||a.event!==b.event)return false;
+ const timeA=Date.parse(a.publishedAt),timeB=Date.parse(b.publishedAt);
+ if(!Number.isFinite(timeA)||!Number.isFinite(timeB)||Math.abs(timeA-timeB)>72*3600000)return false;
+ const wordsA=storyWords(a),wordsB=storyWords(b),max=Math.max(wordsA.size,wordsB.size);
+ if(max<4)return false;
+ let same=0;for(const word of wordsA)if(wordsB.has(word))same++;
+ return same>=4&&same/max>=.72;
+}
+function chooseNews(items,{enabled=false,interests=[],shows=[],includeSpoilers=false,now=Date.now(),maxAgeDays=14,limit=4,mode='review'}={}){
+ if(enabled!==true||!['review','automatic'].includes(mode))return [];
  const wanted=new Set((Array.isArray(interests)?interests:[]).filter(x=>SIMPLE_TAGS.has(x))),followed=new Set((Array.isArray(shows)?shows:[]).map(x=>tokens(x).join(' ')).filter(Boolean));
  const unique=new Map();
  for(const item of (Array.isArray(items)?items:[])){
- if(!item||item.kind!=='news'||(item.spoiler&&includeSpoilers!==true))continue;
-    const published=Date.parse(item.publishedAt);
-    if(!Number.isFinite(published)||published>now+3600000||published<now-Math.max(1,maxAgeDays)*86400000)continue;
- const match=(!wanted.size&&!followed.size)||item.tags.some(t=>wanted.has(t))||followed.has(tokens(item.show).join(' '));
- if(!match)continue;
- const key=item.fingerprint,prior=unique.get(key);
- if(!prior||(item.verification==='official'&&prior.verification!=='official')||(item.verification===prior.verification&&item.publishedAt>prior.publishedAt))unique.set(key,item);
+  if(!item||item.kind!=='news'||(item.spoiler&&includeSpoilers!==true))continue;
+  // Automatic is a deliberately separate fail-closed lane; owner review does not
+  // imply it is safe to auto-publish a story later.
+  if(mode==='automatic'&&!(item.autoEligible===true&&item.verification==='official'&&item.requiresReview===false&&item.spoiler!==true))continue;
+  const published=Date.parse(item.publishedAt);
+  if(!Number.isFinite(published)||published>now+3600000||published<now-Math.max(1,maxAgeDays)*86400000)continue;
+  const match=(!wanted.size&&!followed.size)||(Array.isArray(item.tags)&&item.tags.some(t=>wanted.has(t)))||followed.has(tokens(item.show).join(' '));
+  if(!match)continue;
+  const key=item.fingerprint||item.id,prior=unique.get(key);
+  if(!prior||(item.verification==='official'&&prior.verification!=='official')||(item.verification===prior.verification&&item.publishedAt>prior.publishedAt))unique.set(key,item);
  }
- return [...unique.values()].sort((a,b)=>b.publishedAt.localeCompare(a.publishedAt)||a.id.localeCompare(b.id)).slice(0,Math.min(20,Math.max(1,limit)));
+ const grouped=[];
+ // Give official confirmations priority when merging near-duplicate independent reporting.
+ const candidates=[...unique.values()].sort((a,b)=>(b.verification==='official')-(a.verification==='official')||b.publishedAt.localeCompare(a.publishedAt)||a.id.localeCompare(b.id));
+ for(const item of candidates)if(!grouped.some(previous=>nearSameNews(previous,item)))grouped.push(item);
+ return grouped.sort((a,b)=>b.publishedAt.localeCompare(a.publishedAt)||a.id.localeCompare(b.id)).slice(0,Math.min(20,Math.max(1,limit)));
 }
 
 function deriveHumanFeedback(reviewHistory){
