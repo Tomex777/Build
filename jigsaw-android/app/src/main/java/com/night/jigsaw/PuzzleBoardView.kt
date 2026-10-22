@@ -343,13 +343,16 @@ class PuzzleBoardView(context: Context) : View(context) {
                 if (activePiece>=0) {
                     val id=activePiece
                     val g=game!!
-                    val p=g.pieces[id]
-                    val fromX=p.x
-                    val fromY=p.y
+                    val members=g.groupMembers(id)
+                    val before=members.associate{it.id to (it.x to it.y)}
                     if (event.actionMasked==MotionEvent.ACTION_UP && g.release(id)) {
-                        val toX=p.x
-                        val toY=p.y
-                        p.x=fromX;p.y=fromY
+                        // Animate the entire joined assembly, not only the
+                        // piece under the finger.
+                        val targets=members.associate{it.id to (it.x to it.y)}
+                        members.forEach { piece ->
+                            val start=before.getValue(piece.id)
+                            piece.x=start.first;piece.y=start.second
+                        }
                         performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
                         snapAnimator?.cancel()
                         snapAnimator=ValueAnimator.ofFloat(0f,1f).apply {
@@ -357,20 +360,32 @@ class PuzzleBoardView(context: Context) : View(context) {
                             interpolator=DecelerateInterpolator()
                             addUpdateListener { animation ->
                                 val t=animation.animatedValue as Float
-                                p.x=fromX+(toX-fromX)*t
-                                p.y=fromY+(toY-fromY)*t
+                                members.forEach { piece ->
+                                    val start=before.getValue(piece.id)
+                                    val target=targets.getValue(piece.id)
+                                    piece.x=start.first+(target.first-start.first)*t
+                                    piece.y=start.second+(target.second-start.second)*t
+                                }
                                 invalidate()
                             }
                             addListener(object : AnimatorListenerAdapter() {
                                 override fun onAnimationEnd(animation: Animator) {
-                                    p.x=toX;p.y=toY
+                                    members.forEach{piece->
+                                        val target=targets.getValue(piece.id)
+                                        piece.x=target.first;piece.y=target.second
+                                    }
                                     notifyChange()
                                     invalidate()
                                 }
                             })
                             start()
                         }
-                    } else notifyChange()
+                    } else {
+                        if (members.size>1) {
+                            performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                        }
+                        notifyChange()
+                    }
                 }
                 activePiece=-1
                 performClick()
