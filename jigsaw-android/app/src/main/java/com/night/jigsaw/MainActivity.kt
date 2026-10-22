@@ -604,16 +604,35 @@ class MainActivity : ComponentActivity() {
             title={Text("Choose a puzzle size")},
             text={
                 Column {
-                    Text("Start a new puzzle using your selected picture.",
+                    Text("Choose how to play, then choose a size.",
                         fontSize=13.sp,color=muted)
-                    Spacer(Modifier.height(8.dp))
-                    Column(Modifier.heightIn(max=300.dp)
+                    Spacer(Modifier.height(6.dp))
+                    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(4.dp)) {
+                        PuzzleMode.entries.forEach { option ->
+                            val selected=newPuzzleMode==option
+                            OutlinedButton(onClick={newPuzzleMode=option},
+                                modifier=Modifier.weight(1f),
+                                colors=ButtonDefaults.outlinedButtonColors(
+                                    containerColor=if(selected)Color(0xFFD5E5D9) else bg
+                                )) {
+                                Text(option.label,fontSize=11.sp,maxLines=1)
+                            }
+                        }
+                    }
+                    Text(when(newPuzzleMode) {
+                        PuzzleMode.RELAXED -> "3 hints · reference guide"
+                        PuzzleMode.CHALLENGE -> "1 hint · reference guide"
+                        PuzzleMode.MEMORY -> "No hints · one 5-second peek"
+                    },fontSize=11.sp,color=muted)
+                    Spacer(Modifier.height(6.dp))
+                    Column(Modifier.heightIn(max=255.dp)
                         .verticalScroll(rememberScrollState()),
                         verticalArrangement=Arrangement.spacedBy(5.dp)) {
                         difficulties.forEach { (cols,rows,label) ->
                             OutlinedButton(onClick={
                                 game=PuzzleGame.fresh(cols,rows,game.imageKey,
-                                    landscape=landscape)
+                                    landscape=landscape,mode=newPuzzleMode)
+                                paused=false
                                 store.save(game);revision++;difficultyPicker=false
                             },modifier=Modifier.fillMaxWidth()) {
                                 Text(label)
