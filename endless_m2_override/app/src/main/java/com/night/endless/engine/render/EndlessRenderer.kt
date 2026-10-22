@@ -1754,6 +1754,16 @@ class EndlessRenderer(
             uniformLocation(starProgram, "uVp"),
             1, false, viewProjection, 0
         )
+        // Background stars are effectively at infinity. Their unit-sphere
+        // directions should rotate with the camera, but must NOT exhibit
+        // dozens of degrees of fake parallax between Earth and Neptune.
+        // Keep star points centered on the current camera, while physical
+        // objects (asteroids, planets) remain in heliocentric world space.
+        GLES30.glUniform3f(
+            uniformLocation(starProgram, "uCameraOrigin"),
+            cameraPosition.x.toFloat(), cameraPosition.y.toFloat(),
+            cameraPosition.z.toFloat()
+        )
         GLES30.glUniform1f(uniformLocation(starProgram, "uPointSize"), 2.0f)
         GLES30.glUniform4f(uniformLocation(starProgram, "uColor"), 0.82f, 0.88f, 1.0f, 0.72f)
 
@@ -1782,6 +1792,9 @@ class EndlessRenderer(
             uniformLocation(starProgram, "uVp"),
             1, false, viewProjection, 0
         )
+        // The asteroid belt is a *real* scene-space foreground object;
+        // it must never inherit the translation used only by distant stars.
+        GLES30.glUniform3f(uniformLocation(starProgram, "uCameraOrigin"), 0f, 0f, 0f)
         GLES30.glUniform1f(uniformLocation(starProgram, "uPointSize"), if (selectedId == "ceres") 3.4f else 2.35f)
         GLES30.glUniform4f(uniformLocation(starProgram, "uColor"), 0.67f, 0.62f, 0.54f, 0.62f)
 
@@ -2524,9 +2537,12 @@ void main() {
 layout(location=0) in vec3 aPosition;
 uniform mat4 uVp;
 uniform float uPointSize;
+uniform vec3 uCameraOrigin;
 
 void main() {
-    gl_Position = uVp * vec4(aPosition, 1.0);
+    // Directions at stellar distances are translation invariant over a
+    // compressed 60AU solar-system navigation range.
+    gl_Position = uVp * vec4(aPosition + uCameraOrigin, 1.0);
     gl_PointSize = uPointSize;
 }
 """
