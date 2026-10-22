@@ -20,7 +20,7 @@ permissions:
 
 jobs:
   independent-wave2:
-    name: API ${{ matrix.api }} real Gecko QA (report-only)
+    name: API ${{ matrix.api }} real Gecko QA (functional-fail gated)
     runs-on: ubuntu-latest
     timeout-minutes: 55
     strategy:
@@ -63,6 +63,19 @@ jobs:
             sleep 2
             adb install -r night-browser/app/build/outputs/apk/debug/app-x86_64-debug.apk
             python3 night-browser/qa/wave2_blackbox.py --out "night-browser/qa/results/wave2-api-${{ matrix.api }}" --apk night-browser/app/build/outputs/apk/debug/app-x86_64-debug.apk
+            # Functional failures are NOT successes just because the report exists.
+            # NOT_RUN/BLOCKED still remain explicit release blockers in report.json,
+            # but do not prevent collection of independent Android evidence.
+            python3 - <<'PY'
+            import json
+            from pathlib import Path
+            report = json.loads(Path("night-browser/qa/results/wave2-api-${{ matrix.api }}/report.json").read_text())
+            failures = [case for case in report["cases"] if case["status"] == "FAIL"]
+            print(f"[WAVE2 GATE] {len(failures)} real functional failures; "+
+                  ", ".join(case["id"] for case in failures))
+            if failures:
+                raise SystemExit(1)
+            PY
       - name: Upload APK and independent QA evidence
         if: always()
         uses: actions/upload-artifact@v4
