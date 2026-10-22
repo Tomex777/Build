@@ -52,8 +52,15 @@ function redditAdapter({tokenProvider,fetchImpl,claimQuota,userAgent='NIGHTChann
    const created=Number(d.created_utc);if(!Number.isFinite(created)||created<=0||created>8.64e12)return null;
    const mediaUrl=typeof d.url_overridden_by_dest==='string'?d.url_overridden_by_dest.replace(/&amp;/g,'&'):'';
    const mime=/\.(?:jpe?g)(?:\?|$)/i.test(mediaUrl)?'image/jpeg':/\.png(?:\?|$)/i.test(mediaUrl)?'image/png':/\.webp(?:\?|$)/i.test(mediaUrl)?'image/webp':'';
+   // API user content is not a trusted download endpoint. Restrict discovery
+   // to the requested subreddit permalink and Reddit-controlled still-image CDN.
+   const permalink=typeof d.permalink==='string'?d.permalink:'';
+   const matched=/^\/r\/([A-Za-z0-9_]{3,21})\/(?:[A-Za-z0-9_-]+\/?){1,8}$/.exec(permalink);
+   if(!matched||matched[1].toLowerCase()!==String(subreddit).toLowerCase())return null;
+   let imageHost='';try{imageHost=new URL(mediaUrl).hostname}catch{return null;}
+   if(!['i.redd.it','preview.redd.it'].includes(imageHost))return null;
    const picture=d.preview?.images?.[0]?.source||{};
-   return normalizeMeme({externalId:d.name,url:'https://www.reddit.com'+d.permalink,sourceUrl:'https://www.reddit.com'+d.permalink,
+   return normalizeMeme({externalId:d.name,url:'https://www.reddit.com'+permalink,sourceUrl:'https://www.reddit.com'+permalink,
     mediaUrl,mime,width:picture.width,height:picture.height,category,createdAt:new Date(created*1000).toISOString(),
     upvotes:d.ups,upvoteRatio:d.upvote_ratio,author:d.author,caption:d.title,rights:'unknown',over18:d.over_18},source);
   }).filter(Boolean);
