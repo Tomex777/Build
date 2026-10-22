@@ -178,6 +178,32 @@ class SurfaceControlRuntimeTest {
             assertEquals("Movement kept going after final stick finger lifted",
                 endedHandoff.second, renderer.surfaceCoordinates().second, 1e-10)
 
+            // Right-thumb-first is equally common on phones: it must not
+            // prevent a later left joystick capture or mix up pointer IDs.
+            val lookFirst = SystemClock.uptimeMillis()
+            val rightBefore = renderer.surfaceOrientation().first
+            val leftBefore = renderer.surfaceCoordinates()
+            send(view, lookFirst, MotionEvent.ACTION_DOWN, intArrayOf(11),
+                floatArrayOf(lookX), floatArrayOf(lookY))
+            send(view, lookFirst, MotionEvent.ACTION_POINTER_DOWN or
+                (1 shl MotionEvent.ACTION_POINTER_INDEX_SHIFT),
+                intArrayOf(11, 12), floatArrayOf(lookX, moveX),
+                floatArrayOf(lookY, moveY))
+            send(view, lookFirst, MotionEvent.ACTION_MOVE,
+                intArrayOf(11, 12), floatArrayOf(lookX + 90f, moveX),
+                floatArrayOf(lookY - 45f, moveY - 51f * density))
+            SystemClock.sleep(230)
+            assertTrue("Look-first gesture lost later left-thumb movement",
+                renderer.surfaceCoordinates() != leftBefore)
+            assertTrue("Look-first gesture did not turn camera",
+                abs(renderer.surfaceOrientation().first - rightBefore) > .003)
+            send(view, lookFirst, MotionEvent.ACTION_POINTER_UP or
+                (1 shl MotionEvent.ACTION_POINTER_INDEX_SHIFT),
+                intArrayOf(11, 12), floatArrayOf(lookX + 90f, moveX),
+                floatArrayOf(lookY - 45f, moveY - 51f * density))
+            send(view, lookFirst, MotionEvent.ACTION_UP, intArrayOf(11),
+                floatArrayOf(lookX + 90f), floatArrayOf(lookY - 45f))
+
             // Real emulator telemetry; not a lab-grade phone GPU benchmark.
             val elapsed = (SystemClock.elapsedRealtime() - startedAt).coerceAtLeast(1L)
             val frames = renderer.completedFrameCount() - firstFrame
