@@ -1,3 +1,11 @@
+/*
+ * Annie Browser user-interface integration.
+ * Address-field select-all-on-focus behavior adapted from Omni Browser
+ * app/src/main/java/com/rebelroot/omni/browser/AdaptiveBrowserChrome.kt
+ * Copyright (C) 2026 RebelRoot Ltd, licensed GPL-3.0-or-later.
+ * Upstream commit 9de84cc0d4c7cce32c7052e6d7a8ceab4bdc6d16.
+ * This is a modified, Annie-branded integration; it is not endorsed by RebelRoot.
+ */
 package com.tomex777.annie
 
 import androidx.activity.compose.BackHandler
@@ -48,6 +56,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.draw.clip
@@ -57,6 +66,8 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -137,8 +148,8 @@ internal fun AnnieBrowserChrome(
     val active = state.active ?: return
     val keyboard = LocalSoftwareKeyboardController.current
     val focus = LocalFocusManager.current
-    var address by rememberSaveable(active.id) {
-        mutableStateOf(active.url.takeUnless { it == "about:blank" }.orEmpty())
+    var address by rememberSaveable(active.id, stateSaver = TextFieldValue.Saver) {
+        mutableStateOf(TextFieldValue(active.url.takeUnless { it == "about:blank" }.orEmpty()))
     }
     var editing by remember(active.id) { mutableStateOf(false) }
     var panel by remember { mutableStateOf<String?>(null) }
@@ -158,7 +169,7 @@ internal fun AnnieBrowserChrome(
         }
     }
     LaunchedEffect(active.id, active.url) {
-        if (!editing) address = active.url.takeUnless { it == "about:blank" }.orEmpty()
+        if (!editing) address = TextFieldValue(active.url.takeUnless { it == "about:blank" }.orEmpty())
     }
     LaunchedEffect(navigationSerial, state.isNewTab) {
         // The initial Home state has no Gecko page focus target. Wait until a
@@ -218,20 +229,31 @@ internal fun AnnieBrowserChrome(
             ) {
                 BasicTextField(
                     value = address,
-                    onValueChange = { editing = true; address = it.take(4096) },
+                    onValueChange = {
+                        editing = true
+                        address = it.copy(text = it.text.take(4096))
+                    },
                     textStyle = TextStyle(fontSize = 14.sp, color = BrowserBrightText),
                     singleLine = true,
                     cursorBrush = SolidColor(BrowserTeal),
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go,
                     ),
-                    keyboardActions = KeyboardActions(onGo = { openUrl(address) }),
+                    keyboardActions = KeyboardActions(onGo = { openUrl(address.text) }),
                     modifier = Modifier.weight(1f).padding(start = 12.dp)
+                        .onFocusChanged { focusState ->
+                            // The URL is one editable field; select it all on entry,
+                            // as in upstream Omni's responsive address bar.
+                            if (focusState.isFocused && !editing) {
+                                address = address.copy(selection = TextRange(0, address.text.length))
+                                editing = true
+                            }
+                        }
                         .testTag("annie_browser_tabs_address")
                         .semantics { contentDescription = "Search or enter address" },
                     decorationBox = { inner ->
                         Box(contentAlignment = Alignment.CenterStart) {
-                            if (address.isBlank()) {
+                            if (address.text.isBlank()) {
                                 Text("Search or enter address", fontSize = 13.sp, color = BrowserSoftText,
                                     maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
@@ -241,7 +263,7 @@ internal fun AnnieBrowserChrome(
                 )
                 // The same action handles IME Go and this accessible in-field button.
                 IconButton(
-                    onClick = { openUrl(address) },
+                    onClick = { openUrl(address.text) },
                     modifier = Modifier.size(48.dp).testTag("annie_browser_go"),
                 ) {
                     Icon(AnnieIcons.ArrowForward, contentDescription = "Go to address",
