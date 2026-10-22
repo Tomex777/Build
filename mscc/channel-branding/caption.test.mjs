@@ -24,7 +24,7 @@ assert.throws(()=>replaceCaptionWords('bad',{enabled:true,
   rules:[{from:'bad',to:'ok\u202Eevil'}]}),/Invalid replacement/,
   'Do not let bidi controls impersonate the poster signature');
 assert.throws(()=>replaceCaptionWords('bad',{enabled:true,
-  rules:[{from:'bad\\u202E',to:'ok'}]}),/Invalid replacement/,
+  rules:[{from:'bad\u202E',to:'ok'}]}),/Invalid replacement/,
   'An unsafe bidirectional phrase pattern must not be accepted');
 assert.throws(()=>composeChannelCaption({text:'a'.repeat(9000),replacements:{enabled:true,rules}}),
   /processing limit/,'Reject huge incoming scraper captions before Unicode/regex work');
