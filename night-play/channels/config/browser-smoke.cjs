@@ -154,11 +154,12 @@ async function main(){
    await page.locator('[data-module="memes"]').check({force:true});
    await page.waitForFunction(()=>document.querySelector('[data-module="memes"]')?.checked===true && document.querySelector('#saveMemes')?.disabled===false);
    assert.equal(settings.modules.memes,true,'Module change written to signed backend');
-   await page.locator('#memeMode').selectOption('automatic');
+   assert.equal(await page.locator('#memeMode option[value="automatic"]').isDisabled(),true,'Automatic memes unavailable without server scheduler capability');
+   assert.equal(await page.locator('#newsMode option[value="automatic"]').isDisabled(),true,'Automatic news unavailable without server scheduler capability');
    await page.locator('#memeDaily').selectOption('2');
    await page.getByRole('button',{name:'Save meme settings'}).click();
    await page.waitForFunction(()=>document.querySelector('#saveMemes')?.disabled===false && document.querySelector('#memeMode')?.value==='automatic');
-   assert.equal(settings.memes.mode,'automatic');
+   assert.equal(settings.memes.mode,'review','Cannot advertise unverified auto publishing as working');
    assert.deepEqual(settings.memes.categories,['relatable']);
    assert.equal(await page.locator('#watermarkName').textContent(),'K-Drama 🌙 Zone','Watermark source is exact verified Unicode/emoji display name');
    await page.locator('#captionReplacementsEnabled').check({force:true});
