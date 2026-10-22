@@ -759,13 +759,11 @@ private fun ScriptStudioContent(
                                         isEntry = !isFolder,
                                         selected = selectedProjectId == project.id && (if (isFolder) selectedPath == null && currentDirectory.isBlank() else selectedPath == project.entryPath),
                                         onClick = { if (isFolder) focusDirectory(project, "") else selectFile(project, project.entryPath) },
-                                        actions = listOf(
-                                            FileAction.RENAME,
-                                            FileAction.SHARE,
-                                            FileAction.EXPORT,
-                                            if (project.enabled) FileAction.DISABLE else FileAction.ENABLE,
-                                            FileAction.DELETE,
-                                        ) + if (project.hasPackageManifest) listOf(FileAction.PERMISSIONS) else emptyList(),
+                                        actions = listOf(FileAction.RENAME, FileAction.SHARE, FileAction.EXPORT) +
+                                            if (isExecutableScript(project.entryPath)) {
+                                                listOf(if (project.enabled) FileAction.DISABLE else FileAction.ENABLE, FileAction.DELETE)
+                                            } else listOf(FileAction.DELETE) +
+                                            if (project.hasPackageManifest) listOf(FileAction.PERMISSIONS) else emptyList(),
                                         onAction = { action ->
                                             when (action) {
                                                 FileAction.RENAME -> askForText("Rename ${if (isFolder) "project" else "script"}", project.name) { next ->
@@ -883,7 +881,7 @@ private fun ScriptStudioContent(
                                             name = path.substringAfterLast('/'),
                                             subtitle = project.name + " / " + path,
                                             isFolder = false,
-                                            isEntry = path == project.entryPath,
+                                            isEntry = path == project.entryPath && isExecutableScript(path),
                                             selected = selectedProjectId == project.id && selectedPath == path,
                                             indent = normalizedDirectory.isNotBlank(),
                                             onClick = { selectFile(project, path) },
