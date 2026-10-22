@@ -255,3 +255,24 @@ test('candidate provenance is immutable and numeric abuse is bounded',()=>{
  assert.equal(Object.isFrozen(candidate.metrics),true);
  assert.throws(()=>{candidate.source.rights='cleared'},TypeError);
 });
+
+const {PUBLIC_FEEDS,createKDramaFeed}=require('./feeds.cjs');
+test('public Korean entertainment feeds are inert until explicit operator approval',()=>{
+ assert.equal(PUBLIC_FEEDS.soompi.official,false);assert.equal(PUBLIC_FEEDS.koreaTimes.reviewOnly,true);
+ assert.throws(()=>createKDramaFeed('soompi'),/Operator approval/);
+ assert.throws(()=>createKDramaFeed('untrusted',{operatorApproved:true}),/Unknown/);
+});
+test('approved source preview links from separate allowlisted site work, others rejected',async()=>{
+ const now=()=>NOW;const xml='<rss><item><title>“Aurora” actors join new romance cast</title>'+
+ '<link>https://www.koreatimes.co.kr/entertainment/123</link><pubDate>Wed, 21 Oct 2026 12:00:00 GMT</pubDate></item>'+
+ '<item><title>“Aurora” renewal announced</title><link>https://evil.example/news</link><pubDate>Wed, 21 Oct 2026 12:00:00 GMT</pubDate></item></rss>';
+ const adapter=createKDramaFeed('koreaTimes',{operatorApproved:true,now,showAliases:['Aurora'],fetchImpl:async()=>new Response(xml)});
+ const out=await adapter.discover();assert.equal(out.items.length,1);
+ assert.equal(out.items[0].verification,'unverified');assert.equal(out.items[0].autoEligible,false);
+ assert.match(out.items[0].source.url,/koreatimes.co.kr/);
+});
+test('K-pop-only feed entry is not pushed as a K-drama',async()=>{
+ const now=()=>NOW;const xml='<rss><item><title>Idol returns with new song</title><link>https://www.soompi.com/news/123</link><pubDate>Wed, 21 Oct 2026 12:00:00 GMT</pubDate></item></rss>';
+ const adapter=createKDramaFeed('soompi',{operatorApproved:true,now,showAliases:['Aurora'],fetchImpl:async()=>new Response(xml)});
+ assert.equal((await adapter.discover()).items.length,0);
+});
