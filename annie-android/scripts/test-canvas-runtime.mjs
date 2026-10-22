@@ -29,7 +29,7 @@ assert.match(nativeHost, /allowFileAccess\s*=\s*false/,
   'Canvas must still disable filesystem access');
 
 
-function realm(initiallyPaused = false) {
+function realm(initiallyPaused = false, asyncAudio = false) {
   let clock = 0;
   let id = 0;
   const pending = new Map();
@@ -70,8 +70,16 @@ function realm(initiallyPaused = false) {
       this.state = 'running';
       contextInstances.push(this);
     }
-    suspend() { this.state = 'suspended'; return Promise.resolve(); }
-    resume() { this.state = 'running'; return Promise.resolve(); }
+    suspend() {
+      if (asyncAudio) return Promise.resolve().then(() => { this.state = 'suspended'; });
+      this.state = 'suspended';
+      return Promise.resolve();
+    }
+    resume() {
+      if (asyncAudio) return Promise.resolve().then(() => { this.state = 'running'; });
+      this.state = 'running';
+      return Promise.resolve();
+    }
     close() { this.state = 'closed'; return Promise.resolve(); }
   }
   const window = {
@@ -192,6 +200,20 @@ assert.ok(!a.css.has('annie-host-paused'));
 
 await audio.close();
 assert.equal(audio.state, 'closed');
+
+// A fast host Resume may precede Chromium's native suspend() completion.
+// The completion callback must restore a context that was running at Pause.
+const raced = realm(false, true);
+const racedAudio = new raced.window.AudioContext();
+raced.window.__annieCanvasHost.pause();
+raced.window.__annieCanvasHost.resume();
+await Promise.resolve();
+await Promise.resolve();
+await Promise.resolve();
+await Promise.resolve();
+assert.equal(racedAudio.state, 'running',
+  'Late native AudioContext.suspend resolution must not leave Canvas audio stuck');
+
 const c = realm(true);
 let startup = 0;
 c.window.setTimeout(() => startup++, 30);
