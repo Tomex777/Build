@@ -52,6 +52,8 @@ try{
  await p.waitForTimeout(80);
  await p.screenshot({path:join(visual,'piano-falling-390.png')});
  const before=await state(p);
+ assert.ok(before.g[0].bottom>210&&before.g[0].bottom<420,
+  'first note should already be descending within the active playing area');
  const future=24;
  assert.equal(before.s.complete,0);
  const clicked=await tapNote(p,0);
