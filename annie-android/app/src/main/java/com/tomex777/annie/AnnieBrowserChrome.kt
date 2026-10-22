@@ -103,6 +103,12 @@ internal data class AnnieBrowserChromeTab(
 
 internal data class AnnieBrowserChromeEntry(val title: String, val url: String)
 
+internal data class AnnieBrowserChromeFind(
+ val visible: Boolean, val query: String, val current: Int, val total: Int, val found: Boolean,
+ val open: () -> Unit, val update: (String) -> Unit, val next: () -> Unit,
+ val previous: () -> Unit, val close: () -> Unit,
+)
+
 internal data class AnnieBrowserChromeState(
     val tabs: List<AnnieBrowserChromeTab>,
     val activeId: String,
@@ -146,6 +152,7 @@ internal fun AnnieBrowserChrome(
     modifier: Modifier = Modifier,
     webContent: @Composable (Modifier) -> Unit,
     downloadsContent: @Composable (Modifier) -> Unit,
+    find: AnnieBrowserChromeFind? = null,
 ) {
     val active = state.active ?: return
     val keyboard = LocalSoftwareKeyboardController.current
@@ -204,9 +211,11 @@ internal fun AnnieBrowserChrome(
             if (universalCopyEnabled) actions.universalCopy?.invoke(false)
         }
     }
-    BackHandler(enabled = menuOpen || panel != null || tabsOpen || editing || active.canBack) {
+    BackHandler(enabled = menuOpen || find?.visible == true ||
+        panel != null || tabsOpen || editing || active.canBack) {
         when {
             menuOpen -> menuOpen = false
+            find?.visible == true -> find.close()
             tabsOpen -> tabsOpen = false
             panel != null -> panel = null
             editing -> { editing = false; focus.clearFocus(force = true); keyboard?.hide() }
@@ -292,6 +301,51 @@ internal fun AnnieBrowserChrome(
                 ) {
                     Text(state.tabs.size.toString(), fontSize = 12.sp, fontWeight = FontWeight.Bold,
                         color = BrowserBrightText)
+                }
+            }
+        }
+
+        if (find?.visible == true) {
+            Row(
+                Modifier.fillMaxWidth().background(ChromeSurface)
+                    .padding(horizontal = 6.dp, vertical = 3.dp)
+                    .testTag("annie_browser_find_bar"),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                BasicTextField(
+                    value = find.query,
+                    onValueChange = { find.update(it.take(1024)) },
+                    modifier = Modifier.weight(1f).height(48.dp)
+                        .padding(horizontal = 10.dp).testTag("annie_browser_find_input"),
+                    textStyle = TextStyle(color = BrowserBrightText, fontSize = 14.sp),
+                    cursorBrush = SolidColor(BrowserTeal),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    keyboardActions = KeyboardActions(onSearch = { find.next() }),
+                    singleLine = true,
+                    decorationBox = { inner ->
+                        Box(contentAlignment = Alignment.CenterStart) {
+                            if (find.query.isEmpty()) Text(
+                                "Find in page", color = BrowserSoftText, fontSize = 13.sp)
+                            inner()
+                        }
+                    },
+                )
+                if (find.query.isNotBlank()) {
+                    Text(if (!find.found) "0" else "${find.current}/${find.total}",
+                        color = BrowserSoftText, fontSize = 12.sp,
+                        modifier = Modifier.padding(horizontal = 4.dp))
+                }
+                IconButton(onClick = find.previous, modifier = Modifier.size(48.dp)) {
+                    Icon(AnnieIcons.ArrowBack, contentDescription = "Previous match",
+                        tint = BrowserBrightText)
+                }
+                IconButton(onClick = find.next, modifier = Modifier.size(48.dp)) {
+                    Icon(AnnieIcons.ArrowForward, contentDescription = "Next match",
+                        tint = BrowserBrightText)
+                }
+                IconButton(onClick = find.close, modifier = Modifier.size(48.dp)) {
+                    Icon(AnnieIcons.Close, contentDescription = "Close find in page",
+                        tint = BrowserBrightText)
                 }
             }
         }
@@ -516,6 +570,11 @@ internal fun AnnieBrowserChrome(
                     DropdownMenuItem(text = { Text("Downloads") }, onClick = {
                         menuOpen = false; panel = "Downloads"; tabsOpen = false
                     })
+                    if (find != null && !state.isNewTab) {
+                        DropdownMenuItem(text = { Text("Find in page") }, onClick = {
+                            menuOpen = false; panel = null; tabsOpen = false; find.open()
+                        })
+                    }
                     DropdownMenuItem(text = { Text(if (state.desktopMode) "Mobile site" else "Desktop site") },
                         onClick = { menuOpen = false; actions.toggleDesktop() })
                     if (actions.universalCopy != null && !active.privateMode) {
@@ -548,6 +607,7 @@ internal fun AnnieLegacyGeckoBrowserChrome(
     onExit: () -> Unit,
     /** Pass model::setUniversalCopy only after the actual Omni engine PR is integrated. */
     universalCopy: ((Boolean) -> Unit)? = null,
+    find: AnnieBrowserChromeFind? = null,
 ) {
     val tab = model.active ?: return
     val state = AnnieBrowserChromeState(
@@ -594,5 +654,6 @@ internal fun AnnieLegacyGeckoBrowserChrome(
             }
         },
         downloadsContent = { modifier -> AnnieGeckoDownloadPanel(modifier) },
+        find = find,
     )
 }
