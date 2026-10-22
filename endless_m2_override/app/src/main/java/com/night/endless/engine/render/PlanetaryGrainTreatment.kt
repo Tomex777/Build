@@ -167,11 +167,13 @@ internal object PlanetaryGrainTreatment {
                 "ceres" -> {
                     // Dark hydrated fines dominate. Sparse pale grains evoke
                     // salts, but DO NOT imply observed Occator deposits here.
-                    val fleck = ((noise(px, pz, 8, 919) - .73) * 4.5)
+                    // Extremely rare pale inclusions: do not spray bright
+                    // Occator-style spots over every few metres of ground.
+                    val fleck = ((noise(px, pz, 8, 919) - .84) * 5.0)
                         .coerceIn(0.0, 1.0)
-                    albedo += .27 * fleck - .04 + .035 * jitter
-                    relief += .075 * jitter + .07 * fleck
-                    mineral += .26 * fleck
+                    albedo += .10 * fleck - .035 + .035 * jitter
+                    relief += .075 * jitter + .01 * fleck
+                    mineral += .12 * fleck
                     roughness += .038 * broad
                 }
                 "europa" -> {
