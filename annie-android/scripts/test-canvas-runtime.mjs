@@ -29,7 +29,9 @@ assert.match(nativeHost, /allowFileAccess\s*=\s*false/,
   'Canvas must still disable filesystem access');
 
 
-function realm(initiallyPaused = false, asyncAudio = false, nativeIdle = false) {
+function realm(
+  initiallyPaused = false, asyncAudio = false, nativeIdle = false, cancellationRace = false,
+) {
   let clock = 0;
   let id = 0;
   const pending = new Map();
@@ -85,9 +87,9 @@ function realm(initiallyPaused = false, asyncAudio = false, nativeIdle = false) 
   const window = {
     __annieCanvasInitiallyPaused: initiallyPaused,
     setTimeout: (callback, milliseconds) => schedule(callback, milliseconds || 0),
-    clearTimeout: (key) => pending.delete(key),
+    clearTimeout: (key) => { if (!cancellationRace) pending.delete(key); },
     requestAnimationFrame: (callback) => schedule(callback, 16),
-    cancelAnimationFrame: (key) => pending.delete(key),
+    cancelAnimationFrame: (key) => { if (!cancellationRace) pending.delete(key); },
     HTMLMediaElement, AudioContext,
   };
   if (nativeIdle) {
@@ -240,6 +242,19 @@ assert.equal(nativeIdleRuns, 0);
 idleWebView.window.__annieCanvasHost.resume();
 idleWebView.advance(30);
 assert.equal(nativeIdleRuns, 1, 'Native idle callback should resume once');
+
+// Native cancel calls can race JS callbacks already enqueued in Chromium.
+// The resumed generation must execute only once, not duplicate ticks/frames.
+const racedCancel = realm(false, false, false, true);
+let resumedCallbacks = 0;
+racedCancel.window.setTimeout(() => resumedCallbacks++, 25);
+racedCancel.window.requestAnimationFrame(() => resumedCallbacks++);
+racedCancel.window.__annieCanvasHost.pause();
+racedCancel.window.__annieCanvasHost.resume();
+racedCancel.advance(30);
+assert.equal(resumedCallbacks, 2,
+  'Stale timer/frame deliveries must be rejected after rapid Pause/Resume');
+
 
 
 const c = realm(true);
