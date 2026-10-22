@@ -383,19 +383,26 @@ void main() {
     float inclusions = smoothstep(0.40, 0.82, micro.b);
     albedo *= mix(1.0, fineContrast * (1.0 - 0.075 * inclusions), microWeight);
     float direct = max(dot(microNormal, sun), 0.0);
+    // Each moving terrain mesh carries directional sky visibility baked
+    // from its ACTUAL triangles. Coarse terrain, rocks and decals retain
+    // their original lighting; do not shade away reflected ambient light.
+    // The near/mid patch edge is faded to 1.0 to hide truncated ray casts.
+    float terrainSunVisibility = (uPatchType == 1 || uPatchType == 4)
+        ? clamp(vColor.r, 0.10, 1.0) : 1.0;
+    float sunlitDirect = direct * terrainSunVisibility;
     float halfLambert = smoothstep(0.0, 0.07, direct);
     // No invented lunar atmosphere. Moon's small fill is exposure/ambient
     // approximation; shadow retains significantly less light than day.
     float light = uWorld == 0
-        ? 0.21 + 1.17 * direct * halfLambert
+        ? 0.21 + 1.17 * sunlitDirect * halfLambert
         : uWorld == 5
-            ? 0.33 + 0.69 * direct * halfLambert
-            : 0.055 + 1.38 * direct * halfLambert;
+            ? 0.33 + 0.69 * sunlitDirect * halfLambert
+            : 0.055 + 1.38 * sunlitDirect * halfLambert;
     // Water-ice frost backscatter avoids grey-rock appearance without
     // giving Europa an impossible internally glowing/snowy surface.
     if (uWorld == 4) {
         float iceFacing = clamp(dot(microNormal, sun), 0.0, 1.0);
-        light += .14 * pow(iceFacing, 1.7);
+        light += .14 * pow(iceFacing, 1.7) * terrainSunVisibility;
     }
     float surfaceAo = mix(1.0, 0.78, pow(steepness, 0.7));
     // Geometrically modelled rocks are darker than surrounding loose dust.
@@ -448,7 +455,7 @@ void main() {
             uViewAnchor.x - vPosition.x, .00078,
             uViewAnchor.y - vPosition.z));
         float glossy = max(dot(microNormal, normalize(sun+viewDirection)),0.0);
-        float glint = pow(glossy, 48.0) * direct;
+        float glint = pow(glossy, 48.0) * sunlitDirect;
         color += vec3(.045,.050,.053)*glint;
     } else if (uWorld == 5) {
         color *= 1.13;
