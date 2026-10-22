@@ -79,6 +79,7 @@ class EndlessRenderer(
     private var asteroidBeltBuffer: FloatBuffer? = null
     private val orbitBuffers = mutableMapOf<String, FloatBuffer>()
     private val orbitCounts = mutableMapOf<String, Int>()
+    private var lastOrbitGuideEpochMillis = Long.MIN_VALUE
     private val formationDiskBuffers = mutableListOf<FloatBuffer>()
     private var ringBuffer: FloatBuffer? = null
     private var ringVertexCount = 0
@@ -341,6 +342,13 @@ class EndlessRenderer(
 
         val simSeconds = clock.advance(realDt)
         updateBodyPositions(simSeconds)
+        // The visible lunar ellipse/nodal plane and slow-changing orbital
+        // elements must evolve with accelerated simulation time instead of
+        // being frozen at GLSurfaceView creation. Never rebuild per frame:
+        // defer until a meaningful simulated-time change.
+        if (showOrbits && OrbitGuideRefresh.shouldRefresh(
+                clock.currentTimeMillis(), lastOrbitGuideEpochMillis
+            )) buildOrbitBuffers()
 
         cloudRotation += dt * .012
         venusCloudRotation -= dt * .004
@@ -1530,6 +1538,7 @@ class EndlessRenderer(
     private fun buildOrbitBuffers() {
         orbitBuffers.clear()
         orbitCounts.clear()
+        lastOrbitGuideEpochMillis = clock.currentTimeMillis()
         for (body in bodies) {
             if (body.id == "sun") continue
             val segments = if (body.parentId != null) 96 else 180
