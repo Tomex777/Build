@@ -14,6 +14,8 @@ import com.night.endless.engine.scene.AsteroidBeltModel
 import com.night.endless.engine.scene.CelestialBody
 import com.night.endless.engine.scene.DeepTimeHistory
 import com.night.endless.engine.scene.KeplerEphemeris
+import com.night.endless.engine.scene.GiantSatelliteOrbit
+import com.night.endless.engine.scene.LunarOrbitApproximation
 import com.night.endless.engine.scene.UniverseClock
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -77,6 +79,7 @@ class EndlessRenderer(
     private var asteroidBeltBuffer: FloatBuffer? = null
     private val orbitBuffers = mutableMapOf<String, FloatBuffer>()
     private val orbitCounts = mutableMapOf<String, Int>()
+    private var lastOrbitGuideEpochMillis = Long.MIN_VALUE
     private val formationDiskBuffers = mutableListOf<FloatBuffer>()
     private var ringBuffer: FloatBuffer? = null
     private var ringVertexCount = 0
@@ -339,6 +342,13 @@ class EndlessRenderer(
 
         val simSeconds = clock.advance(realDt)
         updateBodyPositions(simSeconds)
+        // The visible lunar ellipse/nodal plane and slow-changing orbital
+        // elements must evolve with accelerated simulation time instead of
+        // being frozen at GLSurfaceView creation. Never rebuild per frame:
+        // defer until a meaningful simulated-time change.
+        if (showOrbits && OrbitGuideRefresh.shouldRefresh(
+                clock.currentTimeMillis(), lastOrbitGuideEpochMillis
+            )) buildOrbitBuffers()
 
         cloudRotation += dt * .012
         venusCloudRotation -= dt * .004
@@ -1196,29 +1206,24 @@ class EndlessRenderer(
                 // based on NASA/JPL Small-Body Database elements. The orbit
                 // is approximate and not a high-precision SPICE trajectory.
                 body.id == "europa" || body.id == "titan" -> {
-                    // Circular parent-relative moon orbits are illustrative.
-                    val angle = body.phaseRad + 2.0*PI*days/body.orbitPeriodDays
-                    (map[body.parentId]?.position ?: Vec3d.ZERO) +
-                        Vec3d(cos(angle)*body.orbitRadius,
-                            sin(angle*.47)*body.orbitRadius*.013,
-                            sin(angle)*body.orbitRadius)
+                    // The moon's orbital plane is aligned with the
+                    // giant's actual rendered equator (and Saturn's rings).
+                    // Former sin(angle*.47) vertical wobble did not close
+                    // each orbit and diverged from the flat drawn orbit line.
+                    val angle = body.phaseRad + 2.0 * PI * days / body.orbitPeriodDays
+                    val parent = map[body.parentId]
+                    (parent?.position ?: Vec3d.ZERO) +
+                        GiantSatelliteOrbit.position(
+                            body.orbitRadius, angle, parent?.axialTiltDeg ?: 0.0
+                        )
                 }
                 body.id == "moon" -> {
-                    // Elliptical (e=0.0549), 5.145° inclined approximation.
-                    // This is NOT JPL's high-precision lunar ephemeris.
-                    val elapsedDays = (utcMillis - 946728000000L) / 86400000.0
-                    val mean = Math.toRadians(134.963) + 2.0 * PI * elapsedDays / 27.321661
-                    val eccentric = KeplerEphemeris.solveEccentricAnomaly(mean % (2.0 * PI), .0549)
-                    val x = body.orbitRadius * (cos(eccentric) - .0549)
-                    val z = body.orbitRadius * sqrt(1.0 - .0549 * .0549) * sin(eccentric)
-                    val tilt = Math.toRadians(5.145)
-                    val node = Math.toRadians(125.045 - .0529539 * elapsedDays)
-                    val local = Vec3d(
-                        x * cos(node) - z * sin(node) * cos(tilt),
-                        z * sin(tilt),
-                        x * sin(node) + z * cos(node) * cos(tilt)
-                    )
-                    (map["earth"]?.position ?: Vec3d.ZERO) + local
+                    // The SAME eccentric, inclined, nodally precessing model
+                    // now generates the visual orbit guide and the actual
+                    // Moon's Earth-relative position, so neither contradicts
+                    // the other when inspecting Earth's satellite.
+                    (map["earth"]?.position ?: Vec3d.ZERO) +
+                        LunarOrbitApproximation.relativePosition(utcMillis, body.orbitRadius)
                 }
                 else -> KeplerEphemeris.position(body.id, utcMillis, body.orbitRadius)
                     ?: Vec3d.ZERO
@@ -1435,11 +1440,13 @@ class EndlessRenderer(
 
         val j2000Millis = 946728000000L
         val elapsedHours = (clock.currentTimeMillis() - j2000Millis) / 3_600_000.0
-        val baseRotation = if (body.rotationHours == 0.0) {
-            0.0
-        } else {
-            (elapsedHours / body.rotationHours) * 360.0
-        }
+        // The already-tilted local spin axis encodes the retrograde
+        // directions of Venus (177.36°) and Uranus (97.77°). Using their
+        // signed rotation periods again would double-reverse both planets.
+        // Keep the angle bounded at extremely accelerated simulation times.
+        val baseRotation = PlanetarySpin.angleDegrees(
+            elapsedHours, body.rotationHours
+        )
 
         Matrix.rotateM(
             model, 0,
@@ -1531,18 +1538,34 @@ class EndlessRenderer(
     private fun buildOrbitBuffers() {
         orbitBuffers.clear()
         orbitCounts.clear()
+        lastOrbitGuideEpochMillis = clock.currentTimeMillis()
         for (body in bodies) {
             if (body.id == "sun") continue
             val segments = if (body.parentId != null) 96 else 180
             val jpl = KeplerEphemeris.orbitPoints(
                 body.id, clock.currentTimeMillis(), body.orbitRadius, segments
             )
-            val values = jpl ?: FloatArray(segments * 3).also { out ->
-                for (i in 0 until segments) {
-                    val angle = i.toDouble() / segments * 2.0 * PI
-                    out[i * 3] = (cos(angle) * body.orbitRadius).toFloat()
-                    out[i * 3 + 1] = 0f
-                    out[i * 3 + 2] = (sin(angle) * body.orbitRadius).toFloat()
+            val values = when {
+                body.id == "moon" -> {
+                    LunarOrbitApproximation.orbitPolyline(
+                        clock.currentTimeMillis(), body.orbitRadius, segments
+                    )
+                }
+                body.id == "europa" || body.id == "titan" -> {
+                    // Giant satellites and their displayed orbit lines share
+                    // an inclined equatorial plane with the ring/planet model.
+                    val parentTilt = body.parentId?.let { byId[it]?.axialTiltDeg } ?: 0.0
+                    GiantSatelliteOrbit.polyline(body.orbitRadius, parentTilt, segments)
+                }
+                else -> {
+                    jpl ?: FloatArray(segments * 3).also { out ->
+                        for (i in 0 until segments) {
+                            val angle = i.toDouble() / segments * 2.0 * PI
+                            out[i * 3] = (cos(angle) * body.orbitRadius).toFloat()
+                            out[i * 3 + 1] = 0f
+                            out[i * 3 + 2] = (sin(angle) * body.orbitRadius).toFloat()
+                        }
+                    }
                 }
             }
             orbitBuffers[body.id] = floatBuffer(values)
@@ -1731,10 +1754,27 @@ class EndlessRenderer(
             uniformLocation(starProgram, "uVp"),
             1, false, viewProjection, 0
         )
+        // Background stars are effectively at infinity. Their unit-sphere
+        // directions should rotate with the camera, but must NOT exhibit
+        // dozens of degrees of fake parallax between Earth and Neptune.
+        // Keep star points centered on the current camera, while physical
+        // objects (asteroids, planets) remain in heliocentric world space.
+        GLES30.glUniform3f(
+            uniformLocation(starProgram, "uCameraOrigin"),
+            cameraPosition.x.toFloat(), cameraPosition.y.toFloat(),
+            cameraPosition.z.toFloat()
+        )
         GLES30.glUniform1f(uniformLocation(starProgram, "uPointSize"), 2.0f)
         GLES30.glUniform4f(uniformLocation(starProgram, "uColor"), 0.82f, 0.88f, 1.0f, 0.72f)
 
-        val buffer = starBuffer ?: return
+        // An interrupted EGL/context rebuild may temporarily have no star
+        // vertex buffer. Restore GL state before continuing with planets:
+        // leaving the depth mask off makes near/far sphere occlusion wrong.
+        val buffer = starBuffer
+        if (buffer == null) {
+            GLES30.glDepthMask(true)
+            return
+        }
         buffer.position(0)
 
         GLES30.glEnableVertexAttribArray(0)
@@ -1759,6 +1799,9 @@ class EndlessRenderer(
             uniformLocation(starProgram, "uVp"),
             1, false, viewProjection, 0
         )
+        // The asteroid belt is a *real* scene-space foreground object;
+        // it must never inherit the translation used only by distant stars.
+        GLES30.glUniform3f(uniformLocation(starProgram, "uCameraOrigin"), 0f, 0f, 0f)
         GLES30.glUniform1f(uniformLocation(starProgram, "uPointSize"), if (selectedId == "ceres") 3.4f else 2.35f)
         GLES30.glUniform4f(uniformLocation(starProgram, "uColor"), 0.67f, 0.62f, 0.54f, 0.62f)
 
@@ -2501,9 +2544,12 @@ void main() {
 layout(location=0) in vec3 aPosition;
 uniform mat4 uVp;
 uniform float uPointSize;
+uniform vec3 uCameraOrigin;
 
 void main() {
-    gl_Position = uVp * vec4(aPosition, 1.0);
+    // Directions at stellar distances are translation invariant over a
+    // compressed 60AU solar-system navigation range.
+    gl_Position = uVp * vec4(aPosition + uCameraOrigin, 1.0);
     gl_PointSize = uPointSize;
 }
 """
