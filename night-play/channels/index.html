@@ -254,6 +254,12 @@ function render() {
       },'btn primary'))
     }
     if(connected){
+      // Configuration belongs to this verified channel only. The separate
+      // screen must re-check ownership on the server before reading settings.
+      const configure=make('a','btn','Configure')
+      configure.href='/channels/config/index.html?channel='+encodeURIComponent(channel.id)
+      configure.setAttribute('aria-label','Configure '+(channel.name||'WhatsApp Channel'))
+      controls.append(configure)
       // Each channel owns its own start control; there is no detached
       // Anonymous Nights panel or additional "Open" step.
       const start=action('Start Anonymous Night',async()=>{

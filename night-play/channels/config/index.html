@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f7f7f5">
+<title>Configure channel · NIGHT Play</title>
+<link rel="stylesheet" href="/site-shell.css">
+<link rel="stylesheet" href="/channels/config/style.css">
+<script src="/channels/config/app.js" defer></script>
+</head>
+<body data-view="channels">
+<svg aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden" xmlns="http://www.w3.org/2000/svg">
+<symbol id="icon-brand" viewBox="0 0 108 108"><path fill="#0B0F11" d="M0 0h108v108H0z"/><path fill="#F4F5F6" d="M24 54 C24 37.43 37.43 24 54 24 C70.57 24 84 37.43 84 54 L24 54 Z"/><path fill="#F4F5F6" d="M22 66h64v6H22z"/></symbol>
+<symbol id="icon-home" viewBox="0 0 24 24"><path d="m3 10 9-7 9 7v10H3z"/><path d="M9 20v-7h6v7"/></symbol>
+<symbol id="icon-games" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="13" rx="5"/><path d="M6 12h6M9 9v6"/><circle cx="17" cy="11" r=".9"/><circle cx="19" cy="14" r=".9"/></symbol>
+<symbol id="icon-profile" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20c.8-6 14.2-6 15 0"/></symbol>
+</svg>
+<header class="site-header"><div class="wrap nav">
+<a href="/dashboard" class="logo" aria-label="NIGHT Play home"><svg class="brand-mark" viewBox="0 0 108 108" aria-hidden="true"><use href="#icon-brand"></use></svg><span>NIGHT <span class="brand-sub">PLAY</span></span></a>
+<nav class="links" aria-label="Main navigation"><a href="/dashboard">Home</a><a href="/games">Games</a></nav>
+<div class="actions"><a class="profile-icon" href="/profile" aria-label="My profile" title="My profile"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4.5 20c1.2-4.7 13.8-4.7 15 0"/></svg></a></div>
+</div></header>
+<nav class="mobile-nav" aria-label="Bottom navigation">
+<a href="/dashboard"><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24"><use href="#icon-home"></use></svg>Home</a>
+<a href="/games"><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24"><use href="#icon-games"></use></svg>Games</a>
+<a href="/profile" aria-current="page"><svg class="ui-icon" aria-hidden="true" viewBox="0 0 24 24"><use href="#icon-profile"></use></svg>Profile</a>
+</nav>
+
+<main class="wrap config-main">
+<div class="config-shell">
+<a class="config-back" href="/channels/" aria-label="Back to your channels"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 5 8.5 12l7 7M9 12h12"/></svg>Your channels</a>
+<div class="config-heading"><div><h1>Configure channel</h1><p id="channelTitle">Verifying your channel…</p></div></div>
+<section id="state" class="config-status" role="status" aria-live="polite"><strong id="stateTitle">Checking permissions…</strong><p id="stateText">Only verified channel owners can manage publishing.</p><button class="btn" type="button" id="retry" hidden>Try again</button></section>
+<div id="notice" class="config-banner" role="status" aria-live="polite" hidden></div>
+<div id="configUI" class="config-sections" hidden>
+<section class="config-section" aria-labelledby="memesTitle">
+<div class="section-heading"><div><h2 id="memesTitle">Memes</h2><p>Choose what fits this channel. You review every post unless automatic mode is enabled.</p></div>
+<label class="switch"><span>Memes</span><input type="checkbox" data-module="memes" aria-label="Enable memes for this channel"><span class="track" aria-hidden="true"></span></label></div>
+<div class="config-fields">
+<label class="field"><span>Posting mode</span><span class="choice-wrap"><select class="choice-input" id="memeMode"><option value="review">Review first</option><option value="automatic">Automatic</option></select></span></label>
+<label class="field"><span>Posts per day</span><span class="choice-wrap"><select class="choice-input" id="memeDaily"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select></span></label>
+<label class="field"><span>Preferred posting time (your timezone)</span><input class="text-input" id="memeTime" type="time" value="18:00"></label>
+</div>
+<fieldset class="field" style="border:0;padding:0;margin:16px 0 0"><legend>Categories</legend>
+<div id="memeCategories" class="chips">
+<label class="chip"><input type="checkbox" value="relatable"><span>Relatable</span></label>
+<label class="chip"><input type="checkbox" value="wholesome"><span>Wholesome</span></label>
+<label class="chip"><input type="checkbox" value="anime"><span>Anime</span></label>
+<label class="chip"><input type="checkbox" value="nigerian"><span>Nigerian</span></label>
+<label class="chip"><input type="checkbox" value="animals"><span>Animals</span></label>
+<label class="chip"><input type="checkbox" value="relationships"><span>Relationships</span></label>
+<label class="chip"><input type="checkbox" value="dark"><span>Dark — opt in</span></label>
+</div></fieldset>
+<p class="config-note">Auto posting is only available once the verified bot publisher confirms the channel and schedule.</p>
+<div class="action-row"><button class="btn primary" id="saveMemes" type="button">Save meme settings</button></div>
+</section>
+<section class="config-section" aria-labelledby="reviewTitle">
+<div class="section-heading"><div><h2 id="reviewTitle">Review memes</h2><p>See four actual sourced images per batch. Only your approved selections can be queued.</p></div></div>
+<div class="review-intro"><button type="button" id="findMemes" class="btn primary">Find memes</button><span id="batchLabel" class="config-note" aria-live="polite"></span></div>
+<div id="reviewNotice" class="config-banner" role="status" aria-live="polite" hidden></div>
+<div id="candidates" class="review-grid" aria-live="polite"></div>
+<div id="selectionTray" class="selection-tray" hidden><h3>Approved selection</h3><div id="selectedPosts" class="selected-posts" aria-live="polite"></div></div>
+<div class="review-summary" id="reviewSummary" hidden><span id="approvedCount" class="review-count"></span><div class="action-row" style="margin:0"><button id="nextBatch" class="btn" type="button">Next four</button><button id="publishApproved" class="btn primary" type="button">Publish approved</button><button id="scheduleButton" class="btn" type="button">Schedule approved</button></div></div>
+<div id="schedulePanel" class="config-fields" style="margin-top:17px" hidden>
+<label class="field"><span>First post (your local time)</span><input id="scheduleAt" class="text-input" type="datetime-local"></label>
+<label class="field"><span>Spacing between posts</span><span class="choice-wrap"><select id="spacingMinutes" class="choice-input"><option value="15">15 minutes</option><option value="30">30 minutes</option><option value="60" selected>1 hour</option><option value="180">3 hours</option></select></span></label>
+<div class="action-row" style="grid-column:1/-1;margin-top:0"><button id="confirmSchedule" type="button" class="btn primary">Confirm schedule</button><button id="cancelSchedule" type="button" class="btn">Cancel</button></div>
+</div>
+<p class="config-note">Images are sourced, not generated. You can edit captions before approving. The source must grant permitted reuse.</p>
+</section>
+<section class="config-section" aria-labelledby="newsTitle">
+<div class="section-heading"><div><h2 id="newsTitle">News</h2><p>Short attributed updates. K-drama interests first, with spoiler handling and human review.</p></div>
+<label class="switch"><span>News</span><input type="checkbox" data-module="news" aria-label="Enable news for this channel"><span class="track" aria-hidden="true"></span></label></div>
+<div class="config-fields">
+<label class="field"><span>Posting mode</span><span class="choice-wrap"><select id="newsMode" class="choice-input"><option value="review">Review first</option><option value="automatic">Automatic</option></select></span></label>
+<label class="field"><span>Spoilers</span><span class="choice-wrap"><select id="spoilerPolicy" class="choice-input"><option value="avoid">Avoid spoilers</option><option value="warn">Warn before spoilers</option></select></span></label>
+<label class="field"><span>Preferred posting time (your timezone)</span><input class="text-input" id="newsTime" type="time" value="18:00"></label>
+<label class="field"><span>Maximum posts per day</span><span class="choice-wrap"><select id="newsDaily" class="choice-input"><option value="1">1</option><option value="2">2</option><option value="3">3</option></select></span></label>
+</div>
+<fieldset class="field" style="border:0;padding:0;margin:16px 0 0"><legend>K-drama interests</legend><div id="newsInterests" class="chips">
+<label class="chip"><input type="checkbox" value="casting"><span>Casting</span></label><label class="chip"><input type="checkbox" value="releases"><span>Release dates</span></label>
+<label class="chip"><input type="checkbox" value="trailers"><span>Trailers</span></label><label class="chip"><input type="checkbox" value="renewals"><span>Renewals</span></label>
+<label class="chip"><input type="checkbox" value="romance"><span>Romance</span></label><label class="chip"><input type="checkbox" value="platforms"><span>Platforms</span></label>
+</div></fieldset>
+<div class="action-row"><button id="saveNews" class="btn primary" type="button">Save news settings</button></div>
+</section>
+<section class="config-section" aria-labelledby="otherTitle">
+<div class="section-heading"><div><h2 id="otherTitle">Other channel modules</h2><p>These features are independent. Switching off a module stops its future publishing.</p></div></div>
+<div class="section-heading"><div><strong>Anonymous NIGHT</strong><p>Owner-scoped anonymous submissions and moderation.</p></div>
+<label class="switch"><span>Enabled</span><input type="checkbox" data-module="anonymous" aria-label="Enable Anonymous NIGHT"><span class="track" aria-hidden="true"></span></label></div>
+<div class="section-heading" style="margin-bottom:0"><div><strong>AI responses</strong><p>Optional channel replies; not required for memes or news.</p></div>
+<label class="switch"><span>Enabled</span><input type="checkbox" data-module="ai" aria-label="Enable channel AI responses" disabled><span class="track" aria-hidden="true"></span></label></div>
+</section>
+<section class="config-section" aria-labelledby="brandingTitle">
+<div class="section-heading"><div><h2 id="brandingTitle">Caption &amp; watermark</h2><p>Signature credits the person posting. The image watermark uses this channel's exact verified name.</p></div></div>
+<div id="brandingUnavailable" class="config-banner" hidden>Branding controls are not available on NIGHT Bot yet.</div>
+<div id="brandingControls">
+<div class="section-heading"><div><strong>Caption signature</strong><p>Optional author credit below the caption; never the channel name.</p></div>
+<label class="switch"><span>Enabled</span><input type="checkbox" id="signatureEnabled" aria-label="Add poster signature"><span class="track" aria-hidden="true"></span></label></div>
+<label class="field"><span>Poster name for automatic posts (leave empty to omit signature)</span><input class="text-input" id="posterName" maxlength="70" autocomplete="off" placeholder="Name of the person credited"></label>
+<div class="section-heading replacement-heading"><div><strong>Caption word replacements</strong><p>Optional word or phrase swaps in post captions. Words inside images stay unchanged.</p></div>
+<label class="switch"><span>Enabled</span><input type="checkbox" id="captionReplacementsEnabled" aria-label="Enable caption word replacements"><span class="track" aria-hidden="true"></span></label></div>
+<div id="replacementRows" class="replacement-rows"></div>
+<button id="addReplacement" class="btn" type="button">Add replacement</button>
+<div class="section-heading" style="margin-top:19px"><div><strong>Image watermark</strong><p>Applied transparently to media. Does not modify the caption's author credit.</p></div>
+<label class="switch"><span>Enabled</span><input type="checkbox" id="watermarkEnabled" aria-label="Enable exact-channel-name watermark"><span class="track" aria-hidden="true"></span></label></div>
+<p class="config-note">Verified channel name: <strong id="watermarkName" style="color:#254935;overflow-wrap:anywhere"></strong></p><p id="watermarkWarning" class="config-note" hidden>Image watermark cannot be enabled until the bot supplies the unmodified verified name, including emojis and special characters.</p>
+<div class="config-fields" style="margin-top:14px">
+<label class="field"><span>Watermark opacity</span><span class="choice-wrap"><select id="watermarkOpacity" class="choice-input"><option value="0.15">15% · Subtle</option><option value="0.2">20% · Balanced</option><option value="0.22">22% · Balanced</option><option value="0.25">25% · Visible</option><option value="0.3">30% · Stronger</option></select></span></label>
+<label class="field"><span>Preferred corner</span><span class="choice-wrap"><select id="watermarkPosition" class="choice-input"><option value="auto">Automatic · quiet corner</option><option value="bottom-right">Bottom right</option><option value="bottom-left">Bottom left</option><option value="top-right">Top right</option><option value="top-left">Top left</option></select></span></label>
+</div>
+<div class="action-row"><button id="saveBranding" type="button" class="btn primary">Save branding</button></div>
+</div></section>
+<dialog id="postPreview" aria-labelledby="postPreviewTitle" style="border:1px solid #dbe1da;border-radius:16px;max-width:min(94vw,480px);width:100%;padding:20px;background:#fff;box-shadow:0 18px 60px #17271b44;color:#1c2328">
+<div class="section-heading"><h2 id="postPreviewTitle" style="margin:0;font-size:18px">WhatsApp post preview</h2><button id="closePostPreview" type="button" class="btn" aria-label="Close preview">Close</button></div>
+<div id="postPreviewContent" aria-live="polite"></div>
+</dialog>
+<section class="config-section" aria-labelledby="jobsTitle">
+<div class="section-heading"><div><h2 id="jobsTitle">Publishing</h2><p>Actual queued, scheduled, sent and failed posts for this channel.</p></div><button type="button" id="refreshJobs" class="btn">Check status</button></div>
+<div id="jobs" class="job-list" aria-live="polite"><p class="config-note">Loading…</p></div>
+</section>
+</div>
+</div>
+</main>
+<div class="config-toast" id="toast" role="status" hidden></div>
+</body>
+</html>

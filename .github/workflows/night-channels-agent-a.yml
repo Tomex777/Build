@@ -1,0 +1,45 @@
+name: NIGHT Channels Agent A QA
+
+on:
+  push:
+    branches: [agentA/channels-controls-review-20261022]
+    paths:
+      - 'night-play/channels/**'
+      - '.github/workflows/night-channels-agent-a.yml'
+  pull_request:
+    paths:
+      - 'night-play/channels/**'
+      - '.github/workflows/night-channels-agent-a.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  mobile-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 14
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+      - name: Parse actual channels UI and fixture scripts
+        run: |
+          node --check night-play/channels/config/app.js
+          node --check night-play/channels/config/browser-smoke.cjs
+          node --check night-play/channels/browser-smoke.cjs
+      - name: Install browser helper
+        run: npm install --no-save playwright@1.56.1
+      - name: Execute authenticated channel control and five-width Chromium playthrough
+        run: node night-play/channels/config/browser-smoke.cjs
+      - name: Upload reviewed route screenshots
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: night-channels-agent-a-visuals
+          path: night-play/visual-output/channels-A-*.jpg
+          if-no-files-found: warn
+          retention-days: 14
