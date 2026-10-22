@@ -153,6 +153,41 @@ class PuzzleEngineTest {
         assertTrue(restored.visible(restored.pieces[9]))
     }
 
+    @Test fun rulesFollowChosenModeAndSave() {
+        for(mode in PuzzleMode.entries) {
+            val g=PuzzleGame.fresh(6,4,seed=29,mode=mode)
+            assertEquals(mode,g.mode)
+            assertEquals(mode.allowedHints,g.hintsRemaining)
+            assertEquals(mode.allowedPreviews,g.previewsRemaining)
+            assertEquals(mode==PuzzleMode.MEMORY,g.hintsRemaining==0)
+            repeat(mode.allowedPreviews) { assertTrue(g.usePreview()) }
+            assertFalse(g.usePreview())
+            repeat(mode.allowedHints) { assertTrue(g.hint()) }
+            assertFalse(g.hint())
+            g.elapsedSeconds=187
+            val state=g.pieces.map{Triple(it.x,it.y,it.placed)}
+            val restored=PuzzleGame.restore(g.cols,g.rows,g.seed,g.imageKey,
+                state,g.hintsRemaining,g.moves,g.preview,g.landscapeMode,
+                g.activeZone,g.pieces.map{it.groupId},g.edgesOnly,g.mode,
+                g.previewsRemaining,g.elapsedSeconds)!!
+            assertEquals(g.mode,restored.mode)
+            assertEquals(187,restored.elapsedSeconds)
+            assertEquals(0,restored.previewsRemaining)
+            assertEquals(0,restored.hintsRemaining)
+        }
+    }
+
+    @Test fun badModesDoNotRestoreOverbudgetHintsOrTime() {
+        val g=PuzzleGame.fresh(8,6,seed=10)
+        val state=g.pieces.map{Triple(it.x,it.y,it.placed)}
+        assertNull(PuzzleGame.restore(8,6,g.seed,g.imageKey,state,3,0,false,
+            mode=PuzzleMode.MEMORY))
+        assertNull(PuzzleGame.restore(8,6,g.seed,g.imageKey,state,0,0,false,
+            mode=PuzzleMode.CHALLENGE,previewsRemaining=17))
+        assertNull(PuzzleGame.restore(8,6,g.seed,g.imageKey,state,0,0,false,
+            elapsedSeconds=-20))
+    }
+
     @Test fun neighborTabsAreComplementaryAndEdgesFlat() {
         val g = PuzzleGame.fresh(12, 12, seed = 782)
         for (r in 0 until 12) for (c in 0 until 12) {
