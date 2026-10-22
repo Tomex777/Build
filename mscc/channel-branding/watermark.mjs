@@ -19,6 +19,23 @@ function checkOpacity(opacity){
   if(typeof opacity!=='number'||!Number.isFinite(opacity)||opacity<.15||opacity>.30)
     throw new RangeError('Watermark opacity must be between 0.15 and 0.30.');
 }
+/** The host may store a single owner-approved PNG or an explicitly approved
+ * pair of light-ink / dark-ink PNGs for contrast on varied source images.
+ * Never synthesize a recolored emoji overlay: doing so corrupts colored glyphs.
+ */
+function selectFallbackAsset(fallback,tone){
+  if(fallback===null||fallback===undefined)return null;
+  if(Buffer.isBuffer(fallback)){
+    if(!fallback.length||fallback.length>MAX_LAYER_FILE)throw new Error('Owner fallback exceeds image budget.');
+    return fallback;
+  }
+  if(fallback===null||typeof fallback!=='object'||Array.isArray(fallback)||
+    !Buffer.isBuffer(fallback.light)||!Buffer.isBuffer(fallback.dark)||
+    !fallback.light.length||!fallback.dark.length||
+    fallback.light.length>MAX_LAYER_FILE||fallback.dark.length>MAX_LAYER_FILE)
+    throw new Error('Approved fallback variants require bounded light and dark PNG Buffers.');
+  return fallback[tone];
+}
 export function watermarkCacheKey({channelId,displayName,styleVersion=1,tone='light',opacity=.22,width=800,height=144}){
   checkChannel(channelId,displayName);checkOpacity(opacity);
   if(!['light','dark'].includes(tone)||!Number.isInteger(styleVersion)||styleVersion<1)throw new Error('Invalid watermark revision or tone.');
@@ -94,25 +111,24 @@ export async function makeReusableWatermark({
   if(!['light','dark'].includes(tone))throw new Error('Invalid watermark tone.');
   if(!Number.isInteger(width)||!Number.isInteger(height)||width<200||height<64||
      width*height>MAX_RENDER_PIXELS)throw new RangeError('Unsafe watermark dimensions.');
-  if(approvedFallbackPng&&(!Buffer.isBuffer(approvedFallbackPng)||approvedFallbackPng.length>MAX_LAYER_FILE))
-    throw new Error('Owner fallback must be a bounded transparent PNG.');
-  if(hasEmoji(displayName)&&!approvedFallbackPng&&!colorEmojiVerified)
+  const fallback=selectFallbackAsset(approvedFallbackPng,tone);
+  if(hasEmoji(displayName)&&!fallback&&!colorEmojiVerified)
     throw new Error('Color emoji glyphs have not passed target-server visual validation; use owner-approved PNG fallback.');
   const key=watermarkCacheKey({channelId,displayName,styleVersion,tone,opacity,width,height})+
-    (approvedFallbackPng?':'+hash(approvedFallbackPng):'');
+    (fallback?':'+hash(fallback):'');
   const hit=cache?.get(key);if(hit)return hit;
   const sharp=await getSharp(sharpLibrary);
-  const source=approvedFallbackPng||await renderText({displayName,width,height,tone,canvasLibrary});
+  const source=fallback||await renderText({displayName,width,height,tone,canvasLibrary});
   if(!Buffer.isBuffer(source)||source.length>MAX_LAYER_FILE)throw new Error('Watermark source exceeds asset budget.');
-  const meta=await sharp(source,{limitInputPixels:approvedFallbackPng?2_000_000:MAX_RENDER_PIXELS}).metadata();
+  const meta=await sharp(source,{limitInputPixels:fallback?2_000_000:MAX_RENDER_PIXELS}).metadata();
   if(meta.format!=='png'||(meta.pages??1)>1||!meta.hasAlpha)
     throw new Error('Watermark must be a static PNG with an actual alpha channel (transparent background).');
   // A manually supplied owner-approved fallback can be larger; resize/letterbox.
-  const layer=approvedFallbackPng&& (meta.width!==width||meta.height!==height)
+  const layer=fallback&& (meta.width!==width||meta.height!==height)
     ?await sharp(source,{limitInputPixels:2_000_000})
       .resize(width,height,{fit:'contain',background:'#00000000'}).png().toBuffer()
     :source;
-  if(!approvedFallbackPng&&(meta.width!==width||meta.height!==height))
+  if(!fallback&&(meta.width!==width||meta.height!==height))
     throw new Error('Native watermark renderer size mismatch.');
   const raw=await sharp(layer,{limitInputPixels:MAX_RENDER_PIXELS}).ensureAlpha().raw().toBuffer({resolveWithObject:true});
   if(raw.info.channels!==4||raw.info.width!==width||raw.info.height!==height)
@@ -133,7 +149,7 @@ export async function makeReusableWatermark({
   const png=await sharp(raw.data,{raw:{width,height,channels:4}}).png({compressionLevel:8}).toBuffer();
   if(png.length>MAX_LAYER_FILE)throw new Error('Encoded watermark exceeds budget.');
   const asset=Object.freeze({channelId,displayName,styleVersion,tone,opacity,width,height,key,buffer:png,
-    glyphsVerified:!hasEmoji(displayName)||colorEmojiVerified||Boolean(approvedFallbackPng)});
+    glyphsVerified:!hasEmoji(displayName)||colorEmojiVerified||Boolean(fallback)});
   cache?.set(key,asset);
   return asset;
 }
