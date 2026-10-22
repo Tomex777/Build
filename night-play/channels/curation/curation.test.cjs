@@ -228,3 +228,20 @@ test('Retry-After accepts HTTP dates and reports source backoff',async()=>{
  const soon=new Date(Date.now()+125000).toUTCString();
  await assert.rejects(boundedGet('https://studio.example/rss',{allowedHosts:['studio.example'],fetchImpl:async()=>new Response('slow down',{status:429,headers:{'Retry-After':soon}})}),e=>e.status===429&&e.retryAfterSeconds>=119&&e.retryAfterSeconds<=126);
 });
+
+test('stale persisted news is rejected at selection time even after ingestion',()=>{
+ const official={id:'official',name:'Studio',trustedHost:'studio.example',official:true};
+ const record={title:'Aurora confirmed renewal',url:'https://studio.example/news',publishedAt:'2026-10-20T12:00:00Z',show:'Aurora',confirmed:true,tags:['renewals']};
+ const item=normalizeNews(record,official,{now:NOW});assert(item);
+ assert.equal(chooseNews([item],{enabled:true,now:NOW+20*86400000}).length,0);
+ assert.equal(chooseNews([item],{enabled:true,now:NOW,maxAgeDays:14}).length,1);
+});
+test('verified only platform, region and genre metadata survives normalization',()=>{
+ const row={title:'“Aurora” premiere announced by Studio',guid:'approved'};
+ const official=interpretKDramaEntry(row,{confirmedBySource:{approved:{verified:true,genre:'Romance',platform:'Viki',availabilityRegion:'Nigeria',show:'Aurora'}}});
+ const unverified=interpretKDramaEntry({...row,guid:'unknown'},{});
+ assert.equal(official.platform,'Viki');assert.equal(official.availabilityRegion,'Nigeria');assert.equal(official.genre,'Romance');
+ assert.equal(unverified.platform,'');assert.equal(unverified.availabilityRegion,'');
+ const news=normalizeNews({...official,title:row.title,url:'https://studio.example/story',publishedAt:new Date(NOW).toISOString()},{id:'official',trustedHost:'studio.example',official:true},{now:NOW});
+ assert.equal(news.genre,'Romance');assert.equal(news.platform,'Viki');assert.equal(news.availabilityRegion,'Nigeria');
+});
