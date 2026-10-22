@@ -18,20 +18,32 @@ const renderer=({width:w,height:h})=>
     '"><text x="10" y="80" fill="white" font-size="34">NIGHT</text></svg>')).png().toBuffer();
 const cache=new WatermarkCache({maxEntries:8,maxBytes:2*1024*1024});
 const counts=[],at=performance.now();
-let peakRss=process.memoryUsage().rss;
-for(let round=0;round<8;round++){
-  const start=performance.now();
-  const res=await watermarkStaticImage({
-    input:image,channelId:'120363456789012345@newsletter',displayName:'NIGHT',
-    position:'auto',opacity:.22,cache,renderText:renderer,sharpLibrary:sharp
-  });
-  counts.push({ms:Math.round(performance.now()-start),resultBytes:res.buffer.length});
+const baselineRss=process.memoryUsage().rss;
+let peakRss=baselineRss,rssSamples=0;
+// Sharp executes native operations off the JS event loop. Sampling only when
+// each promise resolves can miss its largest temporary decode/composite RSS.
+const meter=setInterval(()=>{
+  rssSamples++;
   peakRss=Math.max(peakRss,process.memoryUsage().rss);
-}
+},10);
+try{
+  for(let round=0;round<8;round++){
+    const start=performance.now();
+    const res=await watermarkStaticImage({
+      input:image,channelId:'120363456789012345@newsletter',displayName:'NIGHT',
+      position:'auto',opacity:.22,cache,renderText:renderer,sharpLibrary:sharp
+    });
+    counts.push({ms:Math.round(performance.now()-start),resultBytes:res.buffer.length});
+    peakRss=Math.max(peakRss,process.memoryUsage().rss);
+  }
+}finally{clearInterval(meter)}
 const report={
   note:'Isolated synthetic sample; NOT total live MSCC process RSS; single-worker assumption.',
   jobs:counts.length,sourcePixels:width*height,sourceEncodedBytes:image.length,
   totalMs:Math.round(performance.now()-at),
+  samplingIntervalMs:10,samples:rssSamples,
+  baselineRSSMiB:Math.round(baselineRss/1048576),
+  sampledPeakRSSMiB:Math.round(peakRss/1048576),
   peakRSSMiB:Math.round(peakRss/1048576),
   maxJobMs:Math.max(...counts.map(x=>x.ms)),
   maxResultBytes:Math.max(...counts.map(x=>x.resultBytes)),
