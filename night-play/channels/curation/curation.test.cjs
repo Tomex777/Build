@@ -515,3 +515,11 @@ test('single-flight feed failure reopens the source for a later authorized retry
  assert.equal(calls,1);assert(failures.every(r=>r.status==='rejected'));
  assert.equal((await feed.discover()).items.length,1);assert.equal(calls,2);
 });
+
+test('future-dated meme metadata cannot game freshness rankings',()=>{
+ const now=NOW;
+ const valid=meme('fresh-real',{createdAt:new Date(now-300000).toISOString()});
+ const invented=meme('clock-in-future',{createdAt:new Date(now+48*3600000).toISOString(),upvotes:999999});
+ const results=chooseFourMemes([invented,valid],{enabled:true,now});
+ assert.deepEqual(results.map(x=>x.id),[valid.id]);
+});
