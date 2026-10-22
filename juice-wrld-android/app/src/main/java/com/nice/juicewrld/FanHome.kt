@@ -127,10 +127,7 @@ fun FanHome(player: FanPlayer = viewModel()) {
                 )
             }
             item {
-                FanHero(
-                    onLove = { moodName = Mood.LOVE.name },
-                    onSongs = { moodName = Mood.ALL.name }
-                )
+                FanHero()
             }
             item {
                 Row(
@@ -227,6 +224,12 @@ fun FanHome(player: FanPlayer = viewModel()) {
                         letterSpacing = 3.sp, fontSize = 11.sp)
                     Spacer(Modifier.height(5.dp))
                     Text("An unofficial fan-made collection.", color = Gray, fontSize = 11.sp)
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        "Portrait: Lexiou WesCudi · CC BY-SA 2.0",
+                        color = Gray, fontSize = 10.sp,
+                        modifier = Modifier.clickable { openPortraitCredit(context) }
+                    )
                 }
             }
         }
@@ -311,7 +314,7 @@ private fun FanHeader(isFavorite: Boolean, onFavorite: () -> Unit) {
 }
 
 @Composable
-private fun FanHero(onLove: () -> Unit, onSongs: () -> Unit) {
+private fun FanHero() {
     Box(
         Modifier.fillMaxWidth().padding(horizontal = 17.dp, vertical = 5.dp)
             .heightIn(min = 226.dp).clip(RoundedCornerShape(25.dp))
@@ -343,30 +346,37 @@ private fun FanHero(onLove: () -> Unit, onSongs: () -> Unit) {
                 Text("From heartbreak to pure hype.", color = Color(0xFFDDD0EB),
                     fontSize = 11.sp, lineHeight = 16.sp)
                 Spacer(Modifier.height(15.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                    Text(
-                        "EXPLORE SONGS",
-                        color = White, fontSize = 9.sp, letterSpacing = 0.5.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        modifier = Modifier.clip(RoundedCornerShape(18.dp))
-                            .background(Color(0xFF8156B3)).clickable(onClick = onSongs)
-                            .padding(horizontal = 12.dp, vertical = 11.dp)
-                    )
-                    Icon(
-                        Icons.Filled.ArrowForward,
-                        contentDescription = null, tint = Lavender,
-                        modifier = Modifier.size(16.dp).align(Alignment.CenterVertically)
-                    )
-                }
+                Text(
+                    FanSongs.all.size.toString() + " SONGS · 999 FOREVER",
+                    color = Lavender, fontSize = 9.sp,
+                    fontWeight = FontWeight.Black, letterSpacing = 1.2.sp
+                )
             }
-            AlbumCover(
-                album = "Legends Never Die",
-                modifier = Modifier.width(123.dp).aspectRatio(0.87f)
-                    .clip(RoundedCornerShape(16.dp)),
-                title = "Juice WRLD"
+            ArtistPortrait(
+                Modifier.width(130.dp).height(170.dp).clip(RoundedCornerShape(17.dp))
             )
         }
     }
+}
+
+
+@Composable
+private fun ArtistPortrait(modifier: Modifier) {
+    SubcomposeAsyncImage(
+        model = "https://commons.wikimedia.org/wiki/Special:FilePath/Juice_WRLD_-_Les_Ardentes_2019_%28cropped_2%29.jpg?width=480",
+        contentDescription = "Juice WRLD performing in 2019, photo by Lexiou WesCudi",
+        modifier = modifier,
+        contentScale = ContentScale.Crop,
+        loading = { CoverPlaceholder("Juice WRLD", Modifier.fillMaxSize()) },
+        error = { CoverPlaceholder("Juice WRLD", Modifier.fillMaxSize()) },
+        success = { SubcomposeAsyncImageContent(contentScale = ContentScale.Crop) }
+    )
+}
+
+private fun openPortraitCredit(context: Context) {
+    val url = "https://commons.wikimedia.org/wiki/File:Juice_WRLD_-_Les_Ardentes_2019_(cropped_2).jpg"
+    try { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
+    catch (_: ActivityNotFoundException) { }
 }
 
 private fun moodColors(mood: Mood): List<Color> = when (mood) {
