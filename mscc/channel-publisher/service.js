@@ -92,10 +92,16 @@ export class ChannelPublisher {
   }
   invalidateChannel(channelId) { invalidateChannelWatermarkCache(channelId) }
   cleanup() {
-    // Bound cached media on the shared 1 GB bot rather than retaining unlimited old batches.
+    // Bound historical images and never retain an approved tray indefinitely.
+    // No queued/sending post can be removed by this maintenance path.
     const day=86400000
     this.db.prepare("DELETE FROM play_channel_jobs WHERE state IN ('sent','cancelled','blocked','needs_review') AND created_at<?").run(this.now()-90*day)
-    this.db.prepare("DELETE FROM play_channel_batches WHERE created_at<? AND NOT EXISTS (SELECT 1 FROM play_channel_reviews r JOIN play_channel_candidates c ON c.id=r.candidate_id WHERE c.batch_id=play_channel_batches.id AND r.decision='approved') AND NOT EXISTS (SELECT 1 FROM play_channel_jobs j JOIN play_channel_candidates c ON c.id=j.candidate_id WHERE c.batch_id=play_channel_batches.id)").run(this.now()-7*day)
+    const expiring=this.db.prepare("SELECT DISTINCT user_id,channel_id FROM play_channel_batches b WHERE b.created_at<? AND NOT EXISTS (SELECT 1 FROM play_channel_jobs j JOIN play_channel_candidates c ON c.id=j.candidate_id WHERE c.batch_id=b.id)").all(this.now()-14*day)
+    this.play.transaction(()=>{
+      for (const {user_id,channel_id} of expiring)
+        this.db.prepare('UPDATE play_channel_selection SET revision=revision+1 WHERE user_id=? AND channel_id=?').run(user_id,channel_id)
+      this.db.prepare("DELETE FROM play_channel_batches WHERE created_at<? AND NOT EXISTS (SELECT 1 FROM play_channel_jobs j JOIN play_channel_candidates c ON c.id=j.candidate_id WHERE c.batch_id=play_channel_batches.id)").run(this.now()-14*day)
+    })
   }
   claim(userId,channelId) {
     if (!userId) fail(401,'Connect WhatsApp to continue.')
