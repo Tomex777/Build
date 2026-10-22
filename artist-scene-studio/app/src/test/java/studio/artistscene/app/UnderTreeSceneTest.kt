@@ -137,6 +137,23 @@ class UnderTreeSceneTest {
         })
         assertEquals(changedArm,
             UnderTreeScene.upgradeUntouchedDemoComposition(changedArm))
+        // A swap keeps the same unordered set of rotations. Migration still
+        // must reject it because exact bone-to-rotation identity is edited.
+        val oldFemale = legacy.actors.first { it.id == UnderTreeScene.FIRST_STUDENT_ID }
+        val oldJoints = oldFemale.rig!!.joints
+        val swappedJoints = oldJoints.toMutableMap().apply {
+            val leftArm = getValue("figure/upperarm-l")
+            val rightArm = getValue("figure/upperarm-r")
+            put("figure/upperarm-l", rightArm)
+            put("figure/upperarm-r", leftArm)
+        }
+        val swappedArms = legacy.copy(actors = legacy.actors.map {
+            if (it.id == UnderTreeScene.FIRST_STUDENT_ID)
+                it.copy(rig = it.rig!!.copy(joints = swappedJoints))
+            else it
+        })
+        assertEquals(swappedArms,
+            UnderTreeScene.upgradeUntouchedDemoComposition(swappedArms))
         val changedCamera = legacy.copy(cameras = legacy.cameras.map {
             it.copy(position = it.position.copy(z = 5.75f))
         })
@@ -184,7 +201,10 @@ class UnderTreeSceneTest {
                     morphTargets = listOf(studio.artistscene.core.RigMorphTarget(
                         "morph/face/joy-3", "Joy", "Face")),
                 )
-                PrototypeScene.resolveAnimePose(actor, discovered)
+                // StudioScreen.withDiscoveredRig stores the source bone
+                // dictionary before semantic remapping; match that lifecycle.
+                PrototypeScene.resolveAnimePose(
+                    actor.copy(rigDefinition = discovered), discovered)
             }
         })
         val migrated = UnderTreeScene.upgradeUntouchedDemoComposition(retargeted)
