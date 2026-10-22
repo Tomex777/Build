@@ -46,6 +46,12 @@ try{
   assert.ok(samples.every(x=>x===200)&&samples.length===10,'every local MP3 served');
   const rect=await p.locator('#board').boundingBox();
   assert.ok(rect.width>=300&&rect.height>=310,'fully visible responsive touch area');
+  assert.ok(rect.y>=0&&rect.y+rect.height<=height+1,'entire board fits vertically');
+  assert.ok(rect.width/4>=70,'each lane remains finger-sized');
+  const pageSize=await p.evaluate(()=>({width:document.documentElement.scrollWidth,
+   height:document.documentElement.scrollHeight}));
+  assert.ok(pageSize.width<=width+1&&pageSize.height<=height+1,
+   'active game fits without horizontal or vertical page scrolling');
   if(width===390)await p.screenshot({path:join(output,'piano-real-grand-390.png')});
   const first=await p.evaluate(()=>window.__nightPianoTest.geometry()[0]);
   const lane=await p.evaluate(()=>window.__nightPianoTest.snapshot().notes[0].lane);
