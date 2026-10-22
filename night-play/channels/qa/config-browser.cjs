@@ -16,12 +16,13 @@ function initial() {return {revision:0,modules:{memes:false,news:false,anonymous
   news:{mode:'review',interests:['casting'],spoilers:'avoid'},
   capabilities:{ai:false}};}
 for(const owner of ['A','B'])configs.set(owner,initial());
-const answers=new Map(),requests=[],jobs=[];
+const answers=new Map(),activeBatch=new Map(),requests=[],jobs=[];
 let brokenConfig=false,ownerARevoked=false,nextBatchCounter=0;
 function candidates(batch) {return Array.from({length:4},(_,i)=>({
  id:'fixture_'+batch+'_'+(i+1),title:['Relatable','Old but funny','Anime','Animals'][i]+' sample '+batch,
  category:'relatable',caption:'Editable caption '+(i+1),previewData:giflessPNG,
- publishable:i!==3,reviewOnly:i===3,publishBlockedReason:i===3?'rights_unverified':null,
+ publishable:i!==3,rightsStatus:i===3?'unverified':'verified',reviewOnly:i===3,
+ publishBlockedReason:i===3?'rights_unverified':null,
  sourceName:'Offline fixture, not a live licensed feed',
  sourceUrl:'https://example.org/fixture/'+batch+'/'+i
 }));}
@@ -72,10 +73,14 @@ const server=http.createServer(async(req,res)=>{
   config.revision++;return reply(200,clone(config));
  }
  if(action==='channel:jobs:list')return reply(200,{jobs:jobs.filter(j=>j.owner===owner)});
- if(action==='channel:memes:current')return reply(404,{error:'No persisted batch'});
+ if(action==='channel:memes:current'){
+  const saved=activeBatch.get(owner);
+  return saved?reply(200,makeBatch(saved)):reply(404,{error:'No persisted batch'});
+ }
  if(action==='channel:memes:find'){
   if(!config.modules.memes)return reply(403,{error:'Meme module is OFF'});
   const batch=body.next?++nextBatchCounter+1:1;
+  activeBatch.set(owner,batch);
   return reply(200,makeBatch(batch));
  }
  if(action==='channel:memes:review'){
@@ -172,6 +177,16 @@ async function main(){
   await page.locator('.review-card').first().getByText('Approved',{exact:true}).waitFor();
   assert.match(await page.locator('#approvedCount').innerText(),/^1 approved/);
   await page.screenshot({path:path.join(output,'review-first-approved.png'),fullPage:true});
+  // Reload must restore the server-held candidate/decision, rather than
+  // pretending an ephemeral browser checkbox is durable approval.
+  await page.reload();
+  await page.locator('#configUI:visible').waitFor();
+  await page.locator('.review-card').first().getByText('Approved',{exact:true}).waitFor();
+  assert.match(await page.locator('#approvedCount').innerText(),/^1 approved/,
+    'Server-restored batch must preserve approved decision after reload');
+  await page.screenshot({path:path.join(output,'approved-after-reload.png'),fullPage:true});
+  if(await page.locator('.review-card').first().getByRole('button',{name:'Skip'}).count()!==1)
+    findings.push('P1: no explicit per-candidate Skip decision/button; Decline cannot substitute for Skip');
   await page.getByRole('button',{name:'Next four'}).click();
   await page.locator('.review-card').first().getByRole('heading',{name:/sample 2/}).waitFor();
   await page.screenshot({path:path.join(output,'review-next-batch.png'),fullPage:true});
