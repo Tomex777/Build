@@ -159,6 +159,7 @@ function chooseNews(items,{enabled=false,interests=[],shows=[],genres=[],platfor
 
 function deriveHumanFeedback(reviewHistory){
  const counters=Object.create(null),sourceCounters=Object.create(null),feedback=Object.create(null),sources=Object.create(null);
+ let sourceCount=0;
  // Caller MUST pass authenticated, per-owner/per-channel review events, never
  // crowd or global browsing data. Bound memory, record volume and source variety.
  for(const record of (Array.isArray(reviewHistory)?reviewHistory:[]).slice(-5000)){
@@ -168,8 +169,8 @@ function deriveHumanFeedback(reviewHistory){
   counters[category][decision]++;
   const sourceId=record?.sourceId;
   if(typeof sourceId==='string'&&/^[A-Za-z0-9:._/\\-]{2,120}$/.test(sourceId)&&
-    (Object.hasOwn(sourceCounters,sourceId)||Object.keys(sourceCounters).length<256)){
-   if(!sourceCounters[sourceId])sourceCounters[sourceId]={approved:0,declined:0};
+    (Object.hasOwn(sourceCounters,sourceId)||sourceCount<256)){
+   if(!Object.hasOwn(sourceCounters,sourceId)){sourceCounters[sourceId]={approved:0,declined:0};sourceCount++;}
    sourceCounters[sourceId][decision]++;
   }
  }
