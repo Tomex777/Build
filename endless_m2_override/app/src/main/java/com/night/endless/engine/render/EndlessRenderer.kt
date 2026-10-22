@@ -2613,7 +2613,6 @@ void main() {
     // AGAIN squared dark bands and made the entire lit ring nearly invisible.
     // Respect the supplied opacity; Cassini gaps remain transparent via t.a.
     float alpha = t.a * 0.92;
-    if (alpha < 0.02) discard;
 
     vec3 toSun = normalize(-uPlanetCenter);
     vec3 location = vWorld - uPlanetCenter;
@@ -2647,6 +2646,9 @@ void main() {
     );
     // Preserve a dim reflected/scattered component beneath the umbra.
     float shadow = mix(1.0, 0.11, blocking);
+    // Derivatives above must execute before per-fragment discard on mobile
+    // drivers. A discontinuous early discard can make fwidth undefined.
+    if (alpha < 0.02) discard;
     fragColor = vec4(t.rgb * illumination * shadow, alpha);
 }
 """
