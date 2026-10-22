@@ -6,7 +6,7 @@ const channelId=params.get('channel')||'';
 const MODULES=['memes','news','anonymous','ai'];
 const CATEGORIES=new Set(['relatable','wholesome','anime','nigerian','animals','relationships','dark']);
 const INTERESTS=new Set(['casting','releases','trailers','renewals','romance','platforms']);
-let channel=null,config=null,batch=null,selection=null,reviewBusy=false,configBusy=false,loadEpoch=0;
+let channel=null,config=null,batch=null,selection=null,selectionUncertain=false,reviewBusy=false,configBusy=false,loadEpoch=0;
 const decisions=new Map(),captionDirty=new Set();
 const jid=/^\d{8,25}@newsletter$/;
 const make=(tag,cls,text)=>{const el=document.createElement(tag);if(cls)el.className=cls;if(text!==undefined)el.textContent=String(text);return el};
@@ -18,6 +18,7 @@ const toast=message=>{const t=$('toast');t.textContent=message;t.hidden=false;cl
 const note=(message,isError=false,id='notice')=>{const n=$(id);n.hidden=!message;n.className='config-banner'+(isError?' error':'');n.textContent=message||''};
 const showState=(title,body,retry=false)=>{$('state').hidden=false;$('configUI').hidden=true;$('stateTitle').textContent=title;$('stateText').textContent=body;$('retry').hidden=!retry};
 const errorMessage=error=>error instanceof Error?error.message:'NIGHT could not finish this request.';
+const mayHaveCommitted=error=>!Number.isInteger(error?.status)||error.status===409||error.status>=500;
 async function api(action,rest={}){
   let response;
   try {
@@ -30,7 +31,7 @@ async function api(action,rest={}){
     });
   }catch{throw new Error('NIGHT did not confirm the request. Check status before retrying.');}
   const data=await response.json().catch(()=>({error:'Invalid response from NIGHT.'}));
-  if(!response.ok)throw new Error(typeof data.error==='string'?data.error:'This feature is not available on NIGHT yet.');
+  if(!response.ok){const failure=new Error(typeof data.error==='string'?data.error:'This feature is not available on NIGHT yet.');failure.status=response.status;throw failure;}
   return data;
 }
 const validSettings=value=>{
@@ -229,10 +230,10 @@ function updateReview(){
  const count=approved().length;
  $('reviewSummary').hidden=!batch&&!count;
  $('approvedCount').textContent=count+' approved';
- $('publishApproved').disabled=!count||reviewBusy||captionDirty.size>0||config?.modules?.memes!==true;
- $('scheduleButton').disabled=!count||reviewBusy||captionDirty.size>0||config?.modules?.memes!==true;
- $('nextBatch').disabled=reviewBusy||captionDirty.size>0;
- $('findMemes').disabled=reviewBusy||captionDirty.size>0;
+ $('publishApproved').disabled=!count||reviewBusy||selectionUncertain||captionDirty.size>0||config?.modules?.memes!==true;
+ $('scheduleButton').disabled=!count||reviewBusy||selectionUncertain||captionDirty.size>0||config?.modules?.memes!==true;
+ $('nextBatch').disabled=reviewBusy||selectionUncertain||captionDirty.size>0;
+ $('findMemes').disabled=reviewBusy||selectionUncertain||captionDirty.size>0;
 }
 function paintSelection(){
  const list=$('selectedPosts');
@@ -251,7 +252,7 @@ function paintSelection(){
  }
 }
 async function removeSelected(item,button){
- if(reviewBusy||!selection)return;
+ if(reviewBusy||selectionUncertain||!selection)return;
  reviewBusy=true;setBusy(button,true);updateReview();
  try{
    const result=await api('channel:memes:review',{batchId:item.batchId,candidateId:item.candidateId,decision:'skipped',caption:item.caption,expectedSelectionRevision:selection.revision});
@@ -262,7 +263,7 @@ async function removeSelected(item,button){
    if(batch?.batchId===item.batchId)paintReview();
    else paintSelection();
    note('Removed from approved selection.');
- }catch(error){note(errorMessage(error)+' Reload before retrying.',true);}
+ }catch(error){if(mayHaveCommitted(error))selectionUncertain=true;note(errorMessage(error)+' Reload to verify your saved approvals.',true);}
  finally{reviewBusy=false;paintSelection();updateReview();}
 }
 function reviewCard(c){
@@ -313,6 +314,7 @@ function paintReview(){
 }
 async function findMemes(next){
  if(reviewBusy||!channel)return;
+ if(selectionUncertain){note('Reload to verify the approved selection before finding more memes.',true,'reviewNotice');return;}
  if(captionDirty.size){note('Approve, decline, or skip edited captions before finding another batch.',true,'reviewNotice');return;}
  reviewBusy=true;setBusy($('findMemes'),true);updateReview();
  note('Searching permitted sources…',false,'reviewNotice');
@@ -348,7 +350,7 @@ async function previewPost(candidate,caption){
  }
 }
 async function decide(candidate,decision,caption,card,status,actions){
- if(reviewBusy||!batch||!selection||(decision==='approved'&&!licensable(candidate)))return;
+ if(reviewBusy||selectionUncertain||!batch||!selection||(decision==='approved'&&!licensable(candidate)))return;
  reviewBusy=true;
  for(const btn of actions.querySelectorAll('button'))setBusy(btn,true);
  updateReview();
@@ -367,7 +369,7 @@ async function decide(candidate,decision,caption,card,status,actions){
    status.textContent=decision==='approved'?'Approved':decision==='declined'?'Declined':'Skipped';
    paintSelection();
    note('',false,'reviewNotice');
- }catch(error){note(errorMessage(error)+' Decision not confirmed. Reload before retrying.',true,'reviewNotice');}
+ }catch(error){if(mayHaveCommitted(error))selectionUncertain=true;note(errorMessage(error)+' Decision not confirmed. Reload to verify saved approvals.',true,'reviewNotice');}
  finally{reviewBusy=false;for(const btn of actions.querySelectorAll('button'))setBusy(btn,false);
    const approveButton=actions.querySelector('button.primary');
    if(approveButton)approveButton.disabled=!licensable(candidate)||card.dataset.previewFailed==='true';
@@ -382,7 +384,7 @@ function localToUTC(input){
  return d.toISOString();
 }
 async function publish(mode){
- if(reviewBusy||!selection||!approved().length||captionDirty.size>0||config?.modules?.memes!==true)return;
+ if(reviewBusy||selectionUncertain||!selection||!approved().length||captionDirty.size>0||config?.modules?.memes!==true)return;
  let schedule={};
  if(mode==='schedule'){
    try{schedule={scheduledAt:localToUTC($('scheduleAt').value),timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC',spacingMinutes:Number($('spacingMinutes').value)}}catch(error){note(errorMessage(error),true,'reviewNotice');return;}
@@ -399,7 +401,7 @@ async function publish(mode){
    selection=cleared;batch=null;decisions.clear();captionDirty.clear();paintReview();$('schedulePanel').hidden=true;
    note(result.jobs.length+(mode==='schedule'?' posts scheduled.':' approved posts queued.'));
    await loadJobs();
- }catch(error){note(errorMessage(error)+' Check publishing status before trying again.',true,'reviewNotice');}
+ }catch(error){if(mayHaveCommitted(error))selectionUncertain=true;note(errorMessage(error)+' Check publishing status and reload before trying again.',true,'reviewNotice');await loadJobs();}
  finally{reviewBusy=false;setBusy(btn,false);updateReview();}
 }
 async function loadJobs(){
@@ -430,7 +432,7 @@ async function loadJobs(){
  }catch(error){$('jobs').replaceChildren(make('p','config-note',errorMessage(error)));}
 }
 async function load(){
- const epoch=++loadEpoch;channel=null;config=null;batch=null;selection=null;decisions.clear();captionDirty.clear();
+ const epoch=++loadEpoch;channel=null;config=null;batch=null;selection=null;selectionUncertain=false;decisions.clear();captionDirty.clear();
  $('configUI').hidden=true;note('');
  if(!jid.test(channelId)){showState('Invalid channel','Choose a verified channel from Your channels.');return;}
  showState('Checking permissions…','Verifying your WhatsApp identity and channel ownership.');
