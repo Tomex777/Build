@@ -208,7 +208,9 @@ class PuzzleBoardView(context: Context) : View(context) {
         paper.color = Color.rgb(252, 250, 246)
         canvas.drawRect(board, paper)
         if (g.preview) {
-            paint.alpha = 64
+            // The Memory peek must briefly show the actual complete picture,
+            // not the faint ghost guide used by Relaxed/Challenge.
+            paint.alpha = if(g.mode==PuzzleMode.MEMORY) 255 else 64
             canvas.drawBitmap(photo!!, null, board, paint)
             paint.alpha = 255
         }
