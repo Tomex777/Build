@@ -534,3 +534,14 @@ test('episode and finale headlines require review even when official ledger conf
   assert.equal(normalized.requiresReview,true,title);
  }
 });
+
+test('apostrophe in a drama title cannot create fake quoted show',()=>{
+ const {interpretKDramaEntry}=require('./kdrama.cjs');
+ const ordinary=interpretKDramaEntry({title:"It's Okay to Not Be Okay releases episode details"});
+ assert.equal(ordinary.show,'');
+ const quoted=interpretKDramaEntry({title:"New trailer for 'It's Okay to Not Be Okay' arrives today"});
+ // The title's internal apostrophe must not produce a fake show called "s Okay ...".
+ assert.notEqual(quoted.show,'s Okay to Not Be Okay');
+ const alias=interpretKDramaEntry({title:"It's Okay to Not Be Okay trailer released"},{showAliases:["It's Okay to Not Be Okay"]});
+ assert.equal(alias.show,"It's Okay to Not Be Okay");
+});
