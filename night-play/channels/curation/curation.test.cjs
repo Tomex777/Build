@@ -124,3 +124,28 @@ test('licensed catalog requires server-side rights verification, not a caller cl
  const noEvidence=licensedCatalogAdapter({loadRecords:async()=>[{...base,licenseEvidenceId:null}],verifyRights:async()=>true});
  assert.equal((await noEvidence.discover()).items.length,0);
 });
+
+const {interpretKDramaEntry}=require('./kdrama.cjs');
+test('K-drama topic and spoiler classification avoids claiming rumour as confirmation',()=>{
+ const cast=interpretKDramaEntry({title:'Actress reportedly in talks to join “Starlight” cast',guid:'one'});
+ assert(cast.tags.includes('casting'));assert.equal(cast.show,'Starlight');
+ assert.equal(cast.rumor,true);assert.equal(cast.confirmed,false);
+ const another=interpretKDramaEntry({title:'“Aurora” finale ending explained: surprise twist',guid:'x'});
+ assert.equal(another.spoiler,true);
+ const approved=interpretKDramaEntry({title:'Netflix reveals premiere date for Aurora season 2',guid:'two'},
+ {showAliases:['Aurora'],confirmedBySource:{two:{verified:true,show:'Aurora',event:'premiere date',storyKey:'aurora:premiere:2026'}}});
+ assert.equal(approved.confirmed,true);assert.equal(approved.storyKey,'aurora:premiere:2026');
+ assert(approved.tags.includes('platforms'));
+});
+test('news spoilers are excluded until explicitly opted into',()=>{
+ const source={id:'studio',name:'Studio',trustedHost:'studio.example',official:true};
+ const approved=normalizeNews({title:'Aurora finale ending explained',url:'https://studio.example/ending',
+ publishedAt:new Date(NOW).toISOString(),show:'Aurora',tags:['other'],confirmed:true,spoiler:true},source,{now:NOW});
+ assert.equal(chooseNews([approved],{enabled:true}).length,0);
+ assert.equal(chooseNews([approved],{enabled:true,includeSpoilers:true}).length,1);
+});
+test('cannot mark speculation as official despite stale confirmation',()=>{
+ const row=interpretKDramaEntry({title:'Rumored casting for Aurora',guid:'old'},
+ {confirmedBySource:{old:{verified:true}}});
+ assert.equal(row.confirmed,false);assert.equal(row.rumor,true);
+});
