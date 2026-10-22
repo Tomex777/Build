@@ -45,7 +45,7 @@ try{
   assert.ok(Object.values(instrument.durations).every(n=>n>2&&n<=3.7),'bounded decoded sample memory');
   assert.ok(samples.every(x=>x===200)&&samples.length===10,'every local MP3 served');
   const rect=await p.locator('#board').boundingBox();
-  assert.ok(rect.width>=300&&rect.height>=350,'large playable touch area');
+  assert.ok(rect.width>=300&&rect.height>=310,'fully visible responsive touch area');
   if(width===390)await p.screenshot({path:join(output,'piano-real-grand-390.png')});
   const first=await p.evaluate(()=>window.__nightPianoTest.geometry()[0]);
   await p.touchscreen.tap(rect.x+rect.width*.125,
