@@ -15,6 +15,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performTextReplacement
+import androidx.compose.ui.test.performTextInput
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -123,6 +124,15 @@ class AnnieGeckoBrowserUiTest {
                 }
                 hidden
             }
+            // Search the genuine Gecko document through the imported Omni
+            // finder before returning to normal page navigation.
+            compose.onNodeWithContentDescription("Browser menu").performClick()
+            compose.onNodeWithText("Find in page").performClick()
+            compose.onNodeWithTag("annie_browser_find_input").performTextInput("Gecko")
+            compose.onNodeWithTag("annie_browser_find_bar").assertIsDisplayed()
+            saveEmulatorScreenshot("annie-gecko-real-find-in-page")
+            compose.onNodeWithContentDescription("Close find in page").performClick()
+
             // Address entry must also dismiss an open browser panel and hand
             // focus to the reattached page, including the explicit Go button.
             compose.onNodeWithContentDescription("Browser menu").performClick()
