@@ -8,7 +8,7 @@ const EVENT_PATTERNS=Object.freeze({
  romance:/\b(?:romance|romantic|love story|rom-com|romcom)\b/i
 });
 const RUMOR=/\b(?:rumou?r(?:ed|s)?|reportedly|unconfirmed|speculation|in talks|allegedly|may (?:star|join|return))\b/i;
-const SPOILER=/\b(?:spoilers?|finale? (?:explained|reveals|twist)|ending (?:explained|revealed)|dies? in episode|episode \d+ (?:recap|twist))\b/i;
+const SPOILER=/\b(?:spoilers?|finale\b|finals? episode|the ending\b|ending (?:explained|revealed)|dies? in episode|episode\s+\d+\b|who (?:dies|survives)|plot twist|post[- ]credits)\b/i;
 // Conservative additional gate: source metadata cannot override speculative/spoiler wording.
 function classifyHeadline(title){
  const text=String(title||'');
