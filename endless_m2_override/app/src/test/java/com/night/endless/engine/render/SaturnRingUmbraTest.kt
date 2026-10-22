@@ -4,7 +4,6 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import kotlin.math.abs
-import kotlin.math.cos
 import kotlin.math.sin
 
 /** The same oblate ray test used by the on-GPU Saturn ring fragment shader. */
@@ -19,10 +18,11 @@ class SaturnRingUmbraTest {
         // Spherical umbra would cover this position; Saturn's true b/a
         // ratio shortens the shadow at oblique solar elevations.
         val args = doubleArrayOf(-2.0, 0.0, 0.4, 1.0, 0.5, 0.0)
-        assertTrue(SaturnRingUmbra.blocked(*args, polarRatio = 1.0))
+        assertTrue(SaturnRingUmbra.blocked(args[0], args[1], args[2], args[3], args[4], args[5], polarRatio = 1.0))
         assertFalse(
             SaturnRingUmbra.blocked(
-                *args, polarRatio = PlanetShape.polarRatio("saturn").toDouble()
+                args[0], args[1], args[2], args[3], args[4], args[5],
+                polarRatio = PlanetShape.polarRatio("saturn").toDouble()
             )
         )
     }
