@@ -659,16 +659,17 @@ class EndlessRenderer(
         if (selectedId != id || latestApproach.stage != "SURFACE SKIM") return false
         marsSurfaceMode = false
         moonSurfaceMode = false
+        val landing = ExtendedLandingSites.forBody(id)
         extendedSurfaceId = id
-        extendedSurfaceX = 0.0
-        extendedSurfaceZ = 0.0
+        extendedSurfaceX = landing.x
+        extendedSurfaceZ = landing.z
         surfaceForwardInput = 0f
         surfaceStrafeInput = 0f
         lastSurfaceMovementNanos = System.nanoTime()
         pendingYaw = 0.0
         pendingPitch = 0.0
-        yaw = if (id == "europa") 1.24 else .85
-        pitch = if (id == "titan") -.11 else -.08
+        yaw = landing.yaw
+        pitch = landing.pitch
         return true
     }
 
