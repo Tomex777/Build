@@ -241,6 +241,19 @@ internal fun AnnieChat() {
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val chatView = androidx.compose.ui.platform.LocalView.current
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    // Voice notes are short inline messages, not a persistent background music service.
+    // Release playback when the chat host disappears so audio is never orphaned.
+    androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_STOP) AnnieVoicePlayer.stop()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            AnnieVoicePlayer.stop()
+        }
+    }
     val scriptWorkspace = remember(context) { ScriptWorkspace(context) }
     var scriptCommands by remember { mutableStateOf<List<ScriptCommand>>(emptyList()) }
     var commandUsage by remember(context) { mutableStateOf(CommandUsageStore.read(context)) }
@@ -312,6 +325,7 @@ internal fun AnnieChat() {
     var activeMangaReader by remember { mutableStateOf<Pair<CatalogItem, File>?>(null) }
     LaunchedEffect(Unit) { ChatHistoryStore.write(context, chats) }
     LaunchedEffect(activeChatId) {
+        AnnieVoicePlayer.stop() // Switching chats never carries another conversation's voice playback.
         if (messages.isNotEmpty()) listState.scrollToItem(messages.lastIndex)
     }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
