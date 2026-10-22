@@ -31,3 +31,14 @@ jobs:
           path: night-play/visual-output/channels-agent-e/
           if-no-files-found: warn
           retention-days: 14
+
+  exact-verified-channel-name:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Exact WhatsApp name and emoji grapheme release gate
+        run: node night-play/channels/qa/exact-channel-name.mjs
