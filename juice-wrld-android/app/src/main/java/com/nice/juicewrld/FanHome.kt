@@ -124,12 +124,7 @@ fun FanHome(player: FanPlayer = viewModel()) {
             contentPadding = PaddingValues(bottom = 25.dp),
         ) {
             item {
-                FanHeader(
-                    isFavorite = mood == Mood.FAVORITES,
-                    onFavorite = {
-                        moodName = if (mood == Mood.FAVORITES) Mood.ALL.name else Mood.FAVORITES.name
-                    }
-                )
+                FanHeader()
             }
             item {
                 FanHero()
@@ -152,7 +147,7 @@ fun FanHome(player: FanPlayer = viewModel()) {
                     horizontalArrangement = Arrangement.spacedBy(11.dp)
                 ) {
                     items(
-                        listOf(Mood.LOVE, Mood.SAD, Mood.HEARTBREAK, Mood.HYPE, Mood.CHILL),
+                        listOf(Mood.ALL, Mood.FAVORITES, Mood.LOVE, Mood.SAD, Mood.HEARTBREAK, Mood.HYPE, Mood.CHILL),
                         key = { it.name }
                     ) { item ->
                         FeelingCard(
@@ -217,20 +212,6 @@ fun FanHome(player: FanPlayer = viewModel()) {
                                     tint = Gray, modifier = Modifier.size(17.dp))
                             }
                         }
-                    }
-                }
-            }
-            item {
-                val chipOrder = listOf(
-                    Mood.ALL, Mood.LOVE, Mood.SAD, Mood.HEARTBREAK,
-                    Mood.HYPE, Mood.CHILL, Mood.FAVORITES
-                )
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 22.dp, vertical = 14.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(chipOrder, key = { it.name }) { item ->
-                        MoodChip(item, mood == item) { moodName = item.name }
                     }
                 }
             }
@@ -316,7 +297,7 @@ fun FanHome(player: FanPlayer = viewModel()) {
 }
 
 @Composable
-private fun FanHeader(isFavorite: Boolean, onFavorite: () -> Unit) {
+private fun FanHeader() {
     Row(
         Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 16.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -334,20 +315,7 @@ private fun FanHeader(isFavorite: Boolean, onFavorite: () -> Unit) {
                 letterSpacing = 2.sp, fontWeight = FontWeight.Black)
             Spacer(Modifier.height(2.dp))
             Text("THE 999 FAN SPACE", color = Gray, fontSize = 9.sp,
-                letterSpacing = 2.0.sp, fontWeight = FontWeight.Bold)
-        }
-        Spacer(Modifier.weight(1f))
-        IconButton(
-            modifier = Modifier.size(45.dp).clip(CircleShape)
-                .background(Panel).semantics {
-                    contentDescription = if (isFavorite) "Show all songs" else "Show favorites"
-                },
-            onClick = onFavorite
-        ) {
-            Icon(
-                if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                tint = if (isFavorite) Rose else Lavender, contentDescription = null
-            )
+                letterSpacing = 2.sp, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -481,28 +449,6 @@ private fun FanSearch(text: String, onTextChange: (String) -> Unit) {
                     modifier = Modifier.size(19.dp))
             }
         }
-    }
-}
-
-@Composable
-private fun MoodChip(mood: Mood, selected: Boolean, onClick: () -> Unit) {
-    Row(
-        modifier = Modifier.height(40.dp).clip(CircleShape)
-            .background(if (selected) White else Panel)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 15.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(5.dp)
-    ) {
-        if (mood == Mood.FAVORITES) {
-            Icon(
-                Icons.Filled.Favorite,
-                tint = if (selected) Color(0xFF954D6A) else Rose,
-                contentDescription = null, modifier = Modifier.size(13.dp)
-            )
-        }
-        Text(mood.label, color = if (selected) Night else Gray, fontSize = 12.sp,
-            fontWeight = FontWeight.Bold)
     }
 }
 
