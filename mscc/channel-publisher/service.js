@@ -85,7 +85,7 @@ export class ChannelPublisher {
       'CREATE TABLE IF NOT EXISTS play_channel_batches (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, channel_id TEXT NOT NULL, created_at INTEGER NOT NULL, FOREIGN KEY(user_id,channel_id) REFERENCES play_channel_claims(user_id,channel_id) ON DELETE CASCADE);'+
       'CREATE TABLE IF NOT EXISTS play_channel_candidates (id TEXT PRIMARY KEY, batch_id TEXT NOT NULL REFERENCES play_channel_batches(id) ON DELETE CASCADE, user_id TEXT NOT NULL, channel_id TEXT NOT NULL, caption TEXT NOT NULL, title TEXT NOT NULL, category TEXT NOT NULL, source_name TEXT NOT NULL, source_url TEXT NOT NULL, image BLOB NOT NULL, mime TEXT NOT NULL, sha256 TEXT NOT NULL, license_id TEXT NOT NULL, rights_verified INTEGER NOT NULL DEFAULT 0, FOREIGN KEY(user_id,channel_id) REFERENCES play_channel_claims(user_id,channel_id) ON DELETE CASCADE);'+
       'CREATE TABLE IF NOT EXISTS play_channel_reviews (candidate_id TEXT PRIMARY KEY REFERENCES play_channel_candidates(id) ON DELETE CASCADE, user_id TEXT NOT NULL, channel_id TEXT NOT NULL, decision TEXT NOT NULL CHECK(decision IN (\'approved\',\'declined\',\'skipped\')), caption TEXT NOT NULL, updated_at INTEGER NOT NULL);'+
-      'CREATE TABLE IF NOT EXISTS play_channel_jobs (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, channel_id TEXT NOT NULL, candidate_id TEXT NOT NULL UNIQUE REFERENCES play_channel_candidates(id), caption TEXT NOT NULL, scheduled_at INTEGER NOT NULL, created_at INTEGER NOT NULL, state TEXT NOT NULL CHECK(state IN (\'queued\',\'sending\',\'sent\',\'cancelled\',\'blocked\',\'needs_review\')), sent_at INTEGER, message_id TEXT, last_error TEXT, FOREIGN KEY(user_id,channel_id) REFERENCES play_channel_claims(user_id,channel_id) ON DELETE CASCADE);'+
+      'CREATE TABLE IF NOT EXISTS play_channel_jobs (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, channel_id TEXT NOT NULL, candidate_id TEXT NOT NULL UNIQUE REFERENCES play_channel_candidates(id), caption TEXT NOT NULL, scheduled_at INTEGER NOT NULL, created_at INTEGER NOT NULL, state TEXT NOT NULL CHECK(state IN (\'queued\',\'sending\',\'sent\',\'cancelled\',\'blocked\',\'needs_review\')), sent_at INTEGER, message_id TEXT, last_error TEXT, branding_json TEXT NOT NULL DEFAULT '{}',channel_name TEXT NOT NULL DEFAULT '',FOREIGN KEY(user_id,channel_id) REFERENCES play_channel_claims(user_id,channel_id) ON DELETE CASCADE);'+
       'CREATE INDEX IF NOT EXISTS play_channel_jobs_due ON play_channel_jobs(state,scheduled_at);'+
       'CREATE TABLE IF NOT EXISTS play_channel_selection (user_id TEXT NOT NULL,channel_id TEXT NOT NULL,id TEXT NOT NULL,revision INTEGER NOT NULL,PRIMARY KEY(user_id,channel_id),FOREIGN KEY(user_id,channel_id) REFERENCES play_channel_claims(user_id,channel_id) ON DELETE CASCADE);'
     )
@@ -131,7 +131,7 @@ export class ChannelPublisher {
     const changed=this.db.prepare('UPDATE play_channel_config SET revision=?,payload=? WHERE user_id=? AND channel_id=? AND revision=?').run(next.revision,JSON.stringify(next),userId,channelId,revision)
     if(!changed.changes) fail(409,'Channel settings changed. Refresh first.')
     // Revocation invalidates pending jobs, including jobs queued by a second device.
-    if (patch.modules?.memes===false) this.db.prepare("UPDATE play_channel_jobs SET state='cancelled',last_error='Module disabled' WHERE user_id=? AND channel_id=? AND state='queued'").run(userId,channelId)
+    if (patch.modules?.memes===false || patch.branding) this.db.prepare("UPDATE play_channel_jobs SET state='cancelled',last_error='Publishing settings changed; fresh approval required' WHERE user_id=? AND channel_id=? AND state='queued'").run(userId,channelId)
     return this.config(userId,channelId)
   }
   selection(userId,channelId) {
@@ -224,7 +224,7 @@ export class ChannelPublisher {
         const existing=this.db.prepare('SELECT id FROM play_channel_jobs WHERE candidate_id=?').get(c.id)
         if(existing)fail(409,'A selected post is already queued. Reload before trying again.')
         const id=randomUUID(),due=first+i*(mode==='schedule'?spacingMinutes:1)*60000
-        this.db.prepare("INSERT INTO play_channel_jobs (id,user_id,channel_id,candidate_id,caption,scheduled_at,created_at,state) VALUES (?,?,?,?,?,?,?,'queued')").run(id,userId,channelId,c.id,item.caption,due,this.now())
+        this.db.prepare("INSERT INTO play_channel_jobs (id,user_id,channel_id,candidate_id,caption,scheduled_at,created_at,state,branding_json,channel_name) VALUES (?,?,?,?,?,?,?,'queued',?,?)").run(id,userId,channelId,c.id,item.caption,due,this.now(),JSON.stringify(cfg.branding),claim.name)
         jobs.push({id,status:'queued',scheduledAt:new Date(due).toISOString(),title:c.title})
       })
       this.db.prepare('UPDATE play_channel_selection SET revision=revision+1 WHERE user_id=? AND channel_id=?').run(userId,channelId)
@@ -269,18 +269,24 @@ export class ChannelPublisher {
       if(!guard.changes) continue
       try{
         const {account,name}=await this.permission(j.user_id,j.channel_id,accounts)
+        if(name!==j.channel_name) fail(409,'Verified channel name changed after approval. Fresh review required.')
         const cfg=this.config(j.user_id,j.channel_id)
         const c=this.db.prepare("SELECT * FROM play_channel_candidates WHERE id=? AND user_id=? AND channel_id=?").get(j.candidate_id,j.user_id,j.channel_id)
         const r=this.db.prepare("SELECT * FROM play_channel_reviews WHERE candidate_id=? AND user_id=? AND channel_id=?").get(j.candidate_id,j.user_id,j.channel_id)
         if (!cfg.modules.memes||!c||!r||r.decision!=='approved'||r.caption!==j.caption||!c.rights_verified||!c.license_id||digest(c.image)!==c.sha256) fail(403,'Module, approval, or licensed media was revoked.')
         if(typeof prepare!=='function') fail(503,'Verified watermark and caption renderer is not connected.')
         // Recheck once immediately before send; all sends remain fail-closed by default.
-        const formatted=await prepare({image:Buffer.from(c.image),mime:c.mime,caption:j.caption,branding:cfg.branding,displayName:name,channelId:j.channel_id,sourceKind:'automation'})
-        if(!formatted?.image || !Buffer.isBuffer(formatted.image) || typeof formatted.caption!=='string') fail(503,'Unable to validate the final post.')
-        await this.permission(j.user_id,j.channel_id,accounts)
+        const formatted=await prepare({mediaBuffer:Buffer.from(c.image),text:j.caption,branding:JSON.parse(j.branding_json),verifiedDisplayName:name,channelId:j.channel_id,sourceKind:'automation'})
+        if(!Buffer.isBuffer(formatted?.mediaBuffer) || typeof formatted.caption!=='string') fail(503,'Unable to validate the final post.')
+        const finalGuard=await this.permission(j.user_id,j.channel_id,accounts)
+        if(finalGuard.name!==j.channel_name)fail(403,'Verified channel name changed before sending.')
         if(!this.config(j.user_id,j.channel_id).modules.memes) fail(403,'Module disabled before sending.')
+        const finalReview=this.db.prepare("SELECT decision,caption FROM play_channel_reviews WHERE candidate_id=? AND user_id=? AND channel_id=?").get(j.candidate_id,j.user_id,j.channel_id)
+        if(finalReview?.decision!=='approved'||finalReview.caption!==j.caption)fail(403,'Approval was revoked before sending.')
+        const finalCandidate=this.db.prepare("SELECT image,sha256,rights_verified,license_id FROM play_channel_candidates WHERE id=? AND user_id=? AND channel_id=?").get(j.candidate_id,j.user_id,j.channel_id)
+        if(!finalCandidate?.rights_verified||!finalCandidate.license_id||digest(finalCandidate.image)!==finalCandidate.sha256)fail(403,'Content rights changed before sending.')
         if(typeof account.sock?.sendMessage!=='function') fail(503,'Newsletter media publishing is unsupported.')
-        const result=await account.sock.sendMessage(j.channel_id,{image:formatted.image,caption:formatted.caption})
+        const result=await account.sock.sendMessage(j.channel_id,{image:formatted.mediaBuffer,caption:formatted.caption})
         if(!result?.key?.id) fail(502,'WhatsApp did not confirm the sent message; operator review required.')
         this.db.prepare("UPDATE play_channel_jobs SET state='sent',sent_at=?,message_id=?,last_error=NULL WHERE id=? AND state='sending'").run(this.now(),result.key.id,j.id)
         sent++
