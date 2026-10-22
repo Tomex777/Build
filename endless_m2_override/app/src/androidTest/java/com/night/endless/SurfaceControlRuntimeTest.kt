@@ -148,6 +148,36 @@ class SurfaceControlRuntimeTest {
             assertTrue("Input could not be reacquired after focus loss",
                 afterRestart != focusStopped)
 
+            // Two left fingers: the first thumb can lift without cancelling
+            // the second thumb that is already resting inside the joystick.
+            // This exercises ACTION_POINTER_UP ownership *promotion*.
+            val handoffAt = SystemClock.uptimeMillis()
+            val secondX = moveX + 8f * density
+            val secondY = moveY - 37f * density
+            send(view, handoffAt, MotionEvent.ACTION_DOWN, intArrayOf(4),
+                floatArrayOf(moveX), floatArrayOf(moveY - 51f * density))
+            send(view, handoffAt, MotionEvent.ACTION_POINTER_DOWN or
+                (1 shl MotionEvent.ACTION_POINTER_INDEX_SHIFT),
+                intArrayOf(4, 5), floatArrayOf(moveX, secondX),
+                floatArrayOf(moveY - 51f * density, secondY))
+            SystemClock.sleep(100)
+            send(view, handoffAt, MotionEvent.ACTION_POINTER_UP or
+                (0 shl MotionEvent.ACTION_POINTER_INDEX_SHIFT),
+                intArrayOf(4, 5), floatArrayOf(moveX, secondX),
+                floatArrayOf(moveY - 51f * density, secondY))
+            val beforeHandoff = renderer.surfaceCoordinates()
+            SystemClock.sleep(210)
+            assertTrue("Second left thumb did not inherit movement",
+                renderer.surfaceCoordinates() != beforeHandoff)
+            send(view, handoffAt, MotionEvent.ACTION_UP, intArrayOf(5),
+                floatArrayOf(secondX), floatArrayOf(secondY))
+            val endedHandoff = renderer.surfaceCoordinates()
+            SystemClock.sleep(170)
+            assertEquals("Movement kept going after final stick finger lifted",
+                endedHandoff.first, renderer.surfaceCoordinates().first, 1e-10)
+            assertEquals("Movement kept going after final stick finger lifted",
+                endedHandoff.second, renderer.surfaceCoordinates().second, 1e-10)
+
             // Real emulator telemetry; not a lab-grade phone GPU benchmark.
             val elapsed = (SystemClock.elapsedRealtime() - startedAt).coerceAtLeast(1L)
             val frames = renderer.completedFrameCount() - firstFrame
