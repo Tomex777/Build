@@ -57,13 +57,16 @@ function arrangement(song){
  const full=original?[...tune,...bridge,...tune]:tune;
  const patterns=[0,2,1,3,0,3,1,2,0,2,3,1,2,0,3,1];
  let prev=-1;
- return full.map((freq,i)=>{
+ const result=full.map((freq,i)=>{
   let lane=patterns[(i+song.id.length*3)%patterns.length];
   if(lane===prev)lane=(lane+1)%4;
   prev=lane;
   const hold=song.holdIndices?song.holdIndices.includes(i):i>3 && (i+song.id.length)%17===16;
   return {lane,freq,at:1.35+i*.59,duration:hold?.68:0,hold,state:"waiting",pointer:null,start:0,scoreGiven:false,voice:null,flash:0};
  });
+ // Retain genuine two-finger cadence chords in the familiar starter song.
+ return song.id==='frere'?result.flatMap((note,i)=>[28,31].includes(i)?
+  [note,{...note,lane:(note.lane+2)%4,freq:hz('C3'),hold:false,duration:0}]:[note]):result;
 }
 window.NightPianoSongLibrary=Object.freeze({songs:Object.freeze(songs),arrangement});
 })();

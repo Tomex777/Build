@@ -71,7 +71,7 @@ button,summary{cursor:pointer}
 .story-dialog::backdrop{background:#000a}.story-dialog .dialog-head{display:flex;justify-content:space-between;align-items:start;gap:16px;margin-bottom:22px}
 .story-dialog h2{font:400 27px/1.2 var(--serif);margin:0}.story-dialog h3{font:500 17px/1.4 var(--serif);margin:25px 0 10px}
 .story-dialog p{font:15px/1.65 var(--serif);margin:10px 0}.story-dialog button,.recap button{color:var(--ink);background:#272d29;border:1px solid #5a665e;border-radius:5px;padding:10px 14px;min-height:42px;font:500 13px/1.4 system-ui,sans-serif;cursor:pointer}
-.story-dialog button:hover,.recap button:hover{background:#38443b}.story-dialog .close-dialog{background:none;border:0;padding:3px 7px;min-height:32px;font-size:22px;line-height:1}
+.story-dialog button:hover,.recap button:hover{background:#38443b}.story-dialog .close-dialog{background:none;border:0;padding:3px 7px;min-height:44px;min-width:44px;display:grid;place-items:center;font-size:22px;line-height:1}
 .save-row,.journal-row{border-bottom:1px solid var(--hair);padding:14px 0}.save-row small,.chapter-row small{display:block;color:#a7aca4;font:12px/1.5 system-ui,sans-serif;margin:5px 0 11px}.save-row button{margin-right:8px}.active-save{font-size:11px;color:#a8c3b4;margin-left:8px}
 .chapter-row{padding:14px 0;border-bottom:1px solid var(--hair)}.chapter-row button{margin-right:8px;margin-top:7px}.chapter-title{font:500 18px/1.4 var(--serif)}
 .chapter-read p{white-space:pre-wrap}.journal-list{padding-left:20px;font:15px/1.7 var(--serif)}.journal-row strong{font:500 16px/1.5 var(--serif)}
@@ -139,7 +139,7 @@ button,input{font:inherit}
   <section id="recap" class="recap" hidden></section>
  </div>
 </main>
-<dialog id="storyDialog" class="story-dialog" aria-labelledby="dialogTitle"><div class="dialog-head"><h2 id="dialogTitle"></h2><button type="button" class="close-dialog" aria-label="Close panel"><svg class="night-ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div><div id="dialogBody"></div></dialog>
+<dialog id="storyDialog" class="story-dialog" aria-labelledby="dialogTitle"><div class="dialog-head"><h2 id="dialogTitle"></h2><button type="button" class="close-dialog" aria-label="Close panel"><svg class="night-ico" width="19" height="19" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div><div id="dialogBody"></div></dialog>
 <div id="saveWarning" class="save-warning" role="status" hidden></div>
 <script src="/stories/engine.js"></script><script src="/stories/player.js"></script>
 </body></html>

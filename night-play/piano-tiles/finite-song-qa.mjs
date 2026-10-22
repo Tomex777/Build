@@ -21,17 +21,17 @@ try{
  assert.equal(await page.evaluate(()=>window.__nightPianoTest.snapshot().elapsed),before,'pause freezes the actual musical clock');
  await page.locator('#pause').tap();
  const events=await page.evaluate(()=>window.__nightPianoTest.snapshot().notes);
- for(let i=0;i<events.length;i++){
-  const note=events[i];
-  await page.waitForFunction(i=>{const s=window.__nightPianoTest.snapshot(),g=window.__nightPianoTest.geometry()[i];return !s.ended&&g.bottom>=550},i,{timeout:12000});
+ for(let i=0;i<events.length;){
+  const first=i,group=[];while(i<events.length&&Math.abs(events[i].at-events[first].at)<.01)group.push({note:events[i],index:i++});
+  await page.waitForFunction(i=>{const s=window.__nightPianoTest.snapshot(),g=window.__nightPianoTest.geometry()[i];return !s.ended&&g.bottom>=550},first,{timeout:12000});
   const box=await page.locator('#board').boundingBox();
-  const g=await page.evaluate(i=>window.__nightPianoTest.geometry()[i],i);
+  const positions=await page.evaluate(indices=>indices.map(i=>window.__nightPianoTest.geometry()[i]),group.map(x=>x.index));
   const session=await page.context().newCDPSession(page);
-  await session.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{id:1,x:box.x+(note.lane+.5)*box.width/4,y:box.y+(g.bottom-35)*box.height/660}]});
-  if(note.hold)await page.waitForTimeout(note.duration*1000+40);
+  await session.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:group.map(({note,index},j)=>({id:j+1,x:box.x+(note.lane+.5)*box.width/4,y:box.y+(positions[j].bottom-35)*box.height/660}))});
+  const hold=Math.max(...group.map(x=>x.note.duration));if(hold)await page.waitForTimeout(hold*1000+40);
   await session.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});await session.detach();
-  const s=await page.evaluate(()=>window.__nightPianoTest.snapshot());
-  assert.ok(!s.ended||s.complete===events.length,'survives correctly played note '+i);
+  const state=await page.evaluate(()=>window.__nightPianoTest.snapshot());
+  assert.ok(!state.ended||state.complete===events.length,'survives correctly played onset '+first);
  }
  await page.waitForFunction(()=>window.__nightPianoTest.snapshot().ended);
  assert.equal(await page.locator('#coverKicker').textContent(),'SONG COMPLETE');

@@ -15,7 +15,8 @@ function apply(data){
  const previous=room;room=data;code=data.code;offset=data.serverNow-Date.now();
  if(data.canvasVersion!==known.canvasVersion||data.strokeOffset===0&&known.count>0){clearCanvas();known={canvasVersion:data.canvasVersion,count:0}}
  for(const stroke of data.strokes)draw(stroke);known={canvasVersion:data.canvasVersion,count:data.strokeCount};
- if(previous&&(previous.round!==data.round||data.phase!=='drawing')){pointer=null;points=[];queue=[]}
+ if(previous&&(previous.round!==data.round||data.phase!=='drawing')){pointer=null;points=[];queue=[];if(previous.round!==data.round)$('guess').value=''}
+ $('players').hidden=data.phase==='finished';
  $('players').innerHTML=data.players.map(p=>'<span class="player">'+esc(p.name)+(p.id===data.drawer&&data.phase==='drawing'?' · Artist':'')+'<b>'+p.points+'</b></span>').join('');
  if(data.phase==='lobby'){
   $('game').hidden=true;$('lobby').hidden=false;
@@ -35,8 +36,8 @@ function apply(data){
 function clock(){if(!room)return;const seconds=Math.max(0,Math.ceil((room.endsAt-Date.now()-offset)/1000));$('clock').textContent=room.phase==='drawing'?seconds+'s':''}
 async function refresh(){if(!room||sending||polling||document.hidden)return;polling=true;const version=epoch;try{const data=await request('state');if(version===epoch)apply(data)}catch(e){error(e.message,e.network)}finally{polling=false}}
 function startPolling(){clearInterval(timer);timer=setInterval(refresh,1500)}
-async function action(name,body={}){if(sending)return;epoch++;sending=true;try{apply(await request(name,body))}catch(e){error(e.message,e.network)}finally{sending=false;flush()}}
-function enqueue(){if(points.length){queue.push({stroke:{color:ink,points},mutationId:crypto.randomUUID().replaceAll('-','')});points=[];flush()}}
+async function action(name,body={}){if(sending)return;epoch++;sending=true;try{apply(await request(name,body));return true}catch(e){error(e.message,e.network);return false}finally{sending=false;flush()}}
+function enqueue(){if(points.length){queue.push({stroke:{color:ink,points},mutationId:Array.from(crypto.getRandomValues(new Uint8Array(16)),n=>n.toString(16).padStart(2,'0')).join('')});points=[];flush()}}
 async function flush(){if(sending||polling||!queue.length||document.hidden||Date.now()<nextSendAt)return;nextSendAt=Date.now()+500;epoch++;sending=true;const batch=queue[0];try{const data=await request('stroke',batch);queue.shift();apply(data)}catch(e){error(e.message,e.network);if(!e.network)queue=[]}finally{sending=false}}
 function point(e){const r=canvas.getBoundingClientRect();return [Math.max(0,Math.min(1,(e.clientX-r.left)/r.width)),Math.max(0,Math.min(1,(e.clientY-r.top)/r.height))]}
 canvas.addEventListener('pointerdown',e=>{if(!room||room.phase!=='drawing'||room.me!==room.drawer||queue.length>=120)return;e.preventDefault();pointer=e.pointerId;canvas.setPointerCapture(pointer);points=[point(e)];draw({color:ink,points})});
@@ -47,7 +48,7 @@ document.querySelector('.inks').innerHTML=palette.map((color,i)=>'<button type="
 document.querySelector('.inks').addEventListener('click',e=>{const button=e.target.closest('[data-ink]');if(!button)return;enqueue();ink=button.dataset.ink;for(const b of document.querySelectorAll('[data-ink]'))b.setAttribute('aria-pressed',String(b===button))});
 $('clear').addEventListener('click',()=>{if(sending||queue.length){error('Wait for the drawing to finish syncing before clearing.');return}action('clear')});
 $('next').addEventListener('click',()=>action('advance'));
-$('guessForm').addEventListener('submit',e=>{e.preventDefault();const text=$('guess').value.trim();if(text&&!sending){$('guess').value='';action('guess',{guess:text})}});
+$('guessForm').addEventListener('submit',async e=>{e.preventDefault();const text=$('guess').value.trim();if(text&&!sending&&await action('guess',{guess:text}))$('guess').value=''});
 $('lobby').addEventListener('submit',e=>{e.preventDefault();if(e.target.id==='joinForm')action('join',{guestName:$('guestName').value.trim()});if(e.target.id==='codeForm'){code=$('inviteCode').value.trim().toUpperCase().replace(/[\s-]/g,'');showJoin()}});
 $('lobby').addEventListener('click',async e=>{const a=e.target.closest('[data-action]')?.dataset.action;if(a==='create')action('create');else if(a==='start')action('start');else if(a==='share'){try{if(navigator.share)await navigator.share({title:'Draw & Guess · NIGHT Play',url:link()});else{await navigator.clipboard.writeText(link());error('Invitation copied.')}}catch(e){if(e.name!=='AbortError')error('Copy the invitation link above.')}}else if(a==='retry')boot()});
 function showJoin(){$('lobby').innerHTML='<div class="panel"><h2>Join your friends.</h2><form id="joinForm"><label for="guestName">Your name<input id="guestName" maxlength="24" autocomplete="nickname" required placeholder="Player name"></label><button type="submit">Join game</button></form></div>'}

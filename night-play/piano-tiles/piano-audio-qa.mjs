@@ -48,7 +48,8 @@ try{
   assert.ok(rect.width>=300&&rect.height>=310,'fully visible responsive touch area');
   if(width===390)await p.screenshot({path:join(output,'piano-real-grand-390.png')});
   const first=await p.evaluate(()=>window.__nightPianoTest.geometry()[0]);
-  await p.touchscreen.tap(rect.x+rect.width*.125,
+  const lane=await p.evaluate(()=>window.__nightPianoTest.snapshot().notes[0].lane);
+  await p.touchscreen.tap(rect.x+rect.width*(lane+.5)/4,
    rect.y+rect.height*Math.max(30,first.bottom-30)/660);
   await p.waitForTimeout(110);
   const strike=await p.evaluate(()=>({
@@ -84,7 +85,8 @@ try{
   const rect=await p.locator('#board').boundingBox();
   await p.waitForTimeout(60); // songs start with their first key already visible
   const first=await p.evaluate(()=>window.__nightPianoTest.geometry()[0]);
-  await p.touchscreen.tap(rect.x+rect.width*.125,
+  const lane=await p.evaluate(()=>window.__nightPianoTest.snapshot().notes[0].lane);
+  await p.touchscreen.tap(rect.x+rect.width*(lane+.5)/4,
    rect.y+rect.height*Math.max(30,first.bottom-30)/660);
   await p.waitForTimeout(50);
   assert.ok((await p.evaluate(()=>window.NightPiano.inspect())).lastPlayed,'song played sample');
