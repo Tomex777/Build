@@ -27,7 +27,7 @@ function normalizeMeme(record,source){
  media:{url:mediaUrl,mime:record.mime,width:Math.max(0,Math.floor(Number(record.width)||0)),height:Math.max(0,Math.floor(Number(record.height)||0)),byteLength:Math.max(0,Math.floor(Number(record.byteLength)||0)),perceptualHash:/^[\da-f]{16}$/i.test(record.perceptualHash||'')?record.perceptualHash.toLowerCase():null},
  source:{id:String(source?.id||''),provider:String(source?.provider||'unknown'),url:sourceUrl,externalId:String(record.externalId||''),author:String(record.author||'').slice(0,120),attributionRequired:true,rights,license:record.license||null},
  metrics:{upvotes:Math.max(0,Number(record.upvotes)||0),ratio:clamp(record.upvoteRatio||0),legibility:clamp(record.legibility??.5),originality:clamp(record.originality??.65)},
- publishable:rights==='cleared'});
+ publishable:rights==='cleared',reviewOnly:rights!=='cleared',publishBlockedReason:rights==='cleared'?null:'rights_unverified'});
 }
 function hashNear(a,b,distance=5){
  if(!/^[a-f\d]{16}$/i.test(a||'')||!/^[a-f\d]{16}$/i.test(b||''))return false;
@@ -53,10 +53,11 @@ function memeScore(item,options={}){
 }
 function chooseFourMemes(items,{enabled=false,categories=[],allowDark=false,used=[],feedback={},now=Date.now()}={}){
  if(enabled!==true)return [];
- const selected=categories.filter(c=>CATEGORIES.includes(c));
+ const selected=(Array.isArray(categories)?categories:[]).filter(c=>CATEGORIES.includes(c));
+ used=Array.isArray(used)?used:[];
  const blocked=new Set(used.map(x=>typeof x==='string'?x:x.id));
  const previouslyUsed=used.filter(x=>x&&typeof x==='object'&&x.kind==='meme');
- const candidates=items.filter(i=>i&&i.kind==='meme'&&(!selected.length||selected.includes(i.category))&&
+ const candidates=(Array.isArray(items)?items:[]).filter(i=>i&&i.kind==='meme'&&(!selected.length||selected.includes(i.category))&&
  (i.category!=='dark'||allowDark===true)&&!blocked.has(i.id)&&!previouslyUsed.some(prev=>isDuplicate(i,prev)));
  const ranked=candidates.map(i=>({...i,score:memeScore(i,{categories:selected,feedback,now})})).sort((a,b)=>b.score-a.score||a.id.localeCompare(b.id));
  const out=[],categoryCount=new Map(),sourceCount=new Map();
@@ -79,7 +80,7 @@ function normalizeNews(record,source,{now=Date.now(),maxAgeDays=14}={}){
  const published=Date.parse(record.publishedAt||'');
  if(!Number.isFinite(published)||published>now+3600000||published<now-maxAgeDays*86400000)return null;
  const title=String(record.title||'').replace(/\s+/g,' ').trim();if(title.length<8||title.length>240)return null;
- const tags=[...new Set((record.tags||[]).filter(t=>SIMPLE_TAGS.has(t)))];
+ const tags=[...new Set((Array.isArray(record.tags)?record.tags:[]).filter(t=>SIMPLE_TAGS.has(t)))];
  const verification=record.rumor===true?'rumor':source.official===true&&record.confirmed===true?'official':'unverified';
  const show=String(record.show||'').trim().slice(0,100),event=String(record.event||'update').trim().slice(0,40);
  const summary=verification==='official'?(show?show+': '+event+'. Official announcement linked below.':'Official '+event+' announcement. See the source for details.'):'Details require review. See the attributed source before publishing.';
@@ -91,9 +92,9 @@ function normalizeNews(record,source,{now=Date.now(),maxAgeDays=14}={}){
 }
 function chooseNews(items,{enabled=false,interests=[],shows=[],includeSpoilers=false,now=Date.now(),limit=4}={}){
  if(!enabled)return [];
- const wanted=new Set(interests.filter(x=>SIMPLE_TAGS.has(x))),followed=new Set(shows.map(x=>tokens(x).join(' ')).filter(Boolean));
+ const wanted=new Set((Array.isArray(interests)?interests:[]).filter(x=>SIMPLE_TAGS.has(x))),followed=new Set((Array.isArray(shows)?shows:[]).map(x=>tokens(x).join(' ')).filter(Boolean));
  const unique=new Map();
- for(const item of items){
+ for(const item of (Array.isArray(items)?items:[])){
  if(!item||item.kind!=='news'||(item.spoiler&&includeSpoilers!==true))continue;
  const match=(!wanted.size&&!followed.size)||item.tags.some(t=>wanted.has(t))||followed.has(tokens(item.show).join(' '));
  if(!match)continue;
