@@ -124,7 +124,7 @@ async function main(){
    assert.equal(await page.locator('[data-module="news"]').isChecked(),false,'News must default OFF');
    assert.equal(await page.locator('[data-module="anonymous"]').isChecked(),false,'Anonymous must default OFF');
    assert.equal(await page.locator('[data-module="ai"]').isDisabled(),true,'AI guard remains OFF and unavailable without permission');
-   await page.locator('[data-module="memes"]').check({force:true});
+   await page.locator('[data-module="memes"]').click({force:true});
    await page.getByText('Choose at least one meme category').waitFor();
    assert.equal(settings.modules.memes,false,'Cannot enable memes without configured categories');
    await page.locator('#memeCategories input[value="relatable"]').check({force:true});
