@@ -14,6 +14,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -262,9 +264,12 @@ fun FanHome(player: FanPlayer = viewModel()) {
             attached = selected.id in state.attached,
             playing = selected.id == state.activeSongId && state.isPlaying,
             preparing = selected.id == state.activeSongId && state.isPreparing,
+            memory = state.memories[selected.id].orEmpty(),
             onDismiss = { openedId = null },
             onFavorite = { player.toggleFavorite(selected.id) },
             onPlay = { player.play(selected.id); openedId = null },
+            onSaveMemory = { player.saveMemory(selected.id, it) },
+            onShare = { shareSong(context, selected) },
             onPickFile = {
                 pickingId = selected.id
                 filePicker.launch(arrayOf("audio/*"))
@@ -653,10 +658,12 @@ private fun MiniPlayer(
 @Composable
 private fun SongSheet(
     song: FanSong, favorite: Boolean, attached: Boolean,
-    playing: Boolean, preparing: Boolean,
+    playing: Boolean, preparing: Boolean, memory: String,
     onDismiss: () -> Unit, onFavorite: () -> Unit,
-    onPlay: () -> Unit, onPickFile: () -> Unit, onOfficial: () -> Unit
+    onPlay: () -> Unit, onPickFile: () -> Unit, onOfficial: () -> Unit,
+    onSaveMemory: (String) -> Unit, onShare: () -> Unit
 ) {
+    var memoryDraft by rememberSaveable(song.id) { mutableStateOf(memory) }
     ModalBottomSheet(
         onDismissRequest = onDismiss, containerColor = Color(0xFF181521),
         contentColor = White, dragHandle = {
@@ -667,8 +674,9 @@ private fun SongSheet(
         }
     ) {
         Column(
-            Modifier.fillMaxWidth().padding(horizontal = 23.dp)
-                .navigationBarsPadding().padding(bottom = 25.dp),
+            Modifier.fillMaxWidth().heightIn(max = 660.dp)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 23.dp).navigationBarsPadding().padding(bottom = 25.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             AlbumCover(
@@ -737,6 +745,46 @@ private fun SongSheet(
                 Text("Listen on YouTube Music", color = White,
                     fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
             }
+            Spacer(Modifier.height(22.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text("YOUR MEMORY", color = Lavender, fontSize = 10.sp,
+                        letterSpacing = 2.sp, fontWeight = FontWeight.ExtraBold)
+                    Text("Keep what this song means to you.", color = Gray,
+                        fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp))
+                }
+                if (memoryDraft.trim() != memory) {
+                    TextButton(onClick = { onSaveMemory(memoryDraft) }) {
+                        Text("Save", color = Lavender, fontWeight = FontWeight.Bold)
+                    }
+                }
+                TextButton(onClick = onShare) {
+                    Text("Share song", color = Lavender, fontSize = 12.sp)
+                }
+            }
+            Spacer(Modifier.height(10.dp))
+            BasicTextField(
+                value = memoryDraft, onValueChange = { memoryDraft = it.take(600) },
+                minLines = 2, maxLines = 5,
+                cursorBrush = SolidColor(Lavender),
+                textStyle = TextStyle(fontSize = 13.sp, color = White, lineHeight = 19.sp),
+                modifier = Modifier.fillMaxWidth().heightIn(min = 82.dp)
+                    .clip(RoundedCornerShape(14.dp)).background(Panel2)
+                    .padding(14.dp)
+                    .semantics { contentDescription = "Personal memory about this song" },
+                decorationBox = { inner ->
+                    Box {
+                        if (memoryDraft.isEmpty()) {
+                            Text("A lyric, a moment, a feeling…", fontSize = 13.sp, color = Gray)
+                        }
+                        inner()
+                    }
+                }
+            )
+            Spacer(Modifier.height(8.dp))
             if (attached) {
                 TextButton(onClick = onPickFile) {
                     Text("Replace audio file", color = Gray, fontSize = 12.sp)
@@ -762,4 +810,14 @@ private fun openOfficialSong(context: Context, song: FanSong) {
         android.widget.Toast.makeText(context, "No browser available",
             android.widget.Toast.LENGTH_SHORT).show()
     }
+}
+
+private fun shareSong(context: Context, song: FanSong) {
+    val search = "https://music.youtube.com/search?q=" + Uri.encode("Juice WRLD " + song.title)
+    val intent = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_TEXT, "Juice WRLD — " + song.title + "\n" + search)
+    }
+    try { context.startActivity(Intent.createChooser(intent, "Share this song")) }
+    catch (_: ActivityNotFoundException) { }
 }

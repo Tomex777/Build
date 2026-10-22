@@ -21,6 +21,7 @@ import kotlinx.coroutines.launch
 data class FanPlayerState(
     val favorites: Set<String> = emptySet(),
     val attached: Set<String> = emptySet(),
+    val memories: Map<String, String> = emptyMap(),
     val activeSongId: String? = null,
     val isPlaying: Boolean = false,
     val isPreparing: Boolean = false,
@@ -55,7 +56,13 @@ class FanPlayer(app: Application) : AndroidViewModel(app) {
             val uri = prefs.getString("file:" + song.id, null)
             if (uri != null) files[song.id] = uri
         }
-        _state.update { it.copy(attached = files.keys.toSet()) }
+        val memories = mutableMapOf<String, String>()
+        for (song in FanSongs.all) {
+            prefs.getString("memory:" + song.id, null)?.let { text ->
+                if (text.isNotBlank()) memories[song.id] = text
+            }
+        }
+        _state.update { it.copy(attached = files.keys.toSet(), memories = memories) }
         viewModelScope.launch {
             while (isActive) {
                 delay(500L)
@@ -83,6 +90,20 @@ class FanPlayer(app: Application) : AndroidViewModel(app) {
         if (!ids.add(id)) ids.remove(id)
         prefs.edit().putStringSet("favorites", ids).apply()
         _state.update { it.copy(favorites = ids.toSet()) }
+    }
+
+    fun saveMemory(songId: String, note: String) {
+        if (FanSongs.find(songId) == null) return
+        val text = note.trim().take(600)
+        val next = _state.value.memories.toMutableMap()
+        if (text.isBlank()) {
+            prefs.edit().remove("memory:" + songId).apply()
+            next.remove(songId)
+        } else {
+            prefs.edit().putString("memory:" + songId, text).apply()
+            next[songId] = text
+        }
+        _state.update { it.copy(memories = next.toMap()) }
     }
 
     fun attachFile(songId: String, uri: Uri) {

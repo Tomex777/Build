@@ -6,7 +6,7 @@ A fan-first space for Juice WRLD's released music, organized by **how the songs 
 
 ## Listening works (with files you own or can use)
 
-Tap a song, choose **Add audio file**, and select an audio recording from your phone's Android file picker. The app retains the selected URI using Android's official persistent-grant mechanism, then plays the file *inside the app* with play, pause, seek, previous and next. The mini-player only appears for a real selected recording. Favorite hearts are persistent and the Favorites category is an in-page filter.
+Tap a song, choose **Add audio file**, and select an audio recording from your phone's Android file picker. The app retains the selected URI using Android's official persistent-grant mechanism, then plays the file *inside the app* with play, pause, seek, previous and next. The mini-player only appears for a real selected recording. Favorite hearts are persistent and the Favorites category is an in-page filter. Every song also has a private **Your Memory** note saved on-device plus a native share action, giving the fan collection meaning beyond a list.
 
 Without a local file, the song sheet opens an **official YouTube Music search** for that song. This does not pretend to play the full song or offer illegally mirrored audio. No Juice WRLD recordings, streaming URLs, or copyrighted lyrics are bundled.
 
