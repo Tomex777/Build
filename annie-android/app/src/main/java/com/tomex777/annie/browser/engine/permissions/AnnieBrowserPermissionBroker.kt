@@ -167,6 +167,18 @@ internal class AnnieBrowserPermissionBroker(context: Context) {
                 }
                 val videoNeeded = !video.isNullOrEmpty()
                 val audioNeeded = !audio.isNullOrEmpty()
+                val cameraDecision = if (videoNeeded && !isPrivate) store.decision(uri, "camera") else true
+                val audioDecision = if (audioNeeded && !isPrivate) store.decision(uri, "microphone") else true
+                if (cameraDecision == false || audioDecision == false) {
+                    callback.reject()
+                    return
+                }
+                if (cameraDecision == true && audioDecision == true &&
+                    !isPrivate && (!videoNeeded || video?.firstOrNull() != null) &&
+                    (!audioNeeded || audio?.firstOrNull() != null)) {
+                    callback.grant(video?.firstOrNull(), audio?.firstOrNull())
+                    return
+                }
                 val completed = AtomicBoolean(false)
                 fun deny() {
                     if (completed.compareAndSet(false, true)) callback.reject()
@@ -194,7 +206,13 @@ internal class AnnieBrowserPermissionBroker(context: Context) {
                     videoSources = video, audioSources = audio,
                     onAllow = { v, a -> grant(v, a, true) },
                     onAllowOnce = { v, a -> grant(v, a, false) },
-                    onDeny = { deny() }
+                    onDeny = {
+                        if (!isPrivate && isForeground()) {
+                            if (videoNeeded) store.remember(uri, "camera", false)
+                            if (audioNeeded) store.remember(uri, "microphone", false)
+                        }
+                        deny()
+                    }
                 )
                 runCatching { receiver(prompt) }.onFailure { deny() }
                 main.postDelayed({ deny() }, 30_000L)
