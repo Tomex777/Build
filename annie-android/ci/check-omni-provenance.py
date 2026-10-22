@@ -48,6 +48,7 @@ ported = (
     "bookmarks/parser/NetscapeBookmarkParser.kt",
     "bookmarks/export/NetscapeBookmarkExporter.kt",
     "AnnieBrowserFindController.kt",
+    "intents/IntentUrlParser.kt",
 )
 for relative in ported:
     path = src / relative
