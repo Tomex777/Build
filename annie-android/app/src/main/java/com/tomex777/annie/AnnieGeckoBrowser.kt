@@ -777,9 +777,12 @@ internal fun AnnieGeckoStandaloneBrowser(
     }
     // Annie-integrated Omni-derived runtime owns Gecko sessions and file prompts.
     // Agent 2 owns only this user-facing Compose toolbar/tab/surface.
+    val universalCopyToggle = remember(model) {
+        { enabled: Boolean -> model.setUniversalCopy(enabled) }
+    }
     AnnieLegacyGeckoBrowserChrome(
         model = model,
         onExit = onExit,
-        universalCopy = { enabled -> model.setUniversalCopy(enabled) },
+        universalCopy = universalCopyToggle,
     )
 }
