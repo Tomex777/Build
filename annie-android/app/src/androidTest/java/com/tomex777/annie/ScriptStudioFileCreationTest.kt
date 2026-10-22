@@ -337,9 +337,12 @@ class ScriptStudioFileCreationTest {
             compose.setContent { AnnieTheme {
                 if (shown.value) ScriptStudioSheet(workspace, {})
             } }
-            compose.onNodeWithTag("script_file_search").performTextInput("main.js")
+            compose.onNodeWithTag("script_file_search").performTextInput(folder.name)
             closeSoftKeyboard()
             compose.onNodeWithText(folder.name, substring = false).performClick()
+            compose.onNodeWithTag("script_file_search").performTextClearance()
+            compose.onNodeWithTag("script_file_search").performTextInput("main.js")
+            closeSoftKeyboard()
             compose.onNodeWithText("main.js", substring = false).performClick()
             compose.onNodeWithTag("script_editor").assertExists()
             compose.onNodeWithTag("script_find_query").assertTextEquals("")
