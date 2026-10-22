@@ -24,17 +24,37 @@ internal val CANVAS_LIFECYCLE_BOOTSTRAP = """
   var suspendedAnimations = [];
   var deferredMedia = new Set();
   var trackedMedia = new Set();
+  var observedMedia = new WeakSet();
   var audioContexts = new Set();
   var suspendedAudioContexts = [];
 
   // Media created while paused must not bypass the host-level suspension.
   if (window.HTMLMediaElement && window.HTMLMediaElement.prototype) {
     var nativePlay = window.HTMLMediaElement.prototype.play;
+    var nativePause = window.HTMLMediaElement.prototype.pause;
     window.HTMLMediaElement.prototype.play = function () {
       trackedMedia.add(this);
-      if (!paused) return nativePlay.apply(this, arguments);
-      deferredMedia.add(this);
-      return Promise.resolve();
+      if (!observedMedia.has(this)) {
+        observedMedia.add(this);
+        var media = this;
+        this.addEventListener('ended', function () { trackedMedia.delete(media); });
+        this.addEventListener('emptied', function () { trackedMedia.delete(media); });
+      }
+      if (paused) {
+        deferredMedia.add(this);
+        return Promise.resolve();
+      }
+      var media = this;
+      var result = nativePlay.apply(this, arguments);
+      if (result && result.catch) {
+        // Rejected autoplay attempts must not retain unused media forever.
+        result.catch(function () { if (media.paused) trackedMedia.delete(media); });
+      }
+      return result;
+    };
+    window.HTMLMediaElement.prototype.pause = function () {
+      trackedMedia.delete(this);
+      return nativePause.apply(this, arguments);
     };
   }
 
@@ -44,6 +64,11 @@ internal val CANVAS_LIFECYCLE_BOOTSTRAP = """
     function TrackedAudioContext() {
       var context = Reflect.construct(NativeAudio, arguments, NativeAudio);
       audioContexts.add(context);
+      var originalClose = context.close.bind(context);
+      context.close = function () {
+        audioContexts.delete(context);
+        return originalClose();
+      };
       if (paused && context.state === 'running') {
         suspendedAudioContexts.push(context);
         var action = context.suspend();
