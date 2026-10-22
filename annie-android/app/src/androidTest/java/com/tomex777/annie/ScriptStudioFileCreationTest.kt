@@ -163,6 +163,14 @@ class ScriptStudioFileCreationTest {
                     workspace.files.listProjects().first { it.id == id }.enabled.not())
                 org.junit.Assert.assertEquals(source, workspace.files.readFile(id, path))
                 org.junit.Assert.assertEquals(extension, path.substringAfterLast('.'))
+                if (extension in setOf("html", "css", "json", "md", "txt")) {
+                    assertFalse("Data-only import must not invent runnable main.js",
+                        File(workspace.files.root, "$id/main.js").exists())
+                    org.junit.Assert.assertEquals(path,
+                        workspace.files.listProjects().first { it.id == id }.entryPath)
+                    assertTrue("Data-only project must refuse script enable",
+                        runCatching { workspace.files.setEnabled(id, true) }.isFailure)
+                }
             }
             val stream = java.io.ByteArrayInputStream(ByteArray(2 * 1024 * 1024 + 1))
             assertTrue("Oversized imports must be rejected before decoding",
@@ -172,6 +180,42 @@ class ScriptStudioFileCreationTest {
         } finally {
             workspace.close()
             importedIds.forEach { id -> workspace.files.deleteProject(id) }
+        }
+    }
+
+    @Test fun documentOnlyProjectRenamesAndDeletesWithoutAHiddenEntryScript() {
+        val workspace = ScriptWorkspace(InstrumentationRegistry.getInstrumentation().targetContext)
+        val importedIds = mutableListOf<String>()
+        try {
+            val source = "<section>Read only until edited</section>"
+            val (id, path) = studioImportTextDocument(
+                workspace.files, "doc${System.nanoTime().toString().takeLast(8)}.html", source,
+            )
+            importedIds += id
+            assertFalse(File(workspace.files.root, "$id/main.js").exists())
+            assertFalse(workspace.files.isEnabled(id))
+            val moved = workspace.files.renameFile(id, path, "pages/landing.html")
+            org.junit.Assert.assertEquals("pages/landing.html", moved)
+            org.junit.Assert.assertEquals(source, workspace.files.readFile(id, moved))
+            org.junit.Assert.assertEquals(moved,
+                workspace.files.listProjects().single { it.id == id }.entryPath)
+            workspace.files.deleteFile(id, moved)
+            assertFalse(File(workspace.files.root, id).exists())
+            importedIds.remove(id)
+            val (oneId, onePath) = studioImportTextDocument(
+                workspace.files, "collision${System.nanoTime().toString().takeLast(8)}.css", "body{}",
+            )
+            importedIds += oneId
+            val (twoId, twoPath) = studioImportTextDocument(
+                workspace.files, "$oneId.css", "p{}",
+            )
+            importedIds += twoId
+            assertTrue("Duplicate import must not overwrite project", oneId != twoId)
+            org.junit.Assert.assertEquals("body{}", workspace.files.readFile(oneId, onePath))
+            org.junit.Assert.assertEquals("p{}", workspace.files.readFile(twoId, twoPath))
+        } finally {
+            workspace.close()
+            importedIds.forEach { runCatching { workspace.files.deleteProject(it) } }
         }
     }
 
