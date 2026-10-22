@@ -59,6 +59,14 @@ class GasGiantRuntimeTest {
                                     checkNotNull(glView.get()).height*.10f
                         }
                 }
+                // Full-frame visual QA must not mistake a cloud-filled GPU
+                // screenshot for an unobstructed planet when Compose UI masks
+                // the centre with a name chip or a persistent info card.
+                await("non-obscuring $planet details affordance", 8_000) {
+                    ui.findObject(By.text("Details")) != null
+                }
+                assertTrue("Gas giant details card covered the focused disc",
+                    ui.findObject(By.text("GAS GIANT")) == null)
                 assertEquals(null, renderer.surfaceBodyId())
                 // Jupiter and Saturn are cloud atmospheres, not rocky worlds.
                 // Never allow them through a generic surface-landing path.
