@@ -37,11 +37,18 @@ jobs:
     timeout-minutes: 4
     steps:
       - uses: actions/checkout@v5
+      - uses: actions/checkout@v5
+        with:
+          ref: mscc-azure
+          path: msccSource
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
       - name: Exact WhatsApp name and emoji grapheme release gate
         run: node night-play/channels/qa/exact-channel-name.mjs
+        env:
+          NIGHT_MSCC_SOURCE_ROOT: msccSource/mscc
 
   cross-agent-a-config-review:
     runs-on: ubuntu-latest
