@@ -87,7 +87,11 @@ function parseFeed(xml){
   const block=match[2];
   const link=/<link\b[^>]*\bhref=["']([^"']+)["'][^>]*\/?\s*>/i.exec(block)?.[1]||extract(block,'link');
   entries.push({title:extract(block,'title'),url:xmlDecode(link),publishedAt:extract(block,'pubDate')||extract(block,'published')||extract(block,'updated'),
-  guid:extract(block,'guid')||extract(block,'id'),categories:[...block.matchAll(/<category(?:\s[^>]*)?>([\s\S]*?)<\/category>/gi)].map(m=>xmlDecode(m[1]))});
+  guid:extract(block,'guid')||extract(block,'id'),
+  categories:[
+   ...[...block.matchAll(/<category(?:\s[^>]*)?>([\s\S]*?)<\/category>/gi)].map(m=>xmlDecode(m[1])),
+   ...[...block.matchAll(/<category\s+[^>]*\bterm=["']([^"']{1,120})["'][^>]*\/?>/gi)].map(m=>xmlDecode(m[1]))
+  ].filter(Boolean).slice(0,30)});
  }return entries;
 }
 function rssNewsAdapter({id,name,url,articleHosts=[],official=false,fetchImpl,interpreter,now=()=>Date.now(),maxAgeDays=14}={}){
