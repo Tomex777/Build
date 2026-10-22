@@ -56,6 +56,15 @@ function searchTextVariants(query = '') {
   return [...new Set([raw, spaced, singleLettersCollapsed, collapsed].filter(Boolean))]
 }
 
+function effectiveMusicQuery(query = '') {
+  const raw = String(query || '').trim()
+  // A very common speech-to-text typo in the Pitch Perfect 2 soundtrack.
+  // Do not autocorrect unrelated, legitimately named tracks.
+  return /\bpitch\s+perfect\s*2\b/i.test(raw) && /\bfleshlight\b/i.test(raw)
+    ? raw.replace(/\bfleshlight\b/ig, 'Flashlight')
+    : raw
+}
+
 function normalizeSearchText(value = '') {
   return String(value || '')
     .toLowerCase()
@@ -104,7 +113,14 @@ function scoreTrackQuery(query, track = {}) {
   const tokenScore = wantedTokens.size ? overlap / wantedTokens.size : 0
   const textScore = Math.max(editSimilarity(wanted, title), editSimilarity(wanted, artist))
   const containment = title.includes(wanted) || artist.includes(wanted) ? 0.35 : 0
-  return Math.round((tokenScore * 45) + (textScore * 45) + (containment * 10))
+  let score = Math.round((tokenScore * 45) + (textScore * 45) + (containment * 10))
+  const wantsLyrics = /\blyrics?\b/i.test(query)
+  const wantsCover = /\bcover\b/i.test(query)
+  // "Official" is preferable to fan lyric/cover uploads for a track search.
+  if (/\bofficial\s+(?:music\s+)?(?:video|audio)\b/i.test(track.title)) score += 14
+  if (!wantsLyrics && /\blyrics?|karaoke\b/i.test(track.title)) score -= 12
+  if (!wantsCover && /\bcover|remix|sped\s*up|slowed\b/i.test(track.title)) score -= 8
+  return Math.max(0, Math.min(120, score))
 }
 
 async function broadenMusicSearch(ctx, query, firstOutcome) {
@@ -183,17 +199,23 @@ function parseSearchArgs(args = []) {
 async function search(ctx, query, { delivery = 'audio' } = {}) {
   if (!query) return ctx.reply('Usage: .song <song name>')
 
+  const providerQuery = effectiveMusicQuery(query)
   const outcome = await ctx.executeSource({
     capability:'music',
-    payload:{ action:'search', query },
+    payload:{ action:'search', query:providerQuery },
   })
   if (outcome.status !== 'ok') return outcomeError(ctx, outcome)
 
-  const ranked = await broadenMusicSearch(ctx, query, outcome)
+  const ranked = await broadenMusicSearch(ctx, providerQuery, outcome)
   const selectedSourceId = ranked[0]?.sourceId || outcome.source?.id || ''
-  const tracks = ranked
-    .filter(entry => !selectedSourceId || entry.sourceId === selectedSourceId)
-    .slice(0, 25)
+  const sourceResults = ranked.filter(entry => !selectedSourceId || entry.sourceId === selectedSourceId)
+  // When relevant tracks exist, do not pad the menu with unrelated videos.
+  // Keep the fallback unchanged when a provider cannot produce confident scores.
+  const bestScore = sourceResults[0]?.score || 0
+  const relevanceFloor = bestScore >= 55 ? Math.max(38, bestScore - 35) : 0
+  const tracks = sourceResults
+    .filter(entry => entry.score >= relevanceFloor)
+    .slice(0, 10)
     .map((entry, index) => ({
       ...entry.track,
       number:String(index + 1),
@@ -212,7 +234,8 @@ async function search(ctx, query, { delivery = 'audio' } = {}) {
     sourceId:selectedSourceId || outcome.source.id,
     entries:tracks,
     unit:'song',
-    query,
+    query:providerQuery,
+    requestedQuery:query,
     delivery,
     expiresAt:Date.now() + 30 * 60000,
   })
@@ -220,8 +243,9 @@ async function search(ctx, query, { delivery = 'audio' } = {}) {
   const lines = [
     '🎵 *Song Search Results*',
     `Query: *${query}*`,
+    ...(providerQuery !== query ? [`Showing matches for: *${providerQuery}*`] : []),
     '',
-    ...tracks.slice(0, 25).map(track => {
+    ...tracks.map(track => {
       const artist = track.artist ? ` — ${track.artist}` : ''
       const duration = track.duration ? ` [${track.duration}]` : ''
       return `${track.number}. ${track.title}${artist}${duration}`
@@ -451,17 +475,27 @@ async function handleNumbers(ctx) {
     if (result.text) messages.push(result.text)
   }
 
-  // Keep the numeric selection available after failures so users can retry.
-  ctx.clearCommandReplySession?.()
+  // Keep one successful single-track choice available briefly for a retry
+  // if WhatsApp did not actually display the attachment. A successful send
+  // request is NOT proof that the recipient received or downloaded the file.
+  if (parsed.selected.length === 1) {
+    ctx.setCommandReplySession?.({
+      ...session,
+      lastSentAt:Date.now(),
+      expiresAt:Date.now() + 5 * 60000,
+    })
+  } else {
+    ctx.clearCommandReplySession?.()
+  }
   if (progress) {
-    try { await progress.done(`✅ ${parsed.selected.length === 1 ? 'Song delivered.' : parsed.selected.length + ' songs delivered.'}`) }
+    try { await progress.done(`✅ ${parsed.selected.length === 1 ? 'Audio sent to WhatsApp. If missing, reply with the same number to retry.' : parsed.selected.length + ' audio files sent to WhatsApp.'}`) }
     catch (error) { console.warn('MSCC music success progress unavailable:', error?.code || error?.name || 'Error') }
   }
 
   if (messages.length === 1) return ctx.reply(messages[0])
   if (messages.length > 1) return ctx.reply(messages.join('\n'))
   if (parsed.selected.length > 1 && !progress) {
-    return ctx.reply(`Sent ${parsed.selected.length} songs.`)
+    return ctx.reply(`Sent ${parsed.selected.length} audio files to WhatsApp.`)
   }
   return true
 }
