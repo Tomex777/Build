@@ -28,6 +28,9 @@ data class FanPlayerState(
     val memories: Map<String, String> = emptyMap(),
     val importing: Boolean = false,
     val importMessage: String? = null,
+    val queueIds: List<String> = emptyList(),
+    val shuffle: Boolean = false,
+    val repeat: RepeatMode = RepeatMode.OFF,
     val activeSongId: String? = null,
     val isPlaying: Boolean = false,
     val isPreparing: Boolean = false,
@@ -212,6 +215,45 @@ class FanPlayer(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /** Playback queue always follows the selected feeling, not the full unrelated catalog. */
+    fun playMood(mood: Mood) {
+        val ids = FanSongs.filter(mood, "", _state.value.favorites)
+            .map { it.id }.filter { it in files }
+        if (ids.isEmpty()) {
+            _state.update { it.copy(error = "Import music for this feeling first.") }
+            return
+        }
+        val queue = MusicQueue.build(ids, ids.first(), _state.value.shuffle)
+        _state.update { it.copy(queueIds = queue) }
+        play(ids.first())
+    }
+
+    fun playInMood(songId: String, mood: Mood) {
+        val ids = FanSongs.filter(mood, "", _state.value.favorites)
+            .map { it.id }.filter { it in files }
+        if (songId !in ids) return
+        if (songId != _state.value.activeSongId || _state.value.queueIds.isEmpty()) {
+            _state.update { it.copy(
+                queueIds = MusicQueue.build(ids, songId, _state.value.shuffle)
+            ) }
+        }
+        play(songId)
+    }
+
+    fun toggleShuffle() {
+        val now = _state.value
+        val enabled = !now.shuffle
+        val current = now.activeSongId
+        val queue = if (current != null && current in now.queueIds) {
+            MusicQueue.build(now.queueIds, current, enabled)
+        } else now.queueIds
+        _state.update { it.copy(shuffle = enabled, queueIds = queue) }
+    }
+
+    fun toggleRepeat() {
+        _state.update { it.copy(repeat = it.repeat.next()) }
+    }
+
     fun play(songId: String) {
         if (FanSongs.find(songId) == null) return
         val uriString = files[songId]
@@ -219,6 +261,7 @@ class FanPlayer(app: Application) : AndroidViewModel(app) {
             _state.update { it.copy(error = "Select an audio file for this song first.") }
             return
         }
+        if (songId == _state.value.activeSongId && _state.value.isPreparing) return
         val existing = mediaPlayer
         if (songId == _state.value.activeSongId && existing != null && !_state.value.isPreparing) {
             try {
@@ -227,6 +270,10 @@ class FanPlayer(app: Application) : AndroidViewModel(app) {
                     _state.update { it.copy(isPlaying = false) }
                 } else {
                     if (!requestFocus()) return
+                    if (existing.duration > 0 &&
+                        existing.currentPosition >= existing.duration - 250) {
+                        existing.seekTo(0)
+                    }
                     existing.start()
                     _state.update { it.copy(isPlaying = true, error = null) }
                 }
@@ -234,6 +281,10 @@ class FanPlayer(app: Application) : AndroidViewModel(app) {
             } catch (_: IllegalStateException) {}
         }
 
+        if (_state.value.queueIds.isEmpty() || songId !in _state.value.queueIds) {
+            val ids = FanSongs.all.map { it.id }.filter { it in files }
+            _state.update { it.copy(queueIds = MusicQueue.build(ids, songId, it.shuffle)) }
+        }
         val token = ++generation
         releaseCurrentPlayer()
         _state.update { it.copy(
@@ -261,10 +312,30 @@ class FanPlayer(app: Application) : AndroidViewModel(app) {
                     playbackError(token)
                 }
             }
-            newPlayer.setOnCompletionListener {
-                if (token == generation) _state.update { it.copy(
-                    isPlaying = false, positionMs = it.durationMs
-                ) }
+            newPlayer.setOnCompletionListener { completed ->
+                if (token != generation) return@setOnCompletionListener
+                val current = _state.value
+                if (current.repeat == RepeatMode.ONE) {
+                    try {
+                        completed.seekTo(0)
+                        completed.start()
+                        _state.update { it.copy(positionMs = 0, isPlaying = true) }
+                    } catch (_: Exception) {
+                        playbackError(token)
+                    }
+                } else {
+                    val next = MusicQueue.step(
+                        current.queueIds, songId, 1, current.repeat, completedNaturally = true
+                    )
+                    if (next == null) {
+                        audioManager.abandonAudioFocusRequest(focusRequest)
+                        _state.update { it.copy(
+                            isPlaying = false, positionMs = it.durationMs
+                        ) }
+                    } else {
+                        play(next)
+                    }
+                }
             }
             newPlayer.setOnErrorListener { _, _, _ ->
                 playbackError(token)
@@ -298,10 +369,15 @@ class FanPlayer(app: Application) : AndroidViewModel(app) {
 
     fun skip(direction: Int) {
         val current = _state.value.activeSongId ?: return
-        val songs = FanSongs.all.filter { it.id in files }
-        val i = songs.indexOfFirst { it.id == current }
-        if (i < 0 || songs.isEmpty()) return
-        play(songs[(i + direction + songs.size) % songs.size].id)
+        val playing = _state.value
+        val destination = MusicQueue.step(
+            playing.queueIds, current, direction, playing.repeat
+        ) ?: return
+        if (destination == current) {
+            seekTo(0f)
+            return
+        }
+        play(destination)
     }
 
     fun dismissError() {
