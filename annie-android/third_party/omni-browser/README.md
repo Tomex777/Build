@@ -56,7 +56,7 @@ Instantiate `AnnieBrowserEngineBridge(context, AnnieGeckoRuntime.get(context))` 
 
 | Upstream feature | Current Agent 1 status |
 |---|---|
-| GeckoView tabs/navigation and normal/private modes | Annie baseline retained, full upstream ViewModel **not** ported |
+| GeckoView tabs/navigation and normal/private modes | Real Omni lazy restoration and active/inactive Gecko session management added; native unloaded blank Home matches Agent 2 contract; full upstream ViewModel **not** ported |
 | Durable Gecko session-state serialization | Actual upstream classes ported; behavioral integration and tests ongoing |
 | Built-in WebExtension management / Universal Copy | Actual upstream manager + scripts imported; explicit opt-in hook pending UI |
 | Bookmarks/history/search/downloads | Omni canonical bookmark tree and HTML parser/exporter imported; flat Annie bookmarks use new codec; upstream history/download managers not ported |

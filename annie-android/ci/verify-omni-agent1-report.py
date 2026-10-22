@@ -5,6 +5,7 @@ import sys
 import xml.etree.ElementTree as ET
 
 REQUIRED = {
+    "com.tomex777.annie.AnnieOmniNativeHomeTest",
     "com.tomex777.annie.AnnieGeckoTabRestoreTest",
     "com.tomex777.annie.AnnieOmniExtensionTest",
     "com.tomex777.annie.AnnieOmniPersistenceSecurityTest",

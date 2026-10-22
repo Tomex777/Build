@@ -7,6 +7,7 @@ mkdir -p "$REPORT_ROOT"
 # Fully-qualified names matter: BookmarkStorageTest lives in the imported
 # Omni engine package rather than com.tomex777.annie.
 CLASSES=(
+  com.tomex777.annie.AnnieOmniNativeHomeTest
   com.tomex777.annie.AnnieGeckoTabRestoreTest
   com.tomex777.annie.AnnieOmniExtensionTest
   com.tomex777.annie.AnnieOmniPersistenceSecurityTest
