@@ -113,7 +113,7 @@ function rssNewsAdapter({id,name,url,articleHosts=[],official=false,fetchImpl,in
    }catch{interpreterErrors++;return null;}
   }).filter(Boolean);
   if(interpreterErrors&&!items.length)throw new SourceError('News feed metadata interpreter failed.');
-  cache={items,source:{id,name,url:endpoint,official},fetchedAt:new Date(current).toISOString(),interpreterErrors};
+  cache=Object.freeze({items:Object.freeze(items),source:Object.freeze({id,name,url:endpoint,official}),fetchedAt:new Date(current).toISOString(),interpreterErrors});
   until=current+Math.min(15,Math.max(1,official?5:10))*60000;return cache;
  }});
 }
