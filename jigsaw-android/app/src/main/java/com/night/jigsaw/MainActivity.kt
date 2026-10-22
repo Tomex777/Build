@@ -269,12 +269,9 @@ class MainActivity : ComponentActivity() {
                 }
                 OutlinedButton(
                     onClick=onGuide,
-                    enabled=!solved && (game.mode!=PuzzleMode.MEMORY ||
-                        game.previewsRemaining>0 || game.preview),
+                    enabled=!solved,
                     modifier=Modifier.fillMaxWidth()) {
-                    Text(if(game.mode==PuzzleMode.MEMORY)
-                        "Peek · ${game.previewsRemaining}" else
-                        if(game.preview)"Hide guide" else "Guide",fontSize=12.sp)
+                    Text("Picture · ${game.previewsRemaining} peeks",fontSize=12.sp)
                 }
                 if(game.count>=72) {
                     OutlinedButton(onClick={
@@ -316,13 +313,9 @@ class MainActivity : ComponentActivity() {
             Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(6.dp)) {
                 OutlinedButton(
                     onClick=onGuide,
-                    enabled=!solved && (game.mode!=PuzzleMode.MEMORY ||
-                        game.previewsRemaining>0 || game.preview),
+                    enabled=!solved,
                     modifier=Modifier.weight(1f)) {
-                    Text(if(game.mode==PuzzleMode.MEMORY)
-                        "Peek · ${game.previewsRemaining}" else
-                        if(game.preview)"Hide guide" else "Guide",
-                        fontSize=12.sp,maxLines=1)
+                    Text("Picture",fontSize=12.sp,maxLines=1)
                 }
                 Button(
                     onClick={if(game.hint()){store.save(game);refresh();board?.invalidate()}},
@@ -394,6 +387,7 @@ class MainActivity : ComponentActivity() {
         var downloading by remember { mutableStateOf<String?>(null) }
         var paused by remember { mutableStateOf(false) }
         var peekNonce by remember { mutableIntStateOf(0) }
+        var referencePicker by remember { mutableStateOf(false) }
         var newPuzzleMode by remember { mutableStateOf(PuzzleMode.RELAXED) }
         openLibrary={libraryPicker=true}
         refresh={ revision++ }
@@ -419,23 +413,13 @@ class MainActivity : ComponentActivity() {
             }
         }
         LaunchedEffect(game, peekNonce) {
-            if(game.mode==PuzzleMode.MEMORY && game.preview) {
+            if(game.peekActive) {
                 delay(game.mode.peekMillis)
-                game.preview=false
-                store.save(game)
+                game.peekActive=false
                 revision++
             }
         }
-        val onGuide: () -> Unit = {
-            if(game.mode==PuzzleMode.MEMORY) {
-                if(!game.preview && game.usePreview()) {
-                    game.preview=true
-                    peekNonce++
-                }
-            } else game.preview=!game.preview
-            store.save(game)
-            revision++
-        }
+        val onGuide: () -> Unit = {referencePicker=true}
 
         Surface(color=bg,modifier=Modifier.fillMaxSize()) {
             if(landscape) {
@@ -598,6 +582,44 @@ class MainActivity : ComponentActivity() {
                 }
             },
             confirmButton={TextButton(onClick={libraryPicker=false}){Text("Close")}}
+        )
+
+        if(referencePicker) AlertDialog(
+            onDismissRequest={referencePicker=false},
+            title={Text("Picture reference")},
+            text={
+                Column(verticalArrangement=Arrangement.spacedBy(8.dp)) {
+                    Text(if(game.mode==PuzzleMode.MEMORY)
+                        "Memory mode has no permanent guide."
+                        else "The guide shows a faint copy behind your pieces.",
+                        color=muted,fontSize=12.sp)
+                    if(game.mode!=PuzzleMode.MEMORY) {
+                        OutlinedButton(onClick={
+                            game.preview=!game.preview
+                            store.save(game)
+                            revision++
+                        },modifier=Modifier.fillMaxWidth()) {
+                            Text(if(game.preview)"Hide faint guide" else "Show faint guide")
+                        }
+                    }
+                    Button(
+                        enabled=game.previewsRemaining>0 && !game.peekActive,
+                        onClick={
+                            if(game.usePreview()) {
+                                game.peekActive=true
+                                peekNonce++
+                                store.save(game)
+                                revision++
+                                referencePicker=false
+                            }
+                        },modifier=Modifier.fillMaxWidth()) {
+                        Text("Peek at full photo · ${game.previewsRemaining} left")
+                    }
+                    Text("Each peek lasts ${game.mode.peekMillis/1000} seconds.",
+                        fontSize=11.sp,color=muted)
+                }
+            },
+            confirmButton={TextButton(onClick={referencePicker=false}){Text("Close")}}
         )
 
         if(sessionsPicker) AlertDialog(
