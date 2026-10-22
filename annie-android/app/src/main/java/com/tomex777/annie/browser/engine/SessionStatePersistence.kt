@@ -13,6 +13,7 @@ import org.mozilla.geckoview.GeckoSession
 import org.json.JSONObject
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * Maintains durable recoverable state for every eligible (non-incognito) tab.
@@ -46,6 +47,7 @@ class SessionStatePersistence(private val baseDir: File) {
         // Shared across browser instances during quick reopen/activity recreation.
         private val GLOBAL_DISK_LOCK = Any()
         private val CLOSED_TAB_IDS = ConcurrentHashMap.newKeySet<String>()
+        private val TAB_WRITE_GENERATIONS = ConcurrentHashMap<String, AtomicLong>()
     }
 
     // Original upstream code read/modified a shared JSON file on multiple IO
@@ -53,6 +55,10 @@ class SessionStatePersistence(private val baseDir: File) {
     // overwrite each other, lose history, or resurrect a just-closed tab.
     private val diskLock = GLOBAL_DISK_LOCK
     private val forgottenTabs = CLOSED_TAB_IDS
+    private val generations = TAB_WRITE_GENERATIONS
+
+    private fun nextGeneration(tabId: String): Long =
+        generations.computeIfAbsent(tabId) { AtomicLong() }.incrementAndGet()
 
     /** In-flight debounce jobs per tab. */
     private val pendingJobs = ConcurrentHashMap<String, Job>()
@@ -76,7 +82,9 @@ class SessionStatePersistence(private val baseDir: File) {
         // UUID identities are never reused. Late callbacks from a closed
         // GeckoSession must not resurrect a closed tab or its private history.
         if (forgottenTabs.contains(tabId)) return
-        // Cancel any in-flight job for this tab.
+        // A canceled previous debounce may still reach the disk lock after a
+        // newer navigation. Guard the actual write with a per-tab generation.
+        val generation = nextGeneration(tabId)
         pendingJobs[tabId]?.cancel()
 
         val job = persistenceScope.launch {
@@ -89,7 +97,7 @@ class SessionStatePersistence(private val baseDir: File) {
                 sessionStateBytes = bytes,
                 metadata = metadata
             )
-            performAtomicWrite(state)
+            performAtomicWrite(state, generation)
         }
         pendingJobs[tabId] = job
     }
@@ -104,6 +112,7 @@ class SessionStatePersistence(private val baseDir: File) {
 
         // Cancel debounce and write immediately.
         pendingJobs[tabId]?.cancel()
+        val generation = nextGeneration(tabId)
 
         return runBlocking(Dispatchers.IO) {
             withTimeoutOrNull(FORCE_CHECKPOINT_TIMEOUT_MS) {
@@ -113,8 +122,7 @@ class SessionStatePersistence(private val baseDir: File) {
                     sessionStateBytes = bytes,
                     metadata = metadata
                 )
-                performAtomicWrite(state)
-                true
+                performAtomicWrite(state, generation)
             } ?: false
         }
     }
@@ -166,7 +174,7 @@ class SessionStatePersistence(private val baseDir: File) {
      */
     fun readAllDurableStates(): Map<String, GeckoSession.SessionState> {
         val file = File(baseDir, SESSION_STATE_FILE)
-        if (!file.exists()) return emptyMap()
+        if (!file.exists() && !File(file.path + ".bak").exists()) return emptyMap()
 
         return try {
             val json = synchronized(diskLock) { readStateDocument() }
@@ -198,6 +206,7 @@ class SessionStatePersistence(private val baseDir: File) {
     fun removeDurableState(tabId: String) {
         // Port fix: a pending debounce must never resurrect a just-closed tab.
         forgottenTabs.add(tabId)
+        nextGeneration(tabId)
         pendingJobs.remove(tabId)?.cancel()
         durableStateCache.remove(tabId)
         persistenceScope.launch {
@@ -257,10 +266,11 @@ class SessionStatePersistence(private val baseDir: File) {
     // Private implementation
     // ─────────────────────────────────────────────────────────────────────────
 
-    private fun performAtomicWrite(state: AnnieSessionState) {
+    private fun performAtomicWrite(state: AnnieSessionState, generation: Long): Boolean {
         synchronized(diskLock) {
-        if (forgottenTabs.contains(state.tabId) || state.metadata.isIncognito) return
-        try {
+        if (forgottenTabs.contains(state.tabId) || state.metadata.isIncognito ||
+            generations[state.tabId]?.get() != generation) return false
+        return try {
             val existingJson = readStateDocument()
             val statesObj = existingJson.optJSONObject("states") ?: JSONObject()
             statesObj.put(state.tabId, state.toJson())
@@ -271,8 +281,10 @@ class SessionStatePersistence(private val baseDir: File) {
             atomicWriteFile(existingJson.toString())
             durableStateCache[state.tabId] = state
             Log.d(TAG, "Persisted SessionState for ${state.tabId}")
+            true
         } catch (e: Exception) {
             Log.e(TAG, "Failed to persist SessionState for ${state.tabId}", e)
+            false
         }
         }
     }
@@ -333,7 +345,7 @@ class SessionStatePersistence(private val baseDir: File) {
     private fun readFromDisk(tabId: String, expectedUrl: String?): GeckoSession.SessionState? {
         if (forgottenTabs.contains(tabId)) return null
         val file = File(baseDir, SESSION_STATE_FILE)
-        if (!file.exists()) return null
+        if (!file.exists() && !File(file.path + ".bak").exists()) return null
 
         return try {
             val json = synchronized(diskLock) { readStateDocument() }
