@@ -194,7 +194,7 @@ async function main(){
   await page.locator('#posterName').fill('TOMEX 🍿');
   await page.locator('label.switch').filter({has:page.locator('#signatureEnabled')}).click();
   await page.getByRole('button',{name:'Save branding'}).click();
-  await page.waitForFunction(()=>document.querySelector('#saveBranding')?.disabled===false);
+  await page.getByText('Settings saved to NIGHT for this channel.').waitFor();
   assert.equal(configs.get('A').branding.posterName,'TOMEX 🍿',
     'Explicit human/automation persona persists server-side');
   assert.equal(configs.get('A').branding.signatureEnabled,true);
