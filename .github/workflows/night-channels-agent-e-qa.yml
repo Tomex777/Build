@@ -1,0 +1,33 @@
+name: NIGHT Channels Agent E independent QA
+
+on:
+  pull_request:
+    paths:
+      - 'night-play/channels/**'
+      - '.github/workflows/night-channels-agent-e-qa.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  independent-channels-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install browser test harness
+        run: npm install --no-save playwright@1.56.1
+      - name: Test owner isolation and five real Chrome viewport renders
+        run: node night-play/channels/qa/independent-browser.cjs
+      - name: Upload evidence (including on failures)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: channels-agent-e-five-viewport-qa
+          path: night-play/visual-output/channels-agent-e/
+          if-no-files-found: warn
+          retention-days: 14
