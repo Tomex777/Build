@@ -31,7 +31,8 @@ class PuzzleGame private constructor(
     var edgesOnly: Boolean = false,
     var mode: PuzzleMode = PuzzleMode.RELAXED,
     var previewsRemaining: Int = mode.allowedPreviews,
-    var elapsedSeconds: Int = 0
+    var elapsedSeconds: Int = 0,
+    var peekActive: Boolean = false
 ) {
     companion object {
         const val WORLD_WIDTH = 1000f
