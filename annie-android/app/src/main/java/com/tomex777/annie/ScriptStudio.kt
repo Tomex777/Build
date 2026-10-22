@@ -470,6 +470,7 @@ private fun ScriptStudioContent(
                 val (id, path) = withContext(Dispatchers.IO) {
                     studioImportTextDocument(workspace.files, displayName, source)
                 }
+                fileSearch = ""
                 refreshProjects(id, path)
                 currentDirectory = path.substringBeforeLast('/', "")
                 page = StudioPage.EDITOR
@@ -527,6 +528,7 @@ private fun ScriptStudioContent(
                     }
                 }
                 if (!saveBeforeNavigation()) { onFileImportOpened(); return@LaunchedEffect }
+                fileSearch = ""
                 refreshProjects(staged.first, staged.second)
                 currentDirectory = staged.second.substringBeforeLast('/', "")
                 page = StudioPage.EDITOR
@@ -700,13 +702,11 @@ private fun ScriptStudioContent(
                                 } else if (isExecutableScript(name)) {
                                     workspace.files.createScript(name)
                                 } else {
-                                    // Non-JS documents always belong to a project directory.
-                                    val projectName = name.substringBeforeLast('.')
-                                    val folder = workspace.files.createFolder(projectName)
-                                    workspace.files.createFile(folder.name, name)
+                                    studioCreateStandaloneDocument(workspace.files, name)
                                 }
                             }.onSuccess { file ->
                                 val (id, path) = studioCreatedFileLocation(workspace.files.root, file, owner?.id)
+                                fileSearch = ""
                                 refreshProjects(id, path)
                                 currentDirectory = path.substringBeforeLast('/', "")
                                 status = "Created ${file.name}"
@@ -723,6 +723,7 @@ private fun ScriptStudioContent(
                             }.onSuccess { folder ->
                                 val id = if (owner == null) folder.name else owner!!.id
                                 val directory = if (owner == null) "" else folder.relativeTo(File(workspace.files.root, id)).invariantSeparatorsPath
+                                fileSearch = ""
                                 refreshProjects(id, null)
                                 currentDirectory = directory
                                 status = "Created ${folder.name}"
@@ -1295,15 +1296,13 @@ private fun ScriptStudioContent(
                             } else if (isExecutableScript(name)) {
                                 workspace.files.createScript(name)
                             } else {
-                                // Standalone projects require an executable JS entry point;
-                                // keep auxiliary documents in their own project folder.
-                                val folder = workspace.files.createFolder(name.substringBeforeLast('.'))
-                                workspace.files.createFile(folder.name, name)
+                                studioCreateStandaloneDocument(workspace.files, name)
                             }
                             val (id, path) = studioCreatedFileLocation(workspace.files.root, file, owner?.id)
                             workspace.files.writeFile(id, path, proposed)
                             id to path
                         }.onSuccess { (id, path) ->
+                            fileSearch = ""
                             refreshProjects(id, path)
                             page = StudioPage.EDITOR
                             status = "Created $path from Assist"
