@@ -418,3 +418,15 @@ test('Atom drama category metadata can rescue a legitimate review-only show feat
  assert.equal(out.items[0].show,'Aurora');
  assert.equal(out.items[0].autoEligible,false);
 });
+
+test('four preview cards are atomic and cannot repeat an approved candidate ID',()=>{
+ const {toReviewBatch}=require('./contracts.cjs');
+ const items=['a','b','c','d'].map(x=>meme('batch-'+x,{rights:'cleared'}));
+ const media=Object.fromEntries(items.map(x=>[x.id,{previewUrl:'/api/channel-media/preview/'+x.id}]));
+ const batch=toReviewBatch(items,media);
+ assert.equal(batch.length,4);assert.equal(Object.isFrozen(batch),true);
+ assert(batch.every(x=>x.rightsStatus==='verified'&&x.publishable===true));
+ assert.throws(()=>toReviewBatch(items.slice(0,3),media),/Exactly four/);
+ assert.throws(()=>toReviewBatch([items[0],items[0],items[2],items[3]],media),/must be distinct/);
+ assert.throws(()=>toReviewBatch(items,Object.fromEntries(Object.entries(media).slice(1))),/missing a server-owned preview/);
+});
