@@ -1,0 +1,212 @@
+name: NIGHT Channels Agent E independent QA
+
+on:
+  pull_request:
+    paths:
+      - 'night-play/channels/**'
+      - '.github/workflows/night-channels-agent-e-qa.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  independent-channels-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install browser test harness
+        run: npm install --no-save playwright@1.56.1
+      - name: Test owner isolation and five real Chrome viewport renders
+        run: node night-play/channels/qa/independent-browser.cjs
+      - name: Upload evidence (including on failures)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: channels-agent-e-five-viewport-qa
+          path: night-play/visual-output/channels-agent-e/
+          if-no-files-found: warn
+          retention-days: 14
+
+  exact-verified-channel-name:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/checkout@v5
+        with:
+          ref: mscc-azure
+          path: msccSource
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Exact WhatsApp name and emoji grapheme release gate
+        run: node night-play/channels/qa/exact-channel-name.mjs
+        env:
+          NIGHT_MSCC_SOURCE_ROOT: msccSource/mscc
+
+  cross-agent-a-config-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/checkout@v5
+        with:
+          ref: agentA/channels-controls-review-20261022
+          path: agentA
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install browser test harness
+        run: npm install --no-save playwright@1.56.1
+      - name: Record exact source SHA (agentA)
+        run: |
+          git rev-parse HEAD
+          git -C agentA rev-parse HEAD
+      - name: Independently exercise Agent A config in real Chrome
+        run: node night-play/channels/qa/config-browser.cjs
+        env:
+          NIGHT_SOURCE_ROOT: agentA/night-play
+      - name: Preserve five-size and review-flow screenshots, even on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: channels-agent-e-config-branch-visuals
+          path: night-play/visual-output/channels-agent-e/config/
+          if-no-files-found: warn
+          retention-days: 14
+
+  cross-agent-b-curation-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/checkout@v5
+        with:
+          ref: agentB/channel-curation-news-20261022
+          path: agentB
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Record exact source SHA (agentB)
+        run: |
+          git rev-parse HEAD
+          git -C agentB rev-parse HEAD
+      - name: Validate Agent B curation against independent license/news regressions
+        run: node night-play/channels/qa/curation-contract.cjs
+        env:
+          NIGHT_CURATION_ROOT: agentB/night-play/channels/curation
+
+  cross-agent-d-branding-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/checkout@v5
+        with:
+          ref: agentD/channels-captions-branding-20261022
+          path: agentD
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Record exact source SHA (agentD)
+        run: |
+          git rev-parse HEAD
+          git -C agentD rev-parse HEAD
+      - name: Independently check poster identity, Unicode watermark keys and limits
+        run: node night-play/channels/qa/branding-contract.mjs
+        env:
+          NIGHT_BRANDING_ROOT: agentD/mscc/channel-branding
+
+  cross-agent-c-publisher-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/checkout@v5
+        with:
+          ref: agentC/channels-publisher-security-20261022
+          path: agentC
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Record exact source SHA (agentC)
+        run: |
+          git rev-parse HEAD
+          git -C agentC rev-parse HEAD
+      - name: Independently check C signed queue and rights/revocation contracts
+        run: |
+          node agentC/mscc/channel-publisher/selftest.js
+          node agentC/mscc/night-play-channels-selftest.js
+          node agentC/mscc/night-play-selftest.js
+      - name: Exact emoji-ZWJ verified channel name in new C source
+        run: node night-play/channels/qa/exact-channel-name.mjs
+        env:
+          NIGHT_MSCC_SOURCE_ROOT: agentC/mscc
+
+  cross-agent-a-c-config-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/checkout@v5
+        with:
+          ref: agentA/channels-controls-review-20261022
+          path: agentA
+          persist-credentials: false
+      - uses: actions/checkout@v5
+        with:
+          ref: agentC/channels-publisher-security-20261022
+          path: agentC
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Record exact source SHA (agentA, agentC)
+        run: |
+          git rev-parse HEAD
+          git -C agentA rev-parse HEAD
+          git -C agentC rev-parse HEAD
+      - name: Confirm every visible A branding setting is accepted by C
+        run: node night-play/channels/qa/a-c-config-contract.cjs
+        env:
+          NIGHT_A_SOURCE_ROOT: agentA/night-play
+          NIGHT_C_SOURCE_ROOT: agentC/mscc
+
+  cross-agent-c-d-poster-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/checkout@v5
+        with:
+          ref: agentC/channels-publisher-security-20261022
+          path: agentC
+          persist-credentials: false
+      - uses: actions/checkout@v5
+        with:
+          ref: agentD/channels-captions-branding-20261022
+          path: agentD
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Record exact source SHA (agentC, agentD)
+        run: |
+          git rev-parse HEAD
+          git -C agentC rev-parse HEAD
+          git -C agentD rev-parse HEAD
+      - name: Reject publisher personas that D would reject at final-send formatting
+        run: node night-play/channels/qa/c-d-poster-contract.mjs
+        env:
+          NIGHT_C_SOURCE_ROOT: agentC/mscc
+          NIGHT_D_SOURCE_ROOT: agentD/mscc/channel-branding
