@@ -29,6 +29,48 @@ class PuzzleStore(private val context: Context) {
     private val photoFile get() = File(context.filesDir,"jigsaw-photo.jpg")
     private val photoDirectory get() = File(context.filesDir,"saved-photos").also{it.mkdirs()}
     private val photoIndex get() = File(context.filesDir,"saved-photos.json")
+    private val winsFile get() = File(context.filesDir,"completed-jigsaw.json")
+
+    /** The same solved seed is recorded once even when the activity redraws. */
+    @Synchronized
+    fun recordWin(game: PuzzleGame) {
+        if(!game.solved)return
+        val previous=runCatching {
+            if(winsFile.exists())JSONArray(winsFile.readText()) else JSONArray()
+        }.getOrDefault(JSONArray())
+        val unique=game.imageKey+":"+game.seed
+        for(i in 0 until previous.length()) {
+            if(previous.optJSONObject(i)?.optString("id")==unique)return
+        }
+        val next=JSONArray()
+        next.put(JSONObject().put("id",unique).put("picture",game.imageKey)
+            .put("pieces",game.count).put("mode",game.mode.name)
+            .put("seconds",game.elapsedSeconds).put("moves",game.moves)
+            .put("completedAt",System.currentTimeMillis()))
+        for(i in 0 until minOf(199,previous.length()))next.put(previous.get(i))
+        val temp=File(context.filesDir,"completed-jigsaw.json.tmp")
+        temp.writeText(next.toString())
+        if(!temp.renameTo(winsFile)){
+            temp.copyTo(winsFile,overwrite=true)
+            temp.delete()
+        }
+    }
+
+    data class Completion(val pieces: Int, val seconds: Int, val mode: PuzzleMode)
+
+    fun completionsFor(key: String): List<Completion> = runCatching {
+        if(!winsFile.exists())return emptyList()
+        val json=JSONArray(winsFile.readText())
+        (0 until json.length()).mapNotNull {index->
+            val obj=json.optJSONObject(index) ?: return@mapNotNull null
+            if(obj.optString("picture")!=key)return@mapNotNull null
+            val mode=runCatching{
+                PuzzleMode.valueOf(obj.optString("mode"))
+            }.getOrDefault(PuzzleMode.RELAXED)
+            Completion(obj.optInt("pieces"),obj.optInt("seconds"),mode)
+        }
+    }.getOrDefault(emptyList())
+
 
     private fun imageFile(key: String): File? {
         if(key=="custom")return photoFile  // migration for early development saves.
