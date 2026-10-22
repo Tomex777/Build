@@ -205,6 +205,37 @@ class AnnieBrowserChromeUiTest {
     }
 
     @Test
+    fun homeListsOnlyRealRecentVisitsAndDoesNotLeakIntoPrivateTab() {
+        val visits = listOf(AnnieBrowserChromeEntry("Local Docs", "https://docs.example.net"))
+        rule.setContent {
+            AnnieBrowserChrome(
+                state = state().copy(history = visits),
+                actions = actions(),
+                webContent = { Box(it) },
+                downloadsContent = { Box(it) },
+            )
+        }
+        rule.onNodeWithText("Recent").assertIsDisplayed()
+        rule.onNodeWithText("Local Docs").assertIsDisplayed()
+    }
+
+    @Test
+    fun privateHomeDoesNotShowRegularHistory() {
+        val recent = listOf(AnnieBrowserChromeEntry("Private Result", "https://example.net/private"))
+        val privateState = AnnieBrowserChromeState(
+            tabs = listOf(AnnieBrowserChromeTab("private", "New tab", "about:blank", privateMode = true)),
+            activeId = "private", history = recent,
+        )
+        rule.setContent {
+            AnnieBrowserChrome(privateState, actions(),
+                webContent = { Box(it) }, downloadsContent = { Box(it) })
+        }
+        rule.onNodeWithText("Private tab").assertIsDisplayed()
+        rule.onNodeWithText("Recent").assertDoesNotExist()
+        rule.onNodeWithText("Private Result").assertDoesNotExist()
+    }
+
+    @Test
     fun realAndroidScreenshotEvidenceForHomeAndTabs() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
