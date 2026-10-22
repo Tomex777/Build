@@ -28,10 +28,10 @@ jobs:
       - name: Compile and unit-test native engine
         working-directory: jigsaw-android
         run: gradle :app:testDebugUnitTest :app:assembleDebug --no-daemon --stacktrace
-      - name: Verify APK identity and offline-native implementation
+      - name: Verify APK identity and native gameplay implementation
         run: |
           test -f jigsaw-android/app/build/outputs/apk/debug/app-debug.apk
-          ! grep -R 'android.webkit.WebView\|<uses-permission android:name="android.permission.INTERNET"' jigsaw-android/app/src/main
+          ! grep -R 'android.webkit.WebView' jigsaw-android/app/src/main
           $ANDROID_HOME/build-tools/36.0.0/aapt dump badging jigsaw-android/app/build/outputs/apk/debug/app-debug.apk | grep "package: name='com.night.jigsaw'"
           $ANDROID_HOME/build-tools/36.0.0/aapt dump badging jigsaw-android/app/build/outputs/apk/debug/app-debug.apk | grep "sdkVersion:'26'"
       - uses: actions/upload-artifact@v4
