@@ -9,6 +9,7 @@ import org.json.JSONObject
 import studio.artistscene.core.Actor
 import studio.artistscene.core.AssetStorage
 import studio.artistscene.core.SpringMotion
+import studio.artistscene.core.RigPoseRenderSafety
 import studio.artistscene.core.Vec3
 import kotlin.math.sqrt
 
@@ -52,7 +53,7 @@ internal class VrmSpringRuntime private constructor(
         if (!manager.hasComponent(root.entity)) return false
         val matrix = root.scratch
         System.arraycopy(root.restMatrix, 0, matrix, 0, 16)
-        val authored = root.boundPoseId?.let { actor.rig?.joints?.get(it) } ?: Vec3()
+        val authored = RigPoseRenderSafety.jointOffset(root.boundPoseId?.let { actor.rig?.joints?.get(it) })
         Matrix.rotateM(matrix, 0, authored.x, 1f, 0f, 0f)
         Matrix.rotateM(matrix, 0, authored.y, 0f, 1f, 0f)
         Matrix.rotateM(matrix, 0, authored.z, 0f, 0f, 1f)
@@ -160,7 +161,7 @@ internal class VrmSpringRuntime private constructor(
             // frame's offset, which causes permanent distortion and skin drift.
             val matrix = root.scratch
             System.arraycopy(root.restMatrix, 0, matrix, 0, 16)
-            val authored = root.boundPoseId?.let { actor.rig?.joints?.get(it) } ?: Vec3()
+            val authored = RigPoseRenderSafety.jointOffset(root.boundPoseId?.let { actor.rig?.joints?.get(it) })
             Matrix.rotateM(matrix, 0, authored.x + wobble.x, 1f, 0f, 0f)
             Matrix.rotateM(matrix, 0, authored.y, 0f, 1f, 0f)
             Matrix.rotateM(matrix, 0, authored.z + wobble.z, 0f, 0f, 1f)
