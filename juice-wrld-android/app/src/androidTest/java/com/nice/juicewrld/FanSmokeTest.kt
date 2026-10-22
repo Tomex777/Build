@@ -59,11 +59,12 @@ class FanSmokeTest {
         rule.onNodeWithTag("songs").performScrollToNode(hasText("All songs"))
     }
 
-    @Test fun songOpensAndOffersGenuineFileImportWithoutFakeStreaming() {
+    @Test fun songOpensOfficialPlaybackWithoutPretendingToDownloadUnlicensedAudio() {
         rule.onNodeWithTag("songs").performScrollToNode(hasText("Lucid Dreams"))
         rule.onNodeWithText("Lucid Dreams").performClick()
-        rule.onNodeWithText("Add audio file").assertExists()
+        rule.onNodeWithText("Import").assertDoesNotExist()
         rule.onNodeWithText("Listen on YouTube Music").assertExists()
+        rule.onNodeWithText("Download").assertDoesNotExist()
         screenshot("song-sheet")
     }
 }

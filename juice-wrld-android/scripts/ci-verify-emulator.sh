@@ -12,7 +12,7 @@ test_status=0
 gradle -p juice-wrld-android --no-daemon :app:connectedDebugAndroidTest || test_status=$?
 
 missing=0
-for page in home love sad favorites song-sheet; do
+for page in home love sad favorites song-sheet now-playing; do
   out="screenshots/${page}-api-${api}.png"
   if ! adb exec-out run-as "$app_id" cat "files/screenshots/${page}.png" > "$out"; then
     echo "::error::Unable to export Android ${api} screenshot: ${page}"
@@ -36,7 +36,7 @@ if (( test_status != 0 )); then
   exit "$test_status"
 fi
 if (( missing != 0 )); then
-  echo "::error::Android ${api} missing ${missing}/5 expected screenshots"
+  echo "::error::Android ${api} missing ${missing}/6 expected screenshots"
   exit 21
 fi
-echo "Android ${api}: all instrumentation tests and all 5 visual captures passed."
+echo "Android ${api}: all instrumentation tests and all 6 visual captures passed."

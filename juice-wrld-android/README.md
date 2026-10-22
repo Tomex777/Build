@@ -68,3 +68,27 @@ every page, and no relevant ANRs/crashes in logcat. Also verify the Android
 document picker's real persistable URI grant and audio playback on a phone
 before shipping a signed production APK. Current GitHub Actions debug APKs
 are test builds and are not guaranteed to update each other in place.
+
+## Download-first listening direction (October 2026)
+
+The main fan interface intentionally **does not show Import**. A song offers a genuine
+**Download** button *only* when an authorized, individually licensed HTTPS audio
+file and its expected SHA-256 fingerprint exist in `assets/licensed_audio.json`.
+Until recordings are licensed, the primary song action opens the official YouTube
+Music search. This is **not** an in-app download or stream. No copyrighted Juice
+WRLD recordings are scraped, bundled or fetched without permission. Previously
+attached local media remain playable for migration; the import controls are no
+longer presented. Downloads are stored privately and integrity-checked before
+being shown as available. App now exposes a full Now Playing screen for tracks
+with authorized local audio.
+
+## Background playback and media controls
+
+The Android foreground playback service owns a platform `MediaSession` and
+visible media-style notification with Play/Pause, Next and Previous actions,
+so the **same actual** MediaPlayer can continue with the screen locked or after
+leaving the Activity. It updates media metadata and playback position, responds
+to system media buttons and headset events, and pauses on lost audio focus.
+No global volume slider; use device volume buttons. This native Android session
+implementation targets minSdk 26 and requires proper API26/35 emulator/device
+verification before considering the background functionality release-ready.
