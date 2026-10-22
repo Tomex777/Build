@@ -64,6 +64,8 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.TextRange
@@ -160,10 +162,11 @@ internal fun AnnieBrowserChrome(
     var navigationSerial by remember { mutableStateOf(0) }
     val pageFocus = remember(active.id) { FocusRequester() }
 
-    LaunchedEffect(active.privateMode) {
-        // The opt-in page extension is a global Gecko extension; never let
-        // navigating into a private tab inherit an enabled normal-tab tool.
-        if (active.privateMode && universalCopyEnabled) {
+    LaunchedEffect(active.id) {
+        // The extension is global rather than tab-scoped. Switching *any* tab
+        // disables it so the menu can never falsely say On for the new tab.
+        // This also prevents private tabs from inheriting injected tools.
+        if (universalCopyEnabled) {
             universalCopyEnabled = false
             actions.universalCopy?.invoke(false)
         }
@@ -272,6 +275,10 @@ internal fun AnnieBrowserChrome(
             }
             Box(
                 Modifier.size(48.dp).testTag("annie_browser_tab_switcher")
+                    .semantics {
+                        role = Role.Button
+                        contentDescription = "${state.tabs.size} tabs, show tab switcher"
+                    }
                     .clickable { tabsOpen = !tabsOpen; panel = null },
                 contentAlignment = Alignment.Center,
             ) {
@@ -386,15 +393,15 @@ internal fun AnnieBrowserChrome(
                         if (title == "Downloads") {
                             downloadsContent(Modifier.fillMaxSize())
                         } else {
-                            val items = if (title == "Bookmarks") state.bookmarks else state.history
-                            if (items.isEmpty()) {
+                            val savedEntries = if (title == "Bookmarks") state.bookmarks else state.history
+                            if (savedEntries.isEmpty()) {
                                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                                     Text(if (title == "Bookmarks") "No saved bookmarks" else "No browsing history",
                                         color = BrowserSoftText)
                                 }
                             } else {
                                 LazyColumn(Modifier.fillMaxSize()) {
-                                    items(items, key = { it.url }) { entry ->
+                                    items(savedEntries, key = { it.url }) { entry ->
                                         Column(
                                             Modifier.fillMaxWidth()
                                                 .clickable { actions.openSaved(entry.url); panel = null }
