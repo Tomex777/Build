@@ -43,18 +43,25 @@ for (const source of music) {
 }
 
 const sent = []
-await sendAudio({ send:async payload => { sent.push(payload) }, requestedDelivery:'audio' }, {
+await sendAudio({ send:async payload => { sent.push(payload); return { key:{ id:'test-' + sent.length } } }, requestedDelivery:'audio' }, {
   url:'https://example.test/song.mp3',
   title:'Song',
   artist:'Artist',
   mimetype:'audio/mpeg',
 })
-await sendAudio({ send:async payload => { sent.push(payload) }, requestedDelivery:'document' }, {
+await sendAudio({ send:async payload => { sent.push(payload); return { key:{ id:'test-' + sent.length } } }, requestedDelivery:'document' }, {
   url:'https://example.test/song.mp3',
   title:'Song',
   artist:'Artist',
   mimetype:'audio/mpeg',
 })
+// A fulfilled send promise without a Baileys receipt is not confirmed media.
+await import('node:assert/strict').then(({ default:assert }) => assert.rejects(
+  sendAudio({ send:async () => undefined, requestedDelivery:'audio' }, {
+    url:'https://example.test/song.mp3', title:'Song',
+  }),
+  { code:'MUSIC_SEND_UNCONFIRMED' },
+))
 if (!sent[0]?.audio?.url || sent[0]?.ptt !== false || sent[0]?.document) {
   throw new Error('Normal music delivery must remain WhatsApp audio')
 }
