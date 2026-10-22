@@ -149,6 +149,14 @@ internal fun AnnieBrowserChrome(
     var navigationSerial by remember { mutableStateOf(0) }
     val pageFocus = remember(active.id) { FocusRequester() }
 
+    LaunchedEffect(active.privateMode) {
+        // The opt-in page extension is a global Gecko extension; never let
+        // navigating into a private tab inherit an enabled normal-tab tool.
+        if (active.privateMode && universalCopyEnabled) {
+            universalCopyEnabled = false
+            actions.universalCopy?.invoke(false)
+        }
+    }
     LaunchedEffect(active.id, active.url) {
         if (!editing) address = active.url.takeUnless { it == "about:blank" }.orEmpty()
     }
@@ -477,7 +485,7 @@ internal fun AnnieBrowserChrome(
                     })
                     DropdownMenuItem(text = { Text(if (state.desktopMode) "Mobile site" else "Desktop site") },
                         onClick = { menuOpen = false; actions.toggleDesktop() })
-                    if (actions.universalCopy != null) {
+                    if (actions.universalCopy != null && !active.privateMode) {
                         DropdownMenuItem(
                             text = { Text(if (universalCopyEnabled) "Universal Copy: On" else "Universal Copy: Off") },
                             onClick = {
