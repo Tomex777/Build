@@ -119,9 +119,23 @@ internal object AnnieBrowserAddress {
     fun resolve(input: String): String? {
         val text = input.trim().take(4096)
         if (text.isEmpty()) return null
+        val explicitHttp = Regex("^https?://", RegexOption.IGNORE_CASE).find(text)
+        // Host:port is not a custom URI scheme. Recognise local development
+        // and domain ports BEFORE the dangerous-scheme rejection.
+        val hostPort = Regex(
+            """^(?:localhost|127(?:\\.\\d{1,3}){3}|\\[[0-9a-fA-F:]+\\]|[A-Za-z0-9-]+(?:\\.[A-Za-z0-9-]+)+):\\d{1,5}(?:[/#?][^\\s]*)?$""",
+            RegexOption.IGNORE_CASE,
+        ).matches(text)
+        val loopback = Regex(
+            """^(?:localhost|127(?:\\.\\d{1,3}){3}|\\[[0-9a-fA-F:]+\\])(?::\\d{1,5})?(?:[/#?][^\\s]*)?$""",
+            RegexOption.IGNORE_CASE,
+        ).matches(text)
         val candidate = when {
-            text.startsWith("https://", true) || text.startsWith("http://", true) -> text
-            // Never execute javascript:, file:, data:, intent: etc. entered in the omnibox.
+            explicitHttp != null -> explicitHttp.value.lowercase(java.util.Locale.ROOT) +
+                text.substring(explicitHttp.value.length)
+            loopback -> "http://$text"
+            hostPort -> "https://$text"
+            // Do not execute javascript:, file:, data:, intent:, about: or custom schemes.
             "://" in text || Regex("^[A-Za-z][A-Za-z0-9+.-]*:").containsMatchIn(text) ->
                 return null
             !text.contains(' ') && (text.contains('.') || text.startsWith("localhost")) ->
