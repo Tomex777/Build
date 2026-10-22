@@ -25,8 +25,14 @@ class AnnieGeckoTabRestoreTest {
                 prefs.edit().clear().putString("open", saved.toString()).putInt("selected", 12).commit()
                 model = AnnieGeckoBrowserModel(context)
                 assertEquals(13, model!!.tabs.size)
+                assertEquals("Background Gecko tabs must remain lazy after restart",
+                    1, model!!.tabs.count { it.session.isOpen })
                 val stableIds = model!!.tabs.map { it.id }
                 assertEquals(13, stableIds.toSet().size)
+                assertEquals("Cold start may open only the selected Gecko renderer",
+                    1, model!!.tabs.count { it.session.isOpen })
+                assertTrue(model!!.tabs.filterNot { it.id == model!!.active!!.id }
+                    .all { it.needsRestoration })
                 assertEquals("https://example.org/tab-12", model!!.active!!.url)
                 model!!.toggleDesktop(model!!.active!!)
                 model!!.newTab(privateMode = true, address = "https://example.net/private-overflow-proof", autoLoad = false)
@@ -35,7 +41,8 @@ class AnnieGeckoTabRestoreTest {
                 model!!.destroy()
                 model = AnnieGeckoBrowserModel(context)
                 assertEquals(13, model!!.tabs.size)
-                assertEquals("Normal-tab identities must survive cold recreation", stableIds, model!!.tabs.map { it.id })
+                assertEquals("Normal-tab identities survive cold recreation",
+                    stableIds, model!!.tabs.map { it.id })
                 assertEquals("https://example.org/tab-12", model!!.active!!.url)
                 assertTrue(model!!.active!!.desktopMode)
                 assertTrue(model!!.tabs.none { it.privateMode })
@@ -67,7 +74,10 @@ class AnnieGeckoTabRestoreTest {
                     .put("https://example.org/second").toString()).commit()
                 model = AnnieGeckoBrowserModel(context)
                 assertEquals(2, model!!.tabs.size)
+                assertEquals(1, model!!.tabs.count { it.session.isOpen })
                 val selected = model!!.tabs[1]
+                assertEquals("Only restored foreground tab should create a renderer",
+                    1, model!!.tabs.count { it.session.isOpen })
                 val stableIds = model!!.tabs.map { it.id }
                 model!!.select(selected)
                 model!!.toggleDesktop(selected)
@@ -79,7 +89,8 @@ class AnnieGeckoTabRestoreTest {
 
                 model = AnnieGeckoBrowserModel(context)
                 assertEquals(2, model!!.tabs.size)
-                assertEquals("Legacy URL-only migration preserves tab identities", stableIds, model!!.tabs.map { it.id })
+                assertEquals("Legacy URL-only migration preserves IDs",
+                    stableIds, model!!.tabs.map { it.id })
                 assertEquals("https://example.org/second", model!!.active!!.url)
                 assertTrue(model!!.active!!.desktopMode)
                 assertTrue(model!!.tabs.none { it.privateMode })
