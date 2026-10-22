@@ -69,9 +69,14 @@ private fun SavedPdfReader(uri: Uri?, onClose: () -> Unit) {
 
     // PDF validation takes place in TimeMachineArchive.fileForPreview before this
     // viewer is launched. Recheck the reader's input and PDF header regardless.
+    // FileProvider covers Time Machine and Gecko downloads. Android's system
+    // DownloadManager owns content://downloads/... URIs for Library records.
+    // Never render arbitrary content-provider authorities in this Activity.
+    val trustedPdf = uri != null && uri.scheme == "content" &&
+        uri.authority in setOf("com.night.browser.files", "downloads")
     val pageCount by produceState(initialValue = -1, key1 = uri) {
         value = withContext(Dispatchers.IO) {
-            if (uri == null || uri.authority != "com.night.browser.files") return@withContext 0
+            if (!trustedPdf) return@withContext 0
             runCatching {
                 context.contentResolver.openFileDescriptor(uri, "r")?.use { descriptor ->
                     PdfRenderer(descriptor).use { it.pageCount }
@@ -88,8 +93,7 @@ private fun SavedPdfReader(uri: Uri?, onClose: () -> Unit) {
     ) {
         value = false to null
         value = true to withContext(Dispatchers.IO) {
-            if (uri == null || pageCount <= 0 ||
-                uri.authority != "com.night.browser.files") return@withContext null
+            if (!trustedPdf || pageCount <= 0) return@withContext null
             runCatching {
                 context.contentResolver.openFileDescriptor(uri, "r")?.use { descriptor ->
                     PdfRenderer(descriptor).use { renderer ->
