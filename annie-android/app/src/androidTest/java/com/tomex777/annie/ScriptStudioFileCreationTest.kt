@@ -3,8 +3,10 @@ package com.tomex777.annie
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.hasText
@@ -247,6 +249,13 @@ class ScriptStudioFileCreationTest {
             }
             assertFalse(File(workspace.files.root, "$id/main.js").exists())
             assertFalse("A document cannot run a generated command", workspace.files.isEnabled(id))
+            compose.onNodeWithText("Preview", substring = false).performClick()
+            compose.waitUntil(8_000) {
+                compose.onAllNodesWithTag("script_message_preview").fetchSemanticsNodes().isNotEmpty()
+            }
+            saveEmulatorScreenshot("annie-agent3-html-offline-preview")
+            compose.onNodeWithText("Back to editor", substring = false).performClick()
+            compose.onNodeWithTag("script_editor").assertExists()
             compose.onNodeWithText("Files", substring = false).performClick()
             compose.onNodeWithTag("script_file_search").performTextInput(id)
             closeSoftKeyboard()
@@ -257,6 +266,28 @@ class ScriptStudioFileCreationTest {
             compose.waitForIdle()
             workspace.close()
             runCatching { workspace.files.deleteProject(id) }
+        }
+    }
+
+    @Test fun unsupportedTextDocumentsNeverOfferAnActivePreviewButton() {
+        val workspace = ScriptWorkspace(InstrumentationRegistry.getInstrumentation().targetContext)
+        val name = "readme" + System.nanoTime().toString().takeLast(8)
+        val (id, _) = studioImportTextDocument(workspace.files, "$name.txt", "a note")
+        val shown = mutableStateOf(true)
+        try {
+            compose.setContent { AnnieTheme {
+                if (shown.value) ScriptStudioSheet(workspace, {}, initialProjectId = id)
+            } }
+            compose.onNodeWithText("Preview", substring = false)
+                .assertExists()
+                .assertIsNotEnabled()
+            compose.onNodeWithTag("script_tab_editor").assertDoesNotExist()
+            assertFalse(File(workspace.files.root, "$id/main.js").exists())
+        } finally {
+            compose.runOnIdle { shown.value = false }
+            compose.waitForIdle()
+            workspace.close()
+            workspace.files.deleteProject(id)
         }
     }
 
