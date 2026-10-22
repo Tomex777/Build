@@ -1037,11 +1037,25 @@ class EndlessRenderer(
         overview = false
         selectedId = id
 
-        // Preserve the current viewing direction and fly to the body.
-        // This is much less disorienting than resetting yaw/pitch on every tap.
         targetDistance = max(body.radius * 7.5, 2.0)
-        pendingYaw = 0.0
-        pendingPitch = 0.0
+        if (id == "jupiter" || id == "saturn") {
+            // The previous focused Saturn screenshot showed a nearly black
+            // disc despite correctly loaded NASA cloud textures: the camera
+            // was simply behind the night hemisphere. Fly smoothly around
+            // to a sunlit three-quarter view instead of faking illumination.
+            // User gestures remain free to change this angle afterward.
+            val sunlit = SunlitFlybyCamera.sunFacingYaw(
+                body.position.x, body.position.z
+            )
+            pendingYaw = if (sunlit != null)
+                SunlitFlybyCamera.shortestTurn(yaw, sunlit) else 0.0
+            pendingPitch = .16 - pitch
+        } else {
+            // For smaller/terrestrial bodies, preserve the explorer's
+            // orientation rather than recentering on every tap.
+            pendingYaw = 0.0
+            pendingPitch = 0.0
+        }
         onSelectionChanged(id)
     }
 
