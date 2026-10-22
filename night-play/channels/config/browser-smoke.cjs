@@ -64,7 +64,7 @@ const server=http.createServer(async(req,res)=>{
      decisions={};
      current={batchId:'batch_0_'+String(base).padStart(8,'0'),candidates:[1,2,3,4].map((n,i)=>({
        id:'meme_'+base+'_'+n,title:'Test candidate '+n,category:n%2?'anime':'relatable',
-       sourceName:'QA licensed fixtures',sourceUrl:'https://example.org/qa-fixture-'+n,
+       sourceName:'QA licensed fixtures',sourceUrl:'https://example.org/qa-fixture-'+n,rightsStatus:'verified',publishable:true,reviewOnly:false,
        previewData:fixtures[i],caption:'Caption for '+n
      })),decisions:[]};
      return send(res,200,current);
