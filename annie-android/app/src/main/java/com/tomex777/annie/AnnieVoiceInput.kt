@@ -300,6 +300,8 @@ internal class AnnieDictation(
 ) {
     private var recognizer: SpeechRecognizer? = null
     private var prefix = ""
+    // Ignore speech callbacks that arrive after leaving the chat or backgrounding the app.
+    private var generation = 0
     var listening by mutableStateOf(false)
         private set
 
@@ -308,43 +310,75 @@ internal class AnnieDictation(
     fun start(existingText: String) {
         if (listening) return
         if (!isAvailable()) { onUnavailable(); return }
-        prefix = existingText.trimEnd().let { if (it.isEmpty()) "" else "$it " }
-        val engine = SpeechRecognizer.createSpeechRecognizer(context)
+        val session = ++generation
+        prefix = existingText
+        val engine = try {
+            SpeechRecognizer.createSpeechRecognizer(context)
+        } catch (_: RuntimeException) {
+            release()
+            onUnavailable()
+            return
+        }
         recognizer = engine
         engine.setRecognitionListener(object : RecognitionListener {
-            override fun onReadyForSpeech(params: Bundle?) { listening = true }
+            override fun onReadyForSpeech(params: Bundle?) {
+                if (session == generation) listening = true
+            }
             override fun onBeginningOfSpeech() {}
             override fun onRmsChanged(rmsdB: Float) {}
             override fun onBufferReceived(buffer: ByteArray?) {}
             override fun onEndOfSpeech() {}
             override fun onEvent(eventType: Int, params: Bundle?) {}
-            override fun onPartialResults(partialResults: Bundle?) = deliver(partialResults)
-            override fun onResults(results: Bundle?) { deliver(results); release() }
-            override fun onError(error: Int) { release() }
+            override fun onPartialResults(partialResults: Bundle?) = deliver(partialResults, session)
+            override fun onResults(results: Bundle?) {
+                if (session == generation) {
+                    deliver(results, session)
+                    release()
+                }
+            }
+            override fun onError(error: Int) {
+                if (session == generation) release()
+            }
         })
-        engine.startListening(
-            Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
-                .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                .putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
-                .putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
-                .putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, context.packageName)
-                .putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 2200L)
-                .putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 1800L)
-        )
         listening = true
+        try {
+            engine.startListening(
+                Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+                    .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                    .putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+                    .putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+                    .putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, context.packageName)
+                    .putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 2200L)
+                    .putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 1800L)
+            )
+        } catch (_: RuntimeException) {
+            release()
+            onUnavailable()
+        }
     }
 
-    /** Stops listening and keeps whatever has been recognised so far. */
-    fun stop() { recognizer?.stopListening() }
+    /** Cancel the microphone immediately, keeping any words already inserted into the draft. */
+    fun stop() = release()
 
     fun release() {
+        generation++
         listening = false
-        recognizer?.let { runCatching { it.cancel() }; runCatching { it.destroy() } }
+        val active = recognizer
         recognizer = null
+        active?.let { runCatching { it.cancel() }; runCatching { it.destroy() } }
     }
 
-    private fun deliver(bundle: Bundle?) {
+    private fun deliver(bundle: Bundle?, session: Int) {
+        if (session != generation || !listening) return
         val text = bundle?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull().orEmpty()
-        if (text.isNotBlank()) onText(prefix + text)
+        if (text.isNotBlank()) onText(appendRecognizedText(prefix, text))
     }
+}
+
+/** Insert dictated speech without discarding a message the user already typed. */
+internal fun appendRecognizedText(existing: String, recognized: String): String {
+    val spoken = recognized.trim()
+    if (spoken.isEmpty()) return existing
+    val spacer = if (existing.isEmpty() || existing.last().isWhitespace()) "" else " "
+    return existing + spacer + spoken
 }
