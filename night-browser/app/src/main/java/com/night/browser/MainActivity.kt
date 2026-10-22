@@ -71,6 +71,23 @@ class MainActivity : ComponentActivity() {
     private lateinit var downloadPrompt: WebDownloadConsent
     private lateinit var memoryPolicy: AdaptiveBrowserMemory
     private lateinit var platformHost: BrowserPlatformHost
+    private var incomingWebUrl by mutableStateOf<String?>(null)
+
+    private fun safeExternalWebUrl(source: Intent?): String? {
+        if (source?.action != Intent.ACTION_VIEW) return null
+        val scheme = source.data?.scheme ?: return null
+        if (!scheme.equals("http", true) && !scheme.equals("https", true)) return null
+        // Only accept validated explicit web URLs; never turn hostile intent
+        // URIs, embedded credentials, or unsafe schemes into search requests.
+        val raw = source.dataString ?: return null
+        return AddressInput.resolve(raw)?.takeIf { it.startsWith("http", true) }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        incomingWebUrl = safeExternalWebUrl(intent)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -79,6 +96,7 @@ class MainActivity : ComponentActivity() {
         window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
         platformHost = BrowserPlatformHost(this)
         browser = BrowserController(applicationContext, platformHost)
+        incomingWebUrl = safeExternalWebUrl(intent)
         memoryPolicy = AdaptiveBrowserMemory(
             tabs = { browser.tabs.toList() },
             activeId = { browser.activeId }
@@ -95,7 +113,8 @@ class MainActivity : ComponentActivity() {
                 onSurface = Bright, onBackground = Bright
             )) {
                 NightDownloadPrompt(downloadPrompt)
-                NightBrowser(browser) { file ->
+                NightBrowser(browser, incomingWebUrl,
+                    onExternalLinkConsumed = { incomingWebUrl = null }) { file ->
                     val uri = FileProvider.getUriForFile(
                         this, "com.night.browser.files", file)
                     // Built-in offline PDF reader: don't require a third-party
@@ -138,7 +157,12 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun NightBrowser(browser: BrowserController, openSaved: (File) -> Unit) {
+private fun NightBrowser(
+    browser: BrowserController,
+    incomingWebUrl: String?,
+    onExternalLinkConsumed: () -> Unit,
+    openSaved: (File) -> Unit
+) {
     var page by remember {
         mutableStateOf(if (browser.active.url.isBlank()) Page.HOME else Page.WEB)
     }
@@ -156,6 +180,17 @@ private fun NightBrowser(browser: BrowserController, openSaved: (File) -> Unit) 
     val focusManager = LocalFocusManager.current
     val snack = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+
+    LaunchedEffect(incomingWebUrl) {
+        incomingWebUrl?.let { url ->
+            // External intents always create a fresh REGULAR tab. A browser
+            // must not surprise the user by opening third-party app links in
+            // an unrelated private tab, or by persisting private metadata.
+            browser.newTab(url = url, privateMode = false)
+            page = Page.WEB
+            onExternalLinkConsumed()
+        }
+    }
 
     LaunchedEffect(current.url, current.id) {
         if (!addressFocused) address = current.url
