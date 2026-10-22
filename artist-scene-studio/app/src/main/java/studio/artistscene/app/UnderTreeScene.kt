@@ -203,9 +203,20 @@ object UnderTreeScene {
         ) return scene
 
         val fresh = create()
-        val actualTree = scene.actors.first { it.id == TREE_ID }
-        val stockTree = fresh.actors.first { it.id == TREE_ID }
-        if (actualTree != stockTree) return scene
+        // Conservative migration: lighting, world, timeline presentation and
+        // project descriptors may be deliberate artistic decisions too.
+        // Timestamps change on every save, so compare user-visible metadata.
+        if (scene.world != fresh.world || scene.timeline != fresh.timeline ||
+            scene.metadata.description != fresh.metadata.description ||
+            scene.metadata.tags != fresh.metadata.tags
+        ) return scene
+        val stockNonStudents = fresh.actors.filterNot {
+            it.id == FIRST_STUDENT_ID || it.id == SECOND_STUDENT_ID
+        }
+        val currentNonStudents = scene.actors.filterNot {
+            it.id == FIRST_STUDENT_ID || it.id == SECOND_STUDENT_ID
+        }
+        if (currentNonStudents != stockNonStudents) return scene
         val replacement = mutableMapOf<String, Actor>()
         data class LegacyHead(val yaw: Float, val z: Float)
         val originals = mapOf(
@@ -225,12 +236,16 @@ object UnderTreeScene {
             // A source-backed model name is required. Imported models and
             // renamed, hidden, locked, attached or adjusted student actors
             // must remain exactly as the artist left them.
-            if (actor.asset?.assetId != target.asset?.assetId ||
+            if (actor.asset != target.asset ||
                 actor.name != target.name || !actor.visible || actor.locked ||
                 actor.parentId != null || actor.parentBoneId != null ||
                 actor.transform != oldTransform ||
+                actor.material != target.material ||
+                actor.physics != target.physics ||
                 actor.appearance != target.appearance ||
-                actor.animation != target.animation
+                actor.animation != target.animation ||
+                (actor.metadata - CharacterDemoStyling.INITIAL_EXPRESSION_KEY) !=
+                (target.metadata - CharacterDemoStyling.INITIAL_EXPRESSION_KEY)
             ) return scene
 
             val pose = actor.rig ?: return scene
