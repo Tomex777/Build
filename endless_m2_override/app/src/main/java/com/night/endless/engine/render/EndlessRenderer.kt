@@ -1435,11 +1435,13 @@ class EndlessRenderer(
 
         val j2000Millis = 946728000000L
         val elapsedHours = (clock.currentTimeMillis() - j2000Millis) / 3_600_000.0
-        val baseRotation = if (body.rotationHours == 0.0) {
-            0.0
-        } else {
-            (elapsedHours / body.rotationHours) * 360.0
-        }
+        // The already-tilted local spin axis encodes the retrograde
+        // directions of Venus (177.36°) and Uranus (97.77°). Using their
+        // signed rotation periods again would double-reverse both planets.
+        // Keep the angle bounded at extremely accelerated simulation times.
+        val baseRotation = PlanetarySpin.angleDegrees(
+            elapsedHours, body.rotationHours
+        )
 
         Matrix.rotateM(
             model, 0,
