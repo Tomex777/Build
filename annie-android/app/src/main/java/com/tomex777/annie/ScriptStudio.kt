@@ -450,16 +450,20 @@ private fun ScriptStudioContent(
         if (uri != null && saveBeforeNavigation()) scope.launch {
             runCatching {
                 val source = withContext(Dispatchers.IO) {
-                    context.contentResolver.openInputStream(uri)?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }
-                        ?: error("Could not read the selected JavaScript file")
+                    context.contentResolver.openInputStream(uri)?.use(::studioReadTextImport)
+                        ?: error("Could not read the selected document")
                 }
                 val displayName = context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
                     ?.use { cursor -> if (cursor.moveToFirst()) cursor.getString(0) else null }
                     ?: uri.lastPathSegment.orEmpty().substringAfterLast('/')
                 if (!saveBeforeNavigation()) return@launch
-                val file = workspace.files.importJavaScript(displayName, source)
-                refreshProjects(file.nameWithoutExtension, file.name)
-                status = "Imported ${file.name} · disabled until you review and enable it"
+                val (id, path) = withContext(Dispatchers.IO) {
+                    studioImportTextDocument(workspace.files, displayName, source)
+                }
+                refreshProjects(id, path)
+                currentDirectory = path.substringBeforeLast('/', "")
+                page = StudioPage.EDITOR
+                status = "Imported $path · disabled until you review and enable it"
             }.onFailure { status = it.message ?: "Import failed" }
         }
     }
@@ -506,15 +510,21 @@ private fun ScriptStudioContent(
         val file = importFile ?: return@LaunchedEffect
         if (!saveBeforeNavigation()) { onFileImportOpened(); return@LaunchedEffect }
         runCatching {
-            if (file.extension.equals("js", true)) {
+            if (file.extension.lowercase() in StudioFileTypes) {
                 val staged = withContext(Dispatchers.IO) {
-                    require(file.length() <= 2L * 1024 * 1024) { "Script is too large" }
-                    workspace.files.importJavaScript(file.name, file.readText())
+                    file.inputStream().use { input ->
+                        studioImportTextDocument(workspace.files, file.name, studioReadTextImport(input))
+                    }
                 }
                 if (!saveBeforeNavigation()) { onFileImportOpened(); return@LaunchedEffect }
-                refreshProjects(staged.nameWithoutExtension, staged.name)
-                status = "Imported · review and enable to run"
+                refreshProjects(staged.first, staged.second)
+                currentDirectory = staged.second.substringBeforeLast('/', "")
+                page = StudioPage.EDITOR
+                status = "Imported ${staged.second} · review and enable to run"
             } else {
+                require(file.extension.equals("zip", true)) {
+                    "Choose a supported code document, or use ZIP to import a package"
+                }
                 val cached = withContext(Dispatchers.IO) {
                     require(file.length() <= 32L * 1024 * 1024) { "Package is too large" }
                     file.copyTo(File(context.cacheDir, "annie-package-import-${UUID.randomUUID()}.zip"))
@@ -528,7 +538,7 @@ private fun ScriptStudioContent(
                     status = "Review package"
                 } catch (failure: Throwable) { cached.delete(); throw failure }
             }
-        }.onFailure { status = "Unable to import this file. Check its package structure." }
+        }.onFailure { status = it.message ?: "Unable to import this file" }
         onFileImportOpened()
     }
     LaunchedEffect(openPackageImport) {
@@ -709,7 +719,7 @@ private fun ScriptStudioContent(
                         }
                     })
                     StudioAction("Import", onClick = {
-                        importScript.launch(arrayOf("application/javascript", "text/javascript", "application/x-javascript", "text/plain"))
+                        importScript.launch(arrayOf("*/*"))
                     })
                     StudioAction("ZIP", onClick = {
                         importPackageArchive.launch(arrayOf("application/zip", "application/x-zip-compressed", "application/octet-stream"))
