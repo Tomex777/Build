@@ -94,7 +94,7 @@ function normalizeNews(record,source,{now=Date.now(),maxAgeDays=14}={}){
  const normalized=tokens(title).filter(t=>!['the','a','an','of','for','on','in','new','from','and','to'].includes(t));
  const explicitKey=typeof record.storyKey==='string'&&/^[A-Za-z0-9:._-]{4,120}$/.test(record.storyKey)?record.storyKey:null;
  const fingerprint=identifier('story',explicitKey||((show||'general').toLowerCase()+'|'+event+'|'+normalized.slice(0,10).sort().join(' ')));
- return Object.freeze({id:identifier('news',url),kind:'news',title,summary,publishedAt:new Date(published).toISOString(),show,tags,genre:String(record.genre||'').slice(0,48),platform:String(record.platform||'').slice(0,80),availabilityRegion:String(record.availabilityRegion||'').slice(0,80),spoiler,event,eventDate:Number.isFinite(Date.parse(record.eventDate||''))?new Date(record.eventDate).toISOString():null,verification,requiresReview:verification!=='official'||spoiler,fingerprint,
+ return Object.freeze({id:identifier('news',url),kind:'news',title,summary,publishedAt:new Date(published).toISOString(),show,tags,genre:verification==='official'?String(record.genre||'').slice(0,48):'',platform:verification==='official'?String(record.platform||'').slice(0,80):'',availabilityRegion:verification==='official'?String(record.availabilityRegion||'').slice(0,80):'',spoiler,event,eventDate:Number.isFinite(Date.parse(record.eventDate||''))?new Date(record.eventDate).toISOString():null,verification,requiresReview:verification!=='official'||spoiler,fingerprint,
  source:Object.freeze({id:String(source.id||'').slice(0,120),name:String(source.name||'').slice(0,120),url,provider:String(source.provider||'rss').slice(0,60),attributionRequired:true}),autoEligible:verification==='official'&&!spoiler});
 }
 // Only collapse similarly dated, same-show/same-event headlines when the editorial
@@ -126,9 +126,12 @@ function nearSameNews(a,b){
  let same=0;for(const word of wordsA)if(wordsB.has(word))same++;
  return same>=4&&same/max>=.72;
 }
-function chooseNews(items,{enabled=false,interests=[],shows=[],includeSpoilers=false,now=Date.now(),maxAgeDays=14,limit=4,mode='review'}={}){
+function chooseNews(items,{enabled=false,interests=[],shows=[],genres=[],platforms=[],regions=[],includeSpoilers=false,now=Date.now(),maxAgeDays=14,limit=4,mode='review'}={}){
  if(enabled!==true||!['review','automatic'].includes(mode))return [];
- const wanted=new Set((Array.isArray(interests)?interests:[]).filter(x=>SIMPLE_TAGS.has(x))),followed=new Set((Array.isArray(shows)?shows:[]).map(x=>tokens(x).join(' ')).filter(Boolean));
+ const wanted=new Set((Array.isArray(interests)?interests:[]).slice(0,30).filter(x=>SIMPLE_TAGS.has(x))),followed=new Set((Array.isArray(shows)?shows:[]).slice(0,30).map(x=>tokens(x).join(' ')).filter(Boolean));
+ const normalizePreferences=values=>new Set((Array.isArray(values)?values:[]).slice(0,30).map(x=>tokens(x).join(' ')).filter(Boolean));
+ const preferredGenres=normalizePreferences(genres),preferredPlatforms=normalizePreferences(platforms),preferredRegions=normalizePreferences(regions);
+ const matchesMetadata=(value,options)=>String(value||'').split(/[,/|]/).some(part=>options.has(tokens(part).join(' ')));
  const unique=new Map();
  for(const item of (Array.isArray(items)?items:[])){
   if(!item||item.kind!=='news'||(item.spoiler&&includeSpoilers!==true))continue;
@@ -137,8 +140,11 @@ function chooseNews(items,{enabled=false,interests=[],shows=[],includeSpoilers=f
   if(mode==='automatic'&&!(item.autoEligible===true&&item.verification==='official'&&item.requiresReview===false&&item.spoiler!==true))continue;
   const published=Date.parse(item.publishedAt);
   if(!Number.isFinite(published)||published>now+3600000||published<now-Math.max(1,maxAgeDays)*86400000)continue;
-  const match=(!wanted.size&&!followed.size)||(Array.isArray(item.tags)&&item.tags.some(t=>wanted.has(t)))||followed.has(tokens(item.show).join(' '));
+  const targetSelected=!!(wanted.size||followed.size||preferredGenres.size||preferredPlatforms.size);
+  const match=!targetSelected||(Array.isArray(item.tags)&&item.tags.some(t=>wanted.has(t)))||followed.has(tokens(item.show).join(' '))||matchesMetadata(item.genre,preferredGenres)||matchesMetadata(item.platform,preferredPlatforms);
   if(!match)continue;
+  // Region is a strict verified-availability filter, not an OR with headline topics.
+  if(preferredRegions.size&&(item.verification!=='official'||!matchesMetadata(item.availabilityRegion,preferredRegions)))continue;
   const key=item.fingerprint||item.id,prior=unique.get(key);
   if(!prior||(item.verification==='official'&&prior.verification!=='official')||(item.verification===prior.verification&&item.publishedAt>prior.publishedAt))unique.set(key,item);
  }
