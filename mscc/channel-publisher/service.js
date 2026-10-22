@@ -86,7 +86,8 @@ export class ChannelPublisher {
       'CREATE TABLE IF NOT EXISTS play_channel_candidates (id TEXT PRIMARY KEY, batch_id TEXT NOT NULL REFERENCES play_channel_batches(id) ON DELETE CASCADE, user_id TEXT NOT NULL, channel_id TEXT NOT NULL, caption TEXT NOT NULL, title TEXT NOT NULL, category TEXT NOT NULL, source_name TEXT NOT NULL, source_url TEXT NOT NULL, image BLOB NOT NULL, mime TEXT NOT NULL, sha256 TEXT NOT NULL, license_id TEXT NOT NULL, rights_verified INTEGER NOT NULL DEFAULT 0, FOREIGN KEY(user_id,channel_id) REFERENCES play_channel_claims(user_id,channel_id) ON DELETE CASCADE);'+
       'CREATE TABLE IF NOT EXISTS play_channel_reviews (candidate_id TEXT PRIMARY KEY REFERENCES play_channel_candidates(id) ON DELETE CASCADE, user_id TEXT NOT NULL, channel_id TEXT NOT NULL, decision TEXT NOT NULL CHECK(decision IN (\'approved\',\'declined\',\'skipped\')), caption TEXT NOT NULL, updated_at INTEGER NOT NULL);'+
       'CREATE TABLE IF NOT EXISTS play_channel_jobs (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, channel_id TEXT NOT NULL, candidate_id TEXT NOT NULL UNIQUE REFERENCES play_channel_candidates(id), caption TEXT NOT NULL, scheduled_at INTEGER NOT NULL, created_at INTEGER NOT NULL, state TEXT NOT NULL CHECK(state IN (\'queued\',\'sending\',\'sent\',\'cancelled\',\'blocked\',\'needs_review\')), sent_at INTEGER, message_id TEXT, last_error TEXT, FOREIGN KEY(user_id,channel_id) REFERENCES play_channel_claims(user_id,channel_id) ON DELETE CASCADE);'+
-      'CREATE INDEX IF NOT EXISTS play_channel_jobs_due ON play_channel_jobs(state,scheduled_at);'
+      'CREATE INDEX IF NOT EXISTS play_channel_jobs_due ON play_channel_jobs(state,scheduled_at);'+
+      'CREATE TABLE IF NOT EXISTS play_channel_selection (user_id TEXT NOT NULL,channel_id TEXT NOT NULL,id TEXT NOT NULL,revision INTEGER NOT NULL,PRIMARY KEY(user_id,channel_id),FOREIGN KEY(user_id,channel_id) REFERENCES play_channel_claims(user_id,channel_id) ON DELETE CASCADE);'
     )
   }
   claim(userId,channelId) {
@@ -133,6 +134,24 @@ export class ChannelPublisher {
     if (patch.modules?.memes===false) this.db.prepare("UPDATE play_channel_jobs SET state='cancelled',last_error='Module disabled' WHERE user_id=? AND channel_id=? AND state='queued'").run(userId,channelId)
     return this.config(userId,channelId)
   }
+  selection(userId,channelId) {
+    this.claim(userId,channelId)
+    this.db.prepare('INSERT INTO play_channel_selection VALUES (?,?,?,0) ON CONFLICT(user_id,channel_id) DO NOTHING').run(userId,channelId,randomUUID().replaceAll('-','_'))
+    const row=this.db.prepare('SELECT * FROM play_channel_selection WHERE user_id=? AND channel_id=?').get(userId,channelId)
+    const cs=this.db.prepare("SELECT c.*,r.caption AS reviewed_caption FROM play_channel_reviews r JOIN play_channel_candidates c ON c.id=r.candidate_id LEFT JOIN play_channel_jobs j ON j.candidate_id=c.id WHERE r.user_id=? AND r.channel_id=? AND r.decision='approved' AND j.id IS NULL ORDER BY r.updated_at,c.rowid LIMIT 33").all(userId,channelId)
+    if(cs.length>32) fail(409,'Approved tray exceeded its safe capacity.')
+    return {id:row.id,revision:row.revision,items:cs.map(c=>({
+      batchId:c.batch_id,candidateId:c.id,caption:c.reviewed_caption,title:c.title,
+      publishable:c.rights_verified===1,rightsStatus:c.rights_verified===1?'verified':'unverified',reviewOnly:c.rights_verified!==1,
+      previewData:'data:'+c.mime+';base64,'+Buffer.from(c.image).toString('base64')
+    }))}
+  }
+  selectionCheck(userId,channelId,revision,selectionId=null) {
+    const selected=this.selection(userId,channelId)
+    if(!Number.isInteger(revision) || selected.revision!==revision || (selectionId!==null && selected.id!==selectionId))
+      fail(409,'Approved selection changed on another device. Refresh first.')
+    return selected
+  }
   // Trusted internal source only, NEVER exposed through signed website RPC.
   registerBatch(userId,channelId,items) {
     this.claim(userId,channelId)
@@ -157,7 +176,7 @@ export class ChannelPublisher {
     const batch=this.db.prepare('SELECT id FROM play_channel_batches WHERE id=? AND user_id=? AND channel_id=?').get(id,userId,channelId)
     if(!batch) fail(404,'No review batch belongs to this channel.')
     const candidates=this.db.prepare('SELECT * FROM play_channel_candidates WHERE batch_id=? AND user_id=? AND channel_id=?').all(id,userId,channelId)
-    return {batchId:id,candidates:candidates.map(c=>({
+    return {batchId:id,selection:this.selection(userId,channelId),candidates:candidates.map(c=>({
       id:c.id,caption:c.caption,title:c.title,category:c.category,sourceName:c.source_name,sourceUrl:c.source_url,
       previewData:'data:'+c.mime+';base64,'+Buffer.from(c.image).toString('base64'),
       rightsStatus:c.rights_verified===1?'verified':'unverified', publishable:c.rights_verified===1, reviewOnly:c.rights_verified!==1,
@@ -167,10 +186,10 @@ export class ChannelPublisher {
   current(userId,channelId) {
     this.claim(userId,channelId)
     const r=this.db.prepare('SELECT id FROM play_channel_batches WHERE user_id=? AND channel_id=? ORDER BY created_at DESC LIMIT 1').get(userId,channelId)
-    if(!r) return {batchId:null,candidates:[],decisions:[]}
+    if(!r) return {batchId:null,candidates:[],decisions:[],selection:this.selection(userId,channelId)}
     return this.batch(userId,channelId,r.id)
   }
-  review(userId,channelId,{batchId,candidateId,decision,caption},accounts) {
+  review(userId,channelId,{batchId,candidateId,decision,caption,expectedSelectionRevision},accounts) {
     this.claim(userId,channelId)
     if(!['approved','declined','skipped'].includes(decision)||!text(caption,1800)) fail(400,'Invalid review decision.')
     const c=this.db.prepare('SELECT * FROM play_channel_candidates WHERE id=? AND batch_id=? AND user_id=? AND channel_id=?').get(candidateId,batchId,userId,channelId)
@@ -178,34 +197,39 @@ export class ChannelPublisher {
     if(decision==='approved' && (!c.rights_verified || !c.license_id || digest(c.image)!==c.sha256)) fail(403,'Media reuse rights are not verified. Cannot approve.')
     const cfg=this.config(userId,channelId)
     if(!cfg.modules.memes) fail(403,'Enable channel memes before reviewing for publication.')
-    this.db.prepare('INSERT INTO play_channel_reviews VALUES (?,?,?,?,?,?) ON CONFLICT(candidate_id) DO UPDATE SET decision=excluded.decision,caption=excluded.caption,updated_at=excluded.updated_at').run(candidateId,userId,channelId,decision,caption,this.now())
-    if(decision!=='approved') this.db.prepare("UPDATE play_channel_jobs SET state='cancelled',last_error='Approval revoked' WHERE candidate_id=? AND state='queued'").run(candidateId)
-    return {candidateId,decision,caption}
+    this.play.transaction(()=>{
+      const selected=this.selectionCheck(userId,channelId,expectedSelectionRevision)
+      if(decision==='approved' && selected.items.length>=32 && !selected.items.some(i=>i.candidateId===candidateId))fail(409,'Approved tray is full. Publish or remove a post first.')
+      if(this.db.prepare('SELECT 1 FROM play_channel_jobs WHERE candidate_id=?').get(candidateId)) fail(409,'This post was already queued. A review cannot rewrite the sent snapshot.')
+      this.db.prepare('INSERT INTO play_channel_reviews VALUES (?,?,?,?,?,?) ON CONFLICT(candidate_id) DO UPDATE SET decision=excluded.decision,caption=excluded.caption,updated_at=excluded.updated_at').run(candidateId,userId,channelId,decision,caption,this.now())
+      this.db.prepare('UPDATE play_channel_selection SET revision=revision+1 WHERE user_id=? AND channel_id=? AND revision=?').run(userId,channelId,selected.revision)
+    })
+    return {candidateId,decision,caption,selection:this.selection(userId,channelId)}
   }
-  enqueue(userId,channelId,{batchId,mode,scheduledAt,spacingMinutes},accounts) {
-    this.claim(userId,channelId)
+  enqueue(userId,channelId,{selectionId,expectedSelectionRevision,mode,scheduledAt,spacingMinutes},accounts) {
+    const claim=this.claim(userId,channelId)
     const cfg=this.config(userId,channelId)
     if(!cfg.modules.memes) fail(403,'This channel has memes turned off.')
     if(!['now','schedule'].includes(mode)) fail(400,'Invalid publishing mode.')
     if (mode==='schedule' && (!Number.isInteger(spacingMinutes)||spacingMinutes<1||spacingMinutes>1440)) fail(400,'Invalid post spacing.')
     const first=mode==='now'?this.now():isoTime(scheduledAt)
     if(mode==='schedule' && (first<this.now()+60000||first>this.now()+30*86400000)) fail(400,'Choose a time within the next 30 days.')
-    this.batch(userId,channelId,batchId)
-    const cs=this.db.prepare("SELECT c.*,r.caption AS reviewed_caption FROM play_channel_candidates c JOIN play_channel_reviews r ON r.candidate_id=c.id AND r.user_id=c.user_id AND r.channel_id=c.channel_id AND r.decision='approved' WHERE c.batch_id=? AND c.user_id=? AND c.channel_id=? ORDER BY c.rowid").all(batchId,userId,channelId)
-    if(!cs.length) fail(400,'Approve at least one licensed meme first.')
     const jobs=[]
     this.play.transaction(()=>{
-      cs.forEach((c,i)=>{
-        if(!c.rights_verified||!c.license_id||digest(c.image)!==c.sha256) fail(403,'Cannot queue unlicensed or changed media.')
-        const existing=this.db.prepare('SELECT id,state,scheduled_at FROM play_channel_jobs WHERE candidate_id=?').get(c.id)
-        if(existing){jobs.push({id:existing.id,status:existing.state,scheduledAt:new Date(existing.scheduled_at).toISOString()});return}
-        const id=randomUUID()
-        const due=first+i*(mode==='schedule'?spacingMinutes:1)*60000
-        this.db.prepare("INSERT INTO play_channel_jobs (id,user_id,channel_id,candidate_id,caption,scheduled_at,created_at,state) VALUES (?,?,?,?,?,?,?,'queued')").run(id,userId,channelId,c.id,c.reviewed_caption,due,this.now())
-        jobs.push({id,status:'queued',scheduledAt:new Date(due).toISOString()})
+      const selected=this.selectionCheck(userId,channelId,expectedSelectionRevision,selectionId)
+      if(!selected.items.length) fail(400,'Approve at least one licensed meme first.')
+      selected.items.forEach((item,i)=>{
+        const c=this.db.prepare('SELECT * FROM play_channel_candidates WHERE id=? AND batch_id=? AND user_id=? AND channel_id=?').get(item.candidateId,item.batchId,userId,channelId)
+        if(!c||!c.rights_verified||!c.license_id||digest(c.image)!==c.sha256) fail(403,'Cannot queue unlicensed or changed media.')
+        const existing=this.db.prepare('SELECT id FROM play_channel_jobs WHERE candidate_id=?').get(c.id)
+        if(existing)fail(409,'A selected post is already queued. Reload before trying again.')
+        const id=randomUUID(),due=first+i*(mode==='schedule'?spacingMinutes:1)*60000
+        this.db.prepare("INSERT INTO play_channel_jobs (id,user_id,channel_id,candidate_id,caption,scheduled_at,created_at,state) VALUES (?,?,?,?,?,?,?,'queued')").run(id,userId,channelId,c.id,item.caption,due,this.now())
+        jobs.push({id,status:'queued',scheduledAt:new Date(due).toISOString(),title:c.title})
       })
+      this.db.prepare('UPDATE play_channel_selection SET revision=revision+1 WHERE user_id=? AND channel_id=?').run(userId,channelId)
     })
-    return {jobs}
+    return {jobs,selection:this.selection(userId,channelId)}
   }
   jobs(userId,channelId) {
     this.claim(userId,channelId)
@@ -216,7 +240,7 @@ export class ChannelPublisher {
     if(typeof jobId!=='string') fail(400,'Invalid job.')
     const changed=this.db.prepare("UPDATE play_channel_jobs SET state='cancelled' WHERE id=? AND user_id=? AND channel_id=? AND state='queued'").run(jobId,userId,channelId)
     if(!changed.changes) fail(409,'This pending channel post cannot be cancelled.')
-    return {ok:true}
+    return {cancelled:true}
   }
   async handle(action,body,userId,accounts) {
     const id=body.channelId
