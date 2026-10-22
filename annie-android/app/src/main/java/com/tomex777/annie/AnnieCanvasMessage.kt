@@ -215,6 +215,12 @@ internal class AnnieCanvasController(private val id: String) {
         val current = web ?: WebView(context).apply {
             setBackgroundColor(android.graphics.Color.rgb(11, 24, 40))
             setOnTouchListener { view, event ->
+                // Host suspension also disables gestures; pausing Snake should
+                // never queue hidden turns while the chat is in the background.
+                if (shouldSuspend()) {
+                    view.parent?.requestDisallowInterceptTouchEvent(false)
+                    return@setOnTouchListener true
+                }
                 when (event.actionMasked) {
                     MotionEvent.ACTION_DOWN -> view.parent?.requestDisallowInterceptTouchEvent(true)
                     MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL ->
