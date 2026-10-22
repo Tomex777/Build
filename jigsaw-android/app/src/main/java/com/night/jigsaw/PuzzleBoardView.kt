@@ -210,7 +210,7 @@ class PuzzleBoardView(context: Context) : View(context) {
         for (p in g.pieces) if (p.placed) renderPiece(canvas, p, false)
         for (id in drawOrder) {
             val p = g.pieces[id]
-            if (!p.placed && g.visible(p))
+            if (!p.placed && sprites.containsKey(id))
                 renderPiece(canvas, p, id == activePiece)
         }
         canvas.restore()
@@ -310,7 +310,7 @@ class PuzzleBoardView(context: Context) : View(context) {
         val g = game ?: return -1
         for (id in drawOrder.asReversed()) {
             val p = g.pieces[id]
-            if (p.placed || !g.visible(p)) continue
+            if (p.placed) continue
             val s = sprites[id] ?: continue
             if (s.hitRegion.contains((wx-p.x).roundToInt(),(wy-p.y).roundToInt())) return id
         }
