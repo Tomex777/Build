@@ -36,10 +36,12 @@ internal fun studioCreateStandaloneDocument(files: ScriptFiles, name: String): j
     require('/' !in name && '\\' !in name) {
         "Open a project folder before creating a nested document"
     }
-    require(name.substringAfterLast('.', "").lowercase() in StudioFileTypes - setOf("js", "ts", "py", "lua")) {
+    require(name.substringAfterLast('.', "").lowercase() in setOf("html", "css", "json", "md", "txt")) {
         "Choose a supported document extension"
     }
-    val folder = files.createDocumentProject(name.substringBeforeLast('.'))
+    val base = name.substringBeforeLast('.')
+        .replace(Regex("[^A-Za-z0-9_-]"), "_").trim('_').take(48).ifBlank { "document" }
+    val folder = files.createDocumentProject(base)
     return try {
         files.createFile(folder.name, name)
     } catch (failure: Throwable) {
