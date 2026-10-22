@@ -7,12 +7,18 @@ export async function prepareChannelContent({
   text='',mediaBuffer=null,channelId,verifiedDisplayName,
   posterName='',sourceKind='manual',branding={},maxUtf8Bytes=2048,
   rendererVerifiedEmoji=false,watermarkCache=null,
+  // C supplies only a verified, owner-approved server-stored asset, never raw UI bytes.
+  approvedFallbackPng=null,
   sharpLibrary=null,canvasLibrary=null,
   transform=watermarkStaticImage
 }={}){
   if(typeof text!=='string')throw new TypeError('Post caption must be text.');
   if(mediaBuffer!==null&&!Buffer.isBuffer(mediaBuffer))throw new TypeError('Post media must be a Buffer.');
   if(branding===null||typeof branding!=='object'||Array.isArray(branding))throw new TypeError('Invalid branding config.');
+  if(approvedFallbackPng!==null&&!Buffer.isBuffer(approvedFallbackPng))
+    throw new TypeError('Approved watermark fallback must be a server-verified PNG Buffer.');
+  if(branding.captionReplacementsEnabled===true && branding.captionReplacements!==undefined &&
+      !Array.isArray(branding.captionReplacements))throw new TypeError('Invalid saved caption replacement rules.');
   if(!['manual','automation'].includes(sourceKind))throw new Error('Invalid content authorship mode.');
   // A's website currently stores branding.posterName; earlier D schema proposed
   // signaturePosterName. Accept either until the signed C config contract
@@ -48,7 +54,7 @@ export async function prepareChannelContent({
     position:branding.watermarkPosition||'auto',
     styleVersion:branding.watermarkStyleVersion??1,
     colorEmojiVerified:rendererVerifiedEmoji,
-    cache:watermarkCache,sharpLibrary,canvasLibrary
+    cache:watermarkCache,approvedFallbackPng,sharpLibrary,canvasLibrary
   });
   if(!Buffer.isBuffer(composited?.buffer)||!composited?.assetKey)throw new Error('Image compositor failed closed.');
   return {caption,mediaBuffer:composited.buffer,watermarked:true,
