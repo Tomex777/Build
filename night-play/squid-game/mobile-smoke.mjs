@@ -11,6 +11,7 @@ const designSource=readFileSync(path.join(root,'squid-game/index.html'),'utf8');
 assert.match(designSource,/box\(1\.1,1\.5,\.62,p\.shade/,'original cuboid torso is retained');
 assert.match(designSource,/sphere\(\.45,'#252b29',0,3\.42,-\.075,body\)/,'hair moves with the head, not separately');
 assert.match(designSource,/leg\.position\.set\(s\*\.27,1\.155,0\)/,'feet are grounded on the track');
+assert.match(designSource,/p\.stride\+=traveled\*1\.65/,'footsteps follow ground movement, not an independent clock');
 
 const server=createServer((req,res)=>{
  const route=new URL(req.url,'http://localhost').pathname;
@@ -33,8 +34,8 @@ try{
   return document.getElementById('loadError').style.display==='block' || (canvas.width!==960 && canvas.height!==560);
  },null,{timeout:20000});
  const usedFallback=await page.locator('#arena').evaluate(el=>el.classList.contains('fallback3d'));
- if(usedFallback)console.warn('3D WebGL could not initialize in CI; screenshot coverage is 2.5D fallback, not genuine 3D.');
- else console.log('3D WebGL renderer initialized before screenshots');
+ assert.equal(usedFallback,false,'3D gameplay QA must render real WebGL; a 2.5D fallback is not a 3D pass');
+ console.log('3D WebGL renderer initialized before screenshots');
  assert.equal(await page.locator('#arena').getAttribute('data-style'),'three','3D is the default arena');
  assert.equal(await page.locator('[data-mode="three"]').getAttribute('aria-selected'),'true');
  const output=path.join(root,'visual-output');mkdirSync(output,{recursive:true});
