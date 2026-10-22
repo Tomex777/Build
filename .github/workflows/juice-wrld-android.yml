@@ -4,11 +4,10 @@ on:
     paths:
       - "juice-wrld-android/**"
       - ".github/workflows/juice-wrld-android.yml"
-  pull_request:
-    paths:
-      - "juice-wrld-android/**"
-      - ".github/workflows/juice-wrld-android.yml"
   workflow_dispatch:
+concurrency:
+  group: juice-wrld-android-${{ github.ref_name }}
+  cancel-in-progress: true
 permissions:
   contents: read
 jobs:
