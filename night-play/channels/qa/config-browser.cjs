@@ -268,6 +268,35 @@ async function main(){
     findings.push('P1: approved items vanished from visible tray after Next four');
   if(!await page.getByRole('button',{name:'Publish approved'}).isEnabled())
     findings.push('P1: approved batch-one selection cannot publish after batch two');
+  assert.equal(await page.locator('#selectionTray .selected-item').count(),1,
+    'Previously approved item must remain in visible persistent tray');
+  const staleSelection=await page.evaluate(async channelId=>{
+    const r=await fetch('/api/account',{method:'POST',credentials:'same-origin',
+      headers:{'content-type':'application/json'},
+      body:JSON.stringify({action:'channel:memes:review',channelId,
+        batchId:'qa_batch_2_00001',candidateId:'fixture_2_1',
+        decision:'approved',caption:'outdated selection',expectedSelectionRevision:0})});
+    return r.status;
+  },A);
+  assert.equal(staleSelection,409,'Stale selection revision must reject replayed approval');
+  assert.equal(selections.get('A').items.length,1);
+  await page.locator('.review-card').nth(1).getByRole('button',{name:'Approve'}).click();
+  await page.locator('.review-card').nth(1).getByText('Approved',{exact:true}).waitFor();
+  assert.match(await page.locator('#approvedCount').innerText(),/^2 approved/,
+    'Both batches of approvals persist together');
+  assert.equal(await page.locator('#selectionTray .selected-item').count(),2);
+  await page.screenshot({path:path.join(output,'two-batches-selected.png'),fullPage:true});
+  // The first-batch item can be removed while viewing the second batch.
+  await page.getByRole('button',
+    {name:'Remove Relatable sample 1 from approved selection'}).click();
+  await page.waitForFunction(()=>document.querySelector('#approvedCount')?.textContent==='1 approved');
+  assert.deepEqual(selections.get('A').items.map(item=>item.candidateId),['fixture_2_2']);
+  await page.reload();
+  await page.locator('#configUI:visible').waitFor();
+  assert.match(await page.locator('#approvedCount').innerText(),/^1 approved/,
+    'Removing a first-batch item must survive full reload');
+  assert.equal(await page.locator('#selectionTray .selected-item').count(),1);
+  await page.screenshot({path:path.join(output,'cross-batch-remove-after-reload.png'),fullPage:true});
   // Revocation must also fail closed even if an already loaded page has buttons.
   ownerARevoked=true;
   if(await page.getByRole('button',{name:'Publish approved'}).isEnabled()){
@@ -282,6 +311,8 @@ async function main(){
   },A);
   assert.equal(denied,403,'Direct crafted POST denied after ownership revoked');
   assert.equal(jobs.length,0,'No posts can be queued after admin/owner revocation');
+  assert.equal(selections.get('A').items.length,1,
+    'Revocation never clears stored evidence or triggers implicit posting');
   await ctx.close();
   if(findings.length)throw Error('Release-blocking A UI findings:\\n'+findings.join('\\n'));
   console.log('PASS A config five breakpoints, two owners, OFF-default, review carryover and revocation');
