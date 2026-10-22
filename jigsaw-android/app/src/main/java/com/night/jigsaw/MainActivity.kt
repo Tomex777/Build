@@ -182,6 +182,15 @@ class MainActivity : ComponentActivity() {
                     modifier=Modifier.fillMaxWidth()) {
                     Text(if(game.preview)"Hide guide" else "Guide",fontSize=12.sp)
                 }
+                if(game.count>=72) {
+                    OutlinedButton(onClick={
+                        game.edgesOnly=!game.edgesOnly
+                        store.save(game);refresh()
+                    },modifier=Modifier.fillMaxWidth()) {
+                        Text(if(game.edgesOnly)"Show all pieces" else "Edges only",
+                            fontSize=12.sp)
+                    }
+                }
                 Button(
                     onClick={if(game.hint()){store.save(game);refresh();board?.invalidate()}},
                     enabled=!solved && game.hintsRemaining>0,
@@ -241,6 +250,20 @@ class MainActivity : ComponentActivity() {
                         modifier=Modifier.weight(1f)) {
                         Text("Board section",fontSize=12.sp)
                     }
+                    OutlinedButton(onClick={
+                        game.edgesOnly=!game.edgesOnly
+                        store.save(game);refresh()
+                    },modifier=Modifier.weight(1f)) {
+                        Text(if(game.edgesOnly)"Show all" else "Edges",
+                            fontSize=12.sp)
+                    }
+                }
+            } else if(game.count>=72) {
+                OutlinedButton(onClick={
+                    game.edgesOnly=!game.edgesOnly
+                    store.save(game);refresh()
+                },modifier=Modifier.fillMaxWidth()) {
+                    Text(if(game.edgesOnly)"Show all pieces" else "Show edge pieces")
                 }
             }
             }
