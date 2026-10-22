@@ -31,14 +31,21 @@ export default {
       return ctx.reply('Usage: .channelai <on|off|status> <channel JID or https://whatsapp.com/channel/… link>\nChannels default to OFF. Only the selected bot account may reply when ON.')
     }
     const sock = ctx.account?.sock
-    if (!sock?.newsletterMetadata) return ctx.reply('Channel lookup is unavailable for this NIGHT account.')
+    const input = ctx.args.slice(1).join(' ')
+    // OFF with a known JID must work even if WhatsApp metadata is unreachable.
+    if ((!sock?.newsletterMetadata) && (action === 'on' || !isChannelJid(input))) {
+      return ctx.reply('Channel lookup is unavailable. To turn AI OFF immediately, supply the numeric @newsletter JID.')
+    }
     try {
-      const channel = await resolveChannel(sock, ctx.args.slice(1).join(' '))
+      const channel = isChannelJid(input) ? input.toLowerCase() : await resolveChannel(sock, input)
       if (action === 'status') {
         const current = ctx.channelAiGet(channel)
         return ctx.reply('Channel AI: *' + (current.enabled ? 'ON' : 'OFF') + '*\n' + channel + (current.enabled ? '\nAccount: ' + current.accountId : ''))
       }
       if (action === 'on') {
+        if (!['josiah', 'nami', 'mimi'].includes(String(ctx.botProfile?.id || '').toLowerCase())) {
+          return ctx.reply('This NIGHT account is not an AI personality. Send this command privately to Josia, Nami, or MiMi instead.')
+        }
         // Explicitly confirm that this account can actually publish to the channel.
         const metadata = await sock.newsletterMetadata('jid', channel)
         if (!isChannelAdmin(metadata)) return ctx.reply('Not enabled: this NIGHT account must be a channel admin to publish AI replies.')
