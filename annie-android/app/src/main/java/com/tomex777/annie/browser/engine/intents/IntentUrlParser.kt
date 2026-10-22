@@ -147,6 +147,11 @@ object IntentUrlParser {
             }
         }
 
+        // A direct URL containing spaces must be rejected in full, never
+        // partially loaded as a truncated different host (e.g. "https://bad host").
+        if ((trimmed.startsWith("https://", true) || trimmed.startsWith("http://", true)) &&
+            trimmed.any { it.isWhitespace() }) return null
+
         // 2. Search for explicit http:// or https:// URL within the text
         val httpMatch = HTTP_URL_REGEX.find(trimmed)
         if (httpMatch != null) {
