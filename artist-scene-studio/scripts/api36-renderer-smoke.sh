@@ -1216,6 +1216,16 @@ EXPORT_SCENE_COORDS=""
 for _ in $(seq 1 18); do
   require_process_alive "clean reference PNG export"
   if dump_window_once; then
+    # Android 16 can display a real OS-owned first-use immersive-mode
+    # confirmation (not Mise UI). A person must tap OK before the app's
+    # actual export buttons can receive touch. Handle it in the live smoke.
+    if grep -Fq 'com.android.systemui:id/immersive_cling_description' "$XML"; then
+      FULLSCREEN_OK="$(tag_coords "com.android.systemui:id/ok" 2>/dev/null || true)"
+      [ -n "$FULLSCREEN_OK" ] || fail "Android fullscreen confirmation had no actionable OK button"
+      tap_coords "Accept Android fullscreen notice" "$FULLSCREEN_OK"
+      sleep 1
+      continue
+    fi
     EXIT_READY="$(tag_coords "exit-reference-mode" 2>/dev/null || true)"
     EXPORT_SCENE_COORDS="$(tag_coords "export-scene-png" 2>/dev/null || text_row_coords "Export PNG" 2>/dev/null || true)"
     if [ -n "$EXIT_READY" ] && [ -n "$EXPORT_SCENE_COORDS" ]; then break; fi
@@ -1431,6 +1441,11 @@ dump_window_once || fail "Could not inspect editor after light controls"
 tap_coords "Project browser" "$(tag_coords "back-to-projects")"
 sleep 1
 dump_window_once || fail "Could not inspect browser for new scene"
+# Snapshot all EXISTING project names before creating a scene. The app also
+# seeds an anime study and two-classmates-under-tree sample; taking the first
+# "not feasibility/anime" file accidentally picked the under-tree starter and
+# made a genuinely successful SAF import look like a failed autosave.
+adb_bounded shell run-as "$APP_ID" ls files/projects | tr -d '\r' | sort > mise-before-new-scene.txt
 tap_coords "Create scene" "$(tag_coords "create-project")"
 sleep 1
 dump_window_once || fail "Could not inspect new scene dialog"
@@ -1447,9 +1462,30 @@ capture_screen "artist-scene-studio-${API_TAG}-empty-scene.png" || fail "Could n
 python3 scripts/check-viewport-pixels.py "artist-scene-studio-${API_TAG}-landscape.png" "artist-scene-studio-${API_TAG}-resumed.png" "artist-scene-studio-${API_TAG}-empty-scene.png" || fail "Responsive/resumed viewport was black"
 
 # Prove the entire posing loop with a character imported through Android SAF.
-NEW_PROJECT_NAME="$(adb_bounded shell run-as "$APP_ID" ls files/projects | tr -d '\r' | python3 -c 'import sys; print(next(s.strip() for s in sys.stdin if s.strip().endswith(".scene.json") and s.strip() not in ("feasibility-stage.scene.json", "anime-pose-study-v1.scene.json")))')" || fail "New scene file was missing"
+# Identify the ONE newly created file by set difference, never by a guessed
+# sample-ID exclusion list or filesystem iteration order. Wait for durable save.
+NEW_PROJECT_NAME=""
+for _ in $(seq 1 25); do
+  adb_bounded shell run-as "$APP_ID" ls files/projects | tr -d '\r' | sort > mise-after-new-scene.txt
+  NEW_PROJECT_NAME="$(python3 - <<'PYPROJECT'
+from pathlib import Path
+before=set(Path("mise-before-new-scene.txt").read_text().splitlines())
+after=set(Path("mise-after-new-scene.txt").read_text().splitlines())
+created=sorted(x for x in after-before if x.endswith(".scene.json"))
+if len(created) == 1:
+    print(created[0])
+elif created:
+    raise SystemExit(f"More than one new project after tap: {created}")
+PYPROJECT
+)" || fail "New scene creation did not yield a unique project"
+  [ -n "$NEW_PROJECT_NAME" ] && break
+  require_process_alive "new scene durable project file"
+  sleep 1
+done
+[ -n "$NEW_PROJECT_NAME" ] || fail "The newly created scene was never saved"
 NEW_PROJECT_ID="${NEW_PROJECT_NAME%.scene.json}"
 NEW_PROJECT_FILE="files/projects/$NEW_PROJECT_NAME"
+echo "Identified actual newly created project: $NEW_PROJECT_NAME"
 dump_window_once || fail "Could not inspect empty scene Add control"
 tap_coords "Add imported character" "$(tag_coords "add-object")"
 sleep 1
