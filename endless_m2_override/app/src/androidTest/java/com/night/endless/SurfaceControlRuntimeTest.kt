@@ -30,6 +30,8 @@ import kotlin.math.hypot
  */
 @RunWith(AndroidJUnit4::class)
 class SurfaceControlRuntimeTest {
+    private val touchDeliveryMs = mutableListOf<Double>()
+
     @Test fun twoThumbMovementCameraHandoffAndFocusLoss() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val ui = UiDevice.getInstance(instrumentation)
@@ -223,11 +225,17 @@ class SurfaceControlRuntimeTest {
                 "endless-runtime/controls-qa-device.txt"
             )
             perf.parentFile?.mkdirs()
+            val deliveries = touchDeliveryMs.sorted()
+            val medianDeliveryMs = deliveries.getOrNull(deliveries.size / 2) ?: -1.0
+            val maxDeliveryMs = deliveries.lastOrNull() ?: -1.0
             perf.writeText(
                 "device=${Build.MODEL}\nsdk=${Build.VERSION.SDK_INT}\n" +
                     "elapsedMs=${elapsed}\ncompletedFrames=${frames}\n" +
                     "observedFramesPerSecondIncludingWaits=${frames * 1000.0 / elapsed}\n" +
                     "processPssKiB=${Debug.getPss()}\n" +
+                    "touchEvents=${deliveries.size}\n" +
+                    "touchDispatchMedianMs=${medianDeliveryMs}\n" +
+                    "touchDispatchMaxMs=${maxDeliveryMs}\n" +
                     "method=Android GLES runtime; includes waits and screenshots; not a benchmark\n"
             )
             // End-of-test CI dumpsys can say "No process found" after the
@@ -273,11 +281,13 @@ class SurfaceControlRuntimeTest {
             properties, coords, 0, 0, 1f, 1f,
             0, 0, InputDevice.SOURCE_TOUCHSCREEN, 0
         )
+        val beforeDispatch = SystemClock.elapsedRealtimeNanos()
         try {
             InstrumentationRegistry.getInstrumentation().runOnMainSync {
                 view.dispatchTouchEvent(event)
             }
         } finally {
+            touchDeliveryMs += (SystemClock.elapsedRealtimeNanos() - beforeDispatch) / 1_000_000.0
             event.recycle()
         }
     }
