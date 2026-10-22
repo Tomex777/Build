@@ -7,6 +7,13 @@ import kotlin.math.min
 import kotlin.random.Random
 
 /** View-independent puzzle rules in a 1000-unit world; no Android or browser dependency. */
+enum class PuzzleMode(val label: String, val allowedHints: Int,
+                      val allowedPreviews: Int, val peekMillis: Long) {
+    RELAXED("Relaxed",3,3,6000L),
+    CHALLENGE("Challenge",1,1,4000L),
+    MEMORY("Memory",0,1,5000L)
+}
+
 data class PuzzlePiece(
     val id: Int, val row: Int, val col: Int,
     var x: Float, var y: Float, var placed: Boolean = false,
@@ -21,7 +28,10 @@ class PuzzleGame private constructor(
     var preview: Boolean = false,
     var landscapeMode: Boolean = false,
     var activeZone: Int = 0,
-    var edgesOnly: Boolean = false
+    var edgesOnly: Boolean = false,
+    var mode: PuzzleMode = PuzzleMode.RELAXED,
+    var previewsRemaining: Int = mode.allowedPreviews,
+    var elapsedSeconds: Int = 0
 ) {
     companion object {
         const val WORLD_WIDTH = 1000f
@@ -87,7 +97,8 @@ class PuzzleGame private constructor(
         }
 
         fun fresh(cols: Int, rows: Int, imageKey: String = "starter",
-                  seed: Long = System.nanoTime(), landscape: Boolean = false): PuzzleGame {
+                  seed: Long = System.nanoTime(), landscape: Boolean = false,
+                  mode: PuzzleMode = PuzzleMode.RELAXED): PuzzleGame {
             require(cols in 2..32 && rows in 2..32 && cols * rows <= 600)
             val rng = Random(seed)
             val pw = BOARD_WIDTH / cols
@@ -118,20 +129,28 @@ class PuzzleGame private constructor(
             val pieces=(0 until total).map { i ->
                 PuzzlePiece(i, i/cols, i%cols, positions[i].first, positions[i].second)
             }.toMutableList()
-            return PuzzleGame(cols, rows, seed, imageKey, pieces, landscapeMode=landscape)
+            return PuzzleGame(cols, rows, seed, imageKey, pieces,
+                hintsRemaining=mode.allowedHints, landscapeMode=landscape,
+                mode=mode, previewsRemaining=mode.allowedPreviews)
         }
 
         fun restore(cols: Int, rows: Int, seed: Long, imageKey: String,
                     positions: List<Triple<Float, Float, Boolean>>,
                     hints: Int, moves: Int, preview: Boolean, landscape: Boolean = false,
                     activeZone: Int = 0, groupIds: List<Int>? = null,
-                    edgesOnly: Boolean = false): PuzzleGame? {
+                    edgesOnly: Boolean = false,
+                    mode: PuzzleMode = PuzzleMode.RELAXED,
+                    previewsRemaining: Int = mode.allowedPreviews,
+                    elapsedSeconds: Int = 0): PuzzleGame? {
             if (cols !in 2..32 || rows !in 2..32 || cols * rows != positions.size ||
                 cols * rows > 600 || hints !in 0..3 || moves < 0) return null
             if (groupIds!=null &&
                 (groupIds.size!=positions.size || groupIds.any{it !in positions.indices}))
                 return null
-            val game = fresh(cols, rows, imageKey, seed, landscape)
+            if(hints > mode.allowedHints ||
+                previewsRemaining !in 0..mode.allowedPreviews ||
+                elapsedSeconds !in 0..2_592_000)return null
+            val game = fresh(cols, rows, imageKey, seed, landscape,mode)
             for ((i, data) in positions.withIndex()) {
                 if (!data.first.isFinite() || !data.second.isFinite() ||
                     abs(data.first) > 10000f || abs(data.second) > 10000f) return null
@@ -147,7 +166,9 @@ class PuzzleGame private constructor(
             game.edgesOnly=edgesOnly
             game.hintsRemaining = hints
             game.moves = moves
-            game.preview = preview
+            game.preview = preview && mode != PuzzleMode.MEMORY
+            game.previewsRemaining = previewsRemaining
+            game.elapsedSeconds = elapsedSeconds
             return game
         }
     }
@@ -209,7 +230,7 @@ class PuzzleGame private constructor(
      */
     fun setLandscape(enabled: Boolean): Boolean {
         if (enabled == landscapeMode) return false
-        val replacement = fresh(cols, rows, imageKey, seed, enabled)
+        val replacement = fresh(cols, rows, imageKey, seed, enabled,mode)
         landscapeMode=enabled
         layout=scatterLayout(cols,rows,enabled)
         pieces.filter{it.placed}.forEach{p->
@@ -325,8 +346,16 @@ class PuzzleGame private constructor(
         return false
     }
 
+    /** Explicit image peek: callers render for peekMillis and then hide.
+     * Persistent ghost guide is disallowed in Memory mode. */
+    fun usePreview(): Boolean {
+        if(solved || previewsRemaining<=0)return false
+        previewsRemaining--
+        return true
+    }
+
     fun hint(): Boolean {
-        if (solved || hintsRemaining <= 0) return false
+        if (solved || hintsRemaining <= 0 || mode==PuzzleMode.MEMORY)return false
         val p = pieces.firstOrNull { !it.placed && visible(it) } ?: return false
         p.x = targetX(p); p.y = targetY(p); p.placed = true
         hintsRemaining--
