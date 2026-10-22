@@ -219,6 +219,43 @@ class ScriptStudioFileCreationTest {
         }
     }
 
+    @Test fun downloadedHtmlOpensRealDocumentWithoutGeneratedCommand() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val workspace = ScriptWorkspace(context)
+        val id = "htmlproof" + System.nanoTime().toString().takeLast(8)
+        val source = "<!doctype html><html><body><h1>Test page</h1></body></html>"
+        val download = File(context.cacheDir, "$id.html").apply { writeText(source) }
+        val pending = mutableStateOf<File?>(download)
+        val shown = mutableStateOf(true)
+        try {
+            compose.setContent { AnnieTheme {
+                if (shown.value) ScriptStudioSheet(
+                    workspace = workspace,
+                    onCommandsReloaded = {},
+                    importFile = pending.value,
+                    onFileImportOpened = { pending.value = null },
+                )
+            } }
+            compose.waitUntil(10_000) {
+                pending.value == null && File(workspace.files.root, "$id/$id.html").isFile
+            }
+            compose.onNodeWithTag("script_editor").assertExists()
+            compose.onNodeWithText("$id.html", substring = false).assertExists()
+            assertFalse("Imported document cannot be enabled implicitly", workspace.files.isEnabled(id))
+            assertFalse("Imported HTML must not create a dummy JavaScript command",
+                File(workspace.files.root, "$id/main.js").exists())
+            org.junit.Assert.assertEquals(source, workspace.files.readFile(id, "$id.html"))
+            org.junit.Assert.assertEquals(source, download.readText())
+            saveEmulatorScreenshot("annie-agent3-html-document-open")
+        } finally {
+            compose.runOnIdle { shown.value = false }
+            compose.waitForIdle()
+            workspace.close()
+            runCatching { workspace.files.deleteProject(id) }
+            download.delete()
+        }
+    }
+
     @Test fun fileFilterNeverBecomesEditorFindText() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val workspace = ScriptWorkspace(context)
