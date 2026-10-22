@@ -250,8 +250,16 @@ class DownloadLibrary private constructor(private val context: Context) {
             FileProvider.getUriForFile(context, context.packageName + ".files", file)
         } else manager.getUriForDownloadedFile(record.id)
             ?: throw IOException("Downloaded file is missing.")
-        val intent = Intent(Intent.ACTION_VIEW).setDataAndType(
-            uri, record.mimeType.ifBlank { "application/octet-stream" }
+        // Downloaded PDFs must remain usable offline even when a phone has
+        // no external PDF viewer installed. Share the existing non-exported
+        // native PdfRenderer Activity used for Time Machine; other formats
+        // still open through Android's normal MIME handlers.
+        val isPdf = record.mimeType.substringBefore(';').equals("application/pdf", true) ||
+            record.fileName.endsWith(".pdf", ignoreCase = true)
+        val intent = (if (isPdf) Intent(context, SavedPdfActivity::class.java)
+            else Intent(Intent.ACTION_VIEW)).setDataAndType(
+            uri, if (isPdf) "application/pdf"
+                else record.mimeType.ifBlank { "application/octet-stream" }
         ).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
         try {
             context.startActivity(intent)
