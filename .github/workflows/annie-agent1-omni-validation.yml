@@ -67,16 +67,7 @@ jobs:
           arch: x86_64
           profile: pixel_2
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -no-boot-anim -partition-size 4096
-          script: |
-            set -euo pipefail
-            mkdir -p annie-android/build/agent1-omni-evidence
-            for klass in AnnieGeckoTabRestoreTest AnnieOmniExtensionTest AnnieOmniPersistenceSecurityTest AnnieOmniUserAgentTest AnnieOmniSmartTabsTest AnnieOmniFindInPageTest AnnieOmniSitePermissionTest AnnieOmniBookmarkStorageTest AnnieOmniBookmarkImportBridgeTest AnnieOmniIncomingIntentTest AnnieOmniSessionRestoreTest AnnieGeckoBrowserEndToEndTest AnnieGeckoBrowserUiTest; do
-              timeout --signal=TERM --kill-after=20s 480s gradle --no-daemon --stacktrace -p annie-android :app:connectedDebugAndroidTest "-Pandroid.testInstrumentationRunnerArguments.class=com.tomex777.annie.$klass"
-              mkdir -p "annie-android/build/agent1-omni-evidence/$klass"
-              cp -R annie-android/app/build/outputs/androidTest-results "annie-android/build/agent1-omni-evidence/$klass/outputs"
-            done
-            adb logcat -d > annie-android/build/agent1-omni-evidence/logcat.txt
-            adb pull /sdcard/Pictures/AnnieCI annie-android/build/agent1-omni-evidence/screenshots || true
+          script: bash annie-android/ci/run-omni-agent1-tests.sh
       - name: Preserve API evidence
         if: always()
         uses: actions/upload-artifact@v4
