@@ -152,6 +152,7 @@ internal fun AnnieBrowserChrome(
     modifier: Modifier = Modifier,
     webContent: @Composable (Modifier) -> Unit,
     downloadsContent: @Composable (Modifier) -> Unit,
+    find: AnnieBrowserChromeFind? = null,
 ) {
     val active = state.active ?: return
     val keyboard = LocalSoftwareKeyboardController.current
@@ -210,9 +211,11 @@ internal fun AnnieBrowserChrome(
             if (universalCopyEnabled) actions.universalCopy?.invoke(false)
         }
     }
-    BackHandler(enabled = menuOpen || panel != null || tabsOpen || editing || active.canBack) {
+    BackHandler(enabled = menuOpen || find?.visible == true ||
+        panel != null || tabsOpen || editing || active.canBack) {
         when {
             menuOpen -> menuOpen = false
+            find?.visible == true -> find.close()
             tabsOpen -> tabsOpen = false
             panel != null -> panel = null
             editing -> { editing = false; focus.clearFocus(force = true); keyboard?.hide() }
@@ -554,6 +557,7 @@ internal fun AnnieLegacyGeckoBrowserChrome(
     onExit: () -> Unit,
     /** Pass model::setUniversalCopy only after the actual Omni engine PR is integrated. */
     universalCopy: ((Boolean) -> Unit)? = null,
+    find: AnnieBrowserChromeFind? = null,
 ) {
     val tab = model.active ?: return
     val state = AnnieBrowserChromeState(
@@ -600,5 +604,6 @@ internal fun AnnieLegacyGeckoBrowserChrome(
             }
         },
         downloadsContent = { modifier -> AnnieGeckoDownloadPanel(modifier) },
+        find = find,
     )
 }
