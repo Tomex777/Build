@@ -1702,6 +1702,10 @@ class EndlessRenderer(
             uniformLocation(ringProgram, "uEquatorialRadius"),
             ringRadius
         )
+        GLES30.glUniform1f(
+            uniformLocation(ringProgram, "uPolarRatio"),
+            PlanetShape.polarRatio("saturn")
+        )
 
         bindTexture(0, saturnRingTexture)
         GLES30.glUniform1i(
@@ -2599,6 +2603,7 @@ uniform sampler2D uTexture;
 uniform vec3 uPlanetCenter;
 uniform vec3 uRingNormal;
 uniform float uEquatorialRadius;
+uniform float uPolarRatio;
 out vec4 fragColor;
 
 void main() {
@@ -2614,14 +2619,30 @@ void main() {
     // drops when illuminated nearly edge-on at ring-plane crossings.
     float illumination = 0.20 + 0.80 * sqrt(max(sunHeight, 0.0));
 
-    // Planet shadow in the ring plane. The ray from the ring particle toward
-    // the Sun must pass through Saturn before entering sunlight.
-    float behindPlanet = dot(location, toSun);
-    vec3 tangent = location - behindPlanet * toSun;
-    float radialSunDistance = length(tangent) / max(uEquatorialRadius, .001);
-    float blocking = (1.0 - smoothstep(.990, 1.025, radialSunDistance))
-                     * (1.0 - smoothstep(-0.025, 0.025, behindPlanet));
-    // Preserve a small indirect scattering floor inside the umbra.
+    // Shadow test against Saturn's ACTUAL tilted oblate cloud-top ellipsoid,
+    // not a circular silhouette perpendicular to sunlight. A sunward RAY
+    // from this ring grain blocks only if its closest point is inside the
+    // same equatorial/polar radii used by the visible planet mesh.
+    vec3 axis = normalize(uRingNormal);
+    vec3 p = location / max(uEquatorialRadius, 0.001);
+    float flattening = 1.0 / max(uPolarRatio * uPolarRatio, 0.1) - 1.0;
+    float alongAxis = dot(p, axis);
+    float sunAxis = dot(toSun, axis);
+    float a = 1.0 + flattening * sunAxis * sunAxis;
+    float b = dot(p, toSun) + flattening * alongAxis * sunAxis;
+    // Clamp to the forward half-ray: never shade a lit ring grain merely
+    // because the ellipsoid is behind it, opposite the Sun.
+    float nearestT = max(-b / a, 0.0);
+    float ellipsoidRadiusSquared = dot(p, p)
+        + flattening * alongAxis * alongAxis
+        + 2.0 * b * nearestT + a * nearestT * nearestT;
+    // Pixel-width filtering avoids jagged/shimmering ring shadow edges.
+    // The narrow floor also approximates the Sun's small angular extent.
+    float edgeWidth = max(fwidth(ellipsoidRadiusSquared) * 1.15, 0.005);
+    float blocking = 1.0 - smoothstep(
+        1.0 - edgeWidth, 1.0 + edgeWidth, ellipsoidRadiusSquared
+    );
+    // Preserve a dim reflected/scattered component beneath the umbra.
     float shadow = mix(1.0, 0.11, blocking);
     fragColor = vec4(t.rgb * illumination * shadow, alpha);
 }
