@@ -1,0 +1,104 @@
+name: Juice WRLD Android ABR verification
+on:
+  push:
+    paths:
+      - "juice-wrld-android/**"
+      - ".github/workflows/juice-wrld-android.yml"
+  workflow_dispatch:
+concurrency:
+  group: juice-wrld-android-${{ github.ref_name }}
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: juice-wrld-android
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.3.1"
+      - name: Install Android SDK 36
+        run: |
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n 1)"
+          test -n "$SDKMANAGER"
+          "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0"
+      - name: Unit tests and compilation
+        run: gradle --no-daemon --stacktrace testDebugUnitTest assembleDebug
+      - name: Verify APK metadata
+        run: |
+          "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging app/build/outputs/apk/debug/app-debug.apk | grep "package: name='com.nice.juicewrld'"
+          "$ANDROID_HOME/build-tools/36.0.0/aapt" dump badging app/build/outputs/apk/debug/app-debug.apk | grep "sdkVersion:'26'"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: juice-wrld-debug-apk
+          path: juice-wrld-android/app/build/outputs/apk/debug/app-debug.apk
+
+  installed-app:
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        api: [26, 35]
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "9.3.1"
+      - run: |
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | head -n 1)"
+          test -n "$SDKMANAGER"
+          "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0"
+      - uses: actions/download-artifact@v4
+        with:
+          name: juice-wrld-debug-apk
+          path: _apk
+      - name: Enable hardware-accelerated Android emulator (KVM)
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          ls -l /dev/kvm
+          test -r /dev/kvm && test -w /dev/kvm
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          disable-animations: true
+          script: |
+            adb install -r _apk/app-debug.apk
+            adb shell am start -W -n com.nice.juicewrld/.MainActivity
+            sleep 12
+            adb shell pidof com.nice.juicewrld
+            mkdir -p screenshots
+            adb shell screencap -p /sdcard/juice-wrld.png
+            adb pull /sdcard/juice-wrld.png screenshots/start-api-${{ matrix.api }}.png
+            # The downloaded APK was signed on a different CI runner. Gradle re-signs
+            # the instrumentation install locally; remove the old debug cert first.
+            adb uninstall com.nice.juicewrld || true
+            # Each emulator-runner script line starts a new shell, so keep
+            # test exit status, loops and screenshot exports inside one bash call.
+            bash juice-wrld-android/scripts/ci-verify-emulator.sh "${{ matrix.api }}"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: juice-wrld-api-${{ matrix.api }}-screenshots
+          path: |
+            screenshots/**
+            juice-wrld-android/app/build/outputs/androidTest-results/connected/**
