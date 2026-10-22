@@ -1,3 +1,5 @@
+> **NEW USER ASSIGNMENT — THREE AGENTS × 40 MINUTES (2026-10-22):** [Master sprint/entrypoint](sprints/2026-10-22/THREE_AGENT_40_MIN.md); [A3 visuals](sprints/2026-10-22/AGENT_03_CHARACTER_VISUALS_40_MIN.md); [A4 true hair physics](sprints/2026-10-22/AGENT_04_RIG_PHYSICS_40_MIN.md); [A10 independent device QA](sprints/2026-10-22/AGENT_10_INDEPENDENT_QA_40_MIN.md). Three actual agent sessions must be started; Markdown does not auto-run them. The dated time-box and ownership rules take precedence over the historical task table below. Each agent works for **40:00 measured minutes**, visually tests and takes the next nonconflicting task if done early, then hands off actual evidence on issue #440. The sprint is **NOT YET EXECUTED** merely because the MDs exist.
+
 # MISE — Live 10-agent completion backlog
 
 ## ACTIVE CHECKPOINT — 2026-10-22 (supersedes historical table below)
