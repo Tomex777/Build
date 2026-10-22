@@ -254,7 +254,10 @@ internal fun AnnieChat() {
         capabilities = activeScriptCommand?.capabilities?.toSet().orEmpty(),
         suggestedActions = activeScriptCommand?.suggestedActions.orEmpty(),
     )
-    var draft by remember { mutableStateOf(TextFieldValue("")) }
+    // Keep unsent text isolated per conversation. Switching personas or reopening an
+    // existing chat must not erase the draft or show another chat's private text.
+    val chatDrafts = remember { mutableStateMapOf<String, TextFieldValue>() }
+    val chatDrafts[activeChatId] = chatDrafts[activeChatId] ?: TextFieldValue("")
     var lastSentMessageId by remember { mutableStateOf<Long?>(null) }
     val animatedMessageIds = remember { mutableStateMapOf<Long, Boolean>() }
     var activeSheet by remember { mutableStateOf<String?>(null) }
@@ -558,7 +561,7 @@ internal fun AnnieChat() {
         messages.add(sentMessage)
         persistHistory()
         scope.launch { listState.animateScrollToItem(messages.lastIndex) }
-        draft = TextFieldValue("")
+        chatDrafts[activeChatId] = TextFieldValue("")
         val parts = value.split(Regex("\\s+"), limit = 2)
         val command = parts.firstOrNull()?.lowercase().orEmpty()
         val commandName = command.removePrefix("/")
@@ -725,14 +728,14 @@ internal fun AnnieChat() {
             Composer(
                 value = draft,
                 onValueChange = {
-                    draft = it
+                    chatDrafts[activeChatId] = it
                 },
                 onSuggestionSelected = {
                     val selected = "$it "
-                    draft = TextFieldValue(selected, selection = TextRange(selected.length))
+                    chatDrafts[activeChatId] = TextFieldValue(selected, selection = TextRange(selected.length))
                 },
                 onContextActionSelected = { input ->
-                    draft = TextFieldValue(input, selection = TextRange(input.length))
+                    chatDrafts[activeChatId] = TextFieldValue(input, selection = TextRange(input.length))
                 },
                 onSend = { submit() },
                 onVoiceNote = { path, durationMs ->
@@ -763,13 +766,11 @@ internal fun AnnieChat() {
                       val newChat = newWelcomeChat(excludeCharacterId = activeChat.characterId)
                       chats.add(0, newChat)
                       activeChatId = newChat.id
-                      draft = TextFieldValue("")
                       persistHistory()
                       navigationDrawerOpen = false
                   },
                   onSelectChat = { id ->
                       activeChatId = id
-                      draft = TextFieldValue("")
                       navigationDrawerOpen = false
                   },
                   onOpen = { destination ->
@@ -817,13 +818,11 @@ internal fun AnnieChat() {
                         val newChat = newWelcomeChat(excludeCharacterId = activeChat.characterId)
                         chats.add(0, newChat)
                         activeChatId = newChat.id
-                        draft = TextFieldValue("")
                         persistHistory()
                         activeSheet = null
                     },
                     onSelectChat = { id ->
                         activeChatId = id
-                        draft = TextFieldValue("")
                         activeSheet = null
                     },
                     onExtensions = {
@@ -837,11 +836,11 @@ internal fun AnnieChat() {
                         }
                     },
                     onDeleteChat = { id ->
+                        chatDrafts.remove(id)
                         chats.removeAll { it.id == id }
                         if (chats.isEmpty()) chats.add(newWelcomeChat())
                         if (activeChatId == id) {
                             activeChatId = chats.first().id
-                            draft = TextFieldValue("")
                         }
                         persistHistory()
                     },
