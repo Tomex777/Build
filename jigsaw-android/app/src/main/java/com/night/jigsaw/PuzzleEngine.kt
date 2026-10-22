@@ -20,7 +20,8 @@ class PuzzleGame private constructor(
     var moves: Int = 0,
     var preview: Boolean = false,
     var landscapeMode: Boolean = false,
-    var activeZone: Int = 0
+    var activeZone: Int = 0,
+    var edgesOnly: Boolean = false
 ) {
     companion object {
         const val WORLD_WIDTH = 1000f
@@ -123,7 +124,8 @@ class PuzzleGame private constructor(
         fun restore(cols: Int, rows: Int, seed: Long, imageKey: String,
                     positions: List<Triple<Float, Float, Boolean>>,
                     hints: Int, moves: Int, preview: Boolean, landscape: Boolean = false,
-                    activeZone: Int = 0, groupIds: List<Int>? = null): PuzzleGame? {
+                    activeZone: Int = 0, groupIds: List<Int>? = null,
+                    edgesOnly: Boolean = false): PuzzleGame? {
             if (cols !in 2..32 || rows !in 2..32 || cols * rows != positions.size ||
                 cols * rows > 600 || hints !in 0..3 || moves < 0) return null
             if (groupIds!=null &&
@@ -142,6 +144,7 @@ class PuzzleGame private constructor(
             }
             if(activeZone !in 0 until game.zoneCount) return null
             game.activeZone=activeZone
+            game.edgesOnly=edgesOnly
             game.hintsRemaining = hints
             game.moves = moves
             game.preview = preview
@@ -158,8 +161,17 @@ class PuzzleGame private constructor(
     val zonesDown: Int get() = zoneRows(cols,rows)
     val zoneCount: Int get() = zonesAcross*zonesDown
     fun zoneFor(piece: PuzzlePiece): Int = zoneOf(piece.id,cols,rows)
-    fun visible(piece: PuzzlePiece): Boolean = piece.placed ||
-        zoneCount==1 || zoneFor(piece)==activeZone
+    fun isEdge(piece: PuzzlePiece): Boolean = piece.row==0 ||
+        piece.row==rows-1 || piece.col==0 || piece.col==cols-1
+    fun visible(piece: PuzzlePiece): Boolean {
+        if(piece.placed)return true
+        if(zoneCount>1 && zoneFor(piece)!=activeZone)return false
+        if(!edgesOnly)return true
+        // Keep the entire assembly visible when one member is an edge.
+        return isEdge(piece) || pieces.any {
+            !it.placed && it.groupId==piece.groupId && isEdge(it)
+        }
+    }
     fun zoneRemaining(zone: Int): Int {
         require(zone in 0 until zoneCount)
         return pieces.count{!it.placed && zoneFor(it)==zone}
