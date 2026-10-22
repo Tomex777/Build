@@ -168,6 +168,7 @@ internal fun AnnieBrowserChrome(
     val canCreateTab = state.tabs.size < 20
     var navigationSerial by remember { mutableStateOf(0) }
     val pageFocus = remember(active.id) { FocusRequester() }
+    val findFocus = remember { FocusRequester() }
 
     LaunchedEffect(active.id) {
         // The extension is global rather than tab-scoped. Switching *any* tab
@@ -180,6 +181,13 @@ internal fun AnnieBrowserChrome(
     }
     LaunchedEffect(active.id, active.url) {
         if (!editing) address = TextFieldValue(active.url.takeUnless { it == "about:blank" }.orEmpty())
+    }
+    LaunchedEffect(find?.visible) {
+        if (find?.visible == true) {
+            androidx.compose.runtime.withFrameNanos { }
+            findFocus.requestFocus()
+            keyboard?.show()
+        }
     }
     LaunchedEffect(navigationSerial, state.isNewTab) {
         // The initial Home state has no Gecko page focus target. Wait until a
@@ -211,11 +219,16 @@ internal fun AnnieBrowserChrome(
             if (universalCopyEnabled) actions.universalCopy?.invoke(false)
         }
     }
+    fun dismissFind() {
+        find?.close()
+        focus.clearFocus(force = true)
+        keyboard?.hide()
+    }
     BackHandler(enabled = menuOpen || find?.visible == true ||
         panel != null || tabsOpen || editing || active.canBack) {
         when {
             menuOpen -> menuOpen = false
-            find?.visible == true -> find.close()
+            find?.visible == true -> dismissFind()
             tabsOpen -> tabsOpen = false
             panel != null -> panel = null
             editing -> { editing = false; focus.clearFocus(force = true); keyboard?.hide() }
@@ -316,6 +329,7 @@ internal fun AnnieBrowserChrome(
                     value = find.query,
                     onValueChange = { find.update(it.take(1024)) },
                     modifier = Modifier.weight(1f).height(48.dp)
+                        .focusRequester(findFocus)
                         .padding(horizontal = 10.dp).testTag("annie_browser_find_input"),
                     textStyle = TextStyle(color = BrowserBrightText, fontSize = 14.sp),
                     cursorBrush = SolidColor(BrowserTeal),
@@ -343,7 +357,7 @@ internal fun AnnieBrowserChrome(
                     Icon(AnnieIcons.ArrowForward, contentDescription = "Next match",
                         tint = BrowserBrightText)
                 }
-                IconButton(onClick = find.close, modifier = Modifier.size(48.dp)) {
+                IconButton(onClick = { dismissFind() }, modifier = Modifier.size(48.dp)) {
                     Icon(AnnieIcons.Close, contentDescription = "Close find in page",
                         tint = BrowserBrightText)
                 }
