@@ -223,9 +223,12 @@ class FanPlayer(app: Application) : AndroidViewModel(app) {
             _state.update { it.copy(error = "Import music for this feeling first.") }
             return
         }
-        val queue = MusicQueue.build(ids, ids.first(), _state.value.shuffle)
+        val first = ids.first()
+        val queue = MusicQueue.build(ids, first, _state.value.shuffle)
         _state.update { it.copy(queueIds = queue) }
-        play(ids.first())
+        // A button labeled "Play mood" must never pause an already playing
+        // track merely because the user selected the same feeling twice.
+        if (first != _state.value.activeSongId || !_state.value.isPlaying) play(first)
     }
 
     fun playInMood(songId: String, mood: Mood) {
