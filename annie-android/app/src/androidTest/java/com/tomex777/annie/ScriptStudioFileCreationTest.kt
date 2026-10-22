@@ -221,6 +221,8 @@ class ScriptStudioFileCreationTest {
                 if (shown.value) ScriptStudioSheet(workspace, {}, initialProjectId = name,
                     onClose = { closed = true })
             } }
+            compose.onNodeWithTag("script_file_search").performTextInput(name)
+            closeSoftKeyboard()
             compose.onNodeWithText(file.name, substring = false).performClick()
             // Replace the backing file with a directory to force a real write failure.
             assertTrue(file.delete())
