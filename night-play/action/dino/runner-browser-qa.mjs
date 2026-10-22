@@ -11,7 +11,7 @@ const output=join(root,'visual-output','chromium-dino');
 mkdirSync(output,{recursive:true});
 const allowed=new Set([
  'action/index.html','action/style.css','action/games.js',
- 'action/dino/index.html','action/dino/style.css','action/dino/bridge.js',
+ 'action/dino/index.html','action/dino/style.css','action/dino/bridge.js','action/dino/night-skin.js',
  'action/dino/chromium-runner.js','game-shell.css'
 ]);
 const server=createServer((req,res)=>{
@@ -36,6 +36,12 @@ try{
   await page.waitForFunction(()=>window.__nightDinoTest?.snapshot().ready);
   const initial=await snap(page);
   assert.equal(initial.gravity,.6,'original Chromium gravity');
+  assert.ok(await page.evaluate(()=>{
+   const img=document.querySelector('#offline-resources-2x');
+   const art=document.createElement('canvas');art.width=img.naturalWidth;art.height=img.naturalHeight;
+   const ctx=art.getContext('2d');ctx.drawImage(img,0,0);const rgba=ctx.getImageData(1678+2*24,2+2*20,1,1).data;
+   return rgba[1]>rgba[0]*.8 || rgba[0]>10;
+  }),'custom runner skin atlas successfully installed');
   assert.equal(initial.jumpVelocity,-10,'original Chromium T-Rex jump velocity');
   assert.equal(initial.groundY,93,'original Chromium ground geometry');
   const overflow=await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth);
@@ -70,13 +76,15 @@ try{
    await input.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
    await page.waitForTimeout(570);
    assert.equal((await snap(page)).jumping,false,'original jump lands');
-   const duck=await page.locator('#duckButton').boundingBox();
-   const dx=duck.x+duck.width*.5,dy=duck.y+duck.height*.5;
+   assert.equal(await page.locator('#duckButton').count(),0,'no visible duck dock/control');
+   // Recognizable single-surface swipe down triggers original Chromium duck.
+   const dx=x,dy=y-55;
    await input.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{id:2,x:dx,y:dy}]});
-   await page.waitForTimeout(90);
-   assert.equal((await snap(page)).ducking,true,'physical DUCK button crouches');
+   await input.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{id:2,x:dx,y:dy+36}]});
+   await page.waitForTimeout(85);
+   assert.equal((await snap(page)).ducking,true,'swipe down crouches without dock button');
    await input.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
-   assert.equal((await snap(page)).ducking,false,'releasing DUCK stands');
+   assert.equal((await snap(page)).ducking,false,'swipe release stands');
    await page.locator('#pauseButton').click();
    const paused=await snap(page);
    assert.equal(paused.paused,true,'pause toggled');
@@ -99,7 +107,7 @@ try{
    assert.ok((await snap(page)).distanceRan<200,'new round resets distance');
   }
   assert.deepEqual(errors,[],'no browser exceptions at '+width);
-  console.log('PASS',width,{overflow,arenaHeight:arena.height,canvasHeight:rect.height,referenceHeight:reference.height,originalJumpVelocity:initial.jumpVelocity,canvasWidth:rect.width});
+  console.log('PASS',width,{overflow,arenaHeight:arena.height,canvasHeight:rect.height,referenceHeight:reference.height,originalJumpVelocity:initial.jumpVelocity,canvasWidth:rect.width,skin:'NIGHT'});
   await page.close();
  }
 }finally{if(browser)await browser.close();await new Promise(done=>server.close(done));}
