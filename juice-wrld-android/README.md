@@ -1,4 +1,4 @@
-# Juice WRLD — NIGHT's unofficial fan app (Android)
+# Juice WRLD — NIGHT's unofficial fan app (Android v0.2.0)
 
 A fan-first space for Juice WRLD's released music, organized by **how the songs feel**, not by streaming-app tabs. Designed for listening, memories and personal favorites.
 
@@ -40,3 +40,12 @@ Music credit and song/album names cross-checked against MusicBrainz and official
 - https://music.youtube.com/
 
 This is an **unofficial** fan project, not endorsed by Juice WRLD's estate or his music labels. Users are responsible for lawful use of imported recordings.
+
+## v0.2.0 progress / release gate
+
+- 110 confirmed released song entries and fan-curated emotion groups.
+- Responsive compact home plus verified Commons portrait URL and release-specific art fallbacks.
+- In-app local playback supports emotion-based queues, shuffle and repeat one/all, with playback progression to the next song.
+- Favorites and private song memories persist; scan your own music folder through SAF (manual song import also available).
+- Do not consider the fan app production-ready until the latest branch is compiled and tested on API 26/35 emulators, the screenshots are visually inspected, imported audio is actually played, and owner-controlled release signing is configured.
+- GitHub Actions debug APKs use runner debug certificates; they are test builds and are **not guaranteed to update** an APK built on a different runner without uninstalling. Never mistake these artifacts for a signed production release.
