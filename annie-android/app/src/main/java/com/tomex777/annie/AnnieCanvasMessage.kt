@@ -43,6 +43,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -111,12 +113,40 @@ internal data class AnnieCanvasDocument(
     }
 }
 
+/**
+ * Compose's LazyColumn scroll is not a View.scrollTo() operation, so Android
+ * getGlobalVisibleRect alone cannot see the conversation viewport clipping.
+ * Intersect every layout-ancestor viewport on layout/placement changes.
+ */
+internal fun canvasHasVisibleComposeArea(coordinates: LayoutCoordinates): Boolean {
+    val own = coordinates.boundsInWindow()
+    if (own.width <= 0f || own.height <= 0f) return false
+    var left = own.left
+    var top = own.top
+    var right = own.right
+    var bottom = own.bottom
+    var ancestor = coordinates.parentLayoutCoordinates
+    while (ancestor != null) {
+        val box = ancestor.boundsInWindow()
+        left = maxOf(left, box.left)
+        top = maxOf(top, box.top)
+        right = minOf(right, box.right)
+        bottom = minOf(bottom, box.bottom)
+        if (right <= left || bottom <= top) return false
+        ancestor = ancestor.parentLayoutCoordinates
+    }
+    val visibleArea = (right - left).toDouble() * (bottom - top).toDouble()
+    val totalArea = own.width.toDouble() * own.height.toDouble()
+    return visibleArea * 4.0 >= totalArea
+}
+
 internal class AnnieCanvasController(private val id: String) {
     private var web: WebView? = null
     private var inlineHost: FrameLayout? = null
     private var fullscreenHost: FrameLayout? = null
     private var document: AnnieCanvasDocument? = null
     private var inlineForeground = false
+    private var inlineComposeVisible = false
     private val fullscreenForegroundOwners = mutableSetOf<Any>()
     private var suspended: Boolean? = null
     private var observedHost: FrameLayout? = null
@@ -176,7 +206,8 @@ internal class AnnieCanvasController(private val id: String) {
     }
 
     private fun shouldSuspend() = pausedByUser ||
-        !(if (expanded) fullscreenForegroundOwners.isNotEmpty() else inlineForeground) || !surfaceVisible()
+        !(if (expanded) fullscreenForegroundOwners.isNotEmpty() else
+            inlineForeground && inlineComposeVisible) || !surfaceVisible()
 
     private fun syncSuspension(force: Boolean = false) {
         val view = web ?: return
@@ -201,9 +232,10 @@ internal class AnnieCanvasController(private val id: String) {
         if (!expanded) syncSuspension()
     }
 
-    fun onInlineGeometryChanged() {
-        // A Compose LazyColumn can scroll without sending Android ViewTreeObserver
-        // scroll events. Placement callbacks capture this reliably for AndroidView.
+    fun onInlineGeometryChanged(visibleInCompose: Boolean) {
+        // Compose lazy scrolling clips children without changing Android view
+        // scroll offsets; use ancestor placement bounds as the extra signal.
+        inlineComposeVisible = visibleInCompose
         if (!expanded) syncSuspension()
     }
 
@@ -344,6 +376,7 @@ internal class AnnieCanvasController(private val id: String) {
     fun inlineDisposed() {
         inlineHost = null
         inlineForeground = false
+        inlineComposeVisible = false
         if (!expanded) destroy()
     }
 
@@ -451,7 +484,9 @@ internal fun AnnieCanvasMessage(payload: JSONObject) {
                     factory = { FrameLayout(it).also { host -> controller.attachInline(it, host, doc) } },
                     update = { host -> controller.attachInline(host.context, host, doc) },
                     modifier = Modifier.fillMaxWidth().height(doc.heightDp.dp)
-                        .onGloballyPositioned { controller.onInlineGeometryChanged() }
+                        .onGloballyPositioned {
+                            controller.onInlineGeometryChanged(canvasHasVisibleComposeArea(it))
+                        }
                         .testTag("annie_canvas_webview"),
                 )
             } else {
