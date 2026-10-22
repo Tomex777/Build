@@ -47,6 +47,13 @@ class FanSongsTest {
         assertEquals("fast", SongFileMatcher.matchFilename("Juice WRLD - Fast.mp3")?.id)
         assertEquals("im-still", SongFileMatcher.matchFilename("Juice WRLD - Im Still.mp3")?.id)
         assertEquals("go-hard-20", SongFileMatcher.matchFilename("Juice WRLD - Go Hard 2.0.mp3")?.id)
+        // Safe bulk import should accept a precise title without an artist tag,
+        // but never attach some other artist's song containing those words.
+        assertEquals("lucid-dreams", SongFileMatcher.matchFilename("Lucid Dreams.mp3")?.id)
+        assertEquals("lucid-dreams", SongFileMatcher.matchFilename("01 - Lucid Dreams.mp3")?.id)
+        assertNull(SongFileMatcher.matchFilename("Dreamy Lucid Dreams Collection.mp3"))
+        assertNull(SongFileMatcher.matchFilename("Super Fast Highway.mp3"))
+        assertNull(SongFileMatcher.matchFilename("01 - Fast.mp3"))
     }
 
     @Test fun newProjectsAppearAcrossYearsWithoutLeakingDuplicates() {
