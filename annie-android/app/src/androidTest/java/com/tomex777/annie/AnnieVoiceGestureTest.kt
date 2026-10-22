@@ -135,6 +135,13 @@ class AnnieVoiceGestureTest {
                 assertTrue(controller.locked)
                 assertEquals(0, sends)
             }
+            val density = compose.activity.resources.displayMetrics.density
+            listOf("voice_delete", "voice_pause_resume", "voice_send").forEach { tag ->
+                val target = compose.onNodeWithTag(tag).fetchSemanticsNode().boundsInRoot
+                assertTrue("$tag is too narrow for a reliable tap", target.width >= 48f * density - 1f)
+                assertTrue("$tag is too short for a reliable tap", target.height >= 48f * density - 1f)
+            }
+            saveEmulatorScreenshot("annie-agent5-voice-locked-controls")
             compose.onNodeWithTag("voice_pause_resume").performClick()
             var pausedDuration = 0L
             compose.runOnIdle { assertTrue(controller.paused); pausedDuration = controller.elapsedMs }
