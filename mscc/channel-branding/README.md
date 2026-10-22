@@ -12,7 +12,7 @@ Each verified channel may opt in to branding independently. Suggested server-sid
     "captionReplacementsEnabled": false,
     "captionReplacements": [{"from": "what the fuck", "to": "WTF"}],
     "signatureEnabled": false,
-    "signaturePosterName": "",
+    "posterName": "",
     "watermarkEnabled": false,
     "watermarkOpacity": 0.22,
     "watermarkPosition": "auto",
@@ -25,7 +25,7 @@ A must never describe local-only options as saved. C must validate values agains
 
 **Canonical preview/send transformation:** `prepareChannelContent({text,mediaBuffer,channelId,verifiedDisplayName,posterName,sourceKind:'manual'|'automation',branding,maxUtf8Bytes,rendererVerifiedEmoji,watermarkCache})` in `prepare.mjs`. It defaults every feature OFF, returns the original bytes unchanged when watermark is OFF, and rejects malformed enabled transformations. Use **the same helper** for A's authenticated server-rendered preview and C's final send to avoid what-you-saw/what-was-posted differences. It does *not* verify access or send: those are C's independently enforced gates.
 
-**Authorship boundary:** `sourceKind:'manual'` accepts a signature only from the actual authenticated poster provided by C in `posterName` (never a configurable auto persona); `sourceKind:'automation'` may sign only with the owner-configured `branding.signaturePosterName`, and fails closed when missing. Never derive the manual poster from a client-supplied name or from the channel's display name. Browser preview and final send must use the same author source.
+**Authorship boundary:** `sourceKind:'manual'` accepts a signature only from the actual authenticated poster provided by C in `posterName` (never a configurable auto persona); `sourceKind:'automation'` may sign only with the owner-configured canonical `branding.posterName`, and fails closed when missing. Never derive the manual poster from a client-supplied name or from the channel's display name. Browser preview and final send must use the same author source. Agent A currently stores `branding.posterName`, so that is the **canonical saved/transport field**. The D bridge temporarily accepts an older `signaturePosterName` only if no conflicting `posterName` exists; conflicting nonempty values fail closed until C migrates. C should persist one field (`posterName`), not two.
 
 Caption: `composeChannelCaption({text,replacements:{enabled,rules},poster:{enabled,name},maxUtf8Bytes})`. The poster is the actual person/pseudonym explicitly specified by the poster (or an explicitly configured automatic-content persona); it is **not** the channel display name. Output signature uses a WhatsApp-text `> PERSON` line. WhatsApp's actual rendering must be tested on the **approved beta fork/test channel** before production, and a fallback must be verified if blockquotes differ.
 
