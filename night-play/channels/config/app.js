@@ -274,7 +274,7 @@ async function findMemes(next){
    for(const d of result.decisions||[])if(d&&typeof d.candidateId==='string'&&['approved','declined','skipped'].includes(d.decision))decisions.set(d.candidateId,{decision:d.decision,caption:typeof d.caption==='string'?d.caption:''});
    paintReview();note('',false,'reviewNotice');
  }catch(error){note(errorMessage(error)+' No content was approved or published.',true,'reviewNotice');}
- finally{reviewBusy=false;setBusy($('findMemes'),false);updateReview();}
+ finally{reviewBusy=false;setBusy($('findMemes'),false);paintSelection();updateReview();}
 }
 async function previewPost(candidate,caption){
  if(!batch)return;
@@ -317,7 +317,7 @@ async function decide(candidate,decision,caption,card,status,actions){
    paintSelection();
    note('',false,'reviewNotice');
  }catch(error){note(errorMessage(error)+' Decision not saved.',true,'reviewNotice');}
- finally{reviewBusy=false;for(const btn of actions.querySelectorAll('button'))setBusy(btn,false);updateReview();}
+ finally{reviewBusy=false;for(const btn of actions.querySelectorAll('button'))setBusy(btn,false);paintSelection();updateReview();}
 }
 function localToUTC(input){
  if(!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(input))throw Error('Choose a valid date and time.');
