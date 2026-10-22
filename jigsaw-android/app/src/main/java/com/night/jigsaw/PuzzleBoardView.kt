@@ -27,9 +27,10 @@ import kotlin.math.roundToInt
  */
 class PuzzleBoardView(context: Context) : View(context) {
     private data class Sprite(val bitmap: Bitmap, val silhouette: Path,
-                              val hitRegion: Region, val margin: Float)
+                              val hitRegion: Region, val margin: Float, val resolution: Float)
     private var game: PuzzleGame? = null
     private var photo: Bitmap? = null
+    private var renderedZone: Int = -1
     private var notifyChange: () -> Unit = {}
     private val sprites = mutableMapOf<Int, Sprite>()
     private val drawOrder = mutableListOf<Int>()
@@ -80,20 +81,30 @@ class PuzzleBoardView(context: Context) : View(context) {
 
     fun bind(newGame: PuzzleGame, newPhoto: Bitmap, onChange: () -> Unit) {
         notifyChange = onChange
-        if (game === newGame && photo === newPhoto && sprites.isNotEmpty()) { invalidate(); return }
+        if (game === newGame && photo === newPhoto &&
+            renderedZone==newGame.activeZone && sprites.isNotEmpty()) {
+            invalidate();return
+        }
         snapAnimator?.cancel()
         snapAnimator=null
         game = newGame
         photo = newPhoto
+        renderedZone=newGame.activeZone
         sprites.values.forEach { it.bitmap.recycle() }
         sprites.clear()
         drawOrder.clear()
         drawOrder.addAll(newGame.pieces.indices)
+        val quality=if(newGame.count>=240) 2f else 1.5f
         val scaled = Bitmap.createScaledBitmap(newPhoto,
-            PuzzleGame.BOARD_WIDTH.toInt(), PuzzleGame.BOARD_HEIGHT.toInt(), true)
-        newGame.pieces.forEach { sprites[it.id] = makeSprite(newGame, it, scaled) }
+            (PuzzleGame.BOARD_WIDTH*quality).toInt(),
+            (PuzzleGame.BOARD_HEIGHT*quality).toInt(), true)
+        // At 600 pieces, render at most 100 unplaced pieces and the already
+        // completed board. Inactive zones consume no per-piece bitmap memory.
+        newGame.pieces.filter{ newGame.visible(it) }.forEach {
+            sprites[it.id] = makeSprite(newGame,it,scaled,quality)
+        }
         if (scaled !== newPhoto) scaled.recycle()
-        centerBoard()
+        if(newGame.zoneCount>1) focusZone() else centerBoard()
     }
 
     /** For 240+ pieces, a zone is a real section of the finished photo.
@@ -173,8 +184,10 @@ class PuzzleBoardView(context: Context) : View(context) {
     private fun renderPiece(canvas: Canvas, p: PuzzlePiece, selected: Boolean) {
         val sprite = sprites[p.id] ?: return
         paint.alpha = 255
-        canvas.drawBitmap(sprite.bitmap, p.x - sprite.margin,
-            p.y - sprite.margin, paint)
+        canvas.drawBitmap(sprite.bitmap,null,
+            RectF(p.x - sprite.margin,p.y - sprite.margin,
+                p.x - sprite.margin + sprite.bitmap.width/sprite.resolution,
+                p.y - sprite.margin + sprite.bitmap.height/sprite.resolution),paint)
         if (selected) {
             canvas.save()
             canvas.translate(p.x, p.y)
@@ -186,16 +199,18 @@ class PuzzleBoardView(context: Context) : View(context) {
         }
     }
 
-    private fun makeSprite(g: PuzzleGame, p: PuzzlePiece, scaled: Bitmap): Sprite {
+    private fun makeSprite(g: PuzzleGame, p: PuzzlePiece,
+                           scaled: Bitmap, quality: Float): Sprite {
         val cw = g.pieceWidth
         val ch = g.pieceHeight
         val margin = min(cw, ch) * 0.38f + 4f
         val path = piecePath(g, p)
         val bitmap = Bitmap.createBitmap(
-            ceil(cw + 2f * margin).toInt().coerceAtLeast(8),
-            ceil(ch + 2f * margin).toInt().coerceAtLeast(8),
+            ceil((cw + 2f * margin)*quality).toInt().coerceAtLeast(8),
+            ceil((ch + 2f * margin)*quality).toInt().coerceAtLeast(8),
             Bitmap.Config.ARGB_8888)
         val c = Canvas(bitmap)
+        c.scale(quality,quality)
         c.translate(margin, margin)
         c.save()
         c.translate(1.4f, 2.5f)
@@ -221,7 +236,7 @@ class PuzzleBoardView(context: Context) : View(context) {
         val clip=Region(-256,-256,cw.toInt()+256,ch.toInt()+256)
         val hit=Region()
         hit.setPath(path,clip)
-        return Sprite(bitmap,path,hit,margin)
+        return Sprite(bitmap,path,hit,margin,quality)
     }
 
     private fun piecePath(g: PuzzleGame, p: PuzzlePiece): Path {
