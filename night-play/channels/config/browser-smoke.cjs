@@ -134,7 +134,7 @@ async function main(){
    await page.locator('#memeMode').selectOption('automatic');
    await page.locator('#memeDaily').selectOption('2');
    await page.getByRole('button',{name:'Save meme settings'}).click();
-   await page.waitForFunction(()=>document.querySelector('#memeMode')?.value==='automatic');
+   await page.waitForFunction(()=>document.querySelector('#saveMemes')?.disabled===false && document.querySelector('#memeMode')?.value==='automatic');
    assert.equal(settings.memes.mode,'automatic');
    assert.deepEqual(settings.memes.categories,['relatable']);
    await page.getByRole('button',{name:'Find memes'}).click();
