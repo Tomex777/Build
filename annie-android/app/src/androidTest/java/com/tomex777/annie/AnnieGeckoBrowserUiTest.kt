@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.assertIsNotFocused
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -27,6 +28,54 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class AnnieGeckoBrowserUiTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
+
+    @Test fun actualColdStartShowsBlankAnnieHomeAndPrivateTabWithoutNetwork() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val prefs = context.getSharedPreferences("annie_gecko_tabs_v1", Context.MODE_PRIVATE)
+        val libraryPrefs = context.getSharedPreferences("annie_gecko_library_v1", Context.MODE_PRIVATE)
+        val initialTabs = prefs.all
+        val initialLibrary = libraryPrefs.all
+        val shown = mutableStateOf(true)
+        try {
+            compose.runOnUiThread {
+                prefs.edit().clear().commit()
+                libraryPrefs.edit().clear().commit()
+            }
+            compose.setContent {
+                AnnieTheme {
+                    if (shown.value) AnnieGeckoStandaloneBrowser(
+                        onExit = {}, onOwn = {}, onRelease = {},
+                    )
+                }
+            }
+            compose.onNodeWithTag("annie_gecko_browser").assertIsDisplayed()
+            compose.onNodeWithTag("annie_browser_home").assertIsDisplayed()
+            compose.onNodeWithText("Annie Browser").assertIsDisplayed()
+            compose.onNodeWithTag("annie_browser_tabs_webview").assertDoesNotExist()
+            saveEmulatorScreenshot("annie-gecko-real-cold-home")
+            compose.onNodeWithContentDescription("Browser menu").performClick()
+            compose.onNodeWithText("New private tab").performClick()
+            compose.onNodeWithTag("annie_browser_home").assertIsDisplayed()
+            compose.onNodeWithText("Private tab").assertIsDisplayed()
+            saveEmulatorScreenshot("annie-gecko-real-private-home")
+        } finally {
+            compose.runOnIdle { shown.value = false }
+            compose.runOnIdle {
+                listOf(prefs to initialTabs, libraryPrefs to initialLibrary).forEach { (target, saved) ->
+                    val edit = target.edit().clear()
+                    saved.forEach { (key, value) ->
+                        when (value) {
+                            is String -> edit.putString(key, value)
+                            is Int -> edit.putInt(key, value)
+                            is Long -> edit.putLong(key, value)
+                            is Boolean -> edit.putBoolean(key, value)
+                        }
+                    }
+                    edit.commit()
+                }
+            }
+        }
+    }
 
     @Test fun addressSubmissionDismissesKeyboardAndBrowserControlsRespectSystemBars() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
