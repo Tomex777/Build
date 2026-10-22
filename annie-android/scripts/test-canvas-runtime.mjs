@@ -42,8 +42,8 @@ function realm(initiallyPaused = false) {
     }
     play() {
       this.plays++;
-      this.paused = false;
-      return Promise.resolve();
+      // Real Chromium play() can activate after an asynchronous Promise turn.
+      return Promise.resolve().then(() => { this.paused = false; });
     }
     pause() { this.paused = true; }
     addEventListener(name, handler) {
@@ -155,7 +155,10 @@ assert.equal(animation.playState, 'running');
 assert.equal(audio.state, 'running');
 assert.equal(nextAudio.state, 'running');
 assert.equal(sound.paused, false);
+await Promise.resolve();
+await Promise.resolve();
 assert.equal(nextSound.paused, false);
+assert.equal(sound.paused, false, 'In-flight play requests should resume');
 assert.ok(!a.css.has('annie-host-paused'));
 
 await audio.close();
