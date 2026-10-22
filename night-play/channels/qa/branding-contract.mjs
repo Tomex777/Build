@@ -73,7 +73,7 @@ const media=Buffer.from('authorized-static-image-fixture');
 const raw=await prepareChannelContent({text:'Look at this!',channelId:jid,
  verifiedDisplayName:channelName,posterName:'TOMEX',mediaBuffer:media,
  branding:{signatureEnabled:true,watermarkEnabled:false}});
-assert.equal(raw.caption,'Look at this!\\n\\n> TOMEX',
+assert.equal(raw.caption,'Look at this!\n\n> TOMEX',
  'Poster must never be silently replaced with a verified channel name');
 assert.strictEqual(raw.mediaBuffer,media,'OFF watermark must not decode or copy media');
 assert.equal(raw.watermarked,false);
@@ -90,7 +90,7 @@ const transformed=await prepareChannelContent({text:'fun',mediaBuffer:media,
  channelId:jid,verifiedDisplayName:channelName,posterName:'TOMEX',
  branding:{signatureEnabled:true,watermarkEnabled:true,watermarkOpacity:.2},
  transform:fakeCompositor});
-assert.equal(transformed.caption,'fun\\n\\n> TOMEX');
+assert.equal(transformed.caption,'fun\n\n> TOMEX');
 assert.equal(transformed.watermarked,true);
 assert.equal(transformed.watermarkAssetKey,'verified_fixture_asset_key');
 assert.equal(calls,1);
