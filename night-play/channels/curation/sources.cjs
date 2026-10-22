@@ -78,15 +78,16 @@ function parseFeed(xml){
   guid:extract(block,'guid')||extract(block,'id'),categories:[...block.matchAll(/<category(?:\s[^>]*)?>([\s\S]*?)<\/category>/gi)].map(m=>xmlDecode(m[1]))});
  }return entries;
 }
-function rssNewsAdapter({id,name,url,official=false,fetchImpl,interpreter,now=()=>Date.now(),maxAgeDays=14}={}){
+function rssNewsAdapter({id,name,url,articleHosts=[],official=false,fetchImpl,interpreter,now=()=>Date.now(),maxAgeDays=14}={}){
  const endpoint=safeUrl(url);if(!endpoint)throw new TypeError('HTTPS feed URL required.');
  const trustedHost=new URL(endpoint).hostname;
+ const trustedHosts=[trustedHost,...(Array.isArray(articleHosts)?articleHosts:[]).filter(x=>typeof x==='string'&&/^[a-z0-9.-]{4,253}$/.test(x)&&!x.endsWith('.')&&!x.startsWith('.'))];
  if(typeof interpreter!=='function')throw new TypeError('A source-specific metadata interpreter is required.');
  let until=0,cache=null;
  return Object.freeze({async discover(){
   const current=now();if(cache&&current<until)return cache;
   const xml=await boundedGet(endpoint,{fetchImpl,allowedHosts:[trustedHost],headers:{accept:'application/rss+xml, application/atom+xml, application/xml, text/xml'}});
-  const source={id,name,trustedHost,official,provider:'rss'};
+  const source={id,name,trustedHost,trustedHosts,official,provider:'rss'};
   let interpreterErrors=0;
   const items=parseFeed(xml).map(row=>{
    try{
