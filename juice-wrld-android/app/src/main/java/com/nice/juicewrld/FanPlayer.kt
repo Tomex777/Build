@@ -235,7 +235,8 @@ class FanPlayer(app: Application) : AndroidViewModel(app) {
             play(songId)
             return
         }
-        if (songId != _state.value.activeSongId || _state.value.queueIds.isEmpty()) {
+        if (songId != _state.value.activeSongId ||
+            !MusicQueue.hasSameSongs(_state.value.queueIds, ids)) {
             _state.update { it.copy(
                 queueIds = MusicQueue.build(ids, songId, _state.value.shuffle)
             ) }
