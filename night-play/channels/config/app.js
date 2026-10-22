@@ -152,7 +152,8 @@ function validBatch(result){
  });
 }
 const decisionValue=c=>decisions.get(c.id)?.decision||'pending';
-const approved=()=>batch?.candidates?.filter(c=>decisionValue(c)==='approved'&&!captionDirty.has(c.id))||[];
+const licensable=c=>c?.publishable===true&&c?.rightsStatus==='verified'&&c?.reviewOnly!==true;
+const approved=()=>batch?.candidates?.filter(c=>licensable(c)&&decisionValue(c)==='approved'&&!captionDirty.has(c.id))||[];
 function updateReview(){
  const count=approved().length;
  $('reviewSummary').hidden=!batch;
@@ -186,6 +187,7 @@ function reviewCard(c){
  status.setAttribute('aria-live','polite');
  const actions=make('div','action-row');
  const approve=make('button','btn primary','Approve'),decline=make('button','btn','Decline'),preview=make('button','btn','Preview post');
+ if(!licensable(c)){approve.disabled=true;status.textContent='Review only · Media reuse rights not verified';}
  approve.type=decline.type=preview.type='button';
  caption.addEventListener('input',()=>{
    captionDirty.add(c.id);status.textContent='Caption edited — approve again to save';updateReview();
@@ -239,7 +241,7 @@ async function previewPost(candidate,caption){
  }
 }
 async function decide(candidate,decision,caption,card,status,actions){
- if(reviewBusy||!batch)return;
+ if(reviewBusy||!batch||(decision==='approved'&&!licensable(candidate)))return;
  reviewBusy=true;
  for(const btn of actions.querySelectorAll('button'))setBusy(btn,true);
  updateReview();
