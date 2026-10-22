@@ -317,6 +317,7 @@ private fun ScriptStudioContent(
     }
 
     fun refreshProjects(preferredProject: String? = selectedProjectId, preferredPath: String? = selectedPath) {
+        val previousFile = selectedProjectId to selectedPath
         projects = workspace.files.listProjects()
         // No implicit selection after deletion or reloading an unselected workspace.
         val project = preferredProject?.let { id -> projects.firstOrNull { it.id == id } }
@@ -324,6 +325,7 @@ private fun ScriptStudioContent(
         // Null means no file was intentionally opened; never fall back to main.js.
         val path = preferredPath?.takeIf { it in project?.files.orEmpty() }
         selectedPath = path
+        if (previousFile != (selectedProjectId to selectedPath)) codeEditor = null
         val source = path?.let { project?.files?.get(it) }.orEmpty()
         val previous = editorValue
         val selection = if (previous.text == source) {
@@ -779,6 +781,7 @@ private fun ScriptStudioContent(
                                                                 } else selectedPath
                                                                 refreshProjects(id, preservedPath)
                                                             } else refreshProjects()
+                                                            fileSearch = ""
                                                             status = "Renamed to $id"
                                                         }
                                                         .onFailure { status = it.message ?: "Rename failed" }
@@ -795,6 +798,7 @@ private fun ScriptStudioContent(
                                                                     currentDirectory = ""
                                                                 } else refreshProjects()
                                                                 page = StudioPage.FILES
+                                                                fileSearch = ""
                                                                 scope.launch { onCommandsReloaded(workspace.reload()) }
                                                                 status = "Project deleted"
                                                             }
@@ -904,6 +908,7 @@ private fun ScriptStudioContent(
                                                                     refreshProjects(project.id, moved)
                                                                     currentDirectory = moved.substringBeforeLast('/', "")
                                                                 } else refreshProjects()
+                                                                fileSearch = ""
                                                                 status = "Moved to $moved"
                                                             }
                                                             .onFailure { status = it.message ?: "Rename failed" }
@@ -922,6 +927,7 @@ private fun ScriptStudioContent(
                                                                         preferredPath = if (deletedOpenedFile) null else selectedPath,
                                                                     )
                                                                     if (deletedOpenedFile) currentDirectory = normalizedDirectory
+                                                                    fileSearch = ""
                                                                     status = "Deleted $path"
                                                                 }.onFailure { status = it.message ?: "Delete failed" }
                                                         } else status = "Delete cancelled"
