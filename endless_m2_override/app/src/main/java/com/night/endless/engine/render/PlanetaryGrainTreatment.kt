@@ -71,6 +71,37 @@ internal object PlanetaryGrainTreatment {
         return value.coerceIn(-.9, .5)
     }
 
+    /**
+     * Periodic irregular Voronoi micro-fractures. Unlike crossing sine waves
+     * this follows nonuniform plate boundaries rather than forming an
+     * artificial woven/checkerboard grid on Europa's ice.
+     */
+    private fun iceCrack(x: Int, z: Int): Double {
+        val cell = 32
+        val cx = x / cell
+        val cz = z / cell
+        var nearest = Double.POSITIVE_INFINITY
+        var runnerUp = Double.POSITIVE_INFINITY
+        for (iz in cz - 1..cz + 1) for (ix in cx - 1..cx + 1) {
+            val sx = ix and 7
+            val sz = iz and 7
+            val px = ix * cell + 4.0 + hash(sx, sz, 1181) * 24.0
+            val pz = iz * cell + 4.0 + hash(sx, sz, 1187) * 24.0
+            val dx = px - x
+            val dz = pz - z
+            val distance = dx * dx + dz * dz
+            if (distance < nearest) {
+                runnerUp = nearest
+                nearest = distance
+            } else if (distance < runnerUp) {
+                runnerUp = distance
+            }
+        }
+        val gap = sqrt(runnerUp) - sqrt(nearest)
+        // <~2 px across; mipmaps soften from a standing eye viewpoint.
+        return (1.0 - gap / 2.7).coerceIn(0.0, 1.0)
+    }
+
     private fun read(bytes: ByteArray, i: Int) =
         (bytes[i].toInt() and 255) / 255.0
 
@@ -102,8 +133,9 @@ internal object PlanetaryGrainTreatment {
                     // Wind-driven fine dust crosses coarser, darker basaltic
                     // chips; ripples are low-amplitude, not raised square bars.
                     val ripple = sin(TAU * (11.0 * px + 3.0 * pz) / SIDE + warp)
-                    albedo += .065 * ripple + .042 * jitter
-                    relief += .092 * ripple
+                    val rippleEnvelope = .40 + .55 * broad
+                    albedo += .041 * ripple * rippleEnvelope + .042 * jitter
+                    relief += .062 * ripple * rippleEnvelope
                     mineral += .060 * (1.0 - broad)
                     roughness += .065 * fine
                 }
@@ -139,24 +171,23 @@ internal object PlanetaryGrainTreatment {
                     // Crosscutting micro-fractures with brighter ridge lips,
                     // against smoother water ice. Macroscopic plates/chaos
                     // live in the separate landscape terrain/shader model.
-                    val f1 = abs(sin(TAU * (4.0 * px + 11.0 * pz) / SIDE + warp))
-                    val f2 = abs(sin(TAU * (9.0 * px - 5.0 * pz) / SIDE - .63 * warp))
-                    val dark = exp(-f1 * f1 / .006) * .82 +
-                        exp(-f2 * f2 / .007) * .42
-                    val lip = exp(-((f1 - .23) * (f1 - .23)) / .012)
-                    albedo += .085 * lip - .18 * dark + .025 * jitter
-                    relief += .105 * lip - .15 * dark
+                    val dark = iceCrack(x, z) * (.62 + .31 * broad)
+                    val lip = (1.0 - abs(dark - .25) / .25).coerceIn(0.0, 1.0)
+                    albedo += .060 * lip - .16 * dark + .026 * jitter
+                    relief += .065 * lip - .082 * dark
                     mineral += .21 * dark
-                    roughness -= .15 * (1.0 - dark.coerceIn(0.0, 1.0))
+                    roughness -= .11 * (1.0 - dark.coerceIn(0.0, 1.0))
                 }
                 "titan" -> {
                     // Fine, wind-aligned organic sand ripples and smoother
                     // lee slopes; no Earth-desert yellow sand assumption.
-                    val phase = TAU * (13.0 * px + 3.0 * pz) / SIDE + warp
+                    val phase = TAU * (13.0 * px + 3.0 * pz) / SIDE +
+                        warp * 2.0 + .35 * sin(TAU * (px + 3.0 * pz) / SIDE)
                     val ripple = sin(phase)
                     val lee = (0.5 + .5 * ripple).coerceIn(0.0, 1.0)
-                    albedo += .09 * ripple - .04 * lee + .027 * jitter
-                    relief += .15 * ripple + .03 * cos(phase)
+                    val envelope = .40 + .52 * broad
+                    albedo += .065 * ripple * envelope - .027 * lee + .035 * jitter
+                    relief += .100 * ripple * envelope + .02 * cos(phase)
                     mineral += .07 * (1.0 - fine)
                     roughness += .055 * lee
                 }
