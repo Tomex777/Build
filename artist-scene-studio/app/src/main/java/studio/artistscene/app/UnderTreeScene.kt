@@ -216,7 +216,10 @@ object UnderTreeScene {
             val actor = scene.actors.firstOrNull { it.id == actorId } ?: return scene
             val target = fresh.actors.first { it.id == actorId }
             val oldBodyYaw = if (actorId == FIRST_STUDENT_ID) 164f else 198f
+            val oldPosition = if (actorId == FIRST_STUDENT_ID)
+                Vec3(-0.73f, 0f, -0.13f) else Vec3(0.70f, 0f, -0.09f)
             val oldTransform = target.transform.copy(
+                position = oldPosition,
                 rotationEulerDegrees = Vec3(y = oldBodyYaw),
             )
             // A source-backed model name is required. Imported models and
