@@ -570,6 +570,11 @@ internal fun AnnieBrowserChrome(
                     DropdownMenuItem(text = { Text("Downloads") }, onClick = {
                         menuOpen = false; panel = "Downloads"; tabsOpen = false
                     })
+                    if (find != null && !state.isNewTab) {
+                        DropdownMenuItem(text = { Text("Find in page") }, onClick = {
+                            menuOpen = false; panel = null; tabsOpen = false; find.open()
+                        })
+                    }
                     DropdownMenuItem(text = { Text(if (state.desktopMode) "Mobile site" else "Desktop site") },
                         onClick = { menuOpen = false; actions.toggleDesktop() })
                     if (actions.universalCopy != null && !active.privateMode) {
