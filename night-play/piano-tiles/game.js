@@ -1,11 +1,13 @@
-/* NIGHT Play Piano Tiles. Two finite public-domain nursery-song arrangements;
- * synthesized note-on events follow actual successful taps and sustained holds.
- * No backing track, remote assets, or nonmusical background audio. */
+/* NIGHT Play Piano Tiles: recorded, polyphonic acoustic grand piano.
+ * Local audio assets trigger on successful taps/holds, no oscillator chimes.
+ * No backing track or unrelated background audio. */
 (()=>{"use strict";
 const W=400,H=660,LANES=4,HIT=H-93,KEYS={1:0,2:1,3:2,4:3,a:0,s:1,d:2,f:3};
 const $=id=>document.getElementById(id),board=$("board"),ctx=board.getContext("2d");
-const colors=["#2193a2","#8260c6","#d77d46","#328c78"],deepColors=["#165665","#46356e","#814521","#1c5446"],ACCENT="#86d4d4";
-let audioCtx=null,running=false,paused=false,ended=false,elapsed=0,previous=0,raf=0;
+// Piano keys are a consistent ink-dark instrument surface, not four unrelated
+// coloured arcade bars. Held notes use a soft turquoise completion accent.
+const colors=["#263948","#263948","#263948","#263948"],deepColors=["#101e2b","#101e2b","#101e2b","#101e2b"];
+let preparing=false,running=false,paused=false,ended=false,elapsed=0,previous=0,raf=0;
 let notes=[],score=0,streak=0,complete=0,held=new Map(),keyHeld=new Set();
 const SONGS=[
  {id:"endless",title:"Endless"},
@@ -16,23 +18,37 @@ let selectedSong=SONGS[0],endlessNextAt=0,endlessIndex=0;
 const bestKey=()=>selectedSong.id==="frere"?"night-play-piano-tiles-best-v1":"night-play-piano-tiles-best-"+selectedSong.id+"-v1";
 const readBest=()=>{try{return Math.max(0,Number(localStorage.getItem(bestKey()))||0)}catch{return 0}};
 function saveBest(){try{if(score>readBest())localStorage.setItem(bestKey(),String(score))}catch{}}
-function scale(){const dpr=Math.min(2.5,Math.max(1,window.devicePixelRatio||1));
+function scale(){const dpr=Math.min(2,Math.max(1,window.devicePixelRatio||1));
  board.width=Math.round(W*dpr);board.height=Math.round(H*dpr);
  ctx.setTransform(dpr,0,0,dpr,0,0);render();}
 function updateHud(){
  $("score").textContent=String(score);$("streak").textContent=String(streak);
  $("best").textContent=String(Math.max(score,readBest()));
 }
-// Endless is an actual continuous mode, not a finite song masquerading as one.
+// Endless mode now plays an original, *harmonically coherent* C / G / Am / F
+// piano phrase. It alternates two eight-bar variations rather than selecting
+// unrelated pitches that sound like random beeps even through a real piano.
+const ENDLESS_MELODY=[
+ // Opening motif: C major, G major, A minor, F major (8 notes per bar).
+ 261.63,329.63,392,523.25,392,329.63,293.66,261.63,
+ 246.94,293.66,392,493.88,440,392,293.66,246.94,
+ 220,261.63,329.63,440,523.25,440,329.63,261.63,
+ 174.61,261.63,349.23,440,392,349.23,329.63,261.63,
+ // A second phrase rises and returns to the tonic.
+ 261.63,392,440,523.25,659.25,523.25,440,392,
+ 246.94,392,440,493.88,587.33,493.88,392,293.66,
+ 220,329.63,392,440,523.25,659.25,523.25,440,
+ 174.61,261.63,349.23,440,392,329.63,293.66,261.63
+];
 function extendEndless(count){
  const result=[],lanes=[0,2,1,3,0,3,1,2,1,3,2,0,3,1,0,2];
- const pitches=[261.63,293.66,329.63,392,440,523.25,587.33,659.25];
  for(let k=0;k<count;k++){
   const i=endlessIndex++,lane=lanes[i%lanes.length];
-  const hold=i>3&&i%19===10;
-  const beat=Math.max(.36,.67-Math.min(.29,i*.0017));
-  result.push({lane,freq:pitches[(i*3+Math.floor(i/4))%pitches.length],at:endlessNextAt,
-   duration:hold?.67:0,hold,state:"waiting",pointer:null,start:0,
+  const hold=i>3&&i%16===15;
+  const beat=Math.max(.39,.68-Math.min(.29,i*.00135));
+  const motif=ENDLESS_MELODY[i%ENDLESS_MELODY.length];
+  result.push({lane,freq:motif,at:endlessNextAt,
+   duration:hold?.76:0,hold,state:"waiting",pointer:null,start:0,
    scoreGiven:false,voice:null,flash:0,hitBottom:null});
   endlessNextAt+=beat;
  }
@@ -109,12 +125,12 @@ function setPauseButton(){
  $("pause").setAttribute("aria-label",paused?"Resume Piano Tiles":"Pause Piano Tiles");
  $("pauseIcon").setAttribute("href",paused?"#icon-play":"#icon-pause");
 }
-function closeSounds(){for(const n of notes)if(n.voice){n.voice.stop();n.voice=null}}
+function closeSounds(){window.NightPiano.silence();for(const n of notes)n.voice=null}
 function setSongControls(){
  for(const button of document.querySelectorAll("[data-song]")){
   const active=button.dataset.song===selectedSong.id;
   button.setAttribute("aria-pressed",String(active));
-  button.disabled=running&&!ended;
+  button.disabled=preparing||(running&&!ended);
  }
 }
 function chooseSong(id){
@@ -132,11 +148,25 @@ function clearRun(){
  document.body.classList.remove("is-playing");
  updateHud();setPauseButton();setSongControls();$("restart").hidden=true;$("status").textContent="";render();
 }
-function begin(){
- clearRun();running=true;paused=false;ended=false;
- document.body.classList.add("is-playing");
- $("cover").hidden=true;$("restart").hidden=false;setPauseButton();setSongControls();$("status").textContent="Tap any visible tile";
- previous=0;raf=requestAnimationFrame(tick);
+async function begin(){
+ if(preparing)return;
+ preparing=true;
+ const action=$("coverAction");action.disabled=true;
+ cover("","Preparing grand piano","Loading real recorded piano notes…",null);
+ setSongControls();
+ try{
+  // Decode on the player's gesture, cache on-device and only then start.
+  await window.NightPiano.prepare();
+  clearRun();running=true;paused=false;ended=false;
+  document.body.classList.add("is-playing");
+  $("cover").hidden=true;$("restart").hidden=false;
+  setPauseButton();$("status").textContent="Tap any visible tile";
+  previous=0;raf=requestAnimationFrame(tick);
+ }catch(error){
+  console.error("Unable to load recorded piano",error);
+  cover("AUDIO UNAVAILABLE","Piano could not load",
+   "The grand piano recordings couldn't be loaded. Check your connection and try again.","Retry");
+ }finally{preparing=false;action.disabled=false;setSongControls()}
 }
 function lose(reason){
  if(ended)return;
@@ -172,32 +202,7 @@ function pause(){
  }
 }
 function sound(frequency,hold){
- try{
-  audioCtx=audioCtx||new (window.AudioContext||window.webkitAudioContext)();
-  if(audioCtx.state==="suspended")audioCtx.resume();
-  const time=audioCtx.currentTime,osc1=audioCtx.createOscillator(),
-    osc2=audioCtx.createOscillator(),gain=audioCtx.createGain();
-  osc1.type="triangle";osc1.frequency.setValueAtTime(frequency,time);
-  osc2.type="sine";osc2.frequency.setValueAtTime(frequency*2,time);
-  const harmonics=audioCtx.createGain();harmonics.gain.value=.16;
-  osc1.connect(gain);osc2.connect(harmonics);harmonics.connect(gain);
-  gain.connect(audioCtx.destination);
-  gain.gain.setValueAtTime(.0001,time);
-  gain.gain.exponentialRampToValueAtTime(.13,time+.013);
-  gain.gain.exponentialRampToValueAtTime(hold?.075:.0003,time+(hold?.23:.29));
-  osc1.start(time);osc2.start(time);
-  let stopped=false;
-  const stop=()=>{
-   if(stopped)return;stopped=true;
-   const t=audioCtx.currentTime;
-   gain.gain.cancelScheduledValues(t);
-   gain.gain.setValueAtTime(Math.max(.0003,gain.gain.value),t);
-   gain.gain.exponentialRampToValueAtTime(.0001,t+.15);
-   osc1.stop(t+.17);osc2.stop(t+.17);
-  };
-  if(!hold)setTimeout(stop,310);
-  return {stop};
- }catch{return {stop(){}};}
+ return window.NightPiano.play(frequency,hold);
 }
 function noteGeometry(n){
  const speed=294+Math.min(65,complete*1.6);
@@ -208,7 +213,12 @@ function noteGeometry(n){
 }
 function finishNote(n,holdBonus){
  if(n.state==="done")return;
- n.state="done";if(n.voice){n.voice.stop();n.voice=null;}
+ n.state="done";
+  if(n.voice){
+   // Short notes ring as actual piano notes. Hold tails damp on release.
+   if(n.hold)n.voice.release(.34);
+   n.voice=null;
+  }
  n.pointer=null;complete++;streak++;
  if(holdBonus)score+=75+Math.min(75,streak*2);
  updateHud();
@@ -308,16 +318,16 @@ function tick(ts){
 function render(){
  const x=ctx;
  x.clearRect(0,0,W,H);
- x.fillStyle="#f4f6f9";x.fillRect(0,0,W,H);
+ x.fillStyle="#f6f8f8";x.fillRect(0,0,W,H);
  for(let lane=0;lane<LANES;lane++){
-  x.fillStyle=lane%2===0?"#f6f8fd":"#e9edf5";
+  x.fillStyle=lane%2===0?"#fafbf9":"#f0f3f1";
   x.fillRect(lane*100,0,100,H);
-  if(lane){x.fillStyle="#ced7e2";x.fillRect(lane*100-.7,0,1.4,H);}
+  if(lane){x.fillStyle="#d8e1dd";x.fillRect(lane*100-.7,0,1.4,H);}
  }
  // Held feedback belongs inside the long tile; never flash or tint an entire lane.
  // A low-contrast timing shelf, not a full-width black strike line.
  const cue=x.createLinearGradient(0,HIT-24,0,H);
- cue.addColorStop(0,"#cad7e700");cue.addColorStop(1,"#c6d6e59c");
+ cue.addColorStop(0,"#d1dfd700");cue.addColorStop(1,"#c6d6cb64");
  x.fillStyle=cue;x.fillRect(0,HIT-24,W,H-HIT+24);
  for(const n of notes){
   if(n.state==="done")continue;
@@ -331,15 +341,15 @@ function render(){
   x.save();x.beginPath();x.rect(g.left,top,g.right-g.left,bottom-top);x.clip();
   const gradient=x.createLinearGradient(0,tileTop,0,g.bottom);
   if(n.state==="holding"){
-   gradient.addColorStop(0,"#296b76");gradient.addColorStop(1,"#49b8bf");
+   gradient.addColorStop(0,"#2b5765");gradient.addColorStop(1,"#377d82");
   }else{
    gradient.addColorStop(0,colors[n.lane]);gradient.addColorStop(1,deepColors[n.lane]);
   }
   x.fillStyle=gradient;x.fillRect(g.left,tileTop,g.right-g.left,tail);
-  x.fillStyle=n.state==="holding"?"#bff1e9":"#96b3d3";
+  x.fillStyle=n.state==="holding"?"#bfe8d9":"#ffffff31";
   x.fillRect(g.left+9,tileTop+9,3,Math.max(0,tail-18));
   if(n.hold){
-   x.fillStyle=n.state==="holding"?"#8df3dc":"#8bb4db";
+   x.fillStyle=n.state==="holding"?"#a1e0c9":"#aac3c9";
    x.fillRect(g.left+20,g.bottom-12,(g.right-g.left-40)*Math.max(.12,progress),4);
    x.fillStyle="#f4fafb";
    x.beginPath();x.arc((g.left+g.right)/2,g.bottom-27,5,0,Math.PI*2);x.fill();
