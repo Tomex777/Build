@@ -123,11 +123,11 @@ internal object AnnieBrowserAddress {
         // Host:port is not a custom URI scheme. Recognise local development
         // and domain ports BEFORE the dangerous-scheme rejection.
         val hostPort = Regex(
-            """^(?:localhost|127(?:\\.\\d{1,3}){3}|\\[[0-9a-fA-F:]+\\]|[A-Za-z0-9-]+(?:\\.[A-Za-z0-9-]+)+):\\d{1,5}(?:[/#?][^\\s]*)?$""",
+            """^(?:localhost|127(?:\.\d{1,3}){3}|\[[0-9a-fA-F:]+\]|[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+):\d{1,5}(?:[/#?][^\s]*)?$""",
             RegexOption.IGNORE_CASE,
         ).matches(text)
         val loopback = Regex(
-            """^(?:localhost|127(?:\\.\\d{1,3}){3}|\\[[0-9a-fA-F:]+\\])(?::\\d{1,5})?(?:[/#?][^\\s]*)?$""",
+            """^(?:localhost|127(?:\.\d{1,3}){3}|\[[0-9a-fA-F:]+\])(?::\d{1,5})?(?:[/#?][^\s]*)?$""",
             RegexOption.IGNORE_CASE,
         ).matches(text)
         val candidate = when {
