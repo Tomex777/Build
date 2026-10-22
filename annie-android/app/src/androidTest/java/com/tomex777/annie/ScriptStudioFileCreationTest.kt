@@ -44,6 +44,7 @@ class ScriptStudioFileCreationTest {
             compose.onNodeWithTag("script_tab_files").assertExists()
             compose.onNodeWithTag("script_tab_env").assertExists()
             compose.onNodeWithTag("script_tab_api").assertExists()
+            compose.onNodeWithTag("script_selected_file").assertDoesNotExist()
             saveEmulatorScreenshot("annie-agent3-studio-no-file-selected")
             compose.onNodeWithTag("script_file_search").performTextInput(name)
             closeSoftKeyboard()
@@ -55,6 +56,7 @@ class ScriptStudioFileCreationTest {
             // Editor is still reached from a chosen file and Files returns to browsing.
             compose.onNodeWithText("Files", substring = false).performClick()
             compose.onNodeWithText("New File").assertExists()
+            compose.onNodeWithTag("script_selected_file").assertExists()
             compose.onNodeWithTag("script_tab_editor").assertDoesNotExist()
         } finally {
             compose.runOnIdle { shown.value = false }
@@ -78,6 +80,7 @@ class ScriptStudioFileCreationTest {
             closeSoftKeyboard()
             compose.onNodeWithText(folder.name, substring = false).performClick()
             compose.onNodeWithTag("script_editor").assertDoesNotExist()
+            compose.onNodeWithTag("script_selected_file").assertDoesNotExist()
             saveEmulatorScreenshot("annie-agent3-studio-folder-focus")
             compose.onNodeWithText("${folder.name} · main.js").assertDoesNotExist()
             compose.onNodeWithText("main.js", substring = false).performClick()
@@ -196,6 +199,39 @@ class ScriptStudioFileCreationTest {
             compose.waitForIdle()
             workspace.close()
             workspace.files.deleteProject(folder.name)
+        }
+    }
+
+    @Test fun removingSelectedProjectDoesNotSelectTheNextProject() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val workspace = ScriptWorkspace(context)
+        val suffix = System.nanoTime().toString().takeLast(8)
+        val removed = workspace.files.createFolder("delete$suffix")
+        val survivor = workspace.files.createFolder("survive$suffix")
+        val shown = mutableStateOf(true)
+        try {
+            compose.setContent { AnnieTheme {
+                if (shown.value) ScriptStudioSheet(workspace, {})
+            } }
+            compose.onNodeWithTag("script_file_search").performTextInput(removed.name)
+            closeSoftKeyboard()
+            compose.onNodeWithText(removed.name, substring = false).performClick()
+            compose.onNodeWithTag("script_selected_file").assertDoesNotExist()
+            compose.onNodeWithTag("File actions").performClick()
+            compose.onNodeWithText("Delete", substring = false).performClick()
+            compose.onNodeWithTag("script_file_name").performTextInput(removed.name)
+            compose.onNodeWithText("Continue", substring = false).performClick()
+            compose.waitUntil(8_000) { removed.exists().not() }
+            compose.onNodeWithTag("script_file_search").performTextClearance()
+            compose.onNodeWithTag("script_selected_file").assertDoesNotExist()
+            compose.onNodeWithText("Your JavaScript workspace").assertExists()
+            assertTrue("Remaining project must not be removed or selected", survivor.isDirectory)
+        } finally {
+            compose.runOnIdle { shown.value = false }
+            compose.waitForIdle()
+            workspace.close()
+            if (removed.exists()) workspace.files.deleteProject(removed.name)
+            workspace.files.deleteProject(survivor.name)
         }
     }
 
