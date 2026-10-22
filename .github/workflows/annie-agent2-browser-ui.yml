@@ -1,0 +1,114 @@
+name: Annie Agent 2 browser UI acceptance
+
+on:
+  push:
+    branches: [annie-agent2-browser-ux-20261022, annie-browser-agent1-agent2-integration-20261022]
+    paths:
+      - 'annie-android/**'
+      - '.github/workflows/annie-agent2-browser-ui.yml'
+  pull_request:
+    branches: [annie-five-agent-recovery-20261022]
+    paths:
+      - 'annie-android/**'
+      - '.github/workflows/annie-agent2-browser-ui.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: annie-agent2-browser-ui-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  browser-ui:
+    name: Browser UI and screenshot tests API ${{ matrix.api }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    strategy:
+      fail-fast: false
+      matrix:
+        api: [26, 36]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.7.1'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Enforce existing ABR, apply effective source, compile native app and tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install -g typescript@5.9.3
+          python3 annie-android/scripts/test-repair-contract.py
+          python3 annie-android/ci/check-abr.py
+          python3 annie-android/scripts/repair-m0b-merge.py
+          sh annie-android/scripts/check-annie-types.sh
+          gradle --no-daemon --stacktrace -p annie-android :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest
+      - name: Install real Android emulator image
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdkmanager --install emulator
+          bash annie-android/ci/install-emulator-system-image.sh ${{ matrix.api }}
+      - name: Configure virtualization
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Instrument native Compose controls at four real viewports
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          target: google_apis
+          arch: x86_64
+          profile: pixel_2
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -no-boot-anim -partition-size 4096
+          script: |
+            set -euo pipefail
+            mkdir -p annie-android/build/agent2-evidence
+            if [ "${{ matrix.api }}" = "26" ]; then
+              viewports=("360x800@160" "600x960@160")
+            else
+              viewports=("393x852@160" "852x393@160")
+            fi
+            for viewport in "${viewports[@]}"; do
+              dimensions="${viewport%@*}"
+              density="${viewport#*@}"
+              adb shell wm size "$dimensions"
+              adb shell wm density "$density"
+              adb shell input keyevent 3 || true
+              timeout --signal=TERM --kill-after=20s 900s gradle --no-daemon --stacktrace -p annie-android :app:connectedDebugAndroidTest "-Pandroid.testInstrumentationRunnerArguments.class=com.tomex777.annie.AnnieBrowserChromeUiTest,com.tomex777.annie.AnnieGeckoBrowserUiTest,com.tomex777.annie.AnnieBrowserBlankHomeTest,com.tomex777.annie.AnnieGeckoTabRestoreTest"
+              mkdir -p "annie-android/build/agent2-evidence/$viewport"
+              # Chrome screenshots are actual Compose UI running in Android.
+              # This second evidence set is from a REAL Gecko local HTTP page
+              # loaded through the installed standalone Annie Browser screen.
+              adb pull /sdcard/Pictures/AnnieCI "annie-android/build/agent2-evidence/$viewport/real-gecko" || true
+              for name in home tabs; do
+                adb exec-out run-as com.tomex777.annie cat "files/annie-agent2-$name.png" > "annie-android/build/agent2-evidence/$viewport/$name.png"
+                test -s "annie-android/build/agent2-evidence/$viewport/$name.png"
+              done
+              cp -R annie-android/app/build/outputs/androidTest-results "annie-android/build/agent2-evidence/$viewport/results"
+            done
+            adb logcat -d > annie-android/build/agent2-evidence/logcat.txt
+      - name: Upload native screenshots, instrumentation and build results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: annie-agent2-api${{ matrix.api }}
+          path: |
+            annie-android/build/agent2-evidence/
+            annie-android/app/build/test-results/
+            annie-android/app/build/outputs/androidTest-results/
+            annie-android/app/build/reports/androidTests/
+          if-no-files-found: warn
+          retention-days: 10

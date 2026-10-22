@@ -1,5 +1,7 @@
 # Annie
 
+**Browser source attribution:** Annie Browser incorporates source from [Omni Browser by RebelRoot](https://github.com/REBEL-ROOT/omni-browser) (Copyright © 2026 RebelRoot Ltd, GPLv3). See [the source manifest and retained license](annie-android/third_party/omni-browser/README.md) for the exact imported files and current integration limitations. Annie is not affiliated with or endorsed by RebelRoot.
+
 The native Kotlin Android application is in `annie-android/`. Its current feature and test status is recorded in [the native roadmap audit](annie-android/docs/ROADMAP_AUDIT_2026-10-12.md). The section below describes the separate web prototype.
 
 Annie is a command-first media chat web prototype. Commands work without requiring AI.

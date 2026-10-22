@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.assertIsNotFocused
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -14,6 +15,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performTextReplacement
+import androidx.compose.ui.test.performTextInput
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -27,6 +29,54 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class AnnieGeckoBrowserUiTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
+
+    @Test fun actualColdStartShowsBlankAnnieHomeAndPrivateTabWithoutNetwork() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val prefs = context.getSharedPreferences("annie_gecko_tabs_v1", Context.MODE_PRIVATE)
+        val libraryPrefs = context.getSharedPreferences("annie_gecko_library_v1", Context.MODE_PRIVATE)
+        val initialTabs = prefs.all
+        val initialLibrary = libraryPrefs.all
+        val shown = mutableStateOf(true)
+        try {
+            compose.runOnUiThread {
+                prefs.edit().clear().commit()
+                libraryPrefs.edit().clear().commit()
+            }
+            compose.setContent {
+                AnnieTheme {
+                    if (shown.value) AnnieGeckoStandaloneBrowser(
+                        onExit = {}, onOwn = {}, onRelease = {},
+                    )
+                }
+            }
+            compose.onNodeWithTag("annie_gecko_browser").assertIsDisplayed()
+            compose.onNodeWithTag("annie_browser_home").assertIsDisplayed()
+            compose.onNodeWithText("Annie Browser").assertIsDisplayed()
+            compose.onNodeWithTag("annie_browser_tabs_webview").assertDoesNotExist()
+            saveEmulatorScreenshot("annie-gecko-real-cold-home")
+            compose.onNodeWithContentDescription("Browser menu").performClick()
+            compose.onNodeWithText("New private tab").performClick()
+            compose.onNodeWithTag("annie_browser_home").assertIsDisplayed()
+            compose.onNodeWithText("Private tab").assertIsDisplayed()
+            saveEmulatorScreenshot("annie-gecko-real-private-home")
+        } finally {
+            compose.runOnIdle { shown.value = false }
+            compose.runOnIdle {
+                listOf(prefs to initialTabs, libraryPrefs to initialLibrary).forEach { (target, saved) ->
+                    val edit = target.edit().clear()
+                    saved.forEach { (key, value) ->
+                        when (value) {
+                            is String -> edit.putString(key, value)
+                            is Int -> edit.putInt(key, value)
+                            is Long -> edit.putLong(key, value)
+                            is Boolean -> edit.putBoolean(key, value)
+                        }
+                    }
+                    edit.commit()
+                }
+            }
+        }
+    }
 
     @Test fun addressSubmissionDismissesKeyboardAndBrowserControlsRespectSystemBars() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
@@ -46,9 +96,8 @@ class AnnieGeckoBrowserUiTest {
                 AnnieTheme { if (shown.value) AnnieGeckoStandaloneBrowser(onExit = {}, onOwn = {}, onRelease = {}) }
             }
             compose.onNodeWithTag("annie_gecko_browser").assertIsDisplayed()
-            compose.waitUntil(30_000) {
-                compose.onAllNodesWithText("Gecko one", substring = true).fetchSemanticsNodes().isNotEmpty()
-            }
+            // Native page pixels assert that Gecko actually navigated and rendered;
+            // this compact chrome intentionally does not duplicate the title strip.
             waitForNativePageColor(32, 48, 64)
             val address = compose.onNodeWithTag("annie_browser_tabs_address")
             val back = compose.onNodeWithTag("annie_browser_back")
@@ -66,9 +115,6 @@ class AnnieGeckoBrowserUiTest {
             address.performTextReplacement(fixture.baseUrl + "/two")
             address.performImeAction()
             address.assertIsNotFocused()
-            compose.waitUntil(30_000) {
-                compose.onAllNodesWithText("Gecko two", substring = true).fetchSemanticsNodes().isNotEmpty()
-            }
             waitForNativePageColor(48, 64, 32)
             compose.waitUntil(8_000) {
                 var hidden = false
@@ -78,6 +124,15 @@ class AnnieGeckoBrowserUiTest {
                 }
                 hidden
             }
+            // Search the genuine Gecko document through the imported Omni
+            // finder before returning to normal page navigation.
+            compose.onNodeWithContentDescription("Browser menu").performClick()
+            compose.onNodeWithText("Find in page").performClick()
+            compose.onNodeWithTag("annie_browser_find_input").performTextInput("Gecko")
+            compose.onNodeWithTag("annie_browser_find_bar").assertIsDisplayed()
+            saveEmulatorScreenshot("annie-gecko-real-find-in-page")
+            compose.onNodeWithContentDescription("Close find in page").performClick()
+
             // Address entry must also dismiss an open browser panel and hand
             // focus to the reattached page, including the explicit Go button.
             compose.onNodeWithContentDescription("Browser menu").performClick()
@@ -86,9 +141,6 @@ class AnnieGeckoBrowserUiTest {
             address.performTextReplacement(fixture.baseUrl + "/one")
             compose.onNodeWithTag("annie_browser_go").performClick()
             address.assertIsNotFocused()
-            compose.waitUntil(30_000) {
-                compose.onAllNodesWithText("Gecko one", substring = true).fetchSemanticsNodes().isNotEmpty()
-            }
             compose.onNodeWithTag("annie_browser_tabs_webview").assertIsDisplayed()
             waitForNativePageColor(32, 48, 64)
             saveEmulatorScreenshot("annie-gecko-system-bars-and-keyboard")

@@ -91,6 +91,13 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
+import com.tomex777.annie.browser.engine.AnnieBrowserEngineBridge
+import com.tomex777.annie.browser.engine.AnnieBrowserFindController
+import com.tomex777.annie.browser.engine.tabs.BrowserTab
+import com.tomex777.annie.browser.engine.tabs.SmartTabManager
+import com.tomex777.annie.browser.engine.tabs.TabGroup
+import com.tomex777.annie.browser.engine.useragent.UserAgentManager
+import com.tomex777.annie.browser.engine.useragent.UserAgentPreset
 import org.mozilla.geckoview.GeckoResult
 import org.mozilla.geckoview.GeckoRuntime
 import org.mozilla.geckoview.GeckoSession
@@ -101,7 +108,8 @@ import org.mozilla.geckoview.WebResponse
 /**
  * Annie's independent, Firefox/Gecko-powered browser. Script-request browser cards deliberately
  * continue using their isolated WebView profiles; a normal browser must never join those profiles.
- * No source code is copied from Omni Browser; it is an architectural reference only.
+ * This host now integrates source-derived Omni session persistence and WebExtension services
+ * via AnnieBrowserEngineBridge. See third_party/omni-browser/README.md for source/terms.
  */
 internal object AnnieGeckoRuntime {
     private var runtime: GeckoRuntime? = null
@@ -115,9 +123,23 @@ internal object AnnieBrowserAddress {
     fun resolve(input: String): String? {
         val text = input.trim().take(4096)
         if (text.isEmpty()) return null
+        val explicitHttp = Regex("^https?://", RegexOption.IGNORE_CASE).find(text)
+        // Host:port is not a custom URI scheme. Recognise local development
+        // and domain ports BEFORE the dangerous-scheme rejection.
+        val hostPort = Regex(
+            """^(?:localhost|127(?:\.\d{1,3}){3}|\[[0-9a-fA-F:]+\]|[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+):\d{1,5}(?:[/#?][^\s]*)?$""",
+            RegexOption.IGNORE_CASE,
+        ).matches(text)
+        val loopback = Regex(
+            """^(?:localhost|127(?:\.\d{1,3}){3}|\[[0-9a-fA-F:]+\])(?::\d{1,5})?(?:[/#?][^\s]*)?$""",
+            RegexOption.IGNORE_CASE,
+        ).matches(text)
         val candidate = when {
-            text.startsWith("https://", true) || text.startsWith("http://", true) -> text
-            // Never execute javascript:, file:, data:, intent: etc. entered in the omnibox.
+            explicitHttp != null -> explicitHttp.value.lowercase(java.util.Locale.ROOT) +
+                text.substring(explicitHttp.value.length)
+            loopback -> "http://$text"
+            hostPort -> "https://$text"
+            // Do not execute javascript:, file:, data:, intent:, about: or custom schemes.
             "://" in text || Regex("^[A-Za-z][A-Za-z0-9+.-]*:").containsMatchIn(text) ->
                 return null
             !text.contains(' ') && (text.contains('.') || text.startsWith("localhost")) ->
@@ -184,7 +206,7 @@ private class AnnieBrowserLibrary(context: Context) {
             for (i in 0 until minOf(array.length(), 300)) {
                 val entry = array.optJSONObject(i) ?: continue
                 val url = entry.optString("url")
-                if (AnnieBrowserAddress.resolve(url) == url) {
+                if (url == "about:blank" || AnnieBrowserAddress.resolve(url) == url) {
                     add(AnnieBrowserVisit(entry.optString("title").take(150), url))
                 }
             }
@@ -429,10 +451,20 @@ internal class AnnieGeckoTab(
     var canForward by mutableStateOf(false)
     var desktopMode by mutableStateOf(false)
     var error by mutableStateOf<String?>(null)
+    var fullscreen by mutableStateOf(false)
+    // Omni-style lazy restoration: only the selected GeckoSession is opened
+    // on cold start; inactive sessions cost no renderer/network resources.
+    var needsRestoration = false
 }
 
 internal class AnnieGeckoBrowserModel(private val context: Context) {
     private val runtime = AnnieGeckoRuntime.get(context)
+    // Engine services ported from actual Omni Browser source (GPLv3).
+    private val upstreamEngine = AnnieBrowserEngineBridge(context, runtime)
+    // Original Omni per-site UA settings, separated from Gecko session identities.
+    private val userAgentManager = UserAgentManager(context.applicationContext)
+    private val smartTabManager = SmartTabManager()
+    val findController = AnnieBrowserFindController()
     private val library = AnnieBrowserLibrary(context)
     private val prefs = context.applicationContext.getSharedPreferences("annie_gecko_tabs_v1", Context.MODE_PRIVATE)
     val tabs = mutableStateListOf<AnnieGeckoTab>()
@@ -440,6 +472,11 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
         private set
     val bookmarks get() = library.bookmarks
     val history get() = library.history
+    /** Omni smart grouping for Agent 2's tab sheet. Never mix private tabs. */
+    fun groupedNormalTabs(): List<TabGroup> = smartTabManager.categorize(
+        tabs.asSequence().filterNot { it.privateMode }
+            .map { BrowserTab(it.id, it.title, it.url) }.toList()
+    )
     val active: AnnieGeckoTab? get() = tabs.firstOrNull { it.id == selectedId }
 
     // Installed by the Compose screen that owns ActivityResult's document picker.
@@ -462,13 +499,22 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
                 val entry = saved.optJSONObject(i)
                 val url = entry?.optString("url") ?: saved.optString(i)
                 if (AnnieBrowserAddress.resolve(url) == url) {
-                    newTab(address = url, desktopMode = entry?.optBoolean("desktop", false) == true)
+                    val savedId = entry?.optString("id").orEmpty()
+                        .takeIf { it.matches(Regex("[0-9a-fA-F-]{36}")) }
+                    val tab = newTab(
+                        address = url,
+                        desktopMode = entry?.optBoolean("desktop", false) == true,
+                        persistedId = savedId,
+                        deferRestore = true,
+                    )
+                    tab.title = entry?.optString("title").orEmpty().take(150).ifBlank { "New tab" }
                 }
             }
         }
         if (tabs.isEmpty()) newTab()
-        selectedId = tabs[selectedIndex.coerceIn(0, tabs.lastIndex)].id
-        lastNormalSelectedId = selectedId
+        // Exactly one restored tab gets a live Gecko engine; do not reopen all
+        // background tabs or replay their URLs on startup.
+        select(tabs[selectedIndex.coerceIn(0, tabs.lastIndex)])
         restoringTabs = false
         persistTabs()
     }
@@ -479,7 +525,10 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
         // and reset selection when the active tab was beyond the twelfth.
         val normalTabs = tabs.filterNot { it.privateMode }
         val urls = JSONArray()
-        normalTabs.forEach { urls.put(JSONObject().put("url", it.url).put("desktop", it.desktopMode)) }
+        normalTabs.forEach {
+            urls.put(JSONObject().put("id", it.id).put("url", it.url)
+                .put("title", it.title.take(150)).put("desktop", it.desktopMode))
+        }
         // A private tab never writes its URL, mode, identity or selection to disk.
         val selected = normalTabs.indexOfFirst { it.id == lastNormalSelectedId }.coerceAtLeast(0)
         prefs.edit().putString("open", urls.toString()).putInt("selected", selected).apply()
@@ -488,24 +537,59 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
 
     fun select(tab: AnnieGeckoTab) {
         if (tab !in tabs) return
+        // Omni lifecycle principle: a background renderer must not retain the
+        // same active CPU/memory priority as the visible tab. Gecko also flushes
+        // its SessionState on deactivation, improving crash recovery.
+        val previouslySelected = active
+        if (previouslySelected != null && previouslySelected.id != tab.id) {
+            if (previouslySelected.fullscreen) {
+                previouslySelected.fullscreen = false
+                if (previouslySelected.session.isOpen)
+                    previouslySelected.session.exitFullScreen()
+            }
+            findController.close(previouslySelected.session)
+            if (previouslySelected.session.isOpen) previouslySelected.session.setActive(false)
+        }
+        if (tab.needsRestoration) {
+            tab.needsRestoration = false
+            tab.session.open(runtime)
+            val restored = if (!tab.privateMode)
+                upstreamEngine.restoreNormalTab(tab.id, tab.url) else null
+            if (restored != null) {
+                runCatching { tab.session.restoreState(restored) }
+                    .onFailure { tab.session.loadUri(tab.url) }
+            } else if (tab.url != "about:blank") {
+                tab.session.loadUri(tab.url)
+            }
+        }
         selectedId = tab.id
+        if (tab.session.isOpen) tab.session.setActive(true)
         if (!tab.privateMode) lastNormalSelectedId = tab.id
         persistTabs()
     }
 
     fun newTab(
         privateMode: Boolean = false,
-        address: String = "https://www.google.com/",
+        address: String = "about:blank",
         autoLoad: Boolean = true,
         desktopMode: Boolean = false,
+        persistedId: String? = null,
+        deferRestore: Boolean = false,
     ): AnnieGeckoTab {
-        val url = AnnieBrowserAddress.resolve(address) ?: "https://www.google.com/"
+        val url = if (address == "about:blank") "about:blank"
+            else AnnieBrowserAddress.resolve(address) ?: "about:blank"
         val session = GeckoSession(
             GeckoSessionSettings.Builder().usePrivateMode(privateMode).build()
         )
-        val tab = AnnieGeckoTab(UUID.randomUUID().toString(), privateMode, session, url)
+        // Preserve existing users' URL-only saved tabs, while granting all new tabs
+        // a stable identifier for upstream Gecko SessionState recovery.
+        val stableId = persistedId?.takeIf { candidate -> tabs.none { it.id == candidate } }
+            ?: UUID.randomUUID().toString()
+        val tab = AnnieGeckoTab(stableId, privateMode, session, url)
         tab.desktopMode = desktopMode
+        tab.needsRestoration = deferRestore
         applyDesktopSettings(tab)
+        applyUserAgentSettings(tab, url)
         session.navigationDelegate = object : GeckoSession.NavigationDelegate {
             override fun onNewSession(session: GeckoSession, uri: String): org.mozilla.geckoview.GeckoResult<GeckoSession>? {
                 if (tabs.size >= 20 || AnnieBrowserAddress.resolve(uri) != uri) return null
@@ -520,6 +604,7 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
                 hasUserGesture: Boolean,
             ) {
                 if (!url.isNullOrBlank()) {
+                    applyUserAgentSettings(tab, url)
                     tab.url = url
                     if (!tab.privateMode) { library.visit(tab.title, url); persistTabs() }
                 }
@@ -545,8 +630,20 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
                 tab.loading = false
                 if (!success) tab.error = "Couldn't load this page. Check your connection."
             }
+            override fun onSessionStateChange(
+                session: GeckoSession,
+                sessionState: GeckoSession.SessionState,
+            ) {
+                // Real Omni-derived persistence: private and non-web URLs are skipped.
+                upstreamEngine.checkpoint(tab.id, sessionState, tab.title, tab.url,
+                    tab.privateMode, tab.canBack, tab.canForward)
+            }
         }
         session.contentDelegate = object : GeckoSession.ContentDelegate {
+            override fun onFullScreen(session: GeckoSession, fullScreen: Boolean) {
+                // Only a genuine Gecko document event controls immersive UI.
+                tab.fullscreen = fullScreen
+            }
             override fun onTitleChange(session: GeckoSession, title: String?) {
                 tab.title = title?.take(150)?.ifBlank { "New tab" } ?: "New tab"
                 if (!tab.privateMode) library.visit(tab.title, tab.url)
@@ -555,6 +652,7 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
                 AnnieGeckoDownloadStore.accept(context, response)
             }
             override fun onCrash(session: GeckoSession) {
+                tab.fullscreen = false
                 tab.error = "Browser tab crashed. Reload to recover."
                 tab.loading = false
             }
@@ -571,16 +669,22 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
                 return answer
             }
         }
-        session.open(runtime)
+        if (!deferRestore) session.open(runtime)
         tabs.add(tab)
-        select(tab)
-        if (autoLoad) session.loadUri(url)
+        if (!deferRestore) {
+            select(tab)
+            if (autoLoad && url != "about:blank") session.loadUri(url)
+        }
         persistTabs()
         return tab
     }
 
     fun close(tab: AnnieGeckoTab) {
-        tab.session.close()
+        if (tab !in tabs) return
+        if (tab.fullscreen && tab.session.isOpen) tab.session.exitFullScreen()
+        tab.fullscreen = false
+        if (!tab.privateMode) upstreamEngine.forgetNormalTab(tab.id)
+        if (tab.session.isOpen) tab.session.close()
         val index = tabs.indexOf(tab)
         tabs.remove(tab)
         if (tabs.isEmpty()) newTab()
@@ -595,11 +699,24 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
         tab.progress = 0
         // Address-bar navigation carries the original input into Gecko's load
         // handling, including URI fixup and the user-entered navigation source.
-        tab.session.load(GeckoSession.Loader().uri(url).originalInput(address))
-        return true
+        applyUserAgentSettings(tab, url)
+        return runCatching {
+            tab.session.load(GeckoSession.Loader().uri(url).originalInput(address))
+            // Show a real Gecko page, not the old native blank Home, immediately
+            // after a valid navigation starts. Do not create a history entry until
+            // Gecko itself reports the actual page URL.
+            tab.url = url
+            if (!tab.privateMode) persistTabs()
+            true
+        }.getOrElse {
+            tab.loading = false
+            tab.error = "Couldn't open this address"
+            false
+        }
     }
 
     fun reload(tab: AnnieGeckoTab) {
+        if (tab.url == "about:blank") return
         if (tab.session.isOpen) tab.session.reload()
         else { tab.session.open(runtime); tab.session.loadUri(tab.url) }
     }
@@ -607,8 +724,9 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
     fun toggleDesktop(tab: AnnieGeckoTab) {
         tab.desktopMode = !tab.desktopMode
         applyDesktopSettings(tab)
+        applyUserAgentSettings(tab, tab.url)
         persistTabs()
-        tab.session.reload()
+        if (tab.session.isOpen) tab.session.reload()
     }
 
     private fun applyDesktopSettings(tab: AnnieGeckoTab) {
@@ -616,6 +734,39 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
             GeckoSessionSettings.USER_AGENT_MODE_DESKTOP else GeckoSessionSettings.USER_AGENT_MODE_MOBILE
         tab.session.settings.viewportMode = if (tab.desktopMode)
             GeckoSessionSettings.VIEWPORT_MODE_DESKTOP else GeckoSessionSettings.VIEWPORT_MODE_MOBILE
+    }
+
+    // A single original-Omni-derived Gecko finder; Agent 2 renders its sole
+    // custom search bar. The search state never enters normal/private history.
+    fun openFindInPage() = findController.open()
+    fun updateFindInPage(query: String) = findController.update(active?.session, query)
+    fun findNext() = findController.next(active?.session)
+    fun findPrevious() = findController.previous(active?.session)
+    fun closeFindInPage() = findController.close(active?.session)
+
+    /** Hook for Agent 2's opt-in page tool; never enable content injection by default. */
+    fun setUniversalCopy(enabled: Boolean, onFinished: () -> Unit = {}) =
+        upstreamEngine.setUniversalCopy(enabled, onFinished)
+
+    // These model APIs are the single canonical engine contract for Agent 2's
+    // eventual custom Annie Browser settings UI. No duplicate UA controls.
+    fun setGlobalUserAgent(preset: UserAgentPreset, custom: String = "") {
+        userAgentManager.setGlobalPreset(preset, custom)
+        tabs.forEach { applyUserAgentSettings(it, it.url) }
+    }
+
+    fun setSiteUserAgent(domain: String, preset: UserAgentPreset, custom: String = "") {
+        userAgentManager.addOrUpdateSiteRule(domain, preset, custom)
+        tabs.forEach { applyUserAgentSettings(it, it.url) }
+    }
+
+    fun removeSiteUserAgent(domain: String) {
+        userAgentManager.removeSiteRulesForDomain(domain)
+        tabs.forEach { applyUserAgentSettings(it, it.url) }
+    }
+
+    private fun applyUserAgentSettings(tab: AnnieGeckoTab, url: String) {
+        tab.session.settings.userAgentOverride = userAgentManager.resolveUserAgent(url)
     }
 
     fun toggleBookmark(tab: AnnieGeckoTab) {
@@ -631,8 +782,9 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
     }
 
     fun destroy() {
-        tabs.toList().forEach { it.session.close() }
+        tabs.toList().forEach { if (it.session.isOpen) it.session.close() }
         tabs.clear()
+        upstreamEngine.close()
     }
 }
 
@@ -701,161 +853,29 @@ internal fun AnnieGeckoStandaloneBrowser(
             model.destroy()
         }
     }
-    val tab = model.active ?: return
-    val focusManager = LocalFocusManager.current
-    val keyboard = LocalSoftwareKeyboardController.current
-    var address by remember(tab.id) { mutableStateOf(tab.url) }
-    var editing by remember(tab.id) { mutableStateOf(false) }
-    var menuOpen by remember { mutableStateOf(false) }
-    var panel by remember { mutableStateOf<String?>(null) }
-    val pageFocus = remember(tab.id) { FocusRequester() }
-    var addressSubmission by remember(tab.id) { mutableIntStateOf(0) }
-    LaunchedEffect(addressSubmission, tab.id) {
-        if (addressSubmission > 0) {
-            // On API26 the native IME may restore the text field during the
-            // same frame as Go. Transfer focus after the page/panel layout has
-            // settled, rather than leaving the focus owner with no target.
-            withFrameNanos { }
-            pageFocus.requestFocus()
-            keyboard?.hide()
-        }
+    // Agent 2 native browser chrome; real upstream Omni engine/session and
+    // Android ActivityResult Gecko file-picker lifecycle remain owned above.
+    val universalCopyToggle = remember(model) {
+        { enabled: Boolean -> model.setUniversalCopy(enabled) }
     }
-    LaunchedEffect(tab.url) { if (!editing) address = tab.url }
-    fun submitAddress() {
-        if (model.load(tab, address)) {
-            editing = false
-            panel = null
-            addressSubmission++
-            focusManager.clearFocus(force = true)
-            keyboard?.hide()
-        }
-    }
-    BackHandler(enabled = panel != null || tab.canBack) {
-        if (panel != null) panel = null else tab.session.goBack()
-    }
-
-    Column(
-        Modifier.fillMaxSize().background(BrowserNight)
-            .statusBarsPadding().navigationBarsPadding().imePadding()
-            .testTag("annie_gecko_browser")
-    ) {
-        Row(
-            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 6.dp, vertical = 2.dp),
-            horizontalArrangement = Arrangement.spacedBy(2.dp),
-        ) {
-            IconButton(onClick = onExit, modifier = Modifier.semantics { contentDescription = "Close browser" }) {
-                Icon(AnnieIcons.Close, contentDescription = null, tint = BrowserBrightText)
-            }
-            model.tabs.forEach { item ->
-                TextButton(onClick = { model.select(item); panel = null },
-                    modifier = Modifier.testTag("annie_browser_tab_" + item.id)) {
-                    Text((if (item.privateMode) "Private · " else "") + item.title.take(15),
-                        maxLines = 1, overflow = TextOverflow.Ellipsis,
-                        color = if (item.id == tab.id) BrowserTeal else BrowserSoftText)
-                }
-                IconButton(onClick = { model.close(item) }) {
-                    Icon(AnnieIcons.Close, contentDescription = "Close ${item.title}", tint = BrowserSoftText)
-                }
-            }
-            IconButton(onClick = { model.newTab(); panel = null },
-                modifier = Modifier.testTag("annie_browser_new_tab")) {
-                Icon(AnnieIcons.Add, contentDescription = "New tab", tint = BrowserTeal)
-            }
-        }
-        Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            BasicTextField(
-                value = address,
-                onValueChange = { editing = true; address = it.take(4096) },
-                modifier = Modifier.weight(1f).heightIn(min = 48.dp)
-                    .clip(RoundedCornerShape(14.dp)).background(Color(0xFF10243A))
-                    .border(1.dp, Color(0xFF294562), RoundedCornerShape(14.dp))
-                    .testTag("annie_browser_tabs_address")
-                    .padding(horizontal = 14.dp, vertical = 12.dp),
-                textStyle = TextStyle(color = BrowserBrightText, fontSize = 15.sp),
-                cursorBrush = SolidColor(BrowserTeal),
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go),
-                keyboardActions = KeyboardActions(onGo = { submitAddress() }),
-                decorationBox = { inner ->
-                    Box(contentAlignment = Alignment.CenterStart) {
-                        if (address.isEmpty()) Text("Search or enter address", color = BrowserSoftText)
-                        inner()
-                    }
-                },
-            )
-            Button(onClick = { submitAddress() }, modifier = Modifier.testTag("annie_browser_go")) { Text("Go") }
-        }
-        if (tab.loading) LinearProgressIndicator(
-            progress = { tab.progress / 100f }, modifier = Modifier.fillMaxWidth(), color = BrowserTeal)
-        tab.error?.let { Text(it, Modifier.padding(12.dp), color = BrowserSoftText) }
-        if (panel != null) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(panel.orEmpty(), Modifier.padding(16.dp), color = BrowserBrightText)
-                TextButton(onClick = { panel = null }) { Text("Close") }
-            }
-            if (panel == "Downloads") {
-                AnnieGeckoDownloadPanel(Modifier.weight(1f))
-            } else {
-                val entries = if (panel == "Bookmarks") model.bookmarks else model.history
-                androidx.compose.foundation.lazy.LazyColumn(Modifier.weight(1f)) {
-                    items(entries.size) { i ->
-                        val entry = entries[i]
-                        TextButton(onClick = { model.load(tab, entry.url); panel = null }) {
-                            Column {
-                                Text(entry.title.ifBlank { entry.url }, color = BrowserBrightText, maxLines = 1)
-                                Text(entry.url, color = BrowserSoftText, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            }
-                        }
-                    }
-                }
-            }
-        } else key(tab.id) {
-            AndroidView(
-                factory = { GeckoView(it).apply { setSession(tab.session) } },
-                modifier = Modifier.fillMaxWidth().weight(1f).focusRequester(pageFocus).focusable().testTag("annie_browser_tabs_webview"),
-                onRelease = { view -> view.releaseSession() },
-            )
-        }
-        Row(Modifier.fillMaxWidth().padding(horizontal = 6.dp),
-            horizontalArrangement = Arrangement.SpaceBetween) {
-            IconButton(onClick = { tab.session.goBack() }, enabled = tab.canBack, modifier = Modifier.testTag("annie_browser_back")) {
-                Icon(AnnieIcons.ArrowBack, contentDescription = "Go back", tint = BrowserBrightText)
-            }
-            IconButton(onClick = { tab.session.goForward() }, enabled = tab.canForward) {
-                Icon(AnnieIcons.ArrowForward, contentDescription = "Go forward", tint = BrowserBrightText)
-            }
-            IconButton(onClick = { model.reload(tab) }) {
-                Icon(AnnieIcons.Refresh, contentDescription = "Reload page", tint = BrowserBrightText)
-            }
-            IconButton(onClick = { model.toggleBookmark(tab) }, enabled = !tab.privateMode) {
-                Icon(AnnieIcons.Bookmark,
-                    contentDescription = if (model.isBookmarked(tab)) "Remove bookmark" else "Bookmark page",
-                    tint = if (model.isBookmarked(tab)) BrowserTeal else BrowserSoftText)
-            }
-            IconButton(onClick = { menuOpen = true }) {
-                Icon(AnnieIcons.More, contentDescription = "Browser menu", tint = BrowserBrightText)
-            }
-            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                DropdownMenuItem(text = { Text("New private tab") }, onClick = {
-                    menuOpen = false; model.newTab(privateMode = true)
-                })
-                DropdownMenuItem(text = { Text("Bookmarks") }, onClick = {
-                    menuOpen = false; panel = "Bookmarks"
-                })
-                DropdownMenuItem(text = { Text("History") }, onClick = {
-                    menuOpen = false; panel = "History"
-                })
-                DropdownMenuItem(text = { Text("Downloads") }, onClick = {
-                    menuOpen = false; panel = "Downloads"
-                })
-                DropdownMenuItem(text = { Text(if (tab.desktopMode) "Mobile site" else "Desktop site") }, onClick = {
-                    menuOpen = false; model.toggleDesktop(tab)
-                })
-                DropdownMenuItem(text = { Text("Share link") }, onClick = {
-                    menuOpen = false; model.share(tab)
-                })
-            }
-        }
-    }
+    val finder = model.findController
+    AnnieLegacyGeckoBrowserChrome(
+        model = model,
+        onExit = onExit,
+        universalCopy = universalCopyToggle,
+        fullscreen = model.active?.fullscreen == true,
+        exitFullscreen = { model.active?.session?.exitFullScreen() },
+        find = AnnieBrowserChromeFind(
+            visible = finder.visible,
+            query = finder.query,
+            current = finder.current,
+            total = finder.total,
+            found = finder.found,
+            open = model::openFindInPage,
+            update = model::updateFindInPage,
+            next = model::findNext,
+            previous = model::findPrevious,
+            close = model::closeFindInPage,
+        ),
+    )
 }
