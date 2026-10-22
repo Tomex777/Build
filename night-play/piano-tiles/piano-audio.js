@@ -36,7 +36,14 @@ async function prepare(){
    const encoded=await response.arrayBuffer();
    const decoded=await ctx.decodeAudioData(encoded);
    if(decoded.duration<.25||!decoded.length)throw Error('Invalid grand piano recording: '+key);
-   buffers.set(key,decoded);decodeCount++;
+   // The piano tile instrument releases every key within ~3 seconds.
+   // Keeping the full 16-second source per pitch wastes ~55 MB decoded on
+   // Android. Retain 3.6 seconds, including original attack/string decay.
+   const length=Math.min(decoded.length,Math.floor(decoded.sampleRate*3.6));
+   const compact=ctx.createBuffer(decoded.numberOfChannels,length,decoded.sampleRate);
+   for(let channel=0;channel<decoded.numberOfChannels;channel++)
+    compact.copyToChannel(decoded.getChannelData(channel).subarray(0,length),channel);
+   buffers.set(key,compact);decodeCount++;
   })).catch(error=>{buffers.clear();loadPromise=null;throw error});
  }
  await loadPromise;
@@ -71,8 +78,13 @@ function play(frequency,hold=false){
   release(seconds=.27){
    if(stopped)return;stopped=true;
    const t=context.currentTime;
-   amp.gain.cancelScheduledValues(t);
-   amp.gain.setValueAtTime(Math.max(.0001,amp.gain.value),t);
+   if(typeof amp.gain.cancelAndHoldAtTime==='function'){
+    amp.gain.cancelAndHoldAtTime(t);
+   }else{
+    const current=Math.max(.0001,amp.gain.value);
+    amp.gain.cancelScheduledValues(t);
+    amp.gain.setValueAtTime(current,t);
+   }
    amp.gain.exponentialRampToValueAtTime(.0001,t+seconds);
    try{source.stop(t+seconds+.025)}catch{}
   },
