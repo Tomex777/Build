@@ -13,6 +13,19 @@ class PuzzleEngineTest {
             assertTrue(p.pieces.all { it.x != p.targetX(it) || it.y != p.targetY(it) })
         }
     }
+    @Test fun scatterMasksDoNotOverlapEvenAt144() {
+        for ((cols, rows) in listOf(6 to 4, 8 to 6, 12 to 12)) {
+            val game=PuzzleGame.fresh(cols,rows,seed=1234)
+            val depth=kotlin.math.min(game.pieceWidth,game.pieceHeight)*.30f
+            for (i in game.pieces.indices) for (j in i+1 until game.pieces.size) {
+                val a=game.pieces[i]
+                val b=game.pieces[j]
+                val horizontal=kotlin.math.abs(a.x-b.x) >= game.pieceWidth+2f*depth
+                val vertical=kotlin.math.abs(a.y-b.y) >= game.pieceHeight+2f*depth
+                assertTrue("Overlap at "+cols+"x"+rows+" piece "+i+"/"+j, horizontal || vertical)
+            }
+        }
+    }
     @Test fun neighborTabsAreComplementaryAndEdgesFlat() {
         val g = PuzzleGame.fresh(12, 12, seed = 782)
         for (r in 0 until 12) for (c in 0 until 12) {
