@@ -386,6 +386,8 @@ class MainActivity : ComponentActivity() {
         var difficultyPicker by remember { mutableStateOf(false) }
         var zonePicker by remember { mutableStateOf(false) }
         var libraryPicker by remember { mutableStateOf(false) }
+        var sessionsPicker by remember { mutableStateOf(false) }
+        var sessionsRevision by remember { mutableIntStateOf(0) }
         var libraryRevision by remember { mutableIntStateOf(0) }
         var photoToRemove by remember { mutableStateOf<SavedPuzzlePhoto?>(null) }
         var onlinePicker by remember { mutableStateOf(false) }
@@ -529,6 +531,12 @@ class MainActivity : ComponentActivity() {
                     },modifier=Modifier.fillMaxWidth()) {
                         Text("Browse downloadable puzzles")
                     }
+                    OutlinedButton(onClick={
+                        libraryPicker=false
+                        sessionsPicker=true
+                    },modifier=Modifier.fillMaxWidth()) {
+                        Text("Continue saved puzzles")
+                    }
                     val savedPhotos=remember(libraryPicker,libraryRevision){store.listPhotos()}
                     Text("${savedPhotos.size} saved · ${store.savedPhotoBytes()/1_048_576} MB",
                         color=muted,fontSize=11.sp)
@@ -578,7 +586,8 @@ class MainActivity : ComponentActivity() {
                                     }
                                 }
                             }
-                            if(entry.key!=game.imageKey) {
+                            if(entry.key!=game.imageKey &&
+                                store.unfinished().none{it.picture==entry.key}) {
                                 TextButton(onClick={photoToRemove=entry}) {
                                     Text("Remove",fontSize=11.sp)
                                 }
@@ -589,6 +598,66 @@ class MainActivity : ComponentActivity() {
                 }
             },
             confirmButton={TextButton(onClick={libraryPicker=false}){Text("Close")}}
+        )
+
+        if(sessionsPicker) AlertDialog(
+            onDismissRequest={sessionsPicker=false},
+            title={Text("Continue a puzzle")},
+            text={
+                val sessions=remember(sessionsPicker,sessionsRevision) {
+                    store.unfinished()
+                }
+                Column(verticalArrangement=Arrangement.spacedBy(7.dp)) {
+                    if(sessions.isEmpty()) {
+                        Text("No unfinished puzzles yet.",color=muted)
+                    } else {
+                        Text("${sessions.size} saved puzzles",fontSize=12.sp,color=muted)
+                        LazyColumn(Modifier.heightIn(max=340.dp),
+                            verticalArrangement=Arrangement.spacedBy(6.dp)) {
+                            items(sessions,key={it.seed}) { session ->
+                                Row(Modifier.fillMaxWidth(),
+                                    verticalAlignment=Alignment.CenterVertically) {
+                                    OutlinedButton(onClick={
+                                        val saved=store.resume(session.seed)
+                                        val photo=if(saved?.imageKey=="starter")
+                                            SceneImage.create()
+                                            else saved?.imageKey?.let(store::loadPhoto)
+                                        if(saved!=null && photo!=null) {
+                                            game=saved
+                                            picture=photo
+                                            store.save(game)
+                                            paused=false
+                                            revision++
+                                            sessionsPicker=false
+                                        }
+                                    },modifier=Modifier.weight(1f)) {
+                                        Column {
+                                            val title=if(session.picture=="starter")
+                                                "Mountain illustration" else
+                                                store.listPhotos().firstOrNull{
+                                                    it.key==session.picture
+                                                }?.title ?: "Saved photograph"
+                                            Text(title,maxLines=1,
+                                                overflow=TextOverflow.Ellipsis)
+                                            Text("${session.done}/${session.pieces} · ${session.mode.label} · ${clockText(session.seconds)}",
+                                                color=muted,fontSize=10.sp)
+                                        }
+                                    }
+                                    if(session.seed!=game.seed) {
+                                        TextButton(onClick={
+                                            if(store.discardSession(session.seed,game.seed))
+                                                sessionsRevision++
+                                        }) {Text("Discard",fontSize=11.sp)}
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton={TextButton(onClick={sessionsPicker=false}) {
+                Text("Close")
+            }}
         )
 
         if(photoToRemove!=null) AlertDialog(
