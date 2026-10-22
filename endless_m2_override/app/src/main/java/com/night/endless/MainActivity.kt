@@ -118,7 +118,13 @@ class MainActivity : ComponentActivity() {
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
-        if (hasFocus) applyImmersiveMode()
+        if (hasFocus) {
+            applyImmersiveMode()
+        } else {
+            // Suspend held motion immediately on notification shade, system
+            // dialog or incoming call, even when onPause has not run yet.
+            activeGlView?.cancelSurfaceControls()
+        }
     }
 
     @Suppress("DEPRECATION")
