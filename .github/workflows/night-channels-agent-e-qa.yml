@@ -65,6 +65,10 @@ jobs:
           node-version: '22'
       - name: Install browser test harness
         run: npm install --no-save playwright@1.56.1
+      - name: Record exact source SHA (agentA)
+        run: |
+          git rev-parse HEAD
+          git -C agentA rev-parse HEAD
       - name: Independently exercise Agent A config in real Chrome
         run: node night-play/channels/qa/config-browser.cjs
         env:
@@ -91,6 +95,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Record exact source SHA (agentB)
+        run: |
+          git rev-parse HEAD
+          git -C agentB rev-parse HEAD
       - name: Validate Agent B curation against independent license/news regressions
         run: node night-play/channels/qa/curation-contract.cjs
         env:
@@ -109,6 +117,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Record exact source SHA (agentD)
+        run: |
+          git rev-parse HEAD
+          git -C agentD rev-parse HEAD
       - name: Independently check poster identity, Unicode watermark keys and limits
         run: node night-play/channels/qa/branding-contract.mjs
         env:
@@ -127,6 +139,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Record exact source SHA (agentC)
+        run: |
+          git rev-parse HEAD
+          git -C agentC rev-parse HEAD
       - name: Independently check C signed queue and rights/revocation contracts
         run: |
           node agentC/mscc/channel-publisher/selftest.js
@@ -155,6 +171,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Record exact source SHA (agentA, agentC)
+        run: |
+          git rev-parse HEAD
+          git -C agentA rev-parse HEAD
+          git -C agentC rev-parse HEAD
       - name: Confirm every visible A branding setting is accepted by C
         run: node night-play/channels/qa/a-c-config-contract.cjs
         env:
@@ -179,6 +200,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Record exact source SHA (agentC, agentD)
+        run: |
+          git rev-parse HEAD
+          git -C agentC rev-parse HEAD
+          git -C agentD rev-parse HEAD
       - name: Reject publisher personas that D would reject at final-send formatting
         run: node night-play/channels/qa/c-d-poster-contract.mjs
         env:
