@@ -447,6 +447,15 @@ class Device:
         self.ensure_regular()  # App-owned Library downloads must never use incognito.
         prior = self.app_download_names()
         self.go(path)
+        if path == "/file.pdf" and self.find("Save file") is None:
+            # Gecko can show a PDF in its native viewer instead of exposing
+            # the direct address as an external attachment. Also exercise a
+            # genuine user-clicked HTML download link with a download attr.
+            # This still MUST save the original PDF bytes via Gecko/Library.
+            self.go("/links")
+            before = hits("/file.pdf")
+            self.click("Download PDF fixture")
+            wait_hit("/file.pdf", before)
         self.click("Save file", timeout=25)
         end = time.monotonic() + 35
         observed = None
