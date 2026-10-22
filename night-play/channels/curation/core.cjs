@@ -87,8 +87,8 @@ function normalizeNews(record,source,{now=Date.now(),maxAgeDays=14}={}){
  const normalized=tokens(title).filter(t=>!['the','a','an','of','for','on','in','new','from','and','to'].includes(t));
  const explicitKey=typeof record.storyKey==='string'&&/^[A-Za-z0-9:._-]{4,120}$/.test(record.storyKey)?record.storyKey:null;
  const fingerprint=identifier('story',explicitKey||((show||'general').toLowerCase()+'|'+event+'|'+normalized.slice(0,10).sort().join(' ')));
- return Object.freeze({id:identifier('news',url),kind:'news',title,summary,publishedAt:new Date(published).toISOString(),show,tags,spoiler:record.spoiler===true,eventDate:Number.isFinite(Date.parse(record.eventDate||''))?new Date(record.eventDate).toISOString():null,verification,requiresReview:verification!=='official',fingerprint,
- source:{id:String(source.id||''),name:String(source.name||''),url,provider:source.provider||'rss',attributionRequired:true},autoEligible:verification==='official'});
+ return Object.freeze({id:identifier('news',url),kind:'news',title,summary,publishedAt:new Date(published).toISOString(),show,tags,spoiler:record.spoiler===true,eventDate:Number.isFinite(Date.parse(record.eventDate||''))?new Date(record.eventDate).toISOString():null,verification,requiresReview:verification!=='official'||record.spoiler===true,fingerprint,
+ source:{id:String(source.id||''),name:String(source.name||''),url,provider:source.provider||'rss',attributionRequired:true},autoEligible:verification==='official'&&record.spoiler!==true});
 }
 function chooseNews(items,{enabled=false,interests=[],shows=[],includeSpoilers=false,now=Date.now(),limit=4}={}){
  if(!enabled)return [];
