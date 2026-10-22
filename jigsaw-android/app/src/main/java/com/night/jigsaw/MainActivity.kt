@@ -202,6 +202,11 @@ class MainActivity : ComponentActivity() {
                             update: () -> Unit, chooseZone: () -> Unit,
                             onGuide: () -> Unit, onPause: () -> Unit) {
         val solved=revision.let { game.solved }
+        val photoTitle=remember(game.imageKey,libraryRevision) {
+            if(game.imageKey=="starter") "Mountain · illustration"
+            else store.listPhotos().firstOrNull {it.key==game.imageKey}?.title
+                ?: "My picture"
+        }
         if(wide) {
             Column(verticalArrangement=Arrangement.spacedBy(6.dp)) {
                 OutlinedButton(onClick=onPause,modifier=Modifier.fillMaxWidth()) {
@@ -334,6 +339,8 @@ class MainActivity : ComponentActivity() {
         var difficultyPicker by remember { mutableStateOf(false) }
         var zonePicker by remember { mutableStateOf(false) }
         var libraryPicker by remember { mutableStateOf(false) }
+        var libraryRevision by remember { mutableIntStateOf(0) }
+        var photoToRemove by remember { mutableStateOf<SavedPuzzlePhoto?>(null) }
         var onlinePicker by remember { mutableStateOf(false) }
         var downloading by remember { mutableStateOf<String?>(null) }
         var paused by remember { mutableStateOf(false) }
@@ -389,8 +396,7 @@ class MainActivity : ComponentActivity() {
                         verticalArrangement=Arrangement.spacedBy(9.dp)) {
                         Text("JIGSAW",fontSize=19.sp,fontWeight=FontWeight.Black,
                             color=forest,letterSpacing=1.2.sp)
-                        Text(if(game.imageKey!="starter")"Your photograph"
-                            else "Mountain · illustration",fontSize=11.sp,
+                        Text(photoTitle,fontSize=11.sp,
                             color=muted,maxLines=1,overflow=TextOverflow.Ellipsis)
                         Progress(revision)
                         GameActions(revision,true,
@@ -406,8 +412,8 @@ class MainActivity : ComponentActivity() {
                         Column {
                             Text("JIGSAW",fontSize=21.sp,fontWeight=FontWeight.Black,
                                 color=forest,letterSpacing=1.6.sp)
-                            Text(if(game.imageKey!="starter")"Your photograph"
-                                else "Mountain · illustration",fontSize=11.sp,color=muted)
+                            Text(photoTitle,fontSize=11.sp,color=muted,maxLines=1,
+                                overflow=TextOverflow.Ellipsis)
                         }
                         OutlinedButton(onClick=openLibrary) {
                             Text("Pictures",fontSize=12.sp)
@@ -471,7 +477,9 @@ class MainActivity : ComponentActivity() {
                     },modifier=Modifier.fillMaxWidth()) {
                         Text("Browse downloadable puzzles")
                     }
-                    val savedPhotos=remember(libraryPicker){store.listPhotos()}
+                    val savedPhotos=remember(libraryPicker,libraryRevision){store.listPhotos()}
+                    Text("${savedPhotos.size} saved · ${store.savedPhotoBytes()/1_048_576} MB",
+                        color=muted,fontSize=11.sp)
                     LazyColumn(Modifier.heightIn(max=320.dp),
                         verticalArrangement=Arrangement.spacedBy(5.dp)) {
                         item {
@@ -485,6 +493,8 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                         items(savedPhotos,key={it.key}) { entry ->
+                            Row(Modifier.fillMaxWidth(),
+                                verticalAlignment=Alignment.CenterVertically) {
                             OutlinedButton(onClick={
                                 val selected=store.loadPhoto(entry.key)
                                 if(selected!=null) {
@@ -509,11 +519,31 @@ class MainActivity : ComponentActivity() {
                                     Text(entry.source,fontSize=11.sp,color=muted)
                                 }
                             }
+                            if(entry.key!=game.imageKey) {
+                                TextButton(onClick={photoToRemove=entry}) {
+                                    Text("Remove",fontSize=11.sp)
+                                }
+                            }
+                            }
                         }
                     }
                 }
             },
             confirmButton={TextButton(onClick={libraryPicker=false}){Text("Close")}}
+        )
+
+        if(photoToRemove!=null) AlertDialog(
+            onDismissRequest={photoToRemove=null},
+            title={Text("Remove saved picture?")},
+            text={Text("Remove this picture from NIGHT Jigsaw? This won't affect the original photo on your device.")},
+            confirmButton={TextButton(onClick={
+                val item=photoToRemove
+                if(item!=null && store.deletePhoto(item.key,game.imageKey)) {
+                    libraryRevision++
+                }
+                photoToRemove=null
+            }) {Text("Remove")}},
+            dismissButton={TextButton(onClick={photoToRemove=null}) {Text("Cancel")}}
         )
 
         if(onlinePicker) AlertDialog(
