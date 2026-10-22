@@ -26,6 +26,29 @@ class PuzzleEngineTest {
             }
         }
     }
+
+    @Test fun largerPuzzleSizesAndLandscapePreserveCompletedProgress() {
+        for ((cols,rows) in listOf(3 to 2,4 to 3,9 to 8,
+            12 to 8,12 to 12,20 to 12,24 to 16,30 to 20)) {
+            val g=PuzzleGame.fresh(cols,rows,seed=927)
+            assertEquals(cols*rows,g.count)
+            assertFalse(g.landscapeMode)
+            assertTrue(g.hint())
+            val placed=g.completed
+            assertTrue(g.setLandscape(true))
+            assertTrue(g.landscapeMode)
+            assertEquals(placed,g.completed)
+            assertTrue(g.boardLeft>80f)
+            assertEquals(g.targetX(g.pieces[0]),g.pieces[0].x)
+            assertTrue(g.setLandscape(false))
+            assertEquals(placed,g.completed)
+            val data=g.pieces.map { Triple(it.x,it.y,it.placed) }
+            val restored=PuzzleGame.restore(cols,rows,g.seed,g.imageKey,
+                data,g.hintsRemaining,g.moves,g.preview,g.landscapeMode)!!
+            assertEquals(g.completed,restored.completed)
+            assertEquals(g.worldWidth,restored.worldWidth)
+        }
+    }
     @Test fun neighborTabsAreComplementaryAndEdgesFlat() {
         val g = PuzzleGame.fresh(12, 12, seed = 782)
         for (r in 0 until 12) for (c in 0 until 12) {
