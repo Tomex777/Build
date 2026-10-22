@@ -238,9 +238,23 @@ internal class ScriptFiles(context: Context) : PackageAssetResolver {
             suffix++
         }
         val imported = File(root, "$candidate.js")
-        imported.writeText(source)
-        enabledPrefs.edit().putBoolean(candidate, false).apply()
-        return imported
+        // The disabled state must reach disk *before* the untrusted file becomes
+        // visible to a concurrent runtime reload. apply() only schedules a write
+        // and must not be used as the staging security boundary.
+        check(enabledPrefs.edit().putBoolean(candidate, false).commit()) {
+            "Could not disable imported JavaScript before staging"
+        }
+        var created = false
+        try {
+            require(imported.createNewFile()) { "An import with this name already exists" }
+            created = true
+            imported.writeText(source)
+            return imported
+        } catch (failure: Throwable) {
+            if (created) imported.delete()
+            enabledPrefs.edit().remove(candidate).commit()
+            throw failure
+        }
     }
 
     fun createFolder(name: String): File {
