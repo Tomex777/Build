@@ -91,6 +91,12 @@ export class ChannelPublisher {
       'CREATE TABLE IF NOT EXISTS play_channel_selection (user_id TEXT NOT NULL,channel_id TEXT NOT NULL,id TEXT NOT NULL,revision INTEGER NOT NULL,PRIMARY KEY(user_id,channel_id),FOREIGN KEY(user_id,channel_id) REFERENCES play_channel_claims(user_id,channel_id) ON DELETE CASCADE);'
     )
   }
+  cleanup() {
+    // Bound cached media on the shared 1 GB bot rather than retaining unlimited old batches.
+    const day=86400000
+    this.db.prepare("DELETE FROM play_channel_jobs WHERE state IN ('sent','cancelled','blocked','needs_review') AND created_at<?").run(this.now()-90*day)
+    this.db.prepare("DELETE FROM play_channel_batches WHERE created_at<? AND NOT EXISTS (SELECT 1 FROM play_channel_reviews r JOIN play_channel_candidates c ON c.id=r.candidate_id WHERE c.batch_id=play_channel_batches.id AND r.decision='approved') AND NOT EXISTS (SELECT 1 FROM play_channel_jobs j JOIN play_channel_candidates c ON c.id=j.candidate_id WHERE c.batch_id=play_channel_batches.id)").run(this.now()-7*day)
+  }
   claim(userId,channelId) {
     if (!userId) fail(401,'Connect WhatsApp to continue.')
     if (!JID.test(String(channelId))) fail(400,'Invalid WhatsApp Channel.')
@@ -161,6 +167,8 @@ export class ChannelPublisher {
   registerBatch(userId,channelId,items) {
     this.claim(userId,channelId)
     if (!Array.isArray(items) || items.length!==4) fail(400,'A batch requires four actual sourced images.')
+    const fresh=this.db.prepare('SELECT COUNT(*) AS n FROM play_channel_batches WHERE user_id=? AND channel_id=? AND created_at>?').get(userId,channelId,this.now()-86400000)
+    if(fresh.n>=24) fail(429,'This channel has reached the daily content discovery budget.')
     for(const item of items) {
       assertImage(item)
       if (!text(item.caption,1800) || !text(item.title,160) || !text(item.category,48) || !text(item.sourceName,100) || !text(item.sourceUrl,500) || !/^https:\/\//.test(item.sourceUrl)) fail(400,'Invalid candidate or provenance.')
