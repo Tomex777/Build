@@ -460,3 +460,17 @@ test('simultaneous owner polls share exactly one RSS request and an immutable re
  const [a,b,c]=await Promise.all([one,two,three]);
  assert.equal(calls,1);assert.equal(a,b);assert.equal(b,c);assert(Object.isFrozen(a.items));
 });
+
+test('blank or unbounded GUID cannot inherit a server-confirmed announcement',()=>{
+ const {interpretKDramaEntry}=require('./kdrama.cjs');
+ const official={empty:{verified:true,storyKey:'aurora:fake:key',show:'Aurora',platform:'Viki'},'':{verified:true,storyKey:'aurora:blank:key',show:'Aurora'}};
+ for(const guid of ['',null,undefined,' '.repeat(5),'x'.repeat(257)]){
+  const data=interpretKDramaEntry({title:'“Aurora” confirmed renewal announced',guid}, {confirmedBySource:official});
+  assert.equal(data.confirmed,false);
+  assert.equal(data.storyKey,null);
+  assert.equal(data.platform,'');
+ }
+ const good=interpretKDramaEntry({title:'“Aurora” renewal announced',guid:'valid'},
+  {confirmedBySource:{valid:{verified:true,show:'Aurora',storyKey:'aurora:renew:season2'}}});
+ assert.equal(good.confirmed,true);
+});
