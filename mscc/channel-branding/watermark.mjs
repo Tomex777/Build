@@ -2,7 +2,7 @@
 // C's publisher MUST still authorize owner, module, account, admin and final send.
 import { createHash } from 'node:crypto';
 const JID=/^\d{8,25}@newsletter$/;
-const MAX_INPUT=8*1024*1024, MAX_PIXELS=6_000_000;
+const MAX_INPUT=8*1024*1024, MAX_PIXELS=4_000_000;
 const MAX_RENDER_PIXELS=1024*256, MAX_LAYER_FILE=2*1024*1024;
 const POSITIONS=new Set(['auto','top-left','top-right','bottom-left','bottom-right']);
 const hasEmoji=text=>/\p{Extended_Pictographic}|\p{Regional_Indicator}|\u20e3|\uFE0F/u.test(text);
