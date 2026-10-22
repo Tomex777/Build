@@ -208,6 +208,17 @@ class FanPlayer(app: Application) : AndroidViewModel(app) {
             )
             files[songId] = uri.toString()
             prefs.edit().putString("file:" + songId, uri.toString()).apply()
+            // Replacing an already-opened track must recreate the MediaPlayer.
+            // Otherwise play(songId) treats the same song ID as a play/pause
+            // toggle and keeps decoding the *previous* file URI.
+            if (_state.value.activeSongId == songId) {
+                generation++
+                releaseCurrentPlayer()
+                _state.update { it.copy(
+                    activeSongId = null, isPreparing = false, isPlaying = false,
+                    durationMs = 0, positionMs = 0
+                ) }
+            }
             _state.update { it.copy(attached = files.keys.toSet(), error = null) }
             play(songId)
         } catch (_: Exception) {
