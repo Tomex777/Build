@@ -27,6 +27,7 @@ internal val CANVAS_LIFECYCLE_BOOTSTRAP = """
   var observedMedia = new WeakSet();
   var audioContexts = new Set();
   var suspendedAudioContexts = [];
+  var deferredAudioContexts = new Set();
 
   // Media created while paused must not bypass the host-level suspension.
   if (window.HTMLMediaElement && window.HTMLMediaElement.prototype) {
@@ -64,6 +65,18 @@ internal val CANVAS_LIFECYCLE_BOOTSTRAP = """
     function TrackedAudioContext() {
       var context = Reflect.construct(NativeAudio, arguments, NativeAudio);
       audioContexts.add(context);
+      try {
+        var originalResume = context.resume.bind(context);
+        context.resume = function () {
+          if (paused) {
+            deferredAudioContexts.add(context);
+            return Promise.resolve();
+          }
+          return originalResume();
+        };
+      } catch (_) {
+        // Some system WebViews expose a non-writable instance resume method.
+      }
       try {
         var originalClose = context.close.bind(context);
         context.close = function () {
@@ -198,13 +211,16 @@ internal val CANVAS_LIFECYCLE_BOOTSTRAP = """
       if (animation.playState === 'paused') animation.play();
     });
     suspendedAnimations = [];
-    suspendedAudioContexts.forEach(function (context) {
+    var shouldResume = new Set(suspendedAudioContexts);
+    deferredAudioContexts.forEach(function (context) { shouldResume.add(context); });
+    suspendedAudioContexts = [];
+    deferredAudioContexts.clear();
+    shouldResume.forEach(function (context) {
       if (context.state === 'suspended') {
         var action = context.resume();
         if (action && action.catch) action.catch(function () {});
       }
     });
-    suspendedAudioContexts = [];
     deferredMedia.forEach(function (media) { suspendedMedia.push(media); });
     deferredMedia.clear();
     suspendedMedia.forEach(function (media) {
