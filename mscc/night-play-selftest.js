@@ -1,3 +1,4 @@
+import './night-play-draw-selftest.js'
 import './night-play-avatar-selftest.js'
 import './night-play-matches-selftest.js'
 import './night-play-party-selftest.js'

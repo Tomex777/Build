@@ -1,0 +1,31 @@
+import assert from 'node:assert/strict'
+import {DatabaseSync} from 'node:sqlite'
+import {randomBytes} from 'node:crypto'
+import {NightPlayDraw} from './night-play-draw.js'
+const db=new DatabaseSync(':memory:');db.exec('PRAGMA foreign_keys=ON; CREATE TABLE play_users(id TEXT PRIMARY KEY,display_name TEXT NOT NULL)');db.prepare('INSERT INTO play_users VALUES (?,?)').run('host','Pat')
+let time=Date.now(),draw=new NightPlayDraw(db,{now:()=>time});const guest=randomBytes(32).toString('base64url'),other=randomBytes(32).toString('base64url')
+const call=(action,body={})=>draw.request('draw:'+action,body)
+assert.throws(()=>call('create'),e=>e.status===401)
+const room=call('create',{userId:'host'}),code=room.code;assert.equal(room.phase,'lobby');assert.equal(room.word,null)
+assert.throws(()=>call('state',{code,guestSession:other}),e=>e.status===403)
+const joined=call('join',{code,guestSession:guest,guestName:'Friend'});assert.equal(joined.players.length,2)
+assert.equal(call('join',{code,guestSession:guest,guestName:'Friend'}).me,joined.me,'joining twice is idempotent')
+assert.throws(()=>call('start',{code,guestSession:guest}),e=>e.status===403)
+const artist=call('start',{code,userId:'host'});assert.ok(artist.word);assert.equal(artist.total,4)
+const view=call('state',{code,guestSession:guest});assert.equal(view.word,null,'secret not sent to guesser');assert.equal(view.wordLength,artist.word.length)
+const mutationId=randomBytes(16).toString('base64url'),stroke={color:'#202f2c',points:[[.1,.2],[.5,.6]]}
+assert.throws(()=>call('stroke',{code,guestSession:guest,stroke,mutationId}),e=>e.status===403)
+assert.throws(()=>call('stroke',{code,userId:'host',stroke:{...stroke,points:[[Infinity,0]]},mutationId}),e=>e.status===400)
+call('stroke',{code,userId:'host',stroke,mutationId});call('stroke',{code,userId:'host',stroke,mutationId})
+assert.equal(call('state',{code,guestSession:guest}).strokeCount,1,'retry does not duplicate a stroke')
+assert.equal(call('state',{code,guestSession:guest,since:{canvasVersion:artist.canvasVersion,count:1}}).strokes.length,0,'polls send only new strokes')
+draw=new NightPlayDraw(db,{now:()=>time});assert.equal(call('state',{code,guestSession:guest}).strokeCount,1,'restart/rejoin retains state')
+call('clear',{code,userId:'host'});assert.equal(call('state',{code,guestSession:guest}).strokeCount,0)
+const won=call('guess',{code,guestSession:guest,guess:artist.word});assert.equal(won.phase,'reveal');assert.ok(won.players.find(p=>p.id===joined.me).points>=100);assert.ok(won.players.find(p=>p.id===artist.me).points>=50)
+const second=call('advance',{code,userId:'host'});assert.equal(second.drawer,joined.me);assert.equal(second.word,null,'host cannot read another artist secret')
+const guestWord=call('state',{code,guestSession:guest}).word;assert.ok(guestWord)
+time+=60001;assert.equal(call('state',{code,userId:'host'}).phase,'reveal','server enforces round timeout')
+assert.throws(()=>call('guess',{code,userId:'host',guess:guestWord}),e=>e.status===403)
+call('advance',{code,userId:'host'});time+=60001;call('state',{code,userId:'host'});call('advance',{code,userId:'host'});time+=60001;call('state',{code,userId:'host'});assert.equal(call('advance',{code,userId:'host'}).phase,'finished','finite game ends after everyone draws twice')
+time+=86400000;assert.throws(()=>call('state',{code,userId:'host'}),e=>e.status===404)
+db.close();console.log('PASS authoritative Draw & Guess: separate actors, secret redaction, permissions, duplicate retries, stroke deltas, restart, score, timeout, finite game and expiry')
