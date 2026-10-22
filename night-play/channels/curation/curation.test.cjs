@@ -195,3 +195,36 @@ test('four-card UI bridge flattens safe provenance but denies external image hot
  const blocked=toReviewCard(unknown,{previewUrl:'/api/channel-media/preview/unverified'});
  assert.equal(blocked.reviewOnly,true);assert.equal(blocked.publishBlockedReason,'rights_unverified');
 });
+
+test('corrupt Reddit children are isolated per candidate rather than aborting all discovery',async()=>{
+ const raw={data:{children:[null,{kind:'t3',data:null},{data:{name:'t3_good',created_utc:NOW/1000,permalink:'/r/funny/good',url_overridden_by_dest:'https://i.redd.it/good.jpg'}}]}};
+ const adapter=redditAdapter({subreddits:['funny'],tokenProvider:async()=> 'authorized-access-token',fetchImpl:async()=>new Response(JSON.stringify(raw))});
+ const result=await adapter.discover({subreddit:'funny',now:NOW});assert.equal(result.items.length,1);
+});
+test('feed malformed HTML is rejected, not mistaken for zero news',()=>{
+ assert.throws(()=>parseFeed('<html><body>Please enable JavaScript</body></html>'),/not an RSS\/Atom/);
+});
+test('one broken source-specific news row does not lose other verified news',async()=>{
+ const xml='<rss><item><title>Invalid metadata row</title><link>https://studio.example/bad</link><pubDate>Wed, 21 Oct 2026 12:00:00 GMT</pubDate></item>'+
+ '<item><title>Official Aurora renewal announced</title><link>https://studio.example/good</link><pubDate>Wed, 21 Oct 2026 12:00:00 GMT</pubDate></item></rss>';
+ const adapter=rssNewsAdapter({url:'https://studio.example/news',id:'x',name:'Official studio',official:true,now:()=>NOW,
+ fetchImpl:async()=>new Response(xml),interpreter:r=>{if(r.title==='Invalid metadata row')throw new Error('Bad row');return {show:'Aurora',event:'renewal',tags:['renewals'],confirmed:true}}});
+ const batch=await adapter.discover();assert.equal(batch.items.length,1);assert.equal(batch.interpreterErrors,1);
+});
+test('all broken news interpretation fails closed without caching empty success',async()=>{
+ const adapter=rssNewsAdapter({url:'https://studio.example/news',id:'x',now:()=>NOW,
+ fetchImpl:async()=>new Response('<rss><item><title>Broken source item</title><link>https://studio.example/1</link><pubDate>Wed, 21 Oct 2026 12:00:00 GMT</pubDate></item></rss>'),interpreter:()=>{throw new Error('row');}});
+ await assert.rejects(adapter.discover(),/metadata interpreter failed/);
+});
+test('K-drama interpreter accepts malformed show alias and null server confirmations',()=>{
+ assert.equal(interpretKDramaEntry({title:'“Aurora” confirmed casting update',guid:'x'},{showAliases:null,confirmedBySource:null}).show,'Aurora');
+});
+test('confirmed spoiler articles are forced to human review and are not auto eligible',()=>{
+ const item=normalizeNews({title:'Aurora finale ending explained',url:'https://studio.example/ending',publishedAt:new Date(NOW).toISOString(),
+ show:'Aurora',tags:['other'],confirmed:true,spoiler:true},{id:'studio',name:'Studio',trustedHost:'studio.example',official:true},{now:NOW});
+ assert.equal(item.verification,'official');assert.equal(item.requiresReview,true);assert.equal(item.autoEligible,false);
+});
+test('Retry-After accepts HTTP dates and reports source backoff',async()=>{
+ const soon=new Date(Date.now()+125000).toUTCString();
+ await assert.rejects(boundedGet('https://studio.example/rss',{allowedHosts:['studio.example'],fetchImpl:async()=>new Response('slow down',{status:429,headers:{'Retry-After':soon}})}),e=>e.status===429&&e.retryAfterSeconds>=119&&e.retryAfterSeconds<=126);
+});
