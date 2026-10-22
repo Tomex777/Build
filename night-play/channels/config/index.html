@@ -99,12 +99,16 @@
 <div class="section-heading"><div><strong>Caption signature</strong><p>Optional author credit below the caption; never the channel name.</p></div>
 <label class="switch"><span>Enabled</span><input type="checkbox" id="signatureEnabled" aria-label="Add poster signature"><span class="track" aria-hidden="true"></span></label></div>
 <label class="field"><span>Poster name for automatic posts (leave empty to omit signature)</span><input class="text-input" id="posterName" maxlength="70" autocomplete="off" placeholder="Name of the person credited"></label>
+<div class="section-heading replacement-heading"><div><strong>Caption word replacements</strong><p>Optional word or phrase swaps in post captions. Words inside images stay unchanged.</p></div>
+<label class="switch"><span>Enabled</span><input type="checkbox" id="captionReplacementsEnabled" aria-label="Enable caption word replacements"><span class="track" aria-hidden="true"></span></label></div>
+<div id="replacementRows" class="replacement-rows"></div>
+<button id="addReplacement" class="btn" type="button">Add replacement</button>
 <div class="section-heading" style="margin-top:19px"><div><strong>Image watermark</strong><p>Applied transparently to media. Does not modify the caption's author credit.</p></div>
 <label class="switch"><span>Enabled</span><input type="checkbox" id="watermarkEnabled" aria-label="Enable exact-channel-name watermark"><span class="track" aria-hidden="true"></span></label></div>
 <p class="config-note">Verified channel name: <strong id="watermarkName" style="color:#254935;overflow-wrap:anywhere"></strong></p>
 <div class="config-fields" style="margin-top:14px">
-<label class="field"><span>Watermark opacity</span><span class="choice-wrap"><select id="watermarkOpacity" class="choice-input"><option value="0.15">15% · Subtle</option><option value="0.2">20% · Balanced</option><option value="0.25">25% · Visible</option><option value="0.3">30% · Stronger</option></select></span></label>
-<label class="field"><span>Preferred corner</span><span class="choice-wrap"><select id="watermarkPosition" class="choice-input"><option value="bottom-right">Bottom right</option><option value="bottom-left">Bottom left</option><option value="top-right">Top right</option><option value="top-left">Top left</option></select></span></label>
+<label class="field"><span>Watermark opacity</span><span class="choice-wrap"><select id="watermarkOpacity" class="choice-input"><option value="0.15">15% · Subtle</option><option value="0.2">20% · Balanced</option><option value="0.22">22% · Balanced</option><option value="0.25">25% · Visible</option><option value="0.3">30% · Stronger</option></select></span></label>
+<label class="field"><span>Preferred corner</span><span class="choice-wrap"><select id="watermarkPosition" class="choice-input"><option value="auto">Automatic · quiet corner</option><option value="bottom-right">Bottom right</option><option value="bottom-left">Bottom left</option><option value="top-right">Top right</option><option value="top-left">Top left</option></select></span></label>
 </div>
 <div class="action-row"><button id="saveBranding" type="button" class="btn primary">Save branding</button></div>
 </div></section>
