@@ -344,10 +344,10 @@ class BrowserPlatformHost(private val activity: ComponentActivity) :
                 if (!choice.disabled && !choice.separator) {
                     val nested = choice.items
                     if (nested != null) collect(nested, if (group.isBlank())
-                        choice.label else "$"+"{group} / $"+"{choice.label}")
+                        choice.label else "$group / ${choice.label}")
                     else {
                         choices.add(choice)
-                        labels.add(if (group.isBlank()) choice.label else "$"+"{group} / $"+"{choice.label}")
+                        labels.add(if (group.isBlank()) choice.label else "$group / ${choice.label}")
                     }
                 }
             }
