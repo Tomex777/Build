@@ -12,7 +12,7 @@ An **unofficial** local-first Android discography companion centered on Juice WR
 
 ### Build
 
-Java 17 and Gradle 9.3.1 (Android Gradle Plugin 9.1.1). `compileSdk = 37`, `targetSdk = 36`, **`minSdk = 26`**.
+Java 17 and Gradle 9.3.1 (Android Gradle Plugin 9.1.1). `compileSdk = 36`, `targetSdk = 36`, **`minSdk = 26`**.
 
 ```bash
 cd juice-wrld-android
