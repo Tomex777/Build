@@ -136,6 +136,7 @@ class MainActivity : ComponentActivity() {
         if (game.imageKey!="starter" && restoredPhoto==null) game=PuzzleGame.fresh(6,4)
         picture=restoredPhoto ?: SceneImage.create()
         store.save(game)
+        if(game.solved)store.recordWin(game)
         setContent {
             MaterialTheme(colorScheme=lightColorScheme(primary=forest,background=bg,
                 surface=bg,onSurface=Color(0xFF242B26))) {
@@ -151,7 +152,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onPause() {
         isAppForeground=false
-        if (::store.isInitialized) store.save(game)
+        if (::store.isInitialized) {
+            store.save(game)
+            if(game.solved)store.recordWin(game)
+        }
         super.onPause()
     }
 
@@ -172,12 +176,20 @@ class MainActivity : ComponentActivity() {
                 factory={ context ->
                     PuzzleBoardView(context).also {
                         board=it
-                        it.bind(game,picture) { store.save(game);refresh() }
+                        it.bind(game,picture) {
+                            store.save(game)
+                            if(game.solved)store.recordWin(game)
+                            refresh()
+                        }
                     }
                 },
                 update={ view ->
                     board=view
-                    view.bind(game,picture) { store.save(game);refresh() }
+                    view.bind(game,picture) {
+                        store.save(game)
+                        if(game.solved)store.recordWin(game)
+                        refresh()
+                    }
                 },
                 modifier=Modifier.fillMaxSize()
             )
@@ -557,6 +569,13 @@ class MainActivity : ComponentActivity() {
                                     Text(entry.title,maxLines=1,
                                         overflow=TextOverflow.Ellipsis)
                                     Text(entry.source,fontSize=11.sp,color=muted)
+                                    val wins=remember(entry.key,libraryRevision){
+                                        store.completionsFor(entry.key)
+                                    }
+                                    if(wins.isNotEmpty()) {
+                                        Text("${wins.size} completed · best ${clockText(wins.minOf{it.seconds})}",
+                                            fontSize=10.sp,color=forest)
+                                    }
                                 }
                             }
                             if(entry.key!=game.imageKey) {
