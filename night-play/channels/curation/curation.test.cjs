@@ -542,6 +542,8 @@ test('apostrophe in a drama title cannot create fake quoted show',()=>{
  const quoted=interpretKDramaEntry({title:"New trailer for 'It's Okay to Not Be Okay' arrives today"});
  // The title's internal apostrophe must not produce a fake show called "s Okay ...".
  assert.equal(quoted.show,"It's Okay to Not Be Okay");
+ const curly=interpretKDramaEntry({title:"New trailer for ‘It's Okay to Not Be Okay’ arrives today"});
+ assert.equal(curly.show,"It's Okay to Not Be Okay");
  const alias=interpretKDramaEntry({title:"It's Okay to Not Be Okay trailer released"},{showAliases:["It's Okay to Not Be Okay"]});
  assert.equal(alias.show,"It's Okay to Not Be Okay");
 });
