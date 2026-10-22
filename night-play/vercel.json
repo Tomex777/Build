@@ -2,6 +2,30 @@
   "version": 2,
   "rewrites": [
     {
+      "source": "/sling-siege",
+      "destination": "/sling-siege/index.html"
+    },
+    {
+      "source": "/sling-siege/",
+      "destination": "/sling-siege/index.html"
+    },
+    {
+      "source": "/piano-tiles",
+      "destination": "/piano-tiles/index.html"
+    },
+    {
+      "source": "/piano-tiles/",
+      "destination": "/piano-tiles/index.html"
+    },
+    {
+      "source": "/strategy",
+      "destination": "/strategy/index.html"
+    },
+    {
+      "source": "/strategy/",
+      "destination": "/strategy/index.html"
+    },
+    {
       "source": "/channels",
       "destination": "/channels/index.html"
     },
@@ -36,6 +60,14 @@
     {
       "source": "/puzzles/",
       "destination": "/puzzles/index.html"
+    },
+    {
+      "source": "/party/room",
+      "destination": "/party/room/index.html"
+    },
+    {
+      "source": "/party/room/",
+      "destination": "/party/room/index.html"
     },
     {
       "source": "/party",

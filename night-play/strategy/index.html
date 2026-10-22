@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f4f5f1"><title>Chess · NIGHT Play</title><meta name="description" content="Play a legal chess match against the computer or another player on this device."><link rel="stylesheet" href="/strategy/style.css"></head>
+<body>
+<svg class="chess-assets" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+ <symbol id="night-mark" viewBox="0 0 108 108"><path fill="#0b0f11" d="M0 0h108v108H0z"/><path fill="#f4f5f6" d="M24 54C24 37.43 37.43 24 54 24s30 13.43 30 30H24ZM22 66h64v6H22z"/></symbol>
+ <symbol id="chess-p" viewBox="0 0 64 64"><circle cx="32" cy="18" r="9"/><path d="M24 28h16l3 16H21zM19 47h26l3 7H16z"/></symbol>
+ <symbol id="chess-r" viewBox="0 0 64 64"><path d="M15 10h9v7h7v-7h8v7h7v-7h6v15l-7 4 3 19H16l3-19-7-4V10zm1 40h32v6H16z"/></symbol>
+ <symbol id="chess-n" viewBox="0 0 64 64"><path d="m43 10 4 15-6 10 4 13H19l3-14-9-4 7-15 12-8 7 1 4 2zM16 50h34v6H16z"/><circle class="knight-eye" cx="31" cy="19" r="2.5"/></symbol>
+ <symbol id="chess-b" viewBox="0 0 64 64"><path d="M32 7c-12 9-16 17-15 25l7 12h16l7-12C48 24 44 16 32 7zM17 47h30v7H17z"/><path class="piece-cut" d="m36 14-11 20"/></symbol>
+ <symbol id="chess-q" viewBox="0 0 64 64"><path d="m8 15 12 9 12-13 12 13 12-9-8 31H16L8 15ZM15 49h34v6H15z"/><circle cx="8" cy="12" r="4"/><circle cx="32" cy="8" r="4"/><circle cx="56" cy="12" r="4"/></symbol>
+ <symbol id="chess-k" viewBox="0 0 64 64"><path d="M29 6h6v10h9v6h-9v6h-6v-6h-9v-6h9zM21 30h22l5 17H16zM15 50h34v6H15z"/></symbol>
+</svg>
+<header class="site-top"><a class="go-back" href="/games" aria-label="Back to games"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 5-7 7 7 7"/></svg><span>Games</span></a><a class="brand" href="/dashboard"><svg width="29" height="29"><use href="#night-mark"/></svg><b>NIGHT <em>PLAY</em></b></a></header>
+<main class="chess-layout"><div class="board-column"><div class="title-row"><h1>Chess</h1><button id="chessSettingsOpen" type="button" class="chess-settings-trigger" aria-label="Chess settings" aria-haspopup="dialog" aria-controls="chessSettings">
+<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8.7a3.3 3.3 0 1 0 0 6.6 3.3 3.3 0 0 0 0-6.6Z"/><path d="M19.3 12a7.2 7.2 0 0 0-.1-1.2l1.3-1.1-1.5-2.6-1.6.5a7.9 7.9 0 0 0-2.1-1.2L15 4.7h-3l-.3 1.7a7.9 7.9 0 0 0-2.1 1.2L8 7.1 6.5 9.7l1.3 1.1a7.2 7.2 0 0 0 0 2.4l-1.3 1.1L8 16.9l1.6-.5a7.9 7.9 0 0 0 2.1 1.2l.3 1.7h3l.3-1.7a7.9 7.9 0 0 0 2.1-1.2l1.6.5 1.5-2.6-1.3-1.1c.1-.4.1-.8.1-1.2Z" transform="translate(-1.5 0)"/></svg>
+</button></div>
+<div class="opponent-row"><span class="avatar black-avatar">♟</span><span><strong id="blackName">Computer</strong><small id="blackDetails">BLACK</small></span><span class="turn-led" id="blackTurn">WAITING</span></div>
+<div class="chess-frame" style="position:relative"><div class="chess-board" id="chessBoard" role="grid" aria-label="Chess board, ranks eight through one"></div>
+<div class="chess-finish" id="chessFinish" role="status" aria-live="polite" hidden>
+ <div class="chess-finish-card"><span>ROUND COMPLETE</span>
+ <svg viewBox="0 0 64 64" aria-hidden="true"><path d="M18 12h28v15c0 12-6 20-14 24-8-4-14-12-14-24V12ZM17 16H8v8c0 10 6 14 15 14m24-22h9v8c0 10-6 14-15 14M32 51v6m-12 2h24" stroke="currentColor" fill="none" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/></svg>
+ <h2 id="chessFinishTitle"></h2><p id="chessFinishDetail"></p>
+ <button type="button" id="chessFinishAgain">New match</button>
+ </div>
+</div></div>
+<div class="opponent-row bottom-row"><span class="avatar white-avatar">♙</span><span><strong>White</strong><small id="whiteDetails">YOU</small></span><span class="turn-led" id="whiteTurn">TO PLAY</span></div>
+</div>
+
+</main>
+<span id="chessAnnouncer" class="sr-only" role="status" aria-live="polite">White to move</span>
+<dialog id="chessSettings" class="chess-settings-dialog" aria-labelledby="chessSettingsTitle">
+  <div class="chess-settings-head"><h2 id="chessSettingsTitle">Chess settings</h2><button type="button" id="chessSettingsClose" class="chess-settings-close" aria-label="Close settings">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 5 19 19M19 5 5 19"/></svg>
+  </button></div>
+  <div class="chess-settings-body">
+    <section class="chess-setting-group"><h3>Opponent</h3>
+      <div class="mode-switch" role="group" aria-label="Opponent">
+        <button id="vsCpu" type="button" aria-pressed="true">Computer</button>
+        <button id="vsLocal" type="button" aria-pressed="false">Two players</button>
+      </div>
+    </section>
+    <section id="difficultyRow" class="chess-setting-group chess-difficulty"><label for="cpuDifficulty">Difficulty</label>
+      <select id="cpuDifficulty"><option value="easy">Casual</option><option value="normal" selected>Standard</option><option value="hard">Challenging</option></select>
+    </section>
+    <section class="chess-setting-group chess-sound-row">
+      <span>Piece sounds</span><button type="button" id="chessSound" class="chess-sound" aria-pressed="true">Sound on</button>
+    </section>
+    <div class="side-actions chess-settings-actions">
+      <button id="newMatch" type="button">New match</button><button id="undo" type="button" disabled>Undo</button>
+    </div>
+  </div>
+</dialog>
+<div class="promotion-overlay" id="promotionLayer" hidden><div class="promotion-card" role="dialog" aria-modal="true" aria-labelledby="promotionTitle"><h2 id="promotionTitle">Choose promotion</h2><div id="promotionChoices" class="promotion-choices"></div><button type="button" id="promotionCancel">Cancel</button></div></div>
+<script src="/strategy/chess-v0.10.3.js"></script><script src="/strategy/ai.js"></script><script src="/strategy/game.js" defer></script>
+</body></html>

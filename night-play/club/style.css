@@ -2013,3 +2013,53 @@ body.whot-mode .table-surface>.whot-opponent-hand>.card-back:nth-child(3){top:8p
 body.whot-mode .table-surface>.whot-opponent-hand>.card-back.card-stack{
  box-shadow:3px 3px 0 #5b2529,6px 6px 0 #3c171d,0 14px 18px #0005!important;
 }
+
+/* Draughts match mode lives with the board: one intentional control, not a
+   second settings panel. Flights are transient GPU-composited discs. */
+.checker-mode-toggle{align-self:center;min-height:38px;padding:8px 15px;margin:0 auto 5px;border:1px solid #bed4c3;border-radius:999px;background:#f8fbf8;color:#264a3a;font:800 12px/1.2 inherit;font-family:inherit;letter-spacing:.01em;cursor:pointer;touch-action:manipulation}
+.checker-mode-toggle:hover{background:#e3eee5}
+.checker-mode-toggle:focus-visible{outline:3px solid #315f45;outline-offset:3px}
+.checker-flying{display:block;contain:layout style;will-change:transform;filter:none!important;box-sizing:border-box}
+@media(prefers-reduced-motion:reduce){.checker-flying{display:none!important}}
+
+/* WHOT 20 picker: the prior entrance animation animated `transform`, which
+   cancelled the absolute panel's -50% centering translation and cut off two
+   or three of the five suit buttons on mobile. Keep the centered transform
+   constant and animate opacity only. Use spacious 3+2 mobile touch targets. */
+@keyframes whotPickerFade{from{opacity:0}to{opacity:1}}
+body.whot-mode .table-surface>.whot-call-panel{
+ /* A centered viewport overlay remains reachable when the hand is below the
+    fold and Chromium restores scroll after a suspended WHOT 20 call. */
+ position:fixed!important;
+ left:50vw!important;top:50dvh!important;
+ width:min(calc(100vw - 42px),460px)!important;max-width:calc(100vw - 24px)!important;
+ transform:translate(-50%,-50%)!important;
+ animation:whotPickerFade .16s ease both!important;
+ box-sizing:border-box;
+}
+@media(max-width:540px){
+ body.whot-mode .table-surface>.whot-call-panel{padding:12px!important}
+ body.whot-mode .table-surface>.whot-call-panel .whot-call-grid{
+  display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:7px!important;
+ }
+ body.whot-mode .table-surface>.whot-call-panel .whot-call-choice{
+  grid-column:span 2;min-width:0;min-height:76px;padding:8px 3px;
+ }
+ body.whot-mode .table-surface>.whot-call-panel .whot-call-choice:nth-child(4){grid-column:2/span 2}
+ body.whot-mode .table-surface>.whot-call-panel .whot-call-choice:nth-child(5){grid-column:4/span 2}
+}
+
+
+/* Agent 0: every completed board match ends IN its playing frame. */
+.snakes-board{position:relative}
+.club-result-layer{position:absolute;inset:clamp(3px,1.8%,12px);z-index:6;display:flex;align-items:center;justify-content:center;padding:10px;border-radius:8px;background:rgba(12,27,24,.78);backdrop-filter:blur(3px)}
+.club-result-card{display:flex;align-items:center;flex-direction:column;justify-content:center;gap:10px;width:min(100%,312px);padding:clamp(15px,4vw,27px);border-radius:17px;border:1px solid #ffffff44;background:#f8fbf7;color:#1d332c;box-shadow:0 18px 55px #071e1b66;text-align:center}
+.club-result-eyebrow{font-size:10px;font-weight:850;letter-spacing:.15em;text-transform:uppercase;color:#668071}
+.club-result-card strong{font-weight:900;font-size:clamp(23px,6vw,34px);letter-spacing:-.045em;line-height:1.13}
+.club-result-card>span:not(.club-result-eyebrow){font-size:13px;line-height:1.35;color:#52665b}
+.club-result-retry{border:0;border-radius:11px;padding:12px 18px;min-height:44px;background:#1e5f45;color:white;font:inherit;font-weight:800;cursor:pointer}
+.club-result-retry:focus-visible{outline:3px solid #e0ba5e;outline-offset:3px}
+@media(max-width:359px){.club-result-card{gap:7px;padding:13px}.club-result-card strong{font-size:24px}}
+
+/* When the in-board victory card owns the retry action, suppress duplicate controls. */
+body.club-match-finished #newRound,body.club-match-finished .controls-col,body.club-match-finished .checker-mode-toggle{display:none!important}

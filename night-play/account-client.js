@@ -129,3 +129,6 @@
   window.addEventListener('pageshow',event=>{if(event.persisted&&!dialog.open)checkSession()})
   checkSession(true)
 })()
+
+// In-board win/loss companion for the existing Tic-Tac-Toe draw result.
+import('/ttt-results.js').catch(()=>{});

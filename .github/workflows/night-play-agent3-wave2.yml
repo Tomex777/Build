@@ -1,0 +1,37 @@
+name: NIGHT Play Dino Real Touch QA
+
+on:
+  pull_request:
+    branches:
+      - feature/party-online-rooms-20261019
+    paths:
+      - 'night-play/action/**'
+      - '.github/workflows/night-play-agent3-wave2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  real-touch-gameplay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install real Playwright Chromium
+        run: |
+          npm install --no-save playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Test current canonical Chromium Dino runner with actual touch
+        run: node night-play/action/dino/runner-browser-qa.mjs
+      - name: Keep visual/interaction evidence even on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: night-play-chromium-dino-touch
+          path: |
+            night-play/visual-output/chromium-dino/*.png
+          retention-days: 14

@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f8f9f6"><title>Piano Tiles · NIGHT Play</title>
+<link rel="stylesheet" href="/game-shell.css"><link rel="stylesheet" href="/piano-tiles/style.css"></head>
+<body>
+<svg class="night-svg-defs" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+<symbol id="night-mark" viewBox="0 0 108 108"><path fill="#0B0F11" d="M0 0h108v108H0z"/><path fill="#F4F5F6" d="M24 54 C24 37.43 37.43 24 54 24 C70.57 24 84 37.43 84 54 L24 54 Z"/><path fill="#F4F5F6" d="M22 66h64v6H22z"/></symbol>
+<symbol id="icon-back" viewBox="0 0 24 24"><path d="M15.5 5 8.5 12l7 7M9 12h12"/></symbol>
+<symbol id="icon-restart" viewBox="0 0 24 24"><path d="M20 11A8 8 0 1 1 17.9 5.6M20 3v7h-7"/></symbol>
+<symbol id="icon-pause" viewBox="0 0 24 24"><path d="M8 4v16M16 4v16"/></symbol>
+<symbol id="icon-play" viewBox="0 0 24 24"><path d="m8 4 12 8-12 8z"/></symbol>
+</svg>
+<header class="night-shell-header"><a class="night-back" href="/games"><svg class="night-ico"><use href="#icon-back"/></svg><span class="night-text">Games</span></a>
+<a class="night-brand" href="/dashboard" aria-label="NIGHT Play home"><svg class="night-brand-mark"><use href="#night-mark"/></svg><strong>NIGHT <em>PLAY</em></strong></a>
+<button type="button" class="night-settings" id="pause" aria-label="Pause Piano Tiles" disabled><svg class="night-ico"><use id="pauseIcon" href="#icon-pause"/></svg><span class="night-text" id="pauseLabel">Pause</span></button></header>
+<main>
+<section id="songLibrary" class="song-library" aria-label="Song library">
+<div class="song-heading"><div><span class="night-eyebrow">PIANO TILES</span><h1>Choose a song</h1><p id="songCount">Browse playable piano arrangements</p></div></div>
+<div class="song-search"><svg class="night-ico" aria-hidden="true" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg><input id="songSearch" type="search" placeholder="Search songs or composers" autocomplete="off" aria-label="Search songs or composers"></div>
+<div class="song-filters" role="group" aria-label="Filter songs" id="songFilters"></div>
+<div class="song-list" id="songList" aria-live="polite"></div>
+</section>
+<section id="playPage" hidden>
+<div class="song-now"><button type="button" id="songBack"><svg class="night-ico" aria-hidden="true"><use href="#icon-back"/></svg> Songs</button><div class="song-now-title"><strong id="activeSongTitle">Piano Tiles</strong><span id="activeSongArtist">NIGHT Play</span></div></div>
+<div class="night-play-hud" aria-label="Piano Tiles score">
+<div class="night-hud-value"><small>SCORE</small><strong id="score">0</strong></div>
+<div class="night-hud-value"><small>BEST</small><strong id="best">0</strong></div>
+<div class="night-hud-value"><small>STREAK</small><strong id="streak">0</strong></div>
+</div>
+<section class="board-area" aria-label="Piano Tiles game">
+<div class="board-shell">
+<canvas id="board" width="400" height="660" aria-label="Four vertical piano lanes. Tap a visible dark tile. Hold the blue long notes. Keyboard: 1 to 4 or A S D F." tabindex="0"></canvas>
+<div class="cover" id="cover"><div class="cover-content">
+<span class="cover-kicker" id="coverKicker" hidden></span><h2 id="coverTitle">Feel the rhythm.</h2><p id="coverCopy">Endless rhythm. Tap the visible tiles anywhere along their length. Hold the extended ones.</p>
+<button class="cover-action" id="coverAction" type="button">Start playing</button>
+</div></div>
+</div>
+<div class="game-tools"><button id="restart" type="button" hidden><svg class="night-ico"><use href="#icon-restart"/></svg> Restart</button><p role="status" aria-live="polite" id="status">Ready</p></div>
+</section></section><p class="piano-attribution">Grand piano recordings by <a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noopener noreferrer" aria-label="Grand piano samples by Alexander Holm, CC BY 3.0">Alexander Holm · CC BY 3.0</a></p></main>
+<script src="/piano-tiles/song-library.js" defer></script>
+<script src="/piano-tiles/piano-audio.js" defer></script>
+<script src="/piano-tiles/game.js" defer></script>
+</body></html>

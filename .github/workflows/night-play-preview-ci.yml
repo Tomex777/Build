@@ -3,6 +3,7 @@ name: NIGHT Play Preview CI
 on:
   push:
     branches:
+      - feature/party-online-rooms-20261019
       - feature/night-play-v4-profile-announcements-game-settings
       - feature/night-play-v5-greetings-snake-profile
       - feature/night-play-v6-account-profile-analytics
@@ -26,7 +27,7 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 18
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v4
@@ -40,6 +41,8 @@ jobs:
         run: npm install --no-save playwright@1.56.1
       - name: Play Nomi-inspired party games across actual mobile viewports
         run: node night-play/party/mobile-smoke.mjs
+      - name: Play online party room as a host and two independent guests
+        run: node night-play/party/room/mobile-smoke.mjs
       - name: Verify WhatsApp account screens on mobile and desktop
         run: node night-play/account-browser-smoke.cjs
       - name: Enforce WR behavior for anonymous sessions and online-game confirmation
@@ -62,13 +65,20 @@ jobs:
         run: node night-play/puzzles/logic-test.mjs
       - name: Verify three new games in mobile Chromium
         run: node night-play/puzzles/mobile-smoke.mjs
-      - name: Play five new action arcade games on mobile and resize screens
+      - name: Play four integrated action arcade games on mobile
         run: node night-play/action/mobile-smoke.mjs
+      - name: Test authentic Chromium Dino runner with real mobile touch
+        run: node night-play/action/dino/runner-browser-qa.mjs
+      - name: Actually play flying hazards, slicing animation and brick impact in Chromium
+        run: node night-play/action/real-play-corrections.mjs
       - name: Actually play the jumping game with touch movement for extended rounds
         run: node night-play/action/long-play.mjs
+      - name: Independently play Fruit Slice with real touch and inspect Memory Match on five viewports
+        run: node night-play/qa/gameplay-gate.mjs
       - name: Capture mobile board visual diagnostics
         run: node night-play/visual-inspect.mjs
       - name: Upload game screenshots
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: night-play-mobile-design-review

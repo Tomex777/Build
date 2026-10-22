@@ -14,7 +14,7 @@
   const profileName=()=>state.status==='linked'?state.profile.displayName:'';
   function getName(){return profileName()||localName()||'Player'}
   async function refresh(){
-    if(pending)return pending;
+    if(pending){await pending;return {...state}}
     const current=++revision;
     pending=(async()=>{
       try{

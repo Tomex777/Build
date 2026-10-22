@@ -1,0 +1,38 @@
+name: NIGHT Play A10 Full Catalog Source QA
+
+on:
+  pull_request:
+    paths:
+      - 'night-play/qa/agent10-catalog-gate.mjs'
+      - '.github/workflows/night-play-agent10-catalog-qa.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  catalog-real-chromium:
+    name: 31-entry source catalog audit, five touch/responsive viewports
+    runs-on: ubuntu-latest
+    timeout-minutes: 22
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Chromium and Playwright
+        run: |
+          npm install --no-save playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Validate A10 test syntax
+        run: node --check night-play/qa/agent10-catalog-gate.mjs
+      - name: Interact with every advertised LIVE catalogue tile
+        run: node night-play/qa/agent10-catalog-gate.mjs
+      - name: Preserve PASS/FAIL/BLOCKED matrix and real frames
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: night-play-agent10-catalog-matrix
+          path: night-play/visual-output/agent10-catalog/
+          if-no-files-found: warn
+          retention-days: 14

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import "../strategy/logic-test.mjs";
 import {mkdirSync} from "node:fs";
 import {createServer} from "node:http";
 import {readFileSync} from "node:fs";
@@ -10,7 +11,7 @@ const dir=path.dirname(fileURLToPath(import.meta.url));
 const root=path.resolve(dir,"..");
 const server=createServer((req,res)=>{
   const pathname=new URL(req.url,"http://localhost").pathname;
-  const files={"/club/":"club/index.html","/club":"club/index.html","/club/index.html":"club/index.html","/club/style.css":"club/style.css","/game-shell.css":"game-shell.css","/club/ludo-immersive.css":"club/ludo-immersive.css","/club/games.js":"club/games.js","/club/naija-ludo.js":"club/naija-ludo.js","/club/ludo-motion.js":"club/ludo-motion.js","/club/ludo-dice-3d.js":"club/ludo-dice-3d.js","/games":"index.html","/index.html":"index.html"};
+  const files={"/club/":"club/index.html","/club":"club/index.html","/club/index.html":"club/index.html","/club/style.css":"club/style.css","/game-shell.css":"game-shell.css","/club/ludo-immersive.css":"club/ludo-immersive.css","/club/games.js":"club/games.js","/club/naija-ludo.js":"club/naija-ludo.js","/club/ludo-motion.js":"club/ludo-motion.js","/club/ludo-dice-3d.js":"club/ludo-dice-3d.js","/strategy/":"strategy/index.html","/strategy":"strategy/index.html","/strategy/index.html":"strategy/index.html","/strategy/style.css":"strategy/style.css","/strategy/game.js":"strategy/game.js","/strategy/ai.js":"strategy/ai.js","/strategy/ai-worker.js":"strategy/ai-worker.js","/strategy/chess-v0.10.3.js":"strategy/chess-v0.10.3.js","/games":"index.html","/index.html":"index.html"};
   const rel=files[pathname];
   if(!rel){res.writeHead(404);res.end("Not found");return;}
   const kind=rel.endsWith(".css")?"text/css":rel.endsWith(".js")?"text/javascript":"text/html";
@@ -365,11 +366,22 @@ try{
   // expanded gallery, keeping the real index and performing its normal flight.
   await page.evaluate(()=>{
     const all=JSON.parse(localStorage.getItem('night-play-club-v1')),s=all.whot;
-    const idx=s.hands[0].findIndex(c=>c.n!==20);
-    const picked=s.hands[0][idx];
-    const top=s.deck.findIndex(c=>c.s===picked.s&&c.n!==20);
-    if(idx<0||top<0)throw Error('Cannot stage matching full-gallery play');
-    const previousTop=s.discard[s.discard.length-1];s.discard[s.discard.length-1]=s.deck.splice(top,1)[0];s.deck.push(previousTop);
+    // The preceding 21-card stress fixture may exhaust the draw deck.
+    // Pick two genuine compatible cards from the hand itself and exchange
+    // the second with the discard top. This conserves all real deck cards
+    // without relying on the randomized deck having a spare matching suit.
+    const hand=s.hands[0];let idx=-1,swap=-1;
+    for(let i=0;i<hand.length&&idx<0;i++){
+      if(hand[i].n===20)continue;
+      for(let j=0;j<hand.length;j++){
+        if(i!==j&&hand[j].n!==20&&(hand[i].s===hand[j].s||hand[i].n===hand[j].n)){
+          idx=i;swap=j;break;
+        }
+      }
+    }
+    if(idx<0||swap<0)throw Error('No two compatible cards available for gallery fixture');
+    const previousTop=s.discard[s.discard.length-1];
+    s.discard[s.discard.length-1]=hand[swap];hand[swap]=previousTop;
     s.turn=0;s.winner=null;s.pendingWhot=null;s.pendingFinish=null;
     localStorage.setItem('night-play-club-v1',JSON.stringify(all));
     window.__galleryPlayableIndex=idx;
@@ -378,7 +390,8 @@ try{
   await page.locator('.whot-view-hand').click();
   const selectable=await page.evaluate(()=>{
     const s=JSON.parse(localStorage.getItem('night-play-club-v1')).whot;
-    return s.hands[0].findIndex(c=>c.n!==20);
+    const top=s.discard[s.discard.length-1];
+    return s.hands[0].findIndex(c=>c.n!==20&&(c.s===top.s||c.n===top.n));
   });
   await page.locator('.whot-hand-gallery .whot-card[data-card="'+selectable+'"]').click();
   await page.waitForFunction(()=>JSON.parse(localStorage.getItem('night-play-club-v1')).whot.hands[0].length===20,null,{timeout:4000});
@@ -429,6 +442,27 @@ try{
   assert.equal(await page.locator('.whot-call-choice').count(),0,'cancel returns to hand without spending 20');
   assert.equal(await page.locator('.hand .whot-wild').count()>0,true,'cancel preserves the WHOT card');
   await page.locator('.hand [data-card="0"]').click({position:{x:13,y:20}});
+  for(const width of [320,390,412]){
+   await page.setViewportSize({width,height:844});
+   const pickerBounds=await page.evaluate(()=>{
+    const table=document.querySelector('.table-surface').getBoundingClientRect();
+    const panel=document.querySelector('.whot-call-panel').getBoundingClientRect();
+    const choices=[...document.querySelectorAll('.whot-call-choice')].map(el=>{
+     const r=el.getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,width:r.width,height:r.height};
+    });
+    return {panel:{left:panel.left,right:panel.right,top:panel.top,bottom:panel.bottom},
+     table:{left:table.left,right:table.right,top:table.top,bottom:table.bottom},choices};
+   });
+   assert.ok(pickerBounds.panel.left>=pickerBounds.table.left-2&&pickerBounds.panel.right<=pickerBounds.table.right+2,
+    'WHOT picker stays within table at '+width+': '+JSON.stringify(pickerBounds));
+   assert.ok(pickerBounds.choices.every(r=>r.left>=pickerBounds.panel.left&&r.right<=pickerBounds.panel.right&&r.width>=62&&r.height>=70),
+    'all five WHOT 20 choices fully visible and sized for touch at '+width);
+   if(width===320){
+    await page.waitForFunction(()=>parseFloat(getComputedStyle(document.querySelector('.whot-call-panel')).opacity)>=.99,null,{timeout:2000});
+    await page.screenshot({path:'night-play/visual-output/WHOT-20-SHAPE-PICKER-320.jpg',type:'jpeg',quality:83,fullPage:true});
+   }
+  }
+  await page.setViewportSize({width:390,height:844});
   await page.screenshot({path:'night-play/visual-output/WHOT-20-SHAPE-PICKER.jpg',type:'jpeg',quality:86,fullPage:true});
   await page.locator('[data-whot-call="4"]').click();
   await page.waitForFunction(()=>window.__nightWhotMotion().activeFlights===1,{timeout:2500});
@@ -494,13 +528,168 @@ try{
   assert.equal(await page.evaluate(()=>window.__nightInitialCheckerSquare===document.querySelector('[data-checker="40"]')),true,'Checkers keeps original square on selection');
   assert.ok(await page.locator(".checker-square.target").count(),"legal move highlighted");
   await page.locator(".checker-square.target").first().click();
-  assert.equal(await page.locator(".checker-piece").count(),24);
+  await page.waitForFunction(()=>window.__nightCheckersQA().busy===false&&window.__nightCheckersQA().moving===0);
+  assert.equal(await page.locator(".checkerboard .checker-piece").count(),24,'a finished legal move preserves 24 pieces');
+  // A second *actual* match versus CPU: check its move, not just its label.
+  await page.locator('[data-checker-mode="computer"]').click();
+  assert.equal(await page.evaluate(()=>window.__nightCheckersQA().mode),'computer');
+  assert.equal(await page.locator('.checker-piece').count(),24,'switching to CPU starts a valid new match');
+  const beforeCPU=await page.evaluate(()=>JSON.stringify(window.__nightCheckersQA().pieces));
+  await page.locator('[data-checker="40"]').click();
+  await page.locator('.checker-square.target').first().click();
+  await page.waitForFunction(before=>{
+   const s=window.__nightCheckersQA();
+   return s.turn==='w'&&!s.busy&&JSON.stringify(s.pieces)!==before&&s.moving===0;
+  },beforeCPU,{timeout:6000});
+  assert.equal(await page.locator('.checker-piece').count(),24,'CPU advances without inventing or deleting a piece');
+  assert.equal(await page.locator('[data-checker-mode="local"]').count(),1,'CPU mode may be changed back to local');
+  await page.screenshot({path:'night-play/visual-output/CHECKERS-CPU-AFTER-MOVES.jpg',type:'jpeg',quality:78});
+  await page.locator('[data-checker-mode="local"]').click();
+  assert.equal(await page.evaluate(()=>window.__nightCheckersQA().mode),'local');
+
+  // Real multi-jump rules, mandatory capture priority and winning state.
+  await page.evaluate(()=>{
+   const saved=JSON.parse(localStorage.getItem('night-play-club-v1'));
+   const cells=Array(64).fill(null);
+   cells[40]='w';cells[44]='w';cells[33]='b';cells[19]='b';
+   saved.checkers={cells,turn:'w',selected:null,forced:null,winner:null,mode:'local',msg:'Capture chain test.'};
+   localStorage.setItem('night-play-club-v1',JSON.stringify(saved));
+  });
+  await page.reload();
+  await page.locator('[data-checker="44"]').click();
+  assert.equal(await page.locator('.checker-square.target').count(),0,'mandatory capture blocks ordinary piece moves');
+  await page.locator('[data-checker="40"]').click();
+  assert.equal(await page.locator('[data-checker="26"].target').count(),1,'only capture landing may be chosen');
+  await page.locator('[data-checker="26"]').click();
+  await page.waitForFunction(()=>{
+   const q=window.__nightCheckersQA();
+   return !q.busy&&q.pieces[26]==='w'&&q.pieces[33]===null;
+  },null,{timeout:4000});
+  assert.equal(await page.locator('[data-checker="12"].target').count(),1,'the same piece must continue the capture chain');
+  await page.locator('[data-checker="12"]').click();
+  await page.waitForFunction(()=>window.__nightCheckersQA().winner==='w'&&!window.__nightCheckersQA().busy,null,{timeout:4000});
+  assert.equal(await page.locator('.checker-piece').count(),2,'both captured discs are removed');
+  assert.ok((await page.locator('.checker-game-call strong').innerText()).includes('White wins'),'winning the last forced capture ends the game');
+  await page.screenshot({path:'night-play/visual-output/CHECKERS-CHAIN-CAPTURE-WIN.jpg',type:'jpeg',quality:80});
+
+  // Promotion creates a real king, and the king can travel backwards.
+  await page.evaluate(()=>{
+   const saved=JSON.parse(localStorage.getItem('night-play-club-v1'));
+   const cells=Array(64).fill(null);
+   cells[10]='w';cells[49]='b';
+   saved.checkers={cells,turn:'w',selected:null,forced:null,winner:null,mode:'local',msg:'Crowning test.'};
+   localStorage.setItem('night-play-club-v1',JSON.stringify(saved));
+  });
+  await page.reload();
+  await page.locator('[data-checker="10"]').click();
+  await page.locator('[data-checker="1"]').click();
+  await page.waitForFunction(()=>window.__nightCheckersQA().pieces[1]==='W'&&!window.__nightCheckersQA().busy,null,{timeout:4000});
+  assert.equal(await page.locator('.checker-crown').count(),1,'the promoted disc has a proper crown SVG');
+  await page.locator('[data-checker="49"]').click();
+  await page.locator('[data-checker="56"]').click();
+  await page.waitForFunction(()=>window.__nightCheckersQA().turn==='w'&&!window.__nightCheckersQA().busy,null,{timeout:4000});
+  await page.locator('[data-checker="1"]').click();
+  assert.equal(await page.locator('[data-checker="10"].target').count(),1,'crowned white king can legally move backwards');
+  await page.screenshot({path:'night-play/visual-output/CHECKERS-KING-BACKWARD.jpg',type:'jpeg',quality:80});
   for(const name of ["ludo","estate","whot","colors","draw","snakes","checkers"]){
     await page.goto(base+"/club/?game="+name);
     assert.equal(await page.locator("#gameTitle").innerText(),({ludo:"Nigerian Ludo",estate:"NIGHT Estates",whot:"WHOT",colors:"Colour Clash",draw:"Draw & Guess",snakes:"Snakes & Ladders",checkers:"Draughts"})[name]);
     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2),"no sideways mobile scroll on "+name);
     if(["estate","whot","colors","draw","snakes"].includes(name))console.log("NIGHT_CLUB_SCREEN_"+name.toUpperCase()+"_JPEG_BASE64="+(await page.screenshot({type:"jpeg",quality:50,fullPage:true})).toString("base64"));
   }
+
+  // Chess is a complete local game rather than the planned crossplay placeholder.
+  let chessWorkerStarts=0;
+  page.on('worker',worker=>{if(worker.url().includes('/strategy/ai-worker.js'))chessWorkerStarts++});
+  await page.goto(base+'/strategy/');
+  assert.equal(await page.locator('[data-square]').count(),64,'Chess draws all board squares');
+  assert.equal(await page.locator('.piece').count(),32,'Chess starts with 32 original SVG pieces');
+  assert.equal(await page.evaluate(()=>window.__nightChessQA().mode),'computer');
+  await page.locator('[data-square="e2"]').click();
+  assert.equal(await page.locator('[data-square="e4"].legal').count(),1,'legal pawn target is visible');
+  assert.equal(await page.locator('[data-square="e5"].legal').count(),0,'illegal jump is not offered');
+  await page.locator('[data-square="e4"]').click();
+  await page.waitForFunction(()=>{
+   const s=window.__nightChessQA();
+   return s.moves.length===2&&!s.busy&&s.turn==='w';
+  },null,{timeout:10000});
+  assert.equal(await page.locator('.piece').count(),32,'CPU must make a legal response');
+  assert.ok(chessWorkerStarts>0,'computer search executes in a real Web Worker, not on the UI thread');
+  assert.ok(await page.evaluate(()=>window.__nightChessQA().cpuWorkerReplies>=1),'a real worker search result drives the CPU response (not a fallback)');
+  await page.locator('#chessSettingsOpen').click();
+  await page.locator('#cpuDifficulty').selectOption('hard');
+  await page.locator('#chessSettingsClose').click();
+  assert.equal(await page.evaluate(()=>window.__nightChessQA().difficulty),'hard','difficulty selection changes CPU policy');
+  await page.reload();
+  assert.equal(await page.locator('#cpuDifficulty').inputValue(),'hard','chosen difficulty survives reload');
+  await page.locator('#chessSettingsOpen').click();
+  await page.locator('#newMatch').click();
+  const startHard=Date.now();
+  await page.locator('[data-square="e2"]').click();
+  await page.locator('[data-square="e4"]').click();
+  await page.waitForFunction(()=>window.__nightChessQA().moves.length===2&&!window.__nightChessQA().busy,null,{timeout:10000});
+  const hardQA=await page.evaluate(()=>window.__nightChessQA());
+  // Reload above constructs a fresh JS realm, resetting the in-memory worker
+  // reply counter. Require a new hard-search reply, not two across reloads.
+  assert.ok(hardQA.cpuWorkerReplies>=1&&hardQA.lastCpuNodes>0&&hardQA.lastCpuDepth>=1,
+   'challenging computer move is computed in the new page Web Worker');
+  assert.ok(Date.now()-startHard<9500,'challenging mode returns a response within the gameplay budget');
+  await page.locator('#chessSettingsOpen').click();
+  await page.locator('#newMatch').click();
+  await page.locator('[data-square="e2"]').click();
+  await page.locator('[data-square="e4"]').click();
+  await page.waitForFunction(()=>window.__nightChessQA().moves.length===1&&!window.__nightChessQA().busy);
+  await page.locator('#chessSettingsOpen').click();
+  await page.locator('#undo').click();
+  await page.waitForTimeout(450);
+  assert.equal(await page.evaluate(()=>window.__nightChessQA().moves.length),0,'undo cancels a pending computer move');
+  await page.locator('#chessSettingsOpen').click();
+  await page.locator('#cpuDifficulty').selectOption('normal');
+  await page.locator('#chessSettingsClose').click();
+  await page.locator('#chessSettingsOpen').click();
+  await page.locator('#newMatch').click();
+  await page.locator('[data-square="e2"]').click();
+  await page.locator('[data-square="e4"]').click();
+  await page.waitForFunction(()=>window.__nightChessQA().moves.length===2&&!window.__nightChessQA().busy,null,{timeout:12000});
+
+  const persistedFen=await page.evaluate(()=>window.__nightChessQA().fen);
+  await page.reload();
+  await page.locator('.piece').first().waitFor();
+  assert.equal(await page.evaluate(()=>window.__nightChessQA().fen),persistedFen,'a real position with castling rights resumes');
+  for(const width of [320,360,390,412,900]){
+   await page.setViewportSize({width,height:844});
+   const measurements=await page.evaluate(()=>{
+    const board=document.querySelector('.chess-board').getBoundingClientRect();
+    return {square:Math.abs(board.width-board.height)<2,overflow:document.documentElement.scrollWidth>innerWidth+2};
+   });
+   assert.equal(measurements.square,true,'Chess board remains square on '+width);
+   assert.equal(measurements.overflow,false,'Chess has no horizontal overflow on '+width);
+   if(width===320||width===900)await page.screenshot({path:'night-play/visual-output/CHESS-'+width+'-RESPONSIVE.jpg',type:'jpeg',quality:80,fullPage:true});
+  }
+  await page.setViewportSize({width:390,height:844});
+  await page.screenshot({path:'night-play/visual-output/CHESS-CPU-MOBILE.jpg',type:'jpeg',quality:82,fullPage:true});
+  await page.locator('#chessSettingsOpen').click();
+  await page.locator('#vsLocal').click();
+  await page.locator('#chessSettingsClose').click();
+  assert.equal(await page.evaluate(()=>window.__nightChessQA().mode),'local','two-player mode is clearly separate from CPU');
+  const playChess=async(from,to,index)=>{
+   await page.locator('[data-square="'+from+'"]').click();
+   assert.equal(await page.locator('[data-square="'+to+'"].legal').count(),1,from+' to '+to+' must be a legal move');
+   await page.locator('[data-square="'+to+'"]').click();
+   await page.waitForFunction(n=>window.__nightChessQA().moves.length===n&&!window.__nightChessQA().busy,index,{timeout:4000});
+  };
+  await playChess('e2','e4',1);await playChess('e7','e5',2);
+  await playChess('f1','c4',3);await playChess('b8','c6',4);
+  await playChess('d1','h5',5);await playChess('g8','f6',6);
+  await playChess('h5','f7',7);
+  assert.equal(await page.evaluate(()=>window.__nightChessQA().gameOver),true,'checkmate ends a complete played match');
+  assert.equal(await page.locator('#chessFinish').isVisible(),true,'checkmate result appears over the chess board');
+  assert.ok((await page.locator('#chessFinishTitle').innerText()).includes('White wins!'));
+  assert.ok((await page.locator('#chessFinishDetail').innerText()).toLowerCase().includes('checkmate'));
+  await page.screenshot({path:'night-play/visual-output/CHESS-SCHOLARS-MATE.jpg',type:'jpeg',quality:83,fullPage:true});
+  await page.locator('#chessSettingsOpen').click();
+  await page.locator('#newMatch').click();
+  assert.equal(await page.evaluate(()=>window.__nightChessQA().moves.length),0,'restart clears moves');
   await page.goto(base+"/games");
   await page.locator("#view-games").waitFor({state:"visible"});
   assert.equal(await page.locator("[data-club]").count(),6,"Six public Club games; Ludo is archived");

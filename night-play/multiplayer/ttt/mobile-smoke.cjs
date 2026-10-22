@@ -2,6 +2,7 @@ const assert=require('node:assert/strict')
 const http=require('node:http'),fs=require('node:fs'),path=require('node:path')
 const {chromium}=require('playwright')
 const games=new Map()
+const offlineUsers=new Set()
 let counter=0
 function room(user,match){
  const side=match.x===user?'X':'O'
@@ -37,7 +38,12 @@ function handle(action,user,args){
   const side=match.x===user?'X':'O'
   if(match.turn!==side||match.board[args.cell]!=='.')return {error:'Not your turn.',status:409}
   match.board=match.board.slice(0,args.cell)+side+match.board.slice(args.cell+1)
-  match.turn=side==='X'?'O':'X';match.version++
+  const wins=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]]
+  if(wins.some(line=>line.every(cell=>match.board[cell]===side))){
+   match.status='finished';match.winner=side
+  }else if(!match.board.includes('.')){match.status='finished';match.winner='D'}
+  else match.turn=side==='X'?'O':'X'
+  match.version++
   return room(user,match)
  }
  return {error:'Unknown action',status:400}
@@ -49,6 +55,7 @@ const server=http.createServer(async(req,res)=>{
   let body={}
   if(req.method==='POST'){let raw='';for await(const chunk of req)raw+=chunk;body=JSON.parse(raw)}
   const user=(req.headers.cookie||'').includes('night-user=bob')?'Bob':(req.headers.cookie||'').includes('night-user=dan')?'Dan':(req.headers.cookie||'').includes('night-user=cara')?'Cara':'Alice'
+  if(offlineUsers.has(user)){res.statusCode=503;res.setHeader('content-type','application/json');res.end(JSON.stringify({error:'Simulated network outage'}));return}
   const data=handle(body.action||'status',user,body);res.statusCode=typeof data.status==='number'?data.status:200
   res.setHeader('content-type','application/json');res.end(JSON.stringify(data));return
  }
@@ -83,9 +90,9 @@ const server=http.createServer(async(req,res)=>{
   assert.equal(await alice.locator('#room').isVisible(),false)
   const code=(await alice.locator('#code').textContent()).replace(/\s/g,'')
   assert.match(code,/^ABCDEF\d{3}$/)
-  await bob.locator('#inviteInput').fill(code)
-  await bob.getByRole('button',{name:'Join',exact:true}).click()
+  await bob.goto(origin+'/multiplayer/ttt/?invite='+encodeURIComponent(code))
   await bob.getByText('Opponent',{exact:true}).waitFor()
+  assert.equal(new URL(bob.url()).searchParams.has('invite'),false,'accepted invitation removes shared code from browser history')
   assert.equal(await bob.locator('#room').isVisible(),true,'joining player enters the real board directly')
   await alice.waitForFunction(()=>document.getElementById('waitingTitle').textContent==='Friend joined!',{timeout:11000})
   assert.equal(await alice.locator('#room').isVisible(),false,'host sees friend-found confirmation first')
@@ -94,10 +101,39 @@ const server=http.createServer(async(req,res)=>{
   await bob.waitForFunction(()=>document.querySelector('.cell').textContent==='X',{timeout:11000})
   await bob.getByRole('button',{name:'Square 4, empty'}).click()
   await alice.waitForFunction(()=>document.querySelectorAll('.cell')[3].textContent==='O',{timeout:11000})
+  offlineUsers.add('Alice')
+  await alice.locator('#message').getByText('Connection interrupted.',{exact:false}).waitFor({timeout:10000})
+  assert.equal(await alice.locator('#message').evaluate(el=>getComputedStyle(el).position),'fixed','lost connection must be visible over tall phone boards')
+  await alice.screenshot({path:path.join(dir,'../../visual-output/online-ttt-disconnected-mobile.jpg')})
+  assert.equal(await alice.locator('#board .cell').count(),9,'temporary network failure preserves existing board')
+  offlineUsers.delete('Alice')
+  await alice.locator('#message').getByText('Connection restored.',{exact:false}).waitFor({timeout:16000})
+  await alice.screenshot({path:path.join(dir,'../../visual-output/online-ttt-reconnected-mobile.jpg')})
+  for(const [w,h] of [[320,568],[360,800],[390,844],[412,915],[1280,900]]){
+   await alice.setViewportSize({width:w,height:h})
+   const geometry=await alice.evaluate(()=>({page:document.documentElement.scrollWidth,width:innerWidth}))
+   assert.ok(geometry.page<=geometry.width+2,'TTT online board horizontal overflow at '+w+'px: '+JSON.stringify(geometry))
+  }
+  await alice.setViewportSize({width:390,height:844})
   await alice.getByRole('button',{name:'Lobby'}).click()
   await alice.locator('.match-row').first().click()
   assert.equal(await alice.locator('.cell').first().textContent(),'X')
+  // Play a complete legal remote match: X wins the first row after alternating
+  // turns; both clients must receive a terminal result and blocked board.
+  await alice.getByRole('button',{name:'Square 2, empty'}).click()
+  await bob.waitForFunction(()=>document.querySelectorAll('.cell')[1].textContent==='X',{timeout:11000})
+  await bob.getByRole('button',{name:'Square 5, empty'}).click()
+  await alice.waitForFunction(()=>document.querySelectorAll('.cell')[4].textContent==='O',{timeout:11000})
+  await alice.getByRole('button',{name:'Square 3, empty'}).click()
+  await alice.getByText('You won!',{exact:true}).waitFor({timeout:11000})
+  await bob.getByText('Game over',{exact:true}).waitFor({timeout:11000})
+  assert.equal(await alice.locator('#board .cell:not([disabled])').count(),0,'winning board is not clickable')
+  assert.equal(await bob.locator('#board .cell:not([disabled])').count(),0,'losing board is not clickable')
   fs.mkdirSync(path.join(dir,'../../visual-output'),{recursive:true})
+  await alice.screenshot({path:path.join(dir,'../../visual-output/online-ttt-win-mobile.jpg')})
+  await alice.getByRole('button',{name:'New match'}).click()
+  await alice.locator('#waitingPanel').waitFor({state:'visible'})
+  assert.equal(await alice.locator('#room').isVisible(),false,'new match waits for a genuine second player')
   await alice.screenshot({path:path.join(dir,'../../visual-output/online-ttt-mobile.jpg')})
   const [c,cara]=await getPage('Cara')
   const [d,dan]=await getPage('Dan')
@@ -108,6 +144,6 @@ const server=http.createServer(async(req,res)=>{
   await dan.getByText('Opponent',{exact:true}).waitFor()
   await cara.waitForFunction(()=>document.getElementById('opponent').textContent==='Dan'&&!document.getElementById('room').hidden,{timeout:11000})
   for(const ctx of [a,b,c,d])await ctx.close()
-  console.log('PASS NIGHT Play online TTT mobile: wait in lobby until friend found, join confirmation, live remote moves, resume, random pairing, and mobile screenshots')
+  console.log('PASS NIGHT Play online TTT: two-client legal moves and full win/loss, replay waits for another player, outage/reconnect, resume, random matchmaking, and viewport checks')
  }finally{await browser.close();server.closeAllConnections();await new Promise(resolve=>server.close(resolve))}
 })().catch(error=>{console.error(error);server.closeAllConnections();server.close();process.exitCode=1})

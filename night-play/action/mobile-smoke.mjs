@@ -20,7 +20,7 @@ try{
  page.on('pageerror',error=>{throw new Error('Page exception: '+String(error))});
  const output=path.join(root,'visual-output');mkdirSync(output,{recursive:true});
  const snap=()=>page.evaluate(()=>window.__nightActionTest.snapshot());
- for(const [game,title] of [['slice','Fruit Slice'],['jump','Sky Jumper'],['runner','Endless Runner'],['shooter','Space Shooter'],['bricks','Brick Breaker']]){
+ for(const [game,title] of [['slice','Fruit Slice'],['jump','Sky Jumper'],['shooter','Space Shooter'],['bricks','Brick Breaker']]){
   await page.goto(url+'/action/?game='+game);
   assert.equal(await page.locator('#title').innerText(),title,'correct game loads');
   assert.equal(await page.locator('.action-overlay').isVisible(),true,'rules and Start shown before gameplay');
@@ -45,22 +45,40 @@ try{
    assert.ok(running.platforms.every(p=>p.fragile===undefined&&p.ttl===undefined),'platforms cannot crack, time out or disappear on landing');
    assert.equal(running.hazardY,undefined,'no rising hazard forces a timed death');
    assert.ok(running.platforms.every(p=>p.w>=55),'landing platforms remain wide enough to aim for');
-   await page.waitForTimeout(220);
-   const after=await snap(),nextMover=after.platforms.find(p=>p.baseX===mover.baseX&&p.phase===mover.phase);
-   assert.ok(nextMover&&Math.abs(nextMover.x-mover.x)>0.2,'a moving platform changes its physical collision position');
+   // Sample several real gameplay frames, not just two instants. A sine
+   // platform can return to nearly the same X near its turning point even
+   // though its collision body has moved during the interval.
+   const positions=[mover.x];
+   for(const delay of [170,170,200]){
+    await page.waitForTimeout(delay);
+    const updated=await snap(),nextMover=updated.platforms.find(p=>p.baseX===mover.baseX&&p.phase===mover.phase);
+    assert.ok(nextMover,'the first moving platform remains present while on screen');
+    positions.push(nextMover.x);
+   }
+   assert.ok(Math.max(...positions)-Math.min(...positions)>0.35,
+    'the moving platform visibly changes its true physical collision position');
  }
   if(game==='runner')assert.ok(running.score>0&&running.speed>220,'Runner progresses and accelerates');
-  if(game==='shooter')assert.ok(running.shots.length>0&&running.enemies.length>0,'Shooter generates shots and actual enemies');
+  if(game==='shooter')assert.ok(running.shots.length>0&&(running.enemies.length>0||running.kills>0),'Shooter fires and either presents enemies or has already defeated them');
   if(game==='bricks')assert.equal(running.bricks.length,42,'Brick Breaker creates the full first board');
   await page.screenshot({path:path.join(output,'action-'+game+'-390x844.jpg'),type:'jpeg',quality:73});
   console.log('NIGHT_ACTION_VISUAL_'+game.toUpperCase()+'_BASE64='+(await page.screenshot({type:'jpeg',quality:54})).toString('base64'));
   if(game==='slice'){
-   let picked=(await snap()).fruits.find(f=>f.kind!=='bomb'&&!f.hit&&f.y>20&&f.y<510);
-   if(picked){const box=await page.locator('canvas').boundingBox();
-    const x=box.x+picked.x/390*box.width,y=box.y+picked.y/550*box.height;
-    await page.mouse.move(x-25,y-10);await page.mouse.down();await page.mouse.move(x+25,y+10,{steps:4});await page.mouse.up();
-    await page.waitForTimeout(100);assert.ok((await snap()).score>=10,'a real swipe can slice fruit');
-   }
+   // Never chase a 600px/s fruit using a screenshot-era coordinate:
+   // wait for an actual reachable apex, then move the mouse across it.
+   await page.waitForFunction(()=>window.__nightActionTest.snapshot().fruits.some(f=>
+    f.kind!=='bomb'&&!f.hit&&Math.abs(f.vy)<85&&f.y>80&&f.y<335),
+    null,{timeout:5500,polling:16});
+   const picked=(await snap()).fruits.find(f=>
+    f.kind!=='bomb'&&!f.hit&&Math.abs(f.vy)<85&&f.y>80&&f.y<335);
+   assert.ok(picked,'a fruit actually reaches the upper slicing lane');
+   const box=await page.locator('canvas').boundingBox();
+   const x=box.x+picked.x/390*box.width,y=box.y+picked.y/550*box.height;
+   const before=(await snap()).score;
+   await page.mouse.move(x-42,y);await page.mouse.down();
+   await page.mouse.move(x+42,y,{steps:4});await page.mouse.up();
+   await page.waitForTimeout(60);
+   assert.ok((await snap()).score>=before+10,'a timed real swipe can slice fruit');
   }
   if(game==='runner'){
    await page.keyboard.press('Space');await page.waitForTimeout(70);
@@ -116,8 +134,10 @@ try{
   await page.locator('#overlayStart').click();assert.equal((await snap()).paused,false,'Resume continues');
   await page.locator('#restart').click();assert.equal((await snap()).score,0,'Restart resets score');
   await page.locator('#settingsButton').click();assert.ok(await page.locator('#settingsDialog').isVisible());
-  assert.equal(await page.locator('#gamePicks button').count(),5);
+  assert.equal(await page.locator('#soundToggle').count(),1,'sound setting exists');
+   assert.equal(await page.locator('#motionToggle').count(),1,'motion setting exists');
+   assert.equal(await page.locator('#gamePicks').count(),0,'settings must not contain redundant game switcher');
   await page.locator('#settingsClose').click();
  }
- console.log('PASS NIGHT ACTION ARCADE: 5 playable modes, pointer/keyboard, motion, overlays, restart, pause and six viewport sizes.');
+ console.log('PASS NIGHT ACTION ARCADE: 4 standalone modes + Chromium Dino, pointer/keyboard, motion, overlays, restart, pause and six viewport sizes.');
 }finally{if(browser)await browser.close();await new Promise(resolve=>server.close(resolve))}

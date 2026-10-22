@@ -1,0 +1,50 @@
+name: NIGHT Play Ten-Agent Integration Gameplay
+on:
+  pull_request:
+    paths:
+      - 'night-play/**'
+      - '.github/workflows/night-play-integrated-agents.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  gameplay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 22
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install browser test runner
+        run: |
+          npm install --no-save playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Chess move legality and endgames
+        run: node night-play/strategy/logic-test.mjs
+      - name: New Piano Tiles complete melody and touch failures
+        run: node night-play/piano-tiles/mobile-smoke.mjs
+      - name: Sky Jumper real touch and progression
+        run: node night-play/action/agent3-play.mjs
+      - name: Chromium Dino real touch, original physics and collision
+        run: node night-play/action/dino/runner-browser-qa.mjs
+      - name: Brick Breaker, Space Shooter and Wing Hop gameplay
+        run: node night-play/action/agent4-gameplay.mjs
+      - name: Puzzle and photographic Jigsaw play
+        run: node night-play/agent5-puzzle-playtest.mjs
+      - name: Seven-viewport site shell behavior
+        run: node night-play/ui/site-chrome-smoke.mjs
+      - name: Two-browser Tic-Tac-Toe against deterministic room service
+        run: node night-play/multiplayer/ttt/mobile-smoke.cjs
+      - name: Party room host and guest interactions
+        run: node night-play/party/room/mobile-smoke.mjs
+      - name: Capture visual evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: night-play-ten-agent-integration-screenshots
+          path: |
+            night-play/visual-output/
+            night-play/piano-tiles/visual-output/
+          retention-days: 14
+          if-no-files-found: warn

@@ -1,0 +1,33 @@
+name: NIGHT Play Piano Tiles Gameplay QA
+
+on:
+  pull_request:
+    paths:
+      - 'night-play/piano-tiles/**'
+      - '.github/workflows/night-play-piano-tiles-qa.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  playtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install Chromium runner
+        run: npm install --no-save playwright@1.56.1
+      - name: Play all Piano Tiles notes on a real browser
+        run: node night-play/piano-tiles/mobile-smoke.mjs
+      - name: Retain gameplay screenshots for visual inspection
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: night-play-piano-tiles-browser-evidence
+          path: night-play/piano-tiles/visual-output/*.png
+          retention-days: 14
+          if-no-files-found: warn
