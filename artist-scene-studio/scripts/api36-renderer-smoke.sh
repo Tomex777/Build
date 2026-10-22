@@ -1209,10 +1209,25 @@ sleep 1
 dump_window_once || fail "Could not inspect reference view control"
 REFERENCE_COORDS="$(tag_coords "reference-mode")" || fail "Reference mode control was not exposed"
 tap_coords "Reference mode" "$REFERENCE_COORDS"
-sleep 1
+# Fullscreen hides system bars and relays out Compose asynchronously on software
+# GPUs. Do not confuse an early UiAutomator snapshot with a missing control:
+# wait for BOTH actual clean-mode actions, staying fail-closed if they never appear.
+EXPORT_SCENE_COORDS=""
+for _ in $(seq 1 18); do
+  require_process_alive "clean reference PNG export"
+  if dump_window_once; then
+    EXIT_READY="$(tag_coords "exit-reference-mode" 2>/dev/null || true)"
+    EXPORT_SCENE_COORDS="$(tag_coords "export-scene-png" 2>/dev/null || text_row_coords "Export PNG" 2>/dev/null || true)"
+    if [ -n "$EXIT_READY" ] && [ -n "$EXPORT_SCENE_COORDS" ]; then break; fi
+  fi
+  sleep 1
+done
+if [ -z "$EXPORT_SCENE_COORDS" ] || [ -z "${EXIT_READY:-}" ]; then
+  echo "Clean reference UI hierarchy (must expose Export PNG AND Edit scene):" >&2
+  grep -oE '(resource-id|content-desc)="[^"]+"' "$XML" | tail -n 60 >&2 || true
+  fail "Clean reference mode did not expose BOTH PNG export and edit return"
+fi
 capture_screen "$REFERENCE_PNG" || fail "Could not capture the clean reference viewport"
-dump_window_once || fail "Could not inspect clean reference controls"
-EXPORT_SCENE_COORDS="$(tag_coords "export-scene-png" 2>/dev/null || text_row_coords "Export PNG")" || fail "Clean reference mode did not expose PNG export"
 tap_coords "Export PNG" "$EXPORT_SCENE_COORDS"
 sleep 2
 dump_window_once || fail "Could not inspect Android's PNG destination picker"
@@ -1460,14 +1475,45 @@ tap_coords "Rigged GLB" "$RIG_FILE_COORDS"
 wait_for_log "SAF imported character rendered" "MiseRuntime: asset-loaded name=ActStudioRig"
 sleep 3
 adb_bounded shell run-as "$APP_ID" cat "$NEW_PROJECT_FILE" > artist-scene-studio-saf-character-before.json
-RIG_ACTOR_ID="$(python3 - <<'PYRIG'
-import json
-p=json.load(open('artist-scene-studio-saf-character-before.json'))
-a=next(a for a in p['actors'] if a['name']=='ActStudioRig')
-assert a['kind']=='CHARACTER',a['kind']
-print(a['id'])
+# The renderer's "asset-loaded name" comes from the glTF model, which can
+# legitimately differ from the imported actor display name (VRM metadata,
+# user filename, etc.). Tie the persisted actor to the exact on-device editor
+# import ID; still require CHARACTER, a real managed GLB, and durable autosave.
+refresh_logcat
+RIG_ACTOR_ID="$(python3 - "$LOGCAT" <<'PYRIG'
+import re, sys
+logs = open(sys.argv[1], encoding="utf-8", errors="replace").read()
+ids = re.findall(r"MiseRuntime: editor-change reason=import-model selected=(import-[a-zA-Z0-9]+)", logs)
+if not ids:
+    raise SystemExit("No actual import-model editor mutation was recorded")
+print(ids[-1])
 PYRIG
-)" || fail "SAF model was not imported as a character"
+)" || fail "SAF import did not add a real editor actor"
+RIG_SAVED=false
+for _ in $(seq 1 25); do
+  adb_bounded shell run-as "$APP_ID" cat "$NEW_PROJECT_FILE" > artist-scene-studio-saf-character-before.json \
+    || fail "Imported character project could not be read"
+  if python3 - "artist-scene-studio-saf-character-before.json" "$RIG_ACTOR_ID" <<'PYRIG'
+import json, sys
+project = json.load(open(sys.argv[1], encoding="utf-8"))
+actor = next((a for a in project.get("actors", []) if a.get("id") == sys.argv[2]), None)
+if actor is None:
+    raise SystemExit(1)
+if actor.get("kind") != "CHARACTER":
+    raise SystemExit(f"SAF rig actor has wrong kind: {actor.get('kind')}")
+asset = actor.get("asset") or {}
+if not asset.get("relativePath", "").startswith("asset-library/payloads/") or asset.get("format") != "glb":
+    raise SystemExit(f"SAF actor has no real managed GLB: {asset}")
+print(f"Saved imported character id={actor['id']} name={actor.get('name')} kind={actor['kind']}")
+PYRIG
+  then
+    RIG_SAVED=true
+    break
+  fi
+  require_process_alive "imported character autosave"
+  sleep 1
+done
+[ "$RIG_SAVED" = true ] || fail "Imported character never reached durable scene storage with correct actor ID/kind/GLB"
 wait_for_log "SAF rig bound to rendered skeleton" "MiseRuntime: rig-ready actor=$RIG_ACTOR_ID bones=19"
 capture_screen "artist-scene-studio-${API_TAG}-saf-character-rest.png" || fail "Could not capture imported rest character"
 dump_window_once || fail "Could not inspect imported character tools"
