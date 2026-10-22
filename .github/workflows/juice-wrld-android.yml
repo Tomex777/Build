@@ -96,7 +96,9 @@ jobs:
             gradle -p juice-wrld-android --no-daemon :app:connectedDebugAndroidTest
             TEST_EXIT=$?
             set -e
-            adb pull /sdcard/Android/data/com.nice.juicewrld/files/screenshots screenshots/compose-api-${{ matrix.api }} || true
+            for page in home love sad favorites song-sheet; do
+              adb exec-out run-as com.nice.juicewrld cat "files/screenshots/$page.png" > "screenshots/$page-api-${{ matrix.api }}.png" || rm -f "screenshots/$page-api-${{ matrix.api }}.png"
+            done
             adb logcat -d -v brief -t 1200 > screenshots/logcat-api-${{ matrix.api }}.txt || true
             exit "$TEST_EXIT"
       - uses: actions/upload-artifact@v4
