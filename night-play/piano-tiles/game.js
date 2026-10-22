@@ -158,6 +158,10 @@ async function begin(){
   // Decode on the player's gesture, cache on-device and only then start.
   await window.NightPiano.prepare();
   clearRun();running=true;paused=false;ended=false;
+  // Start with the first key already visible and descending; do not make
+  // players stare at an empty piano board for the first second or two.
+  // The key still takes ~0.9s to reach the natural lower playing area.
+  elapsed=Math.max(0,notes[0].at-.90);
   document.body.classList.add("is-playing");
   $("cover").hidden=true;$("restart").hidden=false;
   setPauseButton();$("status").textContent="Tap any visible tile";
@@ -204,12 +208,28 @@ function pause(){
 function sound(frequency,hold){
  return window.NightPiano.play(frequency,hold);
 }
+// Beat-locked world displacement: all tiles move through a continuous shared
+// timeline. A successful tap must never teleport every other tile.
+const BASE_SPEED=294,MAX_RAMP=65,RAMP_PER_SECOND=1.18;
+function trackTravel(t){
+ t=Math.max(0,t);
+ if(selectedSong.id!=="endless")return BASE_SPEED*t;
+ const transition=MAX_RAMP/RAMP_PER_SECOND,accelerated=Math.min(t,transition);
+ return BASE_SPEED*t+.5*RAMP_PER_SECOND*accelerated*accelerated+
+  MAX_RAMP*Math.max(0,t-transition);
+}
+function currentFallSpeed(){
+ return BASE_SPEED+(selectedSong.id==="endless"?
+  Math.min(MAX_RAMP,Math.max(0,elapsed)*RAMP_PER_SECOND):0);
+}
 function noteGeometry(n){
- const speed=294+Math.min(65,complete*1.6);
- const bottom=n.state==="holding"&&Number.isFinite(n.hitBottom)?n.hitBottom:HIT+(elapsed-n.at)*speed;
- const length=n.hold?(n.duration*speed+138):166;
- return {bottom,top:bottom-length,left:n.lane*100+4,right:n.lane*100+96,
-  speed,length};
+ const speed=currentFallSpeed();
+ const bottom=n.state==="holding"&&Number.isFinite(n.hitBottom)?
+  n.hitBottom:HIT+trackTravel(elapsed)-trackTravel(n.at);
+ const length=n.hold?(n.duration*(n.holdSpeed||speed)+138):166;
+ const tailLength=n.state==="holding"?
+  138+Math.max(0,n.duration-(elapsed-n.start))*(n.holdSpeed||speed):length;
+ return {bottom,top:bottom-length,left:n.lane*100+4,right:n.lane*100+96,speed,length,tailLength};
 }
 function finishNote(n,holdBonus){
  if(n.state==="done")return;
@@ -231,13 +251,15 @@ function play(x,y,id){
  // Judge the actual visible rectangle, not a 470ms invisible timing gate.
  // Before this fix a visibly touched tile could keep falling because it was
  // still far above the old narrow timing shelf.
- const n=notes.filter(t=>t.lane===lane&&t.state==="waiting")
-  .sort((a,b)=>noteGeometry(b).bottom-noteGeometry(a).bottom)
-  .find(t=>{
-   const g=noteGeometry(t);
-   return g.bottom>=0&&g.top<=H&&
-    y>=Math.max(0,g.top)-9&&y<=Math.min(H,g.bottom)+9;
-  });
+ // Play the next musical note in order; simultaneous chord notes remain legal.
+ const pending=notes.filter(t=>t.state==="waiting").sort((a,b)=>a.at-b.at);
+ const earliest=pending[0]?.at;
+ const n=pending.find(t=>{
+  if(t.lane!==lane||t.at>earliest+.025)return false;
+  const g=noteGeometry(t);
+  return g.bottom>=0&&g.top<=H&&
+   y>=Math.max(0,g.top)-9&&y<=Math.min(H,g.bottom)+9;
+ });
  if(!n){lose("Wrong tile");return;}
  const hit=noteGeometry(n);
  n.start=elapsed;n.flash=.24;
@@ -246,7 +268,7 @@ function play(x,y,id){
  score+=accurate?125:100;
  updateHud();n.voice=sound(n.freq,n.hold);
  if(n.hold){
-  n.state="holding";n.pointer=id;n.hitBottom=hit.bottom;held.set(id,n);
+  n.state="holding";n.pointer=id;n.hitBottom=hit.bottom;n.holdSpeed=hit.speed;held.set(id,n);
   $("status").textContent="Keep holding";
  }else{
   finishNote(n,false);$("status").textContent=accurate?"Perfect":"Good";
@@ -259,7 +281,16 @@ function release(id){
  if(ended||!running)return;
  if(elapsed>=n.start+n.duration-.07){
   finishNote(n,true);$("status").textContent="Long note complete";
- }else lose("Hold the long tile");
+ }else{
+  // Piano Tiles 2 style: the player can release early and continue, but
+  // only earns a fraction of the sustained-note bonus. Never award a full
+  // held-note score for a one-frame tap.
+  const fraction=Math.max(0,Math.min(1,(elapsed-n.start)/n.duration));
+  finishNote(n,false);
+  score+=Math.floor(fraction*70);
+  updateHud();
+  $("status").textContent="Partial hold";
+ }
 }
 function xy(e){
  const r=board.getBoundingClientRect();
@@ -334,14 +365,17 @@ function render(){
   const g=noteGeometry(n);
   if(g.bottom<0||g.top>H)continue;
   const progress=n.state==="holding"?Math.min(1,Math.max(0,(elapsed-n.start)/n.duration)):0;
-  // Long tails gradually retract toward their anchored key while held; no screen flash.
-  const tail=n.state==="holding"?Math.max(45,g.length*(1-progress)):g.length;
-  const tileTop=n.state==="holding"?g.bottom-tail:g.top;
+  // The held head stays beneath the finger while the blue tail scrolls into it.
+  const tail=g.tailLength;
+  const tileTop=g.bottom-tail;
   const top=Math.max(-4,tileTop),bottom=Math.min(H+4,g.bottom);
   x.save();x.beginPath();x.rect(g.left,top,g.right-g.left,bottom-top);x.clip();
   const gradient=x.createLinearGradient(0,tileTop,0,g.bottom);
-  if(n.state==="holding"){
-   gradient.addColorStop(0,"#2b5765");gradient.addColorStop(1,"#377d82");
+  if(n.hold){
+   gradient.addColorStop(0,n.state==="holding"?"#77c5da":"#acdcee");
+   gradient.addColorStop(.60,n.state==="holding"?"#409ebc":"#5cadd1");
+   gradient.addColorStop(.83,n.state==="holding"?"#234b66":"#37596d");
+   gradient.addColorStop(1,n.state==="holding"?"#142b3c":"#111f2c");
   }else{
    gradient.addColorStop(0,colors[n.lane]);gradient.addColorStop(1,deepColors[n.lane]);
   }
@@ -351,8 +385,11 @@ function render(){
   if(n.hold){
    x.fillStyle=n.state==="holding"?"#a1e0c9":"#aac3c9";
    x.fillRect(g.left+20,g.bottom-12,(g.right-g.left-40)*Math.max(.12,progress),4);
-   x.fillStyle="#f4fafb";
-   x.beginPath();x.arc((g.left+g.right)/2,g.bottom-27,5,0,Math.PI*2);x.fill();
+   x.strokeStyle="#eefaff";x.lineWidth=2;
+   x.beginPath();x.arc((g.left+g.right)/2,g.bottom-27,8,0,Math.PI*2);x.stroke();
+   x.beginPath();x.moveTo((g.left+g.right)/2,g.bottom-41);
+   x.lineTo((g.left+g.right)/2,Math.max(tileTop+8,g.bottom-61));
+   x.stroke();
   }
   x.restore();
  }
@@ -362,7 +399,8 @@ function render(){
 if(location.hostname==="localhost"||location.hostname==="127.0.0.1")
  window.__nightPianoTest=Object.freeze({snapshot:()=>({
   song:selectedSong.id,running,paused,ended,elapsed,score,streak,complete,endlessIndex,
+  speed:currentFallSpeed(),distance:trackTravel(elapsed),
   notes:notes.map(n=>({lane:n.lane,at:n.at,duration:n.duration,hold:n.hold,state:n.state}))
- }),geometry:()=>notes.map(noteGeometry)});
+ }),geometry:()=>notes.map(noteGeometry),travelAt:trackTravel});
 clearRun();scale();window.addEventListener("resize",scale,{passive:true});
 })();

@@ -47,7 +47,9 @@ try{
   const rect=await p.locator('#board').boundingBox();
   assert.ok(rect.width>=300&&rect.height>=350,'large playable touch area');
   if(width===390)await p.screenshot({path:join(output,'piano-real-grand-390.png')});
-  await p.touchscreen.tap(rect.x+rect.width*.125,rect.y+rect.height*.115);
+  const first=await p.evaluate(()=>window.__nightPianoTest.geometry()[0]);
+  await p.touchscreen.tap(rect.x+rect.width*.125,
+   rect.y+rect.height*Math.max(30,first.bottom-30)/660);
   await p.waitForTimeout(110);
   const strike=await p.evaluate(()=>({
    info:window.NightPiano.inspect(),
@@ -81,7 +83,9 @@ try{
   await p.waitForFunction(()=>document.body.classList.contains('is-playing'));
   const rect=await p.locator('#board').boundingBox();
   await p.waitForTimeout(650); // finite charts enter the visible lanes later
-  await p.touchscreen.tap(rect.x+rect.width*.125,rect.y+rect.height*.11);
+  const first=await p.evaluate(()=>window.__nightPianoTest.geometry()[0]);
+  await p.touchscreen.tap(rect.x+rect.width*.125,
+   rect.y+rect.height*Math.max(30,first.bottom-30)/660);
   await p.waitForTimeout(50);
   assert.ok((await p.evaluate(()=>window.NightPiano.inspect())).lastPlayed,'song played sample');
   console.log('PASS song',id);await p.close();
