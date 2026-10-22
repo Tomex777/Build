@@ -189,8 +189,18 @@ class MainActivity : ComponentActivity() {
                     modifier=Modifier.fillMaxWidth()) {
                     Text("Hint · ${game.hintsRemaining}",fontSize=12.sp)
                 }
-                OutlinedButton(onClick={board?.centerBoard()},
-                    modifier=Modifier.fillMaxWidth()) { Text("Center board",fontSize=12.sp) }
+                if(game.zoneCount>1) {
+                    OutlinedButton(onClick={board?.jumpToPieces()},
+                        modifier=Modifier.fillMaxWidth()) {
+                        Text("Find pieces",fontSize=12.sp)
+                    }
+                }
+                OutlinedButton(
+                    onClick={if(game.zoneCount>1)board?.focusZone() else board?.centerBoard()},
+                    modifier=Modifier.fillMaxWidth()) {
+                    Text(if(game.zoneCount>1)"Board section" else "Center board",
+                        fontSize=12.sp)
+                }
             }
         } else {
             Column {
@@ -213,9 +223,24 @@ class MainActivity : ComponentActivity() {
                     modifier=Modifier.weight(1f)) {
                     Text("Hint · ${game.hintsRemaining}",fontSize=12.sp,maxLines=1)
                 }
-                OutlinedButton(onClick={board?.centerBoard()},
-                    modifier=Modifier.weight(1f)) {
-                    Text("Center",fontSize=12.sp,maxLines=1)
+                if(game.zoneCount==1) {
+                    OutlinedButton(onClick={board?.centerBoard()},
+                        modifier=Modifier.weight(1f)) {
+                        Text("Center",fontSize=12.sp,maxLines=1)
+                    }
+                }
+            }
+            if(game.zoneCount>1) {
+                Row(Modifier.fillMaxWidth(),
+                    horizontalArrangement=Arrangement.spacedBy(6.dp)) {
+                    OutlinedButton(onClick={board?.jumpToPieces()},
+                        modifier=Modifier.weight(1f)) {
+                        Text("Find pieces",fontSize=12.sp)
+                    }
+                    OutlinedButton(onClick={board?.focusZone()},
+                        modifier=Modifier.weight(1f)) {
+                        Text("Board section",fontSize=12.sp)
+                    }
                 }
             }
             }
