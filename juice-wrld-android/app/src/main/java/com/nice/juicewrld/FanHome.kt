@@ -11,6 +11,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
@@ -179,68 +180,68 @@ fun FanHome(player: FanPlayer = viewModel()) {
                 }
             }
             item {
-                Column(Modifier.padding(horizontal = 22.dp, vertical = 3.dp)) {
-                    Text("THE MUSIC", color = Lavender, fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold, letterSpacing = 3.sp)
-                    Spacer(Modifier.height(7.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            when (mood) {
-                                Mood.ALL -> "Every song, every mood"
-                                Mood.FAVORITES -> "Your favorites"
-                                else -> mood.label + " songs"
-                            },
-                            fontSize = 19.sp, letterSpacing = (-0.6).sp,
-                            color = White, fontWeight = FontWeight.ExtraBold,
-                            modifier = Modifier.weight(1f)
-                        )
-                        if (songs.any { it.id in state.attached }) {
-                            FilledTonalButton(
-                                onClick = { player.playMood(mood) },
-                                modifier = Modifier.heightIn(min = 40.dp),
-                                contentPadding = PaddingValues(horizontal = 12.dp),
-                                shape = RoundedCornerShape(13.dp),
-                                colors = ButtonDefaults.filledTonalButtonColors(
-                                    containerColor = Panel2, contentColor = White
-                                )
-                            ) {
-                                Icon(Icons.Filled.PlayArrow, contentDescription = null,
-                                    modifier = Modifier.size(18.dp), tint = Lavender)
-                                Spacer(Modifier.width(3.dp))
-                                Text("Play mood", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                            }
-                        } else {
-                            Text(songs.size.toString() + " songs", fontSize = 12.sp, color = Gray)
+                Column(Modifier.padding(start = 22.dp, end = 22.dp, top = 13.dp, bottom = 5.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                when (mood) {
+                                    Mood.ALL -> "All songs"
+                                    Mood.FAVORITES -> "Your favorites"
+                                    else -> mood.label + " songs"
+                                },
+                                fontSize = 21.sp, letterSpacing = (-0.7).sp,
+                                color = White, fontWeight = FontWeight.ExtraBold
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Text("${songs.size} songs", fontSize = 12.sp, color = Gray)
                         }
-                    }
-                    Spacer(Modifier.height(10.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        FanSearch(
-                            text = search,
-                            onTextChange = { search = it },
-                            modifier = Modifier.weight(1f)
-                        )
-                        Spacer(Modifier.width(9.dp))
+                        if (songs.any { it.id in state.attached }) {
+                            IconButton(
+                                onClick = { player.playMood(mood) },
+                                modifier = Modifier.size(44.dp),
+                            ) {
+                                Icon(
+                                    Icons.Filled.PlayArrow, contentDescription = "Play this mood",
+                                    tint = Lavender, modifier = Modifier.size(25.dp)
+                                )
+                            }
+                            Spacer(Modifier.width(4.dp))
+                        }
                         OutlinedButton(
                             onClick = { folderPicker.launch(null) },
                             enabled = !state.importing,
-                            modifier = Modifier.height(48.dp).widthIn(min = 102.dp),
-                            contentPadding = PaddingValues(horizontal = 10.dp),
-                            shape = RoundedCornerShape(14.dp),
-                            border = BorderStroke(1.dp, Hairline)
+                            modifier = Modifier.height(43.dp),
+                            contentPadding = PaddingValues(horizontal = 13.dp),
+                            shape = RoundedCornerShape(13.dp),
+                            border = BorderStroke(1.dp, Hairline),
                         ) {
                             if (state.importing) {
-                                CircularProgressIndicator(modifier = Modifier.size(17.dp),
-                                    strokeWidth = 2.dp, color = Lavender)
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(18.dp), strokeWidth = 2.dp,
+                                    color = Lavender
+                                )
                             } else {
-                                Icon(Icons.Filled.LibraryMusic, contentDescription = null,
-                                    tint = Lavender, modifier = Modifier.size(17.dp))
-                                Spacer(Modifier.width(6.dp))
-                                Text("Import", color = White, fontSize = 12.sp,
-                                    fontWeight = FontWeight.SemiBold)
+                                Icon(
+                                    Icons.Filled.LibraryMusic, contentDescription = null,
+                                    tint = Lavender, modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(Modifier.width(7.dp))
+                                Text(
+                                    "Import", color = White, fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
                             }
                         }
                     }
+                    Spacer(Modifier.height(15.dp))
+                    FanSearch(
+                        text = search,
+                        onTextChange = { search = it },
+                        modifier = Modifier.fillMaxWidth()
+                    )
                     if (state.importMessage != null) {
                         Spacer(Modifier.height(8.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -451,35 +452,58 @@ private fun moodColors(mood: Mood): List<Color> = when (mood) {
 
 @Composable
 private fun FeelingCard(mood: Mood, selected: Boolean, count: Int, onClick: () -> Unit) {
-    Box(
-        Modifier.width(108.dp).height(79.dp).clip(RoundedCornerShape(14.dp))
-            .background(Brush.linearGradient(moodColors(mood)))
-            .clickable(onClick = onClick)
-    ) {
-        Text("9", fontSize = 81.sp, fontWeight = FontWeight.Black,
-            color = White.copy(alpha = 0.09f),
-            modifier = Modifier.align(Alignment.CenterEnd).offset(x = 12.dp, y = (-23).dp))
-        Column(
-            Modifier.fillMaxSize().padding(11.dp), verticalArrangement = Arrangement.Bottom
-        ) {
-            Text(mood.label, color = White, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
-            Spacer(Modifier.height(2.dp))
-            Text(count.toString() + " songs", color = White.copy(alpha = .75f), fontSize = 11.sp)
-        }
-        if (selected) {
-            Box(
-                Modifier.align(Alignment.TopEnd).padding(9.dp).size(8.dp)
-                    .clip(CircleShape).background(White)
+    val shape = RoundedCornerShape(17.dp)
+    val colors = moodColors(mood)
+    Column(
+        modifier = Modifier
+            .width(125.dp).height(99.dp)
+            .clip(shape)
+            .background(Brush.linearGradient(colors))
+            .border(
+                width = if (selected) 1.5.dp else 1.dp,
+                color = if (selected) Lavender.copy(alpha = 0.95f)
+                    else White.copy(alpha = 0.10f),
+                shape = shape
             )
+            .clickable(onClick = onClick)
+            .padding(start = 14.dp, end = 13.dp, top = 13.dp, bottom = 12.dp),
+    ) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            // Small color mark, not a repeated giant "9" watermark obscuring the labels.
+            Box(
+                Modifier.width(23.dp).height(3.dp)
+                    .clip(CircleShape).background(if (selected) White else White.copy(alpha = .55f))
+            )
+            Spacer(Modifier.weight(1f))
+            if (selected) {
+                Icon(
+                    Icons.Filled.CheckCircle,
+                    contentDescription = null,
+                    tint = White, modifier = Modifier.size(16.dp)
+                )
+            }
         }
+        Spacer(Modifier.weight(1f))
+        Text(
+            mood.label, color = White, fontSize = 16.sp,
+            fontWeight = FontWeight.ExtraBold, maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+        Spacer(Modifier.height(3.dp))
+        Text(
+            "$"+"{count} songs", color = White.copy(alpha = .77f),
+            fontSize = 11.sp, maxLines = 1
+        )
     }
 }
 
 @Composable
 private fun FanSearch(text: String, onTextChange: (String) -> Unit, modifier: Modifier = Modifier) {
     Row(
-        modifier.height(48.dp).clip(RoundedCornerShape(14.dp))
-            .background(Panel).padding(horizontal = 16.dp),
+        modifier.height(50.dp).clip(RoundedCornerShape(14.dp))
+            .background(Panel)
+            .border(1.dp, Hairline.copy(alpha = .7f), RoundedCornerShape(14.dp))
+            .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(Icons.Filled.Search, contentDescription = null, tint = Gray,
