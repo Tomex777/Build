@@ -120,7 +120,7 @@ fun FanHome(player: FanPlayer = viewModel()) {
         modifier = Modifier.fillMaxSize().background(Night).statusBarsPadding()
     ) {
         LazyColumn(
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.weight(1f).testTag("songs"),
             contentPadding = PaddingValues(bottom = 25.dp),
         ) {
             item {
@@ -137,8 +137,11 @@ fun FanHome(player: FanPlayer = viewModel()) {
                     Text("Pick a feeling", fontSize = 20.sp, letterSpacing = (-0.7).sp,
                         color = White, fontWeight = FontWeight.ExtraBold)
                     Spacer(Modifier.weight(1f))
-                    Text("999", color = Lavender, fontSize = 15.sp,
-                        fontWeight = FontWeight.Black, letterSpacing = 2.sp)
+                    Text(
+                        when (mood) { Mood.ALL -> "EVERY SIDE"; Mood.FAVORITES -> "YOUR PICKS"; else -> mood.tagline.uppercase() },
+                        color = Lavender, fontSize = 10.sp,
+                        fontWeight = FontWeight.Black, letterSpacing = 1.sp
+                    )
                 }
             }
             item {
@@ -178,28 +181,32 @@ fun FanHome(player: FanPlayer = viewModel()) {
                         )
                         Text(songs.size.toString() + " songs", fontSize = 12.sp, color = Gray)
                     }
-                    Spacer(Modifier.height(11.dp))
-                    FanSearch(
-                        text = search,
-                        onTextChange = { search = it }
-                    )
                     Spacer(Modifier.height(10.dp))
-                    OutlinedButton(
-                        onClick = { folderPicker.launch(null) },
-                        enabled = !state.importing,
-                        modifier = Modifier.fillMaxWidth().height(46.dp),
-                        shape = RoundedCornerShape(13.dp),
-                        border = BorderStroke(1.dp, Hairline)
-                    ) {
-                        if (state.importing) {
-                            CircularProgressIndicator(modifier = Modifier.size(18.dp),
-                                strokeWidth = 2.dp, color = Lavender)
-                        } else {
-                            Icon(Icons.Filled.LibraryMusic, contentDescription = null,
-                                tint = Lavender, modifier = Modifier.size(17.dp))
-                            Spacer(Modifier.width(9.dp))
-                            Text("Find songs on my phone", color = White,
-                                fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        FanSearch(
+                            text = search,
+                            onTextChange = { search = it },
+                            modifier = Modifier.weight(1f)
+                        )
+                        Spacer(Modifier.width(9.dp))
+                        OutlinedButton(
+                            onClick = { folderPicker.launch(null) },
+                            enabled = !state.importing,
+                            modifier = Modifier.height(48.dp).widthIn(min = 102.dp),
+                            contentPadding = PaddingValues(horizontal = 10.dp),
+                            shape = RoundedCornerShape(14.dp),
+                            border = BorderStroke(1.dp, Hairline)
+                        ) {
+                            if (state.importing) {
+                                CircularProgressIndicator(modifier = Modifier.size(17.dp),
+                                    strokeWidth = 2.dp, color = Lavender)
+                            } else {
+                                Icon(Icons.Filled.LibraryMusic, contentDescription = null,
+                                    tint = Lavender, modifier = Modifier.size(17.dp))
+                                Spacer(Modifier.width(6.dp))
+                                Text("Import", color = White, fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold)
+                            }
                         }
                     }
                     if (state.importMessage != null) {
@@ -423,9 +430,9 @@ private fun FeelingCard(mood: Mood, selected: Boolean, count: Int, onClick: () -
 }
 
 @Composable
-private fun FanSearch(text: String, onTextChange: (String) -> Unit) {
+private fun FanSearch(text: String, onTextChange: (String) -> Unit, modifier: Modifier = Modifier) {
     Row(
-        Modifier.fillMaxWidth().height(53.dp).clip(RoundedCornerShape(16.dp))
+        modifier.height(48.dp).clip(RoundedCornerShape(14.dp))
             .background(Panel).padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
