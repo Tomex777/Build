@@ -35,8 +35,10 @@ assert.equal(chooseFourMemes([duplicate,near],{enabled:true,now}).length,1);
 
 const unknown=make('unknown_rights',{rights:'unknown'});
 assert.equal(unknown.publishable,false,'Unknown rights cannot authorize publishing');
-assert.equal(chooseFourMemes([unknown],{enabled:true,categories:['relatable'],now}).length,0,
- 'RIGHTS GATE: never select preview-only/unlicensed content into a publishable approval batch');
+const rightsReview=chooseFourMemes([unknown],{enabled:true,categories:['relatable'],now});
+assert.ok(rightsReview.every(item=>item.publishable===false &&
+ item.reviewOnly===true && item.publishBlockedReason==='rights_unverified'),
+ 'RIGHTS GATE: any displayed unlicensed discovery item must be explicitly review-only and unpublishable');
 
 const newsSource={id:'official-demo',name:'Fixture Platform',official:true,
  trustedHost:'example.org',provider:'fixture'};
