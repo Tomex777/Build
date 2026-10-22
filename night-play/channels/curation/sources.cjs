@@ -14,7 +14,9 @@ async function boundedGet(url,{fetchImpl=globalThis.fetch,headers={},allowedHost
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),Math.min(15000,Math.max(1000,timeoutMs)));
  try{
   const response=await fetchImpl(endpoint,{method:'GET',headers,redirect:'manual',signal:controller.signal});
-  const retryAfter=Math.min(3600,Math.max(0,Number(response.headers?.get('retry-after'))||0));
+  const header=response.headers?.get('retry-after')||'';
+  const numeric=Number(header),retryValue=header&&Number.isFinite(numeric)?numeric:Math.ceil((Date.parse(header)-Date.now())/1000);
+  const retryAfter=Math.min(3600,Math.max(0,Number.isFinite(retryValue)?retryValue:0));
   if(!response.ok)throw new SourceError(response.status===429?'Source rate-limited.':'Source request failed.',{status:response.status,retryAfterSeconds:retryAfter});
   if(Number(response.headers?.get('content-length')||0)>maxBytes)throw new SourceError('Source response exceeds size limit.');
   if(!response.body||typeof response.body.getReader!=='function'){
@@ -28,12 +30,13 @@ async function boundedGet(url,{fetchImpl=globalThis.fetch,headers={},allowedHost
  }catch(e){if(e instanceof SourceError)throw e;if(controller.signal.aborted)throw new SourceError('Source request timed out.');throw new SourceError('Source temporarily unavailable.');}
  finally{clearTimeout(timer)}
 }
-function redditAdapter({tokenProvider,fetchImpl,userAgent='NIGHTChannelsCuration/1.0 (authorized app; contact operator)',subreddits=[]}={}){
+function redditAdapter({tokenProvider,fetchImpl,claimQuota,userAgent='NIGHTChannelsCuration/1.0 (authorized app; contact operator)',subreddits=[]}={}){
  if(typeof tokenProvider!=='function')throw new TypeError('An approved Reddit OAuth token provider is required.');
  const approved=new Set(subreddits.filter(s=>/^[A-Za-z0-9_]{3,21}$/.test(s)).map(s=>s.toLowerCase()));let nextAllowedAt=0;
  return Object.freeze({async discover({subreddit,category='other',limit=25,after=null,now=Date.now()}={}){
   if(!approved.has(String(subreddit).toLowerCase()))throw new SourceError('Subreddit not authorized for discovery.');
   if(now<nextAllowedAt)throw new SourceError('Source polling too frequent.',{status:429,retryAfterSeconds:Math.ceil((nextAllowedAt-now)/1000)});
+  if(claimQuota&&await claimQuota({provider:'reddit',subreddit,now})!==true)throw new SourceError('Reddit API quota exhausted.',{status:429,retryAfterSeconds:60});
   const token=await tokenProvider();if(typeof token!=='string'||token.length<12)throw new SourceError('Missing authorized Reddit OAuth token.');
   const params=new URLSearchParams({t:'all',limit:String(Math.max(1,Math.min(50,Math.trunc(limit))))});
   if(after&&/^t3_[A-Za-z0-9]{3,20}$/.test(after))params.set('after',after);
@@ -46,11 +49,12 @@ function redditAdapter({tokenProvider,fetchImpl,userAgent='NIGHTChannelsCuration
   const source={id:'reddit:r/'+String(subreddit).toLowerCase(),provider:'reddit',rightsVerified:false};
   const items=children.map(({data:d})=>{
    if(!d||d.over_18||d.is_video||d.is_gallery||d.removed_by_category||d.spoiler)return null;
+   const created=Number(d.created_utc);if(!Number.isFinite(created)||created<=0||created>8.64e12)return null;
    const mediaUrl=typeof d.url_overridden_by_dest==='string'?d.url_overridden_by_dest.replace(/&amp;/g,'&'):'';
    const mime=/\.(?:jpe?g)(?:\?|$)/i.test(mediaUrl)?'image/jpeg':/\.png(?:\?|$)/i.test(mediaUrl)?'image/png':/\.webp(?:\?|$)/i.test(mediaUrl)?'image/webp':'';
    const picture=d.preview?.images?.[0]?.source||{};
    return normalizeMeme({externalId:d.name,url:'https://www.reddit.com'+d.permalink,sourceUrl:'https://www.reddit.com'+d.permalink,
-    mediaUrl,mime,width:picture.width,height:picture.height,category,createdAt:new Date((Number(d.created_utc)||0)*1000).toISOString(),
+    mediaUrl,mime,width:picture.width,height:picture.height,category,createdAt:new Date(created*1000).toISOString(),
     upvotes:d.ups,upvoteRatio:d.upvote_ratio,author:d.author,caption:d.title,rights:'unknown',over18:d.over_18},source);
   }).filter(Boolean);
   return {items,after:/^t3_[A-Za-z0-9]{3,20}$/.test(data?.data?.after||'')?data.data.after:null,
