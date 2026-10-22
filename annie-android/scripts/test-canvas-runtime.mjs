@@ -131,6 +131,9 @@ assert.equal(audio.state, 'suspended', 'Canvas JS must not bypass host pause via
 const nextSound = new a.window.HTMLMediaElement();
 nextSound.play();
 assert.equal(nextSound.paused, true, 'Sound created during pause may not play');
+const explicitlyStopped = new a.window.HTMLMediaElement();
+explicitlyStopped.play();
+explicitlyStopped.pause(); // Game canceled this sound; host Resume must not play it.
 const nextAudio = new a.window.AudioContext();
 assert.equal(nextAudio.state, 'suspended', 'WebAudio created during pause must suspend');
 await nextAudio.resume();
@@ -158,6 +161,8 @@ await Promise.resolve();
 await Promise.resolve();
 assert.equal(nextSound.paused, false);
 assert.equal(sound.paused, false, 'In-flight play requests should resume');
+assert.equal(explicitlyStopped.paused, true,
+  'A game-issued pause should cancel deferred playback');
 assert.ok(!a.css.has('annie-host-paused'));
 
 await audio.close();
