@@ -301,7 +301,15 @@ async function updateSelectedCaption(item,caption){
    const changed=next.items.find(i=>i.batchId===item.batchId&&i.candidateId===item.candidateId);
    if(next.id!==selection.id||!changed||changed.caption!==caption)throw Error('The new approved caption was not confirmed.');
    selection=next;
-   if(batch?.batchId===item.batchId){decisions.set(item.candidateId,{decision:'approved',caption});captionDirty.delete(item.candidateId);paintReview();}
+   if(batch?.batchId===item.batchId){
+     decisions.set(item.candidateId,{decision:'approved',caption});captionDirty.delete(item.candidateId);
+     const card=[...document.querySelectorAll('.review-card')].find(node=>node.dataset.candidate===item.candidateId);
+     if(card){
+       const input=card.querySelector('textarea'),status=card.querySelector('.decision');
+       if(input)input.value=caption;
+       if(status)status.textContent='Approved';
+     }
+   }
    note('Approved caption saved.');
  }catch(error){
    if(mayHaveCommitted(error))selectionUncertain=true;
