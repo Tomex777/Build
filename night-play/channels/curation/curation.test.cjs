@@ -503,3 +503,15 @@ test('unverified news cannot forge a canonical fingerprint shared with official 
  assert.equal(one.verification,'official');assert.equal(second.verification,'unverified');
  assert.deepEqual(chooseNews([one,second],{enabled:true,mode:'automatic',now:NOW}),[one]);
 });
+
+test('single-flight feed failure reopens the source for a later authorized retry',async()=>{
+ const xml='<rss><item><title>Aurora official renewal announced</title><link>https://studio.example/story</link>'+
+ '<pubDate>Wed, 21 Oct 2026 12:00:00 GMT</pubDate></item></rss>';
+ let calls=0;
+ const feed=rssNewsAdapter({id:'studio',url:'https://studio.example/feed',now:()=>NOW,
+  fetchImpl:async()=>{calls++;if(calls===1)throw Error('transient source outage');return new Response(xml)},
+  interpreter:()=>({show:'Aurora',event:'renewals',tags:['renewals'],confirmed:false})});
+ const failures=await Promise.allSettled([feed.discover(),feed.discover()]);
+ assert.equal(calls,1);assert(failures.every(r=>r.status==='rejected'));
+ assert.equal((await feed.discover()).items.length,1);assert.equal(calls,2);
+});
