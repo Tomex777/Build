@@ -6,7 +6,7 @@ const channelId=params.get('channel')||'';
 const MODULES=['memes','news','anonymous','ai'];
 const CATEGORIES=new Set(['relatable','wholesome','anime','nigerian','animals','relationships','dark']);
 const INTERESTS=new Set(['casting','releases','trailers','renewals','romance','platforms']);
-let channel=null,config=null,batch=null,reviewBusy=false,configBusy=false,loadEpoch=0;
+let channel=null,config=null,batch=null,selection=null,reviewBusy=false,configBusy=false,loadEpoch=0;
 const decisions=new Map(),captionDirty=new Set();
 const jid=/^\d{8,25}@newsletter$/;
 const make=(tag,cls,text)=>{const el=document.createElement(tag);if(cls)el.className=cls;if(text!==undefined)el.textContent=String(text);return el};
@@ -153,14 +153,66 @@ function validBatch(result){
 }
 const decisionValue=c=>decisions.get(c.id)?.decision||'pending';
 const licensable=c=>c?.publishable===true&&c?.rightsStatus==='verified'&&c?.reviewOnly!==true;
-const approved=()=>batch?.candidates?.filter(c=>licensable(c)&&decisionValue(c)==='approved'&&!captionDirty.has(c.id))||[];
+const validSelection=value=>{
+ if(!value||typeof value!=='object'||typeof value.id!=='string'
+    ||!/^[A-Za-z0-9_-]{8,96}$/.test(value.id)||!Number.isInteger(value.revision)||value.revision<0
+    ||!Array.isArray(value.items)||value.items.length>32)return false;
+ const seen=new Set();
+ return value.items.every(item=>{
+   if(!item||typeof item.batchId!=='string'||!/^[A-Za-z0-9_-]{8,96}$/.test(item.batchId)
+      ||typeof item.candidateId!=='string'||!/^[A-Za-z0-9_-]{5,100}$/.test(item.candidateId)
+      ||typeof item.caption!=='string'||item.caption.length>1800
+      ||typeof item.title!=='string'||item.title.length>200
+      ||!licensable(item)||!imageFromSource(item))return false;
+   const id=item.batchId+':'+item.candidateId;
+   if(seen.has(id))return false;
+   seen.add(id);return true;
+ });
+};
+const readSelection=result=>{
+ if(!validSelection(result?.selection))throw Error('NIGHT has not confirmed the saved selections. Publishing is unavailable until the bot supports a persistent approved tray.');
+ return result.selection;
+};
+const approved=()=>selection?.items||[];
 function updateReview(){
  const count=approved().length;
- $('reviewSummary').hidden=!batch;
+ $('reviewSummary').hidden=!batch&&!count;
  $('approvedCount').textContent=count+' approved';
  $('publishApproved').disabled=!count||reviewBusy||captionDirty.size>0||config?.modules?.memes!==true;
  $('scheduleButton').disabled=!count||reviewBusy||captionDirty.size>0||config?.modules?.memes!==true;
- $('nextBatch').disabled=reviewBusy;
+ $('nextBatch').disabled=reviewBusy||captionDirty.size>0;
+ $('findMemes').disabled=reviewBusy||captionDirty.size>0;
+}
+function paintSelection(){
+ const list=$('selectedPosts');
+ list.replaceChildren();
+ $('selectionTray').hidden=!approved().length;
+ for(const item of approved()){
+   const row=make('div','selected-item');
+   const img=make('img');img.src=imageFromSource(item);img.alt=item.title;img.loading='lazy';
+   const info=make('div','selected-copy');
+   info.append(make('strong',null,item.title),make('small',null,item.caption||'No caption'));
+   const remove=make('button','btn','Remove');
+   remove.type='button';remove.disabled=reviewBusy;
+   remove.setAttribute('aria-label','Remove '+item.title+' from approved selection');
+   remove.addEventListener('click',()=>removeSelected(item,remove));
+   row.append(img,info,remove);list.append(row);
+ }
+}
+async function removeSelected(item,button){
+ if(reviewBusy||!selection)return;
+ reviewBusy=true;setBusy(button,true);updateReview();
+ try{
+   const result=await api('channel:memes:review',{batchId:item.batchId,candidateId:item.candidateId,decision:'skipped',caption:item.caption,expectedSelectionRevision:selection.revision});
+   if(result?.decision!=='skipped'||result?.candidateId!==item.candidateId)throw Error('NIGHT did not confirm removal.');
+   const next=readSelection(result);
+   if(next.id!==selection.id||next.items.some(i=>i.batchId===item.batchId&&i.candidateId===item.candidateId))throw Error('The saved selection was not updated.');
+   selection=next;decisions.set(item.candidateId,{decision:'skipped',caption:item.caption});
+   if(batch?.batchId===item.batchId)paintReview();
+   else paintSelection();
+   note('Removed from approved selection.');
+ }catch(error){note(errorMessage(error)+' Reload before retrying.',true);}
+ finally{reviewBusy=false;paintSelection();updateReview();}
 }
 function reviewCard(c){
  const card=make('article','review-card');
@@ -186,16 +238,17 @@ function reviewCard(c){
  const status=make('p','decision',state==='approved'?'Approved':state==='declined'?'Declined':state==='skipped'?'Skipped':'');
  status.setAttribute('aria-live','polite');
  const actions=make('div','action-row');
- const approve=make('button','btn primary','Approve'),decline=make('button','btn','Decline'),preview=make('button','btn','Preview post');
+ const approve=make('button','btn primary','Approve'),decline=make('button','btn','Decline'),skip=make('button','btn','Skip'),preview=make('button','btn','Preview post');
  if(!licensable(c)){approve.disabled=true;status.textContent='Review only · Media reuse rights not verified';}
- approve.type=decline.type=preview.type='button';
+ approve.type=decline.type=skip.type=preview.type='button';
  caption.addEventListener('input',()=>{
    captionDirty.add(c.id);status.textContent='Caption edited — approve again to save';updateReview();
  });
  approve.addEventListener('click',()=>decide(c,'approved',caption.value,card,status,actions));
  decline.addEventListener('click',()=>decide(c,'declined',caption.value,card,status,actions));
+ skip.addEventListener('click',()=>decide(c,'skipped',caption.value,card,status,actions));
  preview.addEventListener('click',()=>previewPost(c,caption.value));
- actions.append(approve,decline,preview);
+ actions.append(approve,decline,skip,preview);
  body.append(actions,status);card.append(art,body);
  return card;
 }
@@ -205,16 +258,19 @@ function paintReview(){
    for(const c of batch.candidates)$('candidates').append(reviewCard(c));
    $('batchLabel').textContent='Four candidates';
  }else $('batchLabel').textContent='';
- updateReview();
+ paintSelection();updateReview();
 }
 async function findMemes(next){
  if(reviewBusy||!channel)return;
+ if(captionDirty.size){note('Approve, decline, or skip edited captions before finding another batch.',true,'reviewNotice');return;}
  reviewBusy=true;setBusy($('findMemes'),true);updateReview();
  note('Searching permitted sources…',false,'reviewNotice');
  try{
    const result=await api('channel:memes:find',{categories:selected('memeCategories',CATEGORIES),next:next===true});
    if(!validBatch(result))throw Error('NIGHT did not return four complete sourced meme images.');
-   batch=result;decisions.clear();captionDirty.clear();
+   const saved=readSelection(result);
+   if(selection&&saved.id!==selection.id)throw Error('The saved selection changed. Reload before continuing.');
+   batch=result;selection=saved;decisions.clear();captionDirty.clear();
    for(const d of result.decisions||[])if(d&&typeof d.candidateId==='string'&&['approved','declined','skipped'].includes(d.decision))decisions.set(d.candidateId,{decision:d.decision,caption:typeof d.caption==='string'?d.caption:''});
    paintReview();note('',false,'reviewNotice');
  }catch(error){note(errorMessage(error)+' No content was approved or published.',true,'reviewNotice');}
@@ -241,18 +297,24 @@ async function previewPost(candidate,caption){
  }
 }
 async function decide(candidate,decision,caption,card,status,actions){
- if(reviewBusy||!batch||(decision==='approved'&&!licensable(candidate)))return;
+ if(reviewBusy||!batch||!selection||(decision==='approved'&&!licensable(candidate)))return;
  reviewBusy=true;
  for(const btn of actions.querySelectorAll('button'))setBusy(btn,true);
  updateReview();
  try{
-   const result=await api('channel:memes:review',{batchId:batch.batchId,candidateId:candidate.id,decision,caption});
+   const result=await api('channel:memes:review',{batchId:batch.batchId,candidateId:candidate.id,decision,caption,expectedSelectionRevision:selection.revision});
    if(result?.decision!==decision||result?.candidateId!==candidate.id)throw Error('NIGHT did not confirm that decision.');
+   const saved=readSelection(result);
+   if(saved.id!==selection.id)throw Error('The approved selection changed. Refresh before continuing.');
+   const inTray=saved.items.some(i=>i.batchId===batch.batchId&&i.candidateId===candidate.id);
+   if(inTray!==(decision==='approved'))throw Error('The bot did not persist the selection correctly.');
+   selection=saved;
    decisions.set(candidate.id,{decision,caption:typeof result.caption==='string'?result.caption:caption});
    captionDirty.delete(candidate.id);
    card.classList.toggle('approved',decision==='approved');
    card.classList.toggle('declined',decision==='declined');
-   status.textContent=decision==='approved'?'Approved':'Declined';
+   status.textContent=decision==='approved'?'Approved':decision==='declined'?'Declined':'Skipped';
+   paintSelection();
    note('',false,'reviewNotice');
  }catch(error){note(errorMessage(error)+' Decision not saved.',true,'reviewNotice');}
  finally{reviewBusy=false;for(const btn of actions.querySelectorAll('button'))setBusy(btn,false);updateReview();}
@@ -266,18 +328,22 @@ function localToUTC(input){
  return d.toISOString();
 }
 async function publish(mode){
- if(reviewBusy||!batch||!approved().length||captionDirty.size>0||config?.modules?.memes!==true)return;
+ if(reviewBusy||!selection||!approved().length||captionDirty.size>0||config?.modules?.memes!==true)return;
  let schedule={};
  if(mode==='schedule'){
    try{schedule={scheduledAt:localToUTC($('scheduleAt').value),timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC',spacingMinutes:Number($('spacingMinutes').value)}}catch(error){note(errorMessage(error),true,'reviewNotice');return;}
  }
+ const approvedCount=approved().length;
  reviewBusy=true;updateReview();
  const btn=mode==='schedule'?$('confirmSchedule'):$('publishApproved');
  setBusy(btn,true);
  try{
-   const result=await api('channel:memes:publish',{batchId:batch.batchId,mode,...schedule});
-   if(!Array.isArray(result?.jobs)||result.jobs.length!==approved().length)throw Error('NIGHT did not confirm the selected publishing jobs. Check publishing status before retrying.');
-   note(result.jobs.length+(mode==='schedule'?' posts scheduled.':' approved posts queued.'));batch=null;decisions.clear();captionDirty.clear();paintReview();$('schedulePanel').hidden=true;
+   const result=await api('channel:memes:publish',{selectionId:selection.id,expectedSelectionRevision:selection.revision,mode,...schedule});
+   if(!Array.isArray(result?.jobs)||result.jobs.length!==approvedCount)throw Error('NIGHT did not confirm the selected publishing jobs. Check publishing status before retrying.');
+   const cleared=readSelection(result);
+   if(cleared.id!==selection.id||cleared.items.length)throw Error('NIGHT did not confirm the approved selection was consumed. Check status before retrying.');
+   selection=cleared;batch=null;decisions.clear();captionDirty.clear();paintReview();$('schedulePanel').hidden=true;
+   note(result.jobs.length+(mode==='schedule'?' posts scheduled.':' approved posts queued.'));
    await loadJobs();
  }catch(error){note(errorMessage(error)+' Check publishing status before trying again.',true,'reviewNotice');}
  finally{reviewBusy=false;setBusy(btn,false);updateReview();}
@@ -310,7 +376,7 @@ async function loadJobs(){
  }catch(error){$('jobs').replaceChildren(make('p','config-note',errorMessage(error)));}
 }
 async function load(){
- const epoch=++loadEpoch;channel=null;config=null;batch=null;decisions.clear();captionDirty.clear();
+ const epoch=++loadEpoch;channel=null;config=null;batch=null;selection=null;decisions.clear();captionDirty.clear();
  $('configUI').hidden=true;note('');
  if(!jid.test(channelId)){showState('Invalid channel','Choose a verified channel from Your channels.');return;}
  showState('Checking permissions…','Verifying your WhatsApp identity and channel ownership.');
@@ -327,11 +393,13 @@ async function load(){
    // A browser's local storage never authorizes publication or grants ownership.
    try{
      const saved=await api('channel:memes:current');
-     if(epoch===loadEpoch&&validBatch(saved)){
-       batch=saved;for(const d of saved.decisions||[])if(d&&typeof d.candidateId==='string'&&['approved','declined','skipped'].includes(d.decision))decisions.set(d.candidateId,{decision:d.decision,caption:typeof d.caption==='string'?d.caption:''});
+     if(epoch===loadEpoch){
+       selection=readSelection(saved);
+       if(validBatch(saved))batch=saved;
+       for(const d of saved.decisions||[])if(d&&typeof d.candidateId==='string'&&['approved','declined','skipped'].includes(d.decision))decisions.set(d.candidateId,{decision:d.decision,caption:typeof d.caption==='string'?d.caption:''});
        paintReview();
      }
-   }catch{/* No saved review, or this capability is not yet deployed. */}
+   }catch(error){if(epoch===loadEpoch)note(errorMessage(error)+' Saved selections are unavailable until backend storage is ready.',true,'reviewNotice');}
    if(epoch===loadEpoch)await loadJobs();
  }catch(error){if(epoch!==loadEpoch)return;showState('Configuration unavailable',errorMessage(error)+' Channel settings remain unchanged.',true);}
 }
