@@ -587,10 +587,12 @@ private fun CoverPlaceholder(album: String, modifier: Modifier) {
         listOf(Color(0xFF89566B), Color(0xFF322039)),
         listOf(Color(0xFF486F77), Color(0xFF202B37))
     )[seed]
-    Box(
+    BoxWithConstraints(
         modifier.background(Brush.linearGradient(tone)),
         contentAlignment = Alignment.Center
     ) {
+        // Small row covers must not wrap "GBGR" into the second line.
+        val compact = maxWidth < 82.dp
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
                 when (album) {
@@ -603,13 +605,18 @@ private fun CoverPlaceholder(album: String, modifier: Modifier) {
                     "Juice WRLD" -> "JW"
                     else -> "999"
                 },
-                fontSize = 26.sp, fontWeight = FontWeight.Black,
-                color = White.copy(alpha = 0.68f), letterSpacing = (-1.3).sp
+                fontSize = if (compact) 14.sp else 26.sp,
+                fontWeight = FontWeight.Black,
+                color = White.copy(alpha = 0.68f),
+                letterSpacing = if (compact) (-0.7).sp else (-1.3).sp,
+                maxLines = 1, softWrap = false,
             )
             Spacer(Modifier.height(2.dp))
             Text(if (album == "Juice WRLD") "999 FOREVER" else "999",
-                fontSize = 9.sp, color = White.copy(alpha = 0.63f),
-                fontWeight = FontWeight.ExtraBold, letterSpacing = 1.8.sp)
+                fontSize = if (compact) 7.sp else 9.sp,
+                color = White.copy(alpha = 0.63f), maxLines = 1, softWrap = false,
+                fontWeight = FontWeight.ExtraBold,
+                letterSpacing = if (compact) 0.4.sp else 1.8.sp)
         }
     }
 }
