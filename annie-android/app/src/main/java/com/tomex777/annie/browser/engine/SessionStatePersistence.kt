@@ -10,7 +10,6 @@ import android.util.Log
 import android.util.AtomicFile
 import kotlinx.coroutines.*
 import org.mozilla.geckoview.GeckoSession
-import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
@@ -166,7 +165,7 @@ class SessionStatePersistence(private val baseDir: File) {
         if (!file.exists()) return emptyMap()
 
         return try {
-            val json = JSONObject(file.readText())
+            val json = synchronized(diskLock) { readStateDocument() }
             val statesObj = json.optJSONObject("states") ?: return emptyMap()
             val result = mutableMapOf<String, GeckoSession.SessionState>()
             statesObj.keys().forEach { tabId ->
@@ -200,8 +199,8 @@ class SessionStatePersistence(private val baseDir: File) {
             synchronized(diskLock) {
             try {
                 val file = File(baseDir, SESSION_STATE_FILE)
-                if (!file.exists()) return@launch
-                val json = JSONObject(file.readText())
+                if (!file.exists() && !File(file.path + ".bak").exists()) return@launch
+                val json = readStateDocument()
                 val statesObj = json.optJSONObject("states") ?: return@launch
                 if (statesObj.has(tabId)) {
                     statesObj.remove(tabId)
@@ -246,16 +245,7 @@ class SessionStatePersistence(private val baseDir: File) {
         synchronized(diskLock) {
         if (forgottenTabs.contains(state.tabId) || state.metadata.isIncognito) return
         try {
-            val file = File(baseDir, SESSION_STATE_FILE)
-            val existingJson = if (file.exists()) {
-                try {
-                    JSONObject(file.readText())
-                } catch (e: Exception) {
-                    JSONObject()
-                }
-            } else {
-                JSONObject()
-            }
+            val existingJson = readStateDocument()
             val statesObj = existingJson.optJSONObject("states") ?: JSONObject()
             statesObj.put(state.tabId, state.toJson())
             existingJson.put("states", statesObj)
@@ -276,16 +266,7 @@ class SessionStatePersistence(private val baseDir: File) {
         val validStates = states.filterNot { forgottenTabs.contains(it.tabId) || it.metadata.isIncognito }
         if (validStates.isEmpty()) return
         try {
-            val file = File(baseDir, SESSION_STATE_FILE)
-            val existingJson = if (file.exists()) {
-                try {
-                    JSONObject(file.readText())
-                } catch (e: Exception) {
-                    JSONObject()
-                }
-            } else {
-                JSONObject()
-            }
+            val existingJson = readStateDocument()
             val statesObj = existingJson.optJSONObject("states") ?: JSONObject()
             validStates.forEach { state ->
                 statesObj.put(state.tabId, state.toJson())
@@ -300,6 +281,15 @@ class SessionStatePersistence(private val baseDir: File) {
         } catch (e: Exception) {
             Log.e(TAG, "Failed to batch-persist SessionStates", e)
         }
+        }
+    }
+
+    /** A corrupt checkpoint must not wipe unrelated tabs on the next write. */
+    private fun readStateDocument(): JSONObject {
+        val path = File(baseDir, SESSION_STATE_FILE)
+        if (!path.exists() && !File(path.path + ".bak").exists()) return JSONObject()
+        return AtomicFile(path).openRead().bufferedReader(Charsets.UTF_8).use {
+            JSONObject(it.readText())
         }
     }
 
@@ -323,7 +313,7 @@ class SessionStatePersistence(private val baseDir: File) {
         if (!file.exists()) return null
 
         return try {
-            val json = JSONObject(file.readText())
+            val json = synchronized(diskLock) { readStateDocument() }
             val statesObj = json.optJSONObject("states") ?: return null
             if (!statesObj.has(tabId)) return null
             val stateJson = statesObj.getJSONObject(tabId)
