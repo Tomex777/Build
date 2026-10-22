@@ -52,7 +52,7 @@ internal val CANVAS_LIFECYCLE_BOOTSTRAP = """
         result.then(function () {
           if (paused && !media.paused) {
             deferredMedia.add(media);
-            media.pause();
+            nativePause.call(media);
           }
         }, function () {
           // Rejected autoplay attempts must not retain unused media forever.
@@ -62,7 +62,10 @@ internal val CANVAS_LIFECYCLE_BOOTSTRAP = """
       return result;
     };
     window.HTMLMediaElement.prototype.pause = function () {
+      // User-initiated pause/cancel should not be undone by host Resume.
       trackedMedia.delete(this);
+      deferredMedia.delete(this);
+      suspendedMedia = suspendedMedia.filter(function (media) { return media !== this; }, this);
       return nativePause.apply(this, arguments);
     };
   }
@@ -203,7 +206,11 @@ internal val CANVAS_LIFECYCLE_BOOTSTRAP = """
     var allMedia = new Set(trackedMedia);
     document.querySelectorAll('audio,video').forEach(function (media) { allMedia.add(media); });
     allMedia.forEach(function (media) {
-      if (!media.paused) { suspendedMedia.push(media); media.pause(); }
+      if (!media.paused) {
+        suspendedMedia.push(media);
+        if (nativePause) nativePause.call(media);
+        else media.pause();
+      }
     });
     suspendedAudioContexts = [];
     audioContexts.forEach(function (context) {
