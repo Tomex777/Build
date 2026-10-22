@@ -279,7 +279,7 @@ async function updateSelectedCaption(item,caption){
    const changed=next.items.find(i=>i.batchId===item.batchId&&i.candidateId===item.candidateId);
    if(next.id!==selection.id||!changed||changed.caption!==caption)throw Error('The new approved caption was not confirmed.');
    selection=next;
-   if(batch?.batchId===item.batchId)decisions.set(item.candidateId,{decision:'approved',caption});
+   if(batch?.batchId===item.batchId){decisions.set(item.candidateId,{decision:'approved',caption});captionDirty.delete(item.candidateId);paintReview();}
    note('Approved caption saved.');
  }catch(error){
    if(mayHaveCommitted(error))selectionUncertain=true;
