@@ -946,7 +946,7 @@ private fun ScriptStudioContent(
                         Column(Modifier.weight(1f)) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                                 Text(path, color = StudioText, fontWeight = FontWeight.SemiBold, fontFamily = FontFamily.Monospace, fontSize = 14.sp, maxLines = 1)
-                                if (path == project.entryPath) EntryBadge()
+                                if (path == project.entryPath && isExecutableScript(path)) EntryBadge()
                             }
                         }
                         StudioAction("AI spec", icon = StudioGlyph.ASSIST, onClick = { exportAiSpec() }, enabled = !saving)
