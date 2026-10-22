@@ -766,7 +766,15 @@ private fun ScriptStudioContent(
                                             when (action) {
                                                 FileAction.RENAME -> askForText("Rename ${if (isFolder) "project" else "script"}", project.name) { next ->
                                                     runCatching { workspace.files.renameProject(project.id, next) }
-                                                        .onSuccess { id -> refreshProjects(id, if (isFolder) null else "$id.js"); status = "Renamed to $id" }
+                                                        .onSuccess { id ->
+                                                            if (selectedProjectId == project.id) {
+                                                                val preservedPath = if (!isFolder && selectedPath == project.entryPath) {
+                                                                    "$id.${project.entryPath.substringAfterLast('.')}"
+                                                                } else selectedPath
+                                                                refreshProjects(id, preservedPath)
+                                                            } else refreshProjects()
+                                                            status = "Renamed to $id"
+                                                        }
                                                         .onFailure { status = it.message ?: "Rename failed" }
                                                 }
                                                 FileAction.SHARE -> shareProjectFile(project, project.entryPath)
@@ -776,8 +784,10 @@ private fun ScriptStudioContent(
                                                     if (confirm == project.name) {
                                                         runCatching { workspace.files.deleteProject(project.id) }
                                                             .onSuccess {
-                                                                refreshProjects(null, null)
-                                                                currentDirectory = ""
+                                                                if (selectedProjectId == project.id) {
+                                                                    refreshProjects(null, null)
+                                                                    currentDirectory = ""
+                                                                } else refreshProjects()
                                                                 page = StudioPage.FILES
                                                                 scope.launch { onCommandsReloaded(workspace.reload()) }
                                                                 status = "Project deleted"
@@ -789,7 +799,9 @@ private fun ScriptStudioContent(
                                                     val enabled = action == FileAction.ENABLE
                                                     runCatching { workspace.files.setEnabled(project.id, enabled) }
                                                         .onSuccess {
-                                                            refreshProjects(project.id, selectedPath.takeIf { selectedProjectId == project.id })
+                                                            // Permission/enable actions do not imply opening this
+                                                            // project's entry file or changing the active project.
+                                                            refreshProjects()
                                                             scope.launch { onCommandsReloaded(workspace.reload()) }
                                                             status = if (enabled) "Script enabled" else "Script disabled"
                                                         }
@@ -882,8 +894,10 @@ private fun ScriptStudioContent(
                                                     FileAction.RENAME -> askForText("Rename or move file", path) { next ->
                                                         runCatching { workspace.files.renameFile(project.id, path, next) }
                                                             .onSuccess { moved ->
-                                                                refreshProjects(project.id, moved)
-                                                                currentDirectory = moved.substringBeforeLast('/', "")
+                                                                if (selectedProjectId == project.id && selectedPath == path) {
+                                                                    refreshProjects(project.id, moved)
+                                                                    currentDirectory = moved.substringBeforeLast('/', "")
+                                                                } else refreshProjects()
                                                                 status = "Moved to $moved"
                                                             }
                                                             .onFailure { status = it.message ?: "Rename failed" }
@@ -896,8 +910,12 @@ private fun ScriptStudioContent(
                                                         if (confirmation == path.substringAfterLast('/')) {
                                                             runCatching { workspace.files.deleteFile(project.id, path) }
                                                                 .onSuccess {
-                                                                    refreshProjects(project.id, selectedPath.takeUnless { it == path })
-                                                                    currentDirectory = normalizedDirectory
+                                                                    val deletedOpenedFile = selectedProjectId == project.id && selectedPath == path
+                                                                    refreshProjects(
+                                                                        preferredProject = selectedProjectId,
+                                                                        preferredPath = if (deletedOpenedFile) null else selectedPath,
+                                                                    )
+                                                                    if (deletedOpenedFile) currentDirectory = normalizedDirectory
                                                                     status = "Deleted $path"
                                                                 }.onFailure { status = it.message ?: "Delete failed" }
                                                         } else status = "Delete cancelled"
