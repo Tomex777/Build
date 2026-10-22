@@ -37,6 +37,24 @@ internal object DownloadDuplicatePolicy {
             isPresent(it)
     }
 
+    /**
+     * Chromium-style second-transfer warning: the user may already be downloading
+     * the same named resource. Do not silently start another potentially huge
+     * request. The user can still deliberately confirm a second copy.
+     * Failed/cancelled rows are not active, and private browsing never calls this.
+     */
+    fun findInProgress(
+        sourceUrl: String,
+        proposedName: String,
+        items: List<LibraryDownload>
+    ): LibraryDownload? = items.firstOrNull {
+        it.status in setOf(
+            android.app.DownloadManager.STATUS_PENDING,
+            android.app.DownloadManager.STATUS_RUNNING,
+            android.app.DownloadManager.STATUS_PAUSED
+        ) && matches(sourceUrl, proposedName, it.url, it.fileName)
+    }
+
     /** Origin without query, fragment or embedded URL credentials. */
     private fun origin(raw: String): String? = runCatching {
         val safe = URI(GeckoDownloadNames.redactUrl(raw))
