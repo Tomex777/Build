@@ -12,7 +12,7 @@ Without a local file, the song sheet opens an **official YouTube Music search** 
 
 ## Data
 
-- 58+ known released songs, from Goodbye & Good Riddance, Death Race for Love, Legends Never Die, Fighting Demons, and other official releases. A subjective fan-curated list: moods overlap and are not official artist genres.
+- 110 known released songs, from Goodbye & Good Riddance, Death Race for Love, Legends Never Die, Fighting Demons, and other official releases. A subjective fan-curated list: moods overlap and are not official artist genres.
 - Album art fetched at runtime from Cover Art Archive for known documented release IDs, with original gradient 999 fallback. Art is not redistributed in the APK.
 - Fast offline browsing/filtering even without permission or a connection.
 - No risky scraping or heavy backend dependency.
