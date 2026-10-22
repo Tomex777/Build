@@ -248,7 +248,10 @@ class FanPlayer(app: Application) : AndroidViewModel(app) {
         val enabled = !now.shuffle
         val current = now.activeSongId
         val queue = if (current != null && current in now.queueIds) {
-            MusicQueue.build(now.queueIds, current, enabled)
+            if (enabled) MusicQueue.build(now.queueIds, current, true)
+            else MusicQueue.build(
+                FanSongs.all.map { it.id }.filter { it in now.queueIds }, current, false
+            )
         } else now.queueIds
         _state.update { it.copy(shuffle = enabled, queueIds = queue) }
     }
