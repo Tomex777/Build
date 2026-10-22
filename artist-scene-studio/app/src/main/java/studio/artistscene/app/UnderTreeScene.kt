@@ -170,6 +170,89 @@ object UnderTreeScene {
     }
 
     /**
+     * Older installs have this scene already saved; changing [create] alone
+     * cannot update it. Migrate ONLY the exact untouched sample composition,
+     * including its stock camera and original two stock skinned poses.
+     *
+     * Runtime glTF binding replaces semantic joint IDs with the real model's
+     * rig IDs. Compare the *original authored rotations*, not the IDs, to
+     * avoid silently replacing a user's saved pose after the first render.
+     * This method is deliberately separate so startup can gate it once with
+     * a new migration preference after Agent 1 owns MainActivity wiring.
+     */
+    fun upgradeUntouchedDemoComposition(scene: SceneProject): SceneProject {
+        if (scene.id != PROJECT_ID || scene.tracks.isNotEmpty() ||
+            scene.savedPoses.isNotEmpty() || scene.referenceImages.isNotEmpty()
+        ) return scene
+
+        val expectedIds = setOf(TREE_ID, FIRST_STUDENT_ID, SECOND_STUDENT_ID,
+            "schoolyard-sun", "schoolyard-sky-fill")
+        if (scene.actors.size != expectedIds.size ||
+            scene.actors.map { it.id }.toSet() != expectedIds
+        ) return scene
+        val legacyCamera = SceneCamera(
+            id = "camera-main", name = "Under the tree",
+            position = Vec3(0.14f, 1.82f, 6.0f),
+            target = Vec3(0f, 1.60f, -0.35f),
+            verticalFovDegrees = 55f,
+        )
+        if (scene.cameras != listOf(legacyCamera) ||
+            scene.activeCameraId != legacyCamera.id
+        ) return scene
+
+        val fresh = create()
+        val replacement = mutableMapOf<String, Actor>()
+        data class LegacyHead(val yaw: Float, val z: Float)
+        val originals = mapOf(
+            FIRST_STUDENT_ID to LegacyHead(-18f, 4f),
+            SECOND_STUDENT_ID to LegacyHead(18f, -3f),
+        )
+        for ((actorId, originalHead) in originals) {
+            val actor = scene.actors.firstOrNull { it.id == actorId } ?: return scene
+            val target = fresh.actors.first { it.id == actorId }
+            val oldBodyYaw = if (actorId == FIRST_STUDENT_ID) 164f else 198f
+            val oldTransform = target.transform.copy(
+                rotationEulerDegrees = Vec3(y = oldBodyYaw),
+            )
+            // A source-backed model name is required. Imported models and
+            // renamed, hidden, locked, attached or adjusted student actors
+            // must remain exactly as the artist left them.
+            if (actor.asset?.assetId != target.asset?.assetId ||
+                actor.name != target.name || !actor.visible || actor.locked ||
+                actor.parentId != null || actor.parentBoneId != null ||
+                actor.transform != oldTransform ||
+                actor.appearance != target.appearance ||
+                actor.animation != target.animation
+            ) return scene
+
+            val pose = actor.rig ?: return scene
+            val baseline = target.rig!!.joints.mapValues { (id, rotation) ->
+                if (id == "figure/head") Vec3(y = originalHead.yaw, z = originalHead.z)
+                else rotation
+            }
+            if (pose.joints.size != baseline.size ||
+                pose.joints.values.toSet() != baseline.values.toSet()
+            ) return scene
+            val headId = when {
+                "figure/head" in pose.joints -> "figure/head"
+                else -> actor.rigDefinition?.bones?.firstOrNull {
+                    it.name == "J_Bip_C_Head"
+                }?.id ?: return scene
+            }
+            if (headId !in pose.joints) return scene
+            replacement[actorId] = actor.copy(
+                transform = target.transform,
+                rig = pose.copy(joints = pose.joints +
+                    (headId to target.rig.joints.getValue("figure/head"))),
+            )
+        }
+        return scene.copy(
+            actors = scene.actors.map { replacement[it.id] ?: it },
+            cameras = fresh.cameras,
+        )
+    }
+
+    /**
      * Upgrade only the unmodified old daylight preset in already-saved sample
      * projects. Runtime rig discovery may have changed student metadata/poses;
      * those edits must never be replaced. Artist-customized world settings
