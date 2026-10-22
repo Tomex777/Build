@@ -4,6 +4,7 @@ import androidx.activity.ComponentActivity
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.hasText
@@ -217,7 +218,7 @@ class ScriptStudioFileCreationTest {
             closeSoftKeyboard()
             compose.onNodeWithText(removed.name, substring = false).performClick()
             compose.onNodeWithTag("script_selected_file").assertDoesNotExist()
-            compose.onNodeWithTag("File actions").performClick()
+            compose.onNodeWithContentDescription("File actions").performClick()
             compose.onNodeWithText("Delete", substring = false).performClick()
             compose.onNodeWithTag("script_file_name").performTextInput(removed.name)
             compose.onNodeWithText("Continue", substring = false).performClick()
