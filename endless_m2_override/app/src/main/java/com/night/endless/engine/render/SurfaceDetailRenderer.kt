@@ -94,6 +94,10 @@ internal class SurfaceDetailRenderer(
                 coarseNormalHeight = coarseNormalHeight,
                 refinedHeight = if (coarseElevation != null) elevation else null
             )
+            TerrainCastShadows.bake(
+                mid.vertices, SurfaceMidfieldMesh.SIDE, SurfaceMidfieldMesh.STEP,
+                lightX, lightY, lightZ, edgeFadeCells = 10
+            )
             midVertices = floats(mid.vertices, midVertices)
             midIndices = shorts(mid.indices, midIndices)
             midCount = mid.indices.size
@@ -124,6 +128,10 @@ internal class SurfaceDetailRenderer(
         // height field as the displayed mesh, not the unrefined DEM.
         val rocks = if (drawStones) SurfaceDetailMesh.buildRocks(centerX, centerZ, actualSurface)
                     else SurfaceDetailMesh.Rocks(FloatArray(0), 0)
+        TerrainCastShadows.bake(
+            patch.vertices, SurfaceDetailMesh.SIDE, SurfaceDetailMesh.STEP,
+            lightX, lightY, lightZ, edgeFadeCells = 9
+        )
         patchVertices = floats(patch.vertices, patchVertices)
         patchIndices = shorts(patch.indices, patchIndices)
         patchCount = patch.indices.size

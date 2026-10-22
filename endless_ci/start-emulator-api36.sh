@@ -56,8 +56,19 @@ cleanup() {
 
     timeout 10 adb -s emulator-5554 emu kill >/dev/null 2>&1 || true
     if [[ -n "$EMULATOR_PID" ]]; then
+        # A successful Android instrumentation run once spent 46 minutes
+        # in this cleanup trap. QEMU can ignore graceful shutdown after adb
+        # has finished, and unbounded wait then holds the entire CI runner.
+        # Give the emulator a short grace period and SIGKILL if still alive.
+        # Never wait indefinitely for an uninterruptible emulator process.
         kill "$EMULATOR_PID" >/dev/null 2>&1 || true
-        wait "$EMULATOR_PID" >/dev/null 2>&1 || true
+        for _grace in {1..12}; do
+            if ! kill -0 "$EMULATOR_PID" >/dev/null 2>&1; then break; fi
+            sleep 0.25
+        done
+        if kill -0 "$EMULATOR_PID" >/dev/null 2>&1; then
+            kill -KILL "$EMULATOR_PID" >/dev/null 2>&1 || true
+        fi
     fi
     exit "$result"
 }

@@ -35,9 +35,12 @@ internal class ExtendedSurfaceTerrain(private val context: Context, private val 
         program = createProgram(SurfaceMaterialShaders.VERTEX, SurfaceMaterialShaders.FRAGMENT)
         landingPhotoTexture = LandingPhotoTexture.load(context, bodyId)
         microMaterialTexture = SurfaceMicroTexture.create(context, bodyId)
-        // Prepare the measured coarse-to-mid-to-near geometry while the GL
-        // engine initializes, not on the user's first landing frame.
-        detail.prepare(0.0, 0.0)
+        // Prewarm geometry at the actual user landing site. The earlier
+        // origin-only cache made the first Mercury/Ceres crater view rebuild
+        // 1m/21m meshes on the landing frame and briefly sample the wrong
+        // foreground footprint before the first displayed GL image.
+        val firstLanding = ExtendedLandingSites.forBody(bodyId)
+        detail.prepare(firstLanding.x, firstLanding.z)
     }
 
     /** Eye clearance tracks the actual triangulated terrain, not an idealized

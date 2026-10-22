@@ -6,6 +6,7 @@ on:
       - endless-android-ci
       - endless-realism-20261013
       - feature/endless-grounded-walking-20261020
+      - feature/endless-terrain-lighting-20261022
   workflow_dispatch:
 
 concurrency:
@@ -189,6 +190,10 @@ jobs:
         shell: bash
         run: python3 -m unittest discover -s endless_ci -p 'test_prepare_nasa_trek_imagery.py' -v
 
+      - name: Test authenticated Android screenshot contact-sheet generation
+        shell: bash
+        run: python3 -m unittest discover -s endless_ci -p 'test_visual_contact_sheet.py' -v
+
       - name: Fetch NASA Trek photographic landing mosaics
         shell: bash
         run: |
@@ -345,6 +350,12 @@ jobs:
       - name: Validate real Jupiter and Saturn orbital renders
         shell: bash
         run: python3 endless_ci/check_gas_giant_visuals.py artifacts/endless-m5-runtime/screenshots
+
+      - name: Assemble true eight-world Android contact sheet
+        shell: bash
+        run: |
+          python3 endless_ci/build_visual_contact_sheet.py \
+            artifacts/endless-m5-runtime/screenshots
 
       - name: Upload Endless API 36 emulator evidence
         if: always()

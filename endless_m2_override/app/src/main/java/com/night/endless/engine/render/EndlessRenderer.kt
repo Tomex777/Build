@@ -659,16 +659,17 @@ class EndlessRenderer(
         if (selectedId != id || latestApproach.stage != "SURFACE SKIM") return false
         marsSurfaceMode = false
         moonSurfaceMode = false
+        val landing = ExtendedLandingSites.forBody(id)
         extendedSurfaceId = id
-        extendedSurfaceX = 0.0
-        extendedSurfaceZ = 0.0
+        extendedSurfaceX = landing.x
+        extendedSurfaceZ = landing.z
         surfaceForwardInput = 0f
         surfaceStrafeInput = 0f
         lastSurfaceMovementNanos = System.nanoTime()
         pendingYaw = 0.0
         pendingPitch = 0.0
-        yaw = if (id == "europa") 1.24 else .85
-        pitch = if (id == "titan") -.11 else -.08
+        yaw = landing.yaw
+        pitch = landing.pitch
         return true
     }
 
@@ -756,7 +757,22 @@ class EndlessRenderer(
             moonSurfaceMode -> MoonSurfaceTerrain::renderedHeightAt
             else -> {
                 val bodyId = extendedSurfaceId ?: return
-                { px, pz -> ExtendedSurfaceMesh.heightAt(bodyId, px, pz) }
+                // The traveller collides with the same raised foreground
+                // triangles visible beneath their feet, not the smoother
+                // analytic fallback. Europa's modeled ice double-ridges can
+                // rise >30cm between orbital DEM samples; destination-only
+                // analytic sampling let people walk through that relief.
+                //
+                // Do not construct GL textures on the UI thread: the
+                // synchronized renderer publishes this terrain on its first
+                // completed surface frame. Before that, use the actual
+                // triangulated coarse mesh rather than an unmeshed analytic
+                // height. All calls are serialized with onDrawFrame().
+                val visibleTerrain = extendedTerrains[bodyId]
+                { px: Double, pz: Double ->
+                    visibleTerrain?.groundHeightAt(px, pz)
+                        ?: ExtendedSurfaceMesh.renderedHeightAt(bodyId, px, pz)
+                }
             }
         }
         val next = SurfaceWalkingPhysics.move(x, z, dx, dz, surface)
@@ -1018,15 +1034,30 @@ class EndlessRenderer(
     @Synchronized
     fun focus(id: String) {
         val body = bodies.firstOrNull { it.id == id } ?: return
+        val alreadyFocused = !overview && selectedId == id
         navigationRevision++
         overview = false
         selectedId = id
 
-        // Preserve the current viewing direction and fly to the body.
-        // This is much less disorienting than resetting yaw/pitch on every tap.
         targetDistance = max(body.radius * 7.5, 2.0)
-        pendingYaw = 0.0
-        pendingPitch = 0.0
+        if (!alreadyFocused && (id == "jupiter" || id == "saturn")) {
+            // The previous focused Saturn screenshot showed a nearly black
+            // disc despite correctly loaded NASA cloud textures: the camera
+            // was simply behind the night hemisphere. Fly smoothly around
+            // to a sunlit three-quarter view instead of faking illumination.
+            // User gestures remain free to change this angle afterward.
+            val sunlit = SunlitFlybyCamera.sunFacingYaw(
+                body.position.x, body.position.z
+            )
+            pendingYaw = if (sunlit != null)
+                SunlitFlybyCamera.shortestTurn(yaw, sunlit) else 0.0
+            pendingPitch = .16 - pitch
+        } else {
+            // For smaller/terrestrial bodies, preserve the explorer's
+            // orientation rather than recentering on every tap.
+            pendingYaw = 0.0
+            pendingPitch = 0.0
+        }
         onSelectionChanged(id)
     }
 
