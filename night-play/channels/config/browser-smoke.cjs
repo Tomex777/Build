@@ -70,7 +70,8 @@ const server=http.createServer(async(req,res)=>{
      return send(res,200,{...current,selection});
    }
    if(action==='channel:post:preview'){
-     const candidate=current?.batchId===q.batchId?current.candidates.find(c=>c.id===q.candidateId):null;
+     const candidate=(current?.batchId===q.batchId?current.candidates.find(c=>c.id===q.candidateId):null)
+       ||selection.items.find(c=>c.batchId===q.batchId&&c.candidateId===q.candidateId);
      if(!candidate)return send(res,404,{error:'Candidate not found'});
      const name=settings.branding?.signatureEnabled?settings.branding.posterName:'';
      return send(res,200,{previewData:candidate.previewData,formattedCaption:q.caption+(name?'\n> '+name:'')});
@@ -202,6 +203,16 @@ async function main(){
    await page.locator('.review-card').first().getByText('Test candidate 1').waitFor();
    assert.match(await page.locator('#approvedCount').textContent(),/^1 approved/,'Selection survives a new batch');
    assert.equal(await page.locator('.selected-item').count(),1,'Prior image stays in approved tray');
+   await page.getByRole('button',{name:'Edit Test candidate 1 caption'}).click();
+   await page.getByRole('textbox',{name:'Edit approved caption for Test candidate 1'}).fill('Refined caption after Next four');
+   assert.equal(await page.getByRole('button',{name:'Publish approved'}).isDisabled(),true,'Cannot publish while an approved caption is being edited');
+   await page.getByRole('button',{name:'Save caption'}).click();
+   await page.getByText('Approved caption saved.').waitFor();
+   assert.equal(selection.items[0].caption,'Refined caption after Next four','Older approval caption persisted in server snapshot');
+   await page.getByRole('button',{name:'Preview Test candidate 1 post'}).click();
+   await page.getByText('Caption as it will be sent').waitFor();
+   assert.match(await page.locator('#postPreviewContent').textContent(),/Refined caption after Next four/,'Old approval uses actual saved preview');
+   await page.getByRole('button',{name:'Close preview'}).click();
    await page.locator('.review-card').nth(1).getByRole('button',{name:'Skip'}).click();
    await page.locator('.review-card').nth(1).getByText('Skipped',{exact:true}).waitFor();
    await page.locator('.review-card').nth(3).getByRole('button',{name:'Decline'}).click();
@@ -214,7 +225,7 @@ async function main(){
    assert.equal(await page.locator('.selected-item').count(),2,'Two server-confirmed approvals survive reload and Next four');
    await page.getByRole('button',{name:'Remove Test candidate 1 from approved selection'}).last().click();
    await page.getByText('1 approved',{exact:true}).waitFor();
-   assert.equal(selection.items[0].caption,'Caption edited by owner','Remove updates backend selection, retains older approved batch');
+   assert.equal(selection.items[0].caption,'Refined caption after Next four','Remove updates backend selection, retains older approved batch');
    const cards=page.locator('.review-card');
    for(const width of [320,360,390,412,1280]){
      await page.setViewportSize({width,height:width===1280?900:780});
@@ -226,7 +237,7 @@ async function main(){
    await page.getByRole('button',{name:'Publish approved'}).click();
    await page.getByText('1 approved posts queued.').waitFor();
    assert.equal(jobs.length,1,'Only one approved post queued');
-   assert.equal(jobs[0].title,'Caption edited by owner','Owner caption persists');
+   assert.equal(jobs[0].title,'Refined caption after Next four','Cross-batch caption edit reaches the queue');
    assert.equal(jobs.some(x=>x.title.includes('Caption for 2')),false,'Declined post is NEVER queued');
    await page.getByRole('button',{name:'Cancel',exact:true}).click();
    await page.getByText('cancelled',{exact:false}).first().waitFor();
