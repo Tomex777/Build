@@ -202,11 +202,6 @@ class MainActivity : ComponentActivity() {
                             update: () -> Unit, chooseZone: () -> Unit,
                             onGuide: () -> Unit, onPause: () -> Unit) {
         val solved=revision.let { game.solved }
-        val photoTitle=remember(game.imageKey,libraryRevision) {
-            if(game.imageKey=="starter") "Mountain · illustration"
-            else store.listPhotos().firstOrNull {it.key==game.imageKey}?.title
-                ?: "My picture"
-        }
         if(wide) {
             Column(verticalArrangement=Arrangement.spacedBy(6.dp)) {
                 OutlinedButton(onClick=onPause,modifier=Modifier.fillMaxWidth()) {
@@ -354,6 +349,11 @@ class MainActivity : ComponentActivity() {
             board?.centerBoard()
         }
         val solved=revision.let { game.solved }
+        val photoTitle=remember(game.imageKey,libraryRevision) {
+            if(game.imageKey=="starter") "Mountain · illustration"
+            else store.listPhotos().firstOrNull {it.key==game.imageKey}?.title
+                ?: "My picture"
+        }
         LaunchedEffect(game, paused, isAppForeground, solved) {
             while(isActive && !paused && isAppForeground && !solved) {
                 delay(1000)
