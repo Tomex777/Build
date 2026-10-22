@@ -12,6 +12,7 @@ mkdirSync(output,{recursive:true});
 const allowed=new Set([
  'action/index.html','action/style.css','action/games.js',
  'action/dino/index.html','action/dino/style.css','action/dino/bridge.js','action/dino/night-skin.js',
+ 'action/dino/skyline.svg',
  'action/dino/chromium-runner.js','game-shell.css'
 ]);
 const server=createServer((req,res)=>{
@@ -19,7 +20,7 @@ const server=createServer((req,res)=>{
  let file=path.startsWith('/action/dino/')?path==='/action/dino/'?'action/dino/index.html':path.slice(1):
   path==='/action/'?'action/index.html':path.slice(1);
  if(!allowed.has(file)){res.writeHead(404);res.end();return}
- res.writeHead(200,{'content-type':file.endsWith('.js')?'application/javascript':file.endsWith('.css')?'text/css':'text/html'});
+ res.writeHead(200,{'content-type':file.endsWith('.svg')?'image/svg+xml':file.endsWith('.js')?'application/javascript':file.endsWith('.css')?'text/css':'text/html'});
  res.end(readFileSync(join(root,file)));
 });
 await new Promise(done=>server.listen(0,'127.0.0.1',done));
@@ -34,8 +35,14 @@ try{
   await page.goto(origin+'/action/?game=runner',{waitUntil:'networkidle'});
   await page.waitForURL('**/action/dino/');
   await page.waitForFunction(()=>window.__nightDinoTest?.snapshot().ready);
+  // The skyline is part of the original runner's identity, not a 404'd decoration.
+  assert.equal((await page.request.get(origin+'/action/dino/skyline.svg')).status(),200,
+    'original-inspired local skyline asset is served');
+  assert.equal(await page.locator('.dino-skyline').count(),1,'old runner skyline present');
   const initial=await snap(page);
   assert.equal(initial.gravity,.6,'original Chromium gravity');
+  assert.equal(await page.evaluate(()=>typeof window.NightDinoSkin?.install),'function',
+    'classic human artwork installer present');
   assert.ok(await page.evaluate(()=>{
    const img=document.querySelector('#offline-resources-2x');
    const art=document.createElement('canvas');art.width=img.naturalWidth;art.height=img.naturalHeight;
