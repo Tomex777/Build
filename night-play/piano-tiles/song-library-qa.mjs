@@ -7,7 +7,7 @@ import {dirname,resolve,join,extname} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {chromium} from 'playwright';
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
-const assets=new Set(['game-shell.css','piano-tiles/index.html','piano-tiles/style.css',
+const assets=new Set(['records.js','game-shell.css','piano-tiles/index.html','piano-tiles/style.css',
  'piano-tiles/game.js','piano-tiles/song-library.js','piano-tiles/full-scores.js','piano-tiles/piano-audio.js',
  ...['C3','Fs3','A3','C4','Ds4','Fs4','A4','C5','Ds5','Fs5'].map(k=>'piano-tiles/samples/'+k+'.mp3')]);
 const mime={'.mp3':'audio/mpeg','.js':'application/javascript','.html':'text/html','.css':'text/css'};

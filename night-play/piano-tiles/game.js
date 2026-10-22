@@ -177,7 +177,7 @@ async function begin(){
  }finally{preparing=false;action.disabled=false;setSongControls()}
 }
 function lose(reason){
- if(ended)return;
+ if(ended)return;window.NightRecords?.round("piano-tiles",score);
  ended=true;running=false;paused=false;
  if(raf)cancelAnimationFrame(raf);raf=0;
  closeSounds();held.clear();keyHeld.clear();saveBest();updateHud();setPauseButton();setSongControls();$("restart").hidden=true;
@@ -187,7 +187,7 @@ function lose(reason){
  render();
 }
 function win(){
- if(ended)return;ended=true;running=false;paused=false;
+ if(ended)return;window.NightRecords?.round("piano-tiles",score);ended=true;running=false;paused=false;
  if(raf)cancelAnimationFrame(raf);raf=0;
  closeSounds();held.clear();keyHeld.clear();saveBest();updateHud();setPauseButton();setSongControls();
  document.body.classList.remove("is-playing");$("status").textContent="";$("restart").hidden=true;

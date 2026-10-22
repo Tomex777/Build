@@ -17,6 +17,14 @@ Live verification returned HTTP 200 for account health and for creating a
 pending link command with a secure cookie. The temporary challenge was cancelled
 successfully (HTTP 200, unlinked). No WhatsApp identity was impersonated or linked.
 
+The frontend fixes were then deployed to the same canonical alias for diagnostic
+QA (before the still-queued CI and merge gates): deployment
+`dpl_4rUJva8LQAn3h7oMabCHx2g5JD4A`, source
+`de8ea585194bf49d8da77c2e4f96524e46366cc9`. Changed JS matched local source byte
+for byte. The canonical browser completed Racing in first place, hit a Für Elise
+tile for 100 points at 390×844, and rendered the honest drawing update state.
+[Combined preview Racing finish](evidence/night-racing-combined-qa.jpg).
+
 ## Implemented fixes
 
 - Racing is a finite, original coastal sprint against three simulated rivals,
@@ -41,6 +49,12 @@ successfully (HTTP 200, unlinked). No WhatsApp identity was impersonated or link
   control, duplicate paused-race resume control, and drawing guesses being lost
   on a network failure. Compatible secure-random drawing IDs work on HTTP QA
   origins as well as HTTPS.
+
+- Follow-up browser QA found that Racing and Piano rounds were missing from
+  Profile activity. A shared records writer now uses the existing Profile keys,
+  bounded history and lifetime counts. Both terminal game outcomes record once;
+  storage failure cannot interrupt gameplay. A real wrong-tile loss followed by
+  navigation to Profile showed one Piano Tiles round at 390×844.
 
 ## Executed checks and rendered evidence
 
@@ -69,6 +83,10 @@ successfully (HTTP 200, unlinked). No WhatsApp identity was impersonated or link
   [Drawing game result](evidence/night-draw-source-qa.jpg).
 
 ## Required remaining gates
+
+`node night-play/records-selftest.mjs` also passes migration, bounded retention,
+count continuity, best-score preservation and unavailable-storage checks.
+Independent source review found no blocking bug, including the records follow-up.
 
 GitHub browser and backend jobs were queued at the last inspection; queued is
 not passed. The new browser suite exercises five widths, actual Racing outcomes,

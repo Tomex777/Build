@@ -35,6 +35,7 @@ try{
  }
  await page.waitForFunction(()=>window.__nightPianoTest.snapshot().ended);
  assert.equal(await page.locator('#coverKicker').textContent(),'SONG COMPLETE');
+ assert.equal(await page.evaluate(()=>localStorage.getItem('night-play-history-count-v1-piano-tiles')),'1','completed song appears in Profile activity');
  assert.equal(await page.evaluate(()=>window.__nightPianoTest.snapshot().complete),events.length);
  assert.equal(await page.locator('#restart').isVisible(),false,'one replay action after winning');
  mkdirSync(root+'/piano-tiles/visual-output',{recursive:true});

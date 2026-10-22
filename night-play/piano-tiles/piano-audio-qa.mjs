@@ -8,7 +8,7 @@ import {fileURLToPath} from 'node:url';
 import {chromium} from 'playwright';
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 const output=join(root,'visual-output','piano-tiles');mkdirSync(output,{recursive:true});
-const assets=new Set([
+const assets=new Set(['records.js',
  'piano-tiles/index.html','piano-tiles/style.css','piano-tiles/game.js',
  'piano-tiles/piano-audio.js','piano-tiles/song-library.js','piano-tiles/full-scores.js','game-shell.css',
  ...['C3','Fs3','A3','C4','Ds4','Fs4','A4','C5','Ds5','Fs5'].map(n=>'piano-tiles/samples/'+n+'.mp3')
