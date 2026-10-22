@@ -159,6 +159,13 @@ class MainActivity : ComponentActivity() {
     private fun PuzzleBoard(modifier: Modifier, solved: Boolean,
                             paused: Boolean, onResume: () -> Unit,
                             onNewPuzzle: () -> Unit) {
+        val celebration=remember { Animatable(0f) }
+        LaunchedEffect(solved,game) {
+            if(solved) {
+                celebration.snapTo(0f)
+                celebration.animateTo(1f,animationSpec=tween(1400))
+            } else celebration.snapTo(0f)
+        }
         Box(modifier=modifier.border(1.dp,Color(0xFFD5D2C9),
             RoundedCornerShape(12.dp)),contentAlignment=Alignment.Center) {
             AndroidView(
@@ -175,6 +182,27 @@ class MainActivity : ComponentActivity() {
                 modifier=Modifier.fillMaxSize()
             )
             if(solved) {
+                // A restrained 1.4-second native celebration, drawn over the
+                // actual completed tabletop. No full-screen flashing.
+                Canvas(Modifier.fillMaxSize()) {
+                    val progress=celebration.value
+                    val fade=(1f-progress).coerceIn(0f,1f)
+                    if(fade>0f) {
+                        for(i in 0 until 40) {
+                            val dx=((i*37)%23-11)/12f
+                            val dy=((i*61)%29-14)/15f
+                            val px=size.width/2f+dx*size.width*.43f*progress
+                            val py=size.height/2f+dy*size.height*.43f*progress
+                            drawCircle(
+                                color=if(i%3==0)forest
+                                      else if(i%3==1)Color(0xFFD7AE72)
+                                      else Color(0xFF85A7A0),
+                                radius=(2.5f+(i%4))*density,
+                                center=androidx.compose.ui.geometry.Offset(px,py),
+                                alpha=fade)
+                        }
+                    }
+                }
                 Surface(shape=RoundedCornerShape(14.dp),
                     color=Color(0xFFF7F5F0)) {
                     Column(Modifier.padding(18.dp),
