@@ -530,7 +530,7 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
                 // Accept the original URL-only format without losing existing tabs.
                 val entry = saved.optJSONObject(i)
                 val url = entry?.optString("url") ?: saved.optString(i)
-                if (AnnieBrowserAddress.resolve(url) == url) {
+                if (url == "about:blank" || AnnieBrowserAddress.resolve(url) == url) {
                     val savedId = entry?.optString("id").orEmpty()
                         .takeIf { it.matches(Regex("[0-9a-fA-F-]{36}")) }
                     val tab = newTab(
@@ -585,7 +585,7 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
             if (restored != null) {
                 runCatching { tab.session.restoreState(restored) }
                     .onFailure { tab.session.loadUri(tab.url) }
-            } else {
+            } else if (tab.url != "about:blank") {
                 tab.session.loadUri(tab.url)
             }
         }
@@ -597,13 +597,17 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
 
     fun newTab(
         privateMode: Boolean = false,
-        address: String = "https://www.google.com/",
+        address: String = "about:blank",
         autoLoad: Boolean = true,
         desktopMode: Boolean = false,
         persistedId: String? = null,
         deferRestore: Boolean = false,
     ): AnnieGeckoTab {
-        val url = AnnieBrowserAddress.resolve(address) ?: "https://www.google.com/"
+        // An actual new-tab Home is native UI and makes no network request.
+        // about:blank is internal-only: arbitrary omnibox/external inputs
+        // continue to be rejected by AnnieBrowserAddress.resolve().
+        val url = if (address == "about:blank") "about:blank"
+            else AnnieBrowserAddress.resolve(address) ?: "about:blank"
         val session = GeckoSession(
             GeckoSessionSettings.Builder().usePrivateMode(privateMode).build()
         )
@@ -702,7 +706,7 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
         tabs.add(tab)
         if (!deferRestore) {
             select(tab)
-            if (autoLoad) session.loadUri(url)
+            if (autoLoad && url != "about:blank") session.loadUri(url)
         }
         persistTabs()
         return tab
@@ -732,6 +736,7 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
     }
 
     fun reload(tab: AnnieGeckoTab) {
+        if (tab.url == "about:blank") return
         if (tab.session.isOpen) tab.session.reload()
         else { tab.session.open(runtime); tab.session.loadUri(tab.url) }
     }
@@ -741,7 +746,7 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
         applyDesktopSettings(tab)
         applyUserAgentSettings(tab, tab.url)
         persistTabs()
-        if (tab.session.isOpen) tab.session.reload()
+        if (tab.session.isOpen && tab.url != "about:blank") tab.session.reload()
     }
 
     private fun applyDesktopSettings(tab: AnnieGeckoTab) {
