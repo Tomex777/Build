@@ -81,3 +81,14 @@ attached local media remain playable for migration; the import controls are no
 longer presented. Downloads are stored privately and integrity-checked before
 being shown as available. App now exposes a full Now Playing screen for tracks
 with authorized local audio.
+
+## Background playback and media controls
+
+The Android foreground playback service owns a platform `MediaSession` and
+visible media-style notification with Play/Pause, Next and Previous actions,
+so the **same actual** MediaPlayer can continue with the screen locked or after
+leaving the Activity. It updates media metadata and playback position, responds
+to system media buttons and headset events, and pauses on lost audio focus.
+No global volume slider; use device volume buttons. This native Android session
+implementation targets minSdk 26 and requires proper API26/35 emulator/device
+verification before considering the background functionality release-ready.

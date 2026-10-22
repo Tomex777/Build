@@ -1,5 +1,6 @@
 package com.nice.juicewrld
 
+import android.app.Application
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
@@ -70,7 +71,6 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.SubcomposeAsyncImage
 import coil3.compose.SubcomposeAsyncImageContent
 import coil3.request.ImageRequest
@@ -110,7 +110,13 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun FanHome(player: FanPlayer = viewModel()) {
+private fun rememberSharedPlayer(): FanPlayer {
+    val app = LocalContext.current.applicationContext as Application
+    return remember(app) { FanRuntime.player(app) }
+}
+
+@Composable
+fun FanHome(player: FanPlayer = rememberSharedPlayer()) {
     val state by player.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var moodName by rememberSaveable { mutableStateOf(Mood.ALL.name) }
@@ -301,7 +307,9 @@ fun FanHome(player: FanPlayer = viewModel()) {
             },
             onSaveMemory = { player.saveMemory(selected.id, it) },
             onShare = { shareSong(context, selected) },
-            downloadAvailable = LicensedAudioCatalog.find(context, selected.id) != null,
+            downloadAvailable = remember(context, selected.id) {
+                LicensedAudioCatalog.find(context, selected.id) != null
+            },
             downloading = state.downloadingSongId == selected.id,
             onDownload = { player.downloadLicensedSong(selected.id) },
             onOfficial = {

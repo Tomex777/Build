@@ -263,7 +263,6 @@ class FanPlayer(app: Application) : AndroidViewModel(app) {
                 files[songId] = Uri.fromFile(location).toString()
                 prefs.edit().putString("file:" + songId, files.getValue(songId)).apply()
                 _state.update { it.copy(attached = files.keys.toSet(), downloadingSongId = null) }
-                play(songId)
             }.onFailure {
                 _state.update { it.copy(
                     downloadingSongId = null,
@@ -328,6 +327,11 @@ class FanPlayer(app: Application) : AndroidViewModel(app) {
         if (uriString == null) {
             _state.update { it.copy(error = "Select an audio file for this song first.") }
             return
+        }
+        // An application-scoped player needs a real foreground media session
+        // when playback starts, so audio survives leaving this screen.
+        if (FanRuntime.isShared(this)) {
+            PlaybackService.ensureStarted(getApplication())
         }
         if (songId == _state.value.activeSongId && _state.value.isPreparing) return
         val existing = mediaPlayer
