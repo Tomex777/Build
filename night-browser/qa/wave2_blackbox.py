@@ -648,6 +648,30 @@ class Device:
         self.click("Dismiss preview")
         return "Long-press opened disposable preview and dismissed it"
 
+    def find_in_page(self):
+        """Search real Gecko document text with native per-tab result controls."""
+        self.ensure_regular()
+        self.go("/links")
+        self.click("More")
+        self.click("Find in page")
+        self.click("Find on this page")
+        shell("input", "text", "Visit")
+        until = time.monotonic() + 20
+        while self.find("1/2") is None and self.find("2/2") is None:
+            if time.monotonic() >= until:
+                raise AssertionError("Gecko finder did not report two real Visit links")
+            time.sleep(.6)
+        self.click("Next match")
+        until = time.monotonic() + 10
+        while self.find("2/2") is None:
+            if time.monotonic() >= until:
+                raise AssertionError("Gecko finder did not advance to second match")
+            time.sleep(.6)
+        self.click("Close find in page")
+        if self.find("Previous match") is not None:
+            raise AssertionError("Find bar did not dismiss or clear itself")
+        return "Real Gecko find-in-page found and advanced between two DOM matches"
+
     def offline_pdf(self):
         """Decode a captured PDF page using native PdfRenderer without a network."""
         self.click("Home")
@@ -816,6 +840,8 @@ class Device:
                   prerequisites=("C01",), screenshot=True)
         self.test("C27", "Peek link long-press dismiss", self.peek,
                   prerequisites=("C01",), screenshot=True)
+        self.test("C45", "Find text in a real Gecko page", self.find_in_page,
+                  prerequisites=("C04",), screenshot=True)
         self.test("C28", "Offline Home interactive", self.offline_home,
                   prerequisites=("C01",))
         self.test("C29", "Live process PSS captured", self.mem, prerequisites=("C01",))
