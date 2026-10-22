@@ -11,6 +11,7 @@ Pinned upstream Git SHA: `9de84cc0d4c7cce32c7052e6d7a8ceab4bdc6d16` (reviewed 20
 - `app/src/main/assets/web_extensions/universal_copy/manifest.json` (`5332972692f087fd324e5af9e151a757fc06d640`) → `annie-android/app/src/main/assets/web_extensions/annie_universal_copy/manifest.json`
 - `app/src/main/assets/web_extensions/universal_copy/override.js` (`9cf39e24992462033e65b73c46accfa0dfbb2a77`) → `annie-android/app/src/main/assets/web_extensions/annie_universal_copy/override.js`
 - `app/src/main/assets/web_extensions/universal_copy/override.css` (`8c4fd0e515ffcbcafde788721f440520d52ea30e`) → `annie-android/app/src/main/assets/web_extensions/annie_universal_copy/override.css`
+- `app/src/main/java/com/rebelroot/omni/browser/AdaptiveBrowserChrome.kt` (pinned upstream version; selected URL input focus/selection behaviour) → modified logic inside `annie-android/app/src/main/java/com/tomex777/annie/AnnieBrowserChrome.kt`; attribution and pinned SHA are in that source header.
 
 **Adaptations:** source packages relocated into Annie's internal engine to avoid shipping upstream trademarks as an Android package ID. `OmniSessionState` renamed `AnnieSessionState`; state format preserved. A cancellation guard stops closed-tab debounce jobs from resurrecting removed state. A logged URL was removed. The built-in extension's manifest/name/ID and JS diagnostic label are Annie-branded. Upstream copyright headers remain on original Kotlin sources. No upstream logos are imported. The JS/CSS and manifest derive from the upstream `universal_copy` extension.
 
@@ -36,13 +37,17 @@ Instantiate `AnnieBrowserEngineBridge(context, AnnieGeckoRuntime.get(context))` 
 |---|---|
 | GeckoView tabs/navigation and normal/private modes | Annie baseline retained, full upstream ViewModel **not** ported |
 | Durable Gecko session-state serialization | Actual upstream classes ported; behavioral integration and tests ongoing |
-| Built-in WebExtension management / Universal Copy | Actual upstream manager + scripts imported; explicit opt-in hook pending UI |
+| Built-in WebExtension management / Universal Copy | Upstream manager + scripts imported; actual optional control bound in combined candidate, default OFF and hidden on private tabs; device proof pending |
 | Bookmarks/history/search/downloads | Annie baseline; upstream implementations **not** ported |
 | Third-party WebExtensions, ad/tracker blockers, privacy controls | Not ported / not validated |
 | Media download/grabber, player, PDF, QR, translator | Not ported / not validated |
 | Vault/SQLCipher, local models/AI, Tor/VPN, sync | Not ported; dependency, entitlement, privacy and security audits required |
-| Responsive full Omni browser UI | Agent 2 responsibility; not ported yet |
+| Responsive full Omni browser UI | Annie-native compact Compose chrome now wired to Gecko in combined candidate; only the original focus/selection behaviour adapted from Omni; FULL upstream UI still not ported |
 
 ## Acceptance remaining
 
 Gradle compilation, GeckoView API smoke, source test, extension toggle behavior, page load/back/forward, private data isolation, session restore after OS process death, API26/API36 emulators, screenshots, clean APK install/reinstall and complete corresponding-source obligations. **Do not mark ready before verification.**
+
+## Combined integration (Agent 1 + Agent 2)
+
+Draft PR #598 wires actual upstream Gecko services to Annie's native browser UI and adds genuine blank new-tab semantics. The modified UI has a source header crediting the Omni AdaptiveBrowserChrome.kt behaviour. A functional subset is not the complete upstream Omni application; extended features, device testing, source-offer/notice audit and release approval are outstanding.
