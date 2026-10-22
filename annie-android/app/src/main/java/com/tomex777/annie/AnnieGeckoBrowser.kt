@@ -92,6 +92,9 @@ import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
 import com.tomex777.annie.browser.engine.AnnieBrowserEngineBridge
+import com.tomex777.annie.browser.engine.tabs.BrowserTab
+import com.tomex777.annie.browser.engine.tabs.SmartTabManager
+import com.tomex777.annie.browser.engine.tabs.TabGroup
 import com.tomex777.annie.browser.engine.useragent.UserAgentManager
 import com.tomex777.annie.browser.engine.useragent.UserAgentPreset
 import org.mozilla.geckoview.GeckoResult
@@ -444,6 +447,7 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
     private val upstreamEngine = AnnieBrowserEngineBridge(context, runtime)
     // Original Omni per-site UA settings, separated from Gecko session identities.
     private val userAgentManager = UserAgentManager(context.applicationContext)
+    private val smartTabManager = SmartTabManager()
     private val library = AnnieBrowserLibrary(context)
     private val prefs = context.applicationContext.getSharedPreferences("annie_gecko_tabs_v1", Context.MODE_PRIVATE)
     val tabs = mutableStateListOf<AnnieGeckoTab>()
@@ -451,6 +455,11 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
         private set
     val bookmarks get() = library.bookmarks
     val history get() = library.history
+    /** Omni smart grouping for Agent 2's tab sheet. Never mix private tabs. */
+    fun groupedNormalTabs(): List<TabGroup> = smartTabManager.categorize(
+        tabs.asSequence().filterNot { it.privateMode }
+            .map { BrowserTab(it.id, it.title, it.url) }.toList()
+    )
     val active: AnnieGeckoTab? get() = tabs.firstOrNull { it.id == selectedId }
 
     // Installed by the Compose screen that owns ActivityResult's document picker.
