@@ -9,6 +9,13 @@ on:
       - 'cards/catalog/demon-slayer*'
       - 'cards/tests/demon-slayer-sources.test.mjs'
       - '.github/workflows/cards-demon-slayer.yml'
+  pull_request:
+    paths:
+      - 'cards/bin/seed-demon-slayer.mjs'
+      - 'cards/bin/demon-slayer-gallery.mjs'
+      - 'cards/catalog/demon-slayer*'
+      - 'cards/tests/demon-slayer-sources.test.mjs'
+      - '.github/workflows/cards-demon-slayer.yml'
   workflow_dispatch:
 
 permissions:
