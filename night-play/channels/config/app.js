@@ -6,7 +6,7 @@ const channelId=params.get('channel')||'';
 const MODULES=['memes','news','anonymous','ai'];
 const CATEGORIES=new Set(['relatable','wholesome','anime','nigerian','animals','relationships','dark']);
 const INTERESTS=new Set(['casting','releases','trailers','renewals','romance','platforms']);
-let channel=null,config=null,batch=null,selection=null,selectionUncertain=false,reviewBusy=false,configBusy=false,loadEpoch=0;
+let channel=null,config=null,batch=null,selection=null,selectionUncertain=false,trayEditing=false,reviewBusy=false,configBusy=false,loadEpoch=0;
 const decisions=new Map(),captionDirty=new Set();
 const jid=/^\d{8,25}@newsletter$/;
 const make=(tag,cls,text)=>{const el=document.createElement(tag);if(cls)el.className=cls;if(text!==undefined)el.textContent=String(text);return el};
@@ -230,10 +230,12 @@ function updateReview(){
  const count=approved().length;
  $('reviewSummary').hidden=!batch&&!count;
  $('approvedCount').textContent=count+' approved';
- $('publishApproved').disabled=!count||reviewBusy||selectionUncertain||captionDirty.size>0||config?.modules?.memes!==true;
- $('scheduleButton').disabled=!count||reviewBusy||selectionUncertain||captionDirty.size>0||config?.modules?.memes!==true;
- $('nextBatch').disabled=reviewBusy||selectionUncertain||captionDirty.size>0;
- $('findMemes').disabled=reviewBusy||selectionUncertain||captionDirty.size>0;
+ $('publishApproved').disabled=!count||reviewBusy||selectionUncertain||trayEditing||captionDirty.size>0||config?.modules?.memes!==true;
+ $('scheduleButton').disabled=!count||reviewBusy||selectionUncertain||trayEditing||captionDirty.size>0||config?.modules?.memes!==true;
+ $('nextBatch').disabled=reviewBusy||selectionUncertain||trayEditing||captionDirty.size>0;
+ $('findMemes').disabled=reviewBusy||selectionUncertain||trayEditing||captionDirty.size>0;
+ for(const button of document.querySelectorAll('#selectedPosts button.selected-action'))
+   button.disabled=reviewBusy||selectionUncertain||trayEditing;
 }
 function paintSelection(){
  const list=$('selectedPosts');
@@ -244,15 +246,48 @@ function paintSelection(){
    const img=make('img');img.src=imageFromSource(item);img.alt=item.title;img.loading='lazy';
    const info=make('div','selected-copy');
    info.append(make('strong',null,item.title),make('small',null,item.caption||'No caption'));
-   const remove=make('button','btn','Remove');
-   remove.type='button';remove.disabled=reviewBusy;
+   const actions=make('div','selected-actions');
+   const edit=make('button','btn selected-action','Edit caption'),preview=make('button','btn selected-action','Preview'),remove=make('button','btn selected-action','Remove');
+   edit.type=preview.type=remove.type='button';
+   edit.setAttribute('aria-label','Edit '+item.title+' caption');
+   preview.setAttribute('aria-label','Preview '+item.title+' post');
    remove.setAttribute('aria-label','Remove '+item.title+' from approved selection');
+   edit.addEventListener('click',()=>{
+     if(trayEditing||reviewBusy||selectionUncertain)return;
+     trayEditing=true;
+     const editor=make('textarea','text-input textarea selected-editor');
+     editor.maxLength=1800;editor.value=item.caption;editor.setAttribute('aria-label','Edit approved caption for '+item.title);
+     const save=make('button','btn primary','Save caption'),cancel=make('button','btn','Cancel edit');
+     save.type=cancel.type='button';
+     save.addEventListener('click',()=>updateSelectedCaption(item,editor.value));
+     cancel.addEventListener('click',()=>{trayEditing=false;paintSelection();updateReview();});
+     actions.replaceChildren(editor,save,cancel);updateReview();editor.focus();
+   });
+   preview.addEventListener('click',()=>previewPost(item,item.caption,item.batchId));
    remove.addEventListener('click',()=>removeSelected(item,remove));
-   row.append(img,info,remove);list.append(row);
+   actions.append(edit,preview,remove);
+   row.append(img,info,actions);list.append(row);
  }
 }
+async function updateSelectedCaption(item,caption){
+ if(reviewBusy||!trayEditing||selectionUncertain||!selection)return;
+ reviewBusy=true;updateReview();
+ try{
+   const result=await api('channel:memes:review',{batchId:item.batchId,candidateId:item.candidateId,decision:'approved',caption,expectedSelectionRevision:selection.revision});
+   if(result?.decision!=='approved'||result?.candidateId!==item.candidateId)throw Error('The bot did not confirm the updated caption.');
+   const next=readSelection(result);
+   const changed=next.items.find(i=>i.batchId===item.batchId&&i.candidateId===item.candidateId);
+   if(next.id!==selection.id||!changed||changed.caption!==caption)throw Error('The new approved caption was not confirmed.');
+   selection=next;
+   if(batch?.batchId===item.batchId)decisions.set(item.candidateId,{decision:'approved',caption});
+   note('Approved caption saved.');
+ }catch(error){
+   if(mayHaveCommitted(error))selectionUncertain=true;
+   note(errorMessage(error)+' Reload to verify the approved caption.',true);
+ }finally{reviewBusy=false;trayEditing=false;paintSelection();updateReview();}
+}
 async function removeSelected(item,button){
- if(reviewBusy||selectionUncertain||!selection)return;
+ if(reviewBusy||trayEditing||selectionUncertain||!selection)return;
  reviewBusy=true;setBusy(button,true);updateReview();
  try{
    const result=await api('channel:memes:review',{batchId:item.batchId,candidateId:item.candidateId,decision:'skipped',caption:item.caption,expectedSelectionRevision:selection.revision});
@@ -314,6 +349,7 @@ function paintReview(){
 }
 async function findMemes(next){
  if(reviewBusy||!channel)return;
+ if(trayEditing){note('Save or cancel the approved caption edit first.',true,'reviewNotice');return;}
  if(selectionUncertain){note('Reload to verify the approved selection before finding more memes.',true,'reviewNotice');return;}
  if(captionDirty.size){note('Approve, decline, or skip edited captions before finding another batch.',true,'reviewNotice');return;}
  reviewBusy=true;setBusy($('findMemes'),true);updateReview();
@@ -329,13 +365,13 @@ async function findMemes(next){
  }catch(error){note(errorMessage(error)+' No content was approved or published.',true,'reviewNotice');}
  finally{reviewBusy=false;setBusy($('findMemes'),false);paintSelection();updateReview();}
 }
-async function previewPost(candidate,caption){
- if(!batch)return;
+async function previewPost(candidate,caption,batchId=batch?.batchId){
+ if(!batchId)return;
  const dialog=$('postPreview'),body=$('postPreviewContent');
  body.replaceChildren(make('p','config-note','Requesting the actual formatted post from NIGHT…'));
  if(!dialog.open)dialog.showModal();
  try{
-   const result=await api('channel:post:preview',{batchId:batch.batchId,candidateId:candidate.id,caption});
+   const result=await api('channel:post:preview',{batchId,candidateId:candidate.candidateId||candidate.id,caption});
    const image=imageFromSource(result||{});
    if(!image||typeof result?.formattedCaption!=='string'||result.formattedCaption.length>2200)
      throw Error('NIGHT has not returned a verified final-media preview.');
@@ -350,7 +386,7 @@ async function previewPost(candidate,caption){
  }
 }
 async function decide(candidate,decision,caption,card,status,actions){
- if(reviewBusy||selectionUncertain||!batch||!selection||(decision==='approved'&&!licensable(candidate)))return;
+ if(reviewBusy||trayEditing||selectionUncertain||!batch||!selection||(decision==='approved'&&!licensable(candidate)))return;
  reviewBusy=true;
  for(const btn of actions.querySelectorAll('button'))setBusy(btn,true);
  updateReview();
@@ -384,7 +420,7 @@ function localToUTC(input){
  return d.toISOString();
 }
 async function publish(mode){
- if(reviewBusy||selectionUncertain||!selection||!approved().length||captionDirty.size>0||config?.modules?.memes!==true)return;
+ if(reviewBusy||trayEditing||selectionUncertain||!selection||!approved().length||captionDirty.size>0||config?.modules?.memes!==true)return;
  let schedule={};
  if(mode==='schedule'){
    try{schedule={scheduledAt:localToUTC($('scheduleAt').value),timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC',spacingMinutes:Number($('spacingMinutes').value)}}catch(error){note(errorMessage(error),true,'reviewNotice');return;}
@@ -432,7 +468,7 @@ async function loadJobs(){
  }catch(error){$('jobs').replaceChildren(make('p','config-note',errorMessage(error)));}
 }
 async function load(){
- const epoch=++loadEpoch;channel=null;config=null;batch=null;selection=null;selectionUncertain=false;decisions.clear();captionDirty.clear();
+ const epoch=++loadEpoch;channel=null;config=null;batch=null;selection=null;selectionUncertain=false;trayEditing=false;decisions.clear();captionDirty.clear();
  $('configUI').hidden=true;note('');
  if(!jid.test(channelId)){showState('Invalid channel','Choose a verified channel from Your channels.');return;}
  showState('Checking permissions…','Verifying your WhatsApp identity and channel ownership.');
