@@ -217,11 +217,21 @@ class PuzzleBoardView(context: Context) : View(context) {
         stroke.strokeWidth = 2.1f
         canvas.drawRect(board, stroke)
 
+        // Culling matters in the 600-piece modes: do not composite images
+        // for the ~95% of the tabletop currently outside the camera viewport.
+        val scale=baseScale*zoom
+        val minX=-panX/scale-g.pieceWidth
+        val minY=-panY/scale-g.pieceHeight
+        val maxX=(width-panX)/scale+g.pieceWidth
+        val maxY=(height-panY)/scale+g.pieceHeight
+        fun onScreen(p: PuzzlePiece) =
+            p.x>=minX && p.x<=maxX && p.y>=minY && p.y<=maxY
         // Placed pieces stay beneath movable ones and no longer intercept input.
-        for (p in g.pieces) if (p.placed) renderPiece(canvas, p, false)
+        for (p in g.pieces)
+            if(p.placed && onScreen(p))renderPiece(canvas,p,false)
         for (id in drawOrder) {
             val p = g.pieces[id]
-            if (!p.placed && sprites.containsKey(id))
+            if (!p.placed && sprites.containsKey(id) && onScreen(p))
                 renderPiece(canvas, p, activePiece>=0 &&
                     g.pieces[activePiece].groupId==p.groupId)
         }
