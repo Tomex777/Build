@@ -352,3 +352,10 @@ test('Reddit adapter requires an honestly configured app identity instead of fak
  assert.throws(()=>redditAdapter({tokenProvider:async()=> 'fixture-access-token',userAgent:'NIGHTBot/1.0',subreddits:['funny']}),/registered Reddit app User-Agent/);
  assert.throws(()=>redditAdapter({tokenProvider:async()=> 'fixture-access-token',userAgent:TEST_REDDIT_UA,subreddits:'funny'}),/array of approved subreddits/);
 });
+
+test('corrupt persisted batch history and optional scorer inputs fail closed without crashing',()=>{
+ const first=meme('history-a',{rights:'cleared'});
+ const second=meme('history-b',{rights:'cleared'});
+ assert.deepEqual(chooseFourMemes([first,second],{enabled:true,used:[null,undefined,{},first.id],now:NOW}).map(x=>x.id),[second.id]);
+ assert.doesNotThrow(()=>memeScore(second,{categories:{invalid:true},feedback:null,now:NOW}));
+});
