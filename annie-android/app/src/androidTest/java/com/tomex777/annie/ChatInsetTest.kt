@@ -116,6 +116,12 @@ class ChatInsetTest {
         compose.onNodeWithTag("drawer_chat_$secondId").performClick()
         compose.onNodeWithTag("composer_input").assertTextEquals("second unsent draft")
         saveEmulatorScreenshot("annie-agent5-per-chat-drafts")
+        compose.activityRule.scenario.recreate()
+        compose.waitForIdle()
+        compose.onNodeWithTag("composer_input").assertTextEquals("second unsent draft")
+        compose.onNodeWithTag("chat_history_button").performClick()
+        compose.onNodeWithTag("drawer_chat_$firstId").performClick()
+        compose.onNodeWithTag("composer_input").assertTextEquals("first unsent draft")
     }
 
 }
