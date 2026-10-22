@@ -130,6 +130,32 @@ def mosaic(site):
     return canvas, first_x, first_y
 
 
+def bilinear_rgb(src, width, height, px, py):
+    """Sample a NASA WMTS mosaic at a continuous geographic pixel location.
+
+    WMTS coordinates address pixel *edges*, whereas RGB samples live at
+    half-pixel centers. Interpolate neighboring measured radiances instead
+    of nearest-neighbor quantization, which drew artificial block edges
+    across orbital slopes during close flyovers. No extra detail is invented.
+    """
+    gx = px - 0.5
+    gy = py - 0.5
+    ix = math.floor(gx)
+    iy = math.floor(gy)
+    tx = gx - ix
+    ty = gy - iy
+    x0 = max(0, min(width - 1, ix))
+    x1 = max(0, min(width - 1, ix + 1))
+    y0 = max(0, min(height - 1, iy))
+    y1 = max(0, min(height - 1, iy + 1))
+    a, b = src[x0, y0], src[x1, y0]
+    c, d = src[x0, y1], src[x1, y1]
+    return tuple(round(
+        (a[k] * (1 - tx) + b[k] * tx) * (1 - ty) +
+        (c[k] * (1 - tx) + d[k] * tx) * ty
+    ) for k in range(3))
+
+
 def reproject(site):
     canvas, first_x, first_y = mosaic(site)
     z = site["zoom"]
@@ -145,9 +171,9 @@ def reproject(site):
             east = HALF_EXTENT_KM * (2.0 * (x+0.5)/OUTPUT_PIXELS - 1.0)
             lat, lon = geographic_point(site, east, north)
             px, py = wmts_pixel(z, lon, lat)
-            sx = min(width-1, max(0, round(px - first_x*256)))
-            sy = min(height-1, max(0, round(py - first_y*256)))
-            pixel[x,y] = src[sx,sy]
+            sx = px - first_x*256
+            sy = py - first_y*256
+            pixel[x,y] = bilinear_rgb(src, width, height, sx, sy)
     return output
 
 
