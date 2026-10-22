@@ -132,10 +132,14 @@ export class NightPlayChannels {
     if(!JID.test(str(id)))fail(400,'Invalid channel.')
     const result=this.db.prepare('DELETE FROM play_channel_claims WHERE user_id=? AND channel_id=?').run(userId,id)
     if(!result.changes)fail(404,'This channel is not connected to your account.')
+    this.publisher.invalidateChannel(id)
     return {ok:true}
   }
   removeUser(userId) {
+    // Cache eviction must occur after revoking all connected claims.
+    const names=this.db.prepare('SELECT channel_id FROM play_channel_claims WHERE user_id=?').all(userId)
     this.db.prepare('DELETE FROM play_channel_consent WHERE user_id=?').run(userId)
     this.db.prepare('DELETE FROM play_channel_claims WHERE user_id=?').run(userId)
+    for(const {channel_id} of names) this.publisher.invalidateChannel(channel_id)
   }
 }
