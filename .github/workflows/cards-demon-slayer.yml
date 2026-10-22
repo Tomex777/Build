@@ -6,6 +6,7 @@ on:
     paths:
       - 'cards/bin/seed-demon-slayer.mjs'
       - 'cards/bin/demon-slayer-gallery.mjs'
+      - 'cards/bin/mitsuri-review-proofs.mjs'
       - 'cards/catalog/demon-slayer*'
       - 'cards/tests/demon-slayer-sources.test.mjs'
       - '.github/workflows/cards-demon-slayer.yml'
@@ -13,6 +14,7 @@ on:
     paths:
       - 'cards/bin/seed-demon-slayer.mjs'
       - 'cards/bin/demon-slayer-gallery.mjs'
+      - 'cards/bin/mitsuri-review-proofs.mjs'
       - 'cards/catalog/demon-slayer*'
       - 'cards/tests/demon-slayer-sources.test.mjs'
       - '.github/workflows/cards-demon-slayer.yml'
@@ -57,6 +59,8 @@ jobs:
           echo "NIGHT_BROWSER_PATH=$RUNNER_TEMP/night-browser/chrome-headless-shell-linux64/chrome-headless-shell" >> "$GITHUB_ENV"
       - name: Render actual shared NIGHT Nocturne 3000x4800 card and 320px proof
         run: npm run build -- --series demon-slayer --width 3000 --out dist/demon-slayer
+      - name: Produce original-source and native-pixel real-image review proofs
+        run: node bin/mitsuri-review-proofs.mjs
       - name: Export source-based candidate collection gallery
         run: |
           npm run gallery -- --series demon-slayer --out dist/demon-slayer --file dist/DemonSlayer-Collection.html
