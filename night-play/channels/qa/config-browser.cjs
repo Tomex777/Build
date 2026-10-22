@@ -14,6 +14,8 @@ const configs=new Map();
 function initial() {return {revision:0,modules:{memes:false,news:false,anonymous:false,ai:false},
   memes:{mode:'review',categories:['relatable'],dailyLimit:1},
   news:{mode:'review',interests:['casting'],spoilers:'avoid'},
+  branding:{signatureEnabled:false,posterName:'',watermarkEnabled:false,
+    watermarkOpacity:0.2,watermarkPosition:'bottom-right'},
   capabilities:{ai:false}};}
 for(const owner of ['A','B'])configs.set(owner,initial());
 const answers=new Map(),activeBatch=new Map(),requests=[],jobs=[];
@@ -67,7 +69,11 @@ const server=http.createServer(async(req,res)=>{
          return reply(400,{error:'Unsupported setting'});
        config.modules[type]=on;
      }
-   }else if(key==='memes'||key==='news'){config[key]={...config[key],...value};}
+   }else if(key==='memes'||key==='news'||key==='branding'){
+     if(key==='branding'&&(typeof value?.posterName!=='string'||value.posterName.length>70))
+       return reply(400,{error:'Invalid branding poster'});
+     config[key]={...config[key],...value};
+   }
    else return reply(400,{error:'Unsupported patch'});
   }
   config.revision++;return reply(200,clone(config));
@@ -180,6 +186,27 @@ async function main(){
   const ctx=await context(browser,'A',390,844),page=await ctx.newPage();
   await page.goto(base+'/channels/config/?channel='+encodeURIComponent(A));
   await page.locator('#configUI:visible').waitFor();
+  // Author quote must survive signed server save + fresh page reload; its
+  // value comes from an explicit person, not a fallback channel display name.
+  assert.equal(await page.locator('#watermarkName').innerText(),name,
+    'Display-name watermark label must preserve exact ZWJ and Unicode');
+  assert.equal(await page.locator('#posterName').inputValue(),'');
+  await page.locator('#posterName').fill('TOMEX 🍿');
+  await page.locator('label.switch').filter({has:page.locator('#signatureEnabled')}).click();
+  await page.getByRole('button',{name:'Save branding'}).click();
+  await page.waitForFunction(()=>document.querySelector('#saveBranding')?.disabled===false);
+  assert.equal(configs.get('A').branding.posterName,'TOMEX 🍿',
+    'Explicit human/automation persona persists server-side');
+  assert.equal(configs.get('A').branding.signatureEnabled,true);
+  assert.equal(configs.get('A').branding.watermarkEnabled,false,
+    'Branding setup cannot silently activate the watermark');
+  await page.reload();
+  await page.locator('#configUI:visible').waitFor();
+  assert.equal(await page.locator('#posterName').inputValue(),'TOMEX 🍿',
+    'Persona survives fresh signed config:get, not local-only state');
+  assert.equal(await page.locator('#signatureEnabled').isChecked(),true);
+  assert.equal(await page.locator('#watermarkName').innerText(),name);
+  await page.screenshot({path:path.join(output,'branding-poster-vs-channel-reload.png'),fullPage:true});
   // Exercise the actual visible custom switch, not its 1px accessible input.
   await page.locator('label.switch').filter({has:page.locator('[data-module="memes"]')}).click();
   await page.waitForFunction(()=>document.querySelector('[data-module="memes"]').checked &&
