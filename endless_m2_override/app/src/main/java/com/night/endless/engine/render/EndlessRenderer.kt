@@ -2608,8 +2608,11 @@ out vec4 fragColor;
 
 void main() {
     vec4 t = texture(uTexture, vUv);
-    float band = max(t.r, max(t.g, t.b));
-    float alpha = t.a * band * 0.92;
+    // The NASA-derived ring strip already stores particle optical density in
+    // alpha and reflected colour in RGB. Multiplying alpha by RGB's brightness
+    // AGAIN squared dark bands and made the entire lit ring nearly invisible.
+    // Respect the supplied opacity; Cassini gaps remain transparent via t.a.
+    float alpha = t.a * 0.92;
     if (alpha < 0.02) discard;
 
     vec3 toSun = normalize(-uPlanetCenter);
