@@ -1,4 +1,6 @@
 import { runSongCommand } from './music-flow.js'
+import { musicFollowupReply } from './music-chat-context.js'
+import { readFileSync } from 'node:fs'
 
 const calls = []
 const replies = []
@@ -308,3 +310,25 @@ if (!rankedReplies[0]?.includes('Showing matches for: *Flashlight by pitch perfe
   throw new Error('Search correction was not disclosed in the song menu')
 }
 console.log('PASS soundtrack typo, official recording ranking and unrelated-result pruning')
+
+const followupSession = { kind:'number-selection', command:'song', entries:[{ number:'1' }] }
+const lostAudio = musicFollowupReply("Where's the song", followupSession)
+if (!lostAudio.includes('cannot confirm') || !lostAudio.includes('same song number')) {
+  throw new Error('Missing song must be handled as an honest retry, not as AI banter')
+}
+if (!musicFollowupReply('Original', followupSession).includes('official artist')) {
+  throw new Error('Original track follow-up must not make up a soundtrack or artist')
+}
+if (!musicFollowupReply('Fleshlight by Pitch Perfect 2', followupSession).includes('Flashlight by Jessie J')) {
+  throw new Error('Soundtrack typo clarification missing')
+}
+if (musicFollowupReply('Original', null) || musicFollowupReply('Hello', followupSession)) {
+  throw new Error('Music follow-up guard must not interrupt ordinary conversations')
+}
+const indexSource = readFileSync(new URL('./index.js', import.meta.url), 'utf8')
+if (!indexSource.includes("import { musicFollowupReply } from './music-chat-context.js'") ||
+    indexSource.indexOf('const musicGuidance = musicFollowupReply(') < 0 ||
+    indexSource.indexOf('const musicGuidance = musicFollowupReply(') > indexSource.indexOf('if (await handleProfileAssistant(account, msg, authority, text)) return')) {
+  throw new Error('Music follow-up must be handled before the generative personality')
+}
+console.log('PASS music post-search questions avoid invented delivery and repeated AI clarification')
