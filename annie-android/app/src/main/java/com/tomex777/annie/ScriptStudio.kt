@@ -1314,7 +1314,13 @@ private fun ScriptFileRow(
         border = BorderStroke(1.dp, if (selected) StudioBlue.copy(alpha = .65f) else StudioBorder.copy(alpha = .72f)),
         modifier = Modifier.fillMaxWidth().padding(start = if (indent) 18.dp else 0.dp),
     ) {
-        Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(start = 13.dp, end = 8.dp, top = 11.dp, bottom = 11.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            Modifier.fillMaxWidth()
+                .clickable(onClick = onClick)
+                .then(if (selected && !isFolder) Modifier.testTag("script_selected_file") else Modifier)
+                .padding(start = 13.dp, end = 8.dp, top = 11.dp, bottom = 11.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             if (isFolder) {
                 Icon(
                     studioGlyphVector(StudioGlyph.FOLDER),
