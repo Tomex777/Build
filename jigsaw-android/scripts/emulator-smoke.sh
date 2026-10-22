@@ -109,6 +109,22 @@ adb shell settings put system user_rotation 0
 adb shell wm size 390x844
 sleep 3
 adb exec-out screencap -p > jigsaw-android/qa-screenshots/10-portrait-600-390x844.png
+tap_label "Zone"
+adb exec-out screencap -p > jigsaw-android/qa-screenshots/11-select-work-zone.png
+tap_label "2."
+adb exec-out screencap -p > jigsaw-android/qa-screenshots/12-zone-two-600.png
+tap_label "Edges"
+adb exec-out screencap -p > jigsaw-android/qa-screenshots/13-edge-only-600.png
+tap_label "Pictures"
+adb exec-out screencap -p > jigsaw-android/qa-screenshots/14-saved-photo-gallery.png
+
+adb logcat -d -s AndroidRuntime:E > /tmp/jigsaw-crashlog.txt
+if grep -q 'FATAL EXCEPTION' /tmp/jigsaw-crashlog.txt; then
+  cat /tmp/jigsaw-crashlog.txt
+  echo "FAIL: Android runtime crash in Jigsaw QA" >&2
+  exit 1
+fi
+
 # Reject empty/unexpected screenshots and verify both orientations were rendered.
 python3 - <<'PY'
 import pathlib,struct
