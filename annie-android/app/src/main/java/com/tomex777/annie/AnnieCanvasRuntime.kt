@@ -152,19 +152,25 @@ internal val CANVAS_LIFECYCLE_BOOTSTRAP = """
 
   function schedule(job) {
     if (paused) return;
+    // Cancellation may race a Chromium callback already queued for delivery.
+    // A generation token suppresses stale work after rapid Pause/Resume.
+    var generation = job.generation = (job.generation || 0) + 1;
+    function deliver(value) {
+      if (job.generation === generation) invoke(job, value);
+    }
     if (job.kind === 'frame') {
-      job.nativeId = originalFrame(function (timestamp) { invoke(job, timestamp); });
+      job.nativeId = originalFrame(deliver);
     } else if (job.kind === 'idle') {
       if (originalIdle) {
-        job.nativeId = originalIdle(function (deadline) { invoke(job, deadline); }, job.options);
+        job.nativeId = originalIdle(deliver, job.options);
       } else {
         job.nativeId = originalTimeout(function () {
-          invoke(job, { didTimeout: false, timeRemaining: function () { return 0; } });
+          deliver({ didTimeout: false, timeRemaining: function () { return 0; } });
         }, 1);
       }
     } else {
       job.due = performance.now() + job.remaining;
-      job.nativeId = originalTimeout(function () { invoke(job, performance.now()); }, job.remaining);
+      job.nativeId = originalTimeout(function () { deliver(performance.now()); }, job.remaining);
     }
   }
 
@@ -216,6 +222,8 @@ internal val CANVAS_LIFECYCLE_BOOTSTRAP = """
     pausedAt = performance.now();
     document.documentElement.classList.add('annie-host-paused');
     jobs.forEach(function (job) {
+      // Invalidate callbacks that cancellation can no longer retract.
+      job.generation = (job.generation || 0) + 1;
       if (job.nativeId === null) return;
       if (job.kind === 'frame') originalCancelFrame(job.nativeId);
       else if (job.kind === 'idle') {
