@@ -23,6 +23,7 @@ internal val CANVAS_LIFECYCLE_BOOTSTRAP = """
   var suspendedMedia = [];
   var suspendedAnimations = [];
   var deferredMedia = new Set();
+  var trackedMedia = new Set();
   var audioContexts = new Set();
   var suspendedAudioContexts = [];
 
@@ -30,6 +31,7 @@ internal val CANVAS_LIFECYCLE_BOOTSTRAP = """
   if (window.HTMLMediaElement && window.HTMLMediaElement.prototype) {
     var nativePlay = window.HTMLMediaElement.prototype.play;
     window.HTMLMediaElement.prototype.play = function () {
+      trackedMedia.add(this);
       if (!paused) return nativePlay.apply(this, arguments);
       deferredMedia.add(this);
       return Promise.resolve();
@@ -43,6 +45,7 @@ internal val CANVAS_LIFECYCLE_BOOTSTRAP = """
       var context = Reflect.construct(NativeAudio, arguments, NativeAudio);
       audioContexts.add(context);
       if (paused && context.state === 'running') {
+        suspendedAudioContexts.push(context);
         var action = context.suspend();
         if (action && action.catch) action.catch(function () {});
       }
@@ -128,7 +131,10 @@ internal val CANVAS_LIFECYCLE_BOOTSTRAP = """
       job.nativeId = null;
     });
     suspendedMedia = [];
-    document.querySelectorAll('audio,video').forEach(function (media) {
+    // new Audio('data:...') sounds may never appear in the DOM, yet must stop.
+    var allMedia = new Set(trackedMedia);
+    document.querySelectorAll('audio,video').forEach(function (media) { allMedia.add(media); });
+    allMedia.forEach(function (media) {
       if (!media.paused) { suspendedMedia.push(media); media.pause(); }
     });
     suspendedAudioContexts = [];
@@ -168,7 +174,7 @@ internal val CANVAS_LIFECYCLE_BOOTSTRAP = """
     deferredMedia.forEach(function (media) { suspendedMedia.push(media); });
     deferredMedia.clear();
     suspendedMedia.forEach(function (media) {
-      if (media.isConnected && media.paused) {
+      if (media.paused) {
         var promise = media.play();
         if (promise && promise.catch) promise.catch(function () {});
       }
