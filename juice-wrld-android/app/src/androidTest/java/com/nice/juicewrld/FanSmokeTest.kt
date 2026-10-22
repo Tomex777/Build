@@ -1,17 +1,15 @@
 package com.nice.juicewrld
 
 import android.graphics.Bitmap
-import androidx.compose.ui.graphics.asAndroidBitmap
-import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Rule
 import org.junit.Test
 import java.io.File
@@ -21,7 +19,10 @@ class FanSmokeTest {
 
     private fun screenshot(name: String) {
         rule.waitForIdle()
-        val bitmap = rule.onRoot().captureToImage().asAndroidBitmap()
+        // Capture the complete Android window, including ModalBottomSheet/dialog windows.
+        // A Compose root image cannot capture a separate sheet owner and fails on API 26/35.
+        val bitmap = InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
+            ?: error("Android could not capture $name screenshot")
         val dir = File(rule.activity.filesDir, "screenshots")
         dir.mkdirs()
         File(dir, name + ".png").outputStream().use {
