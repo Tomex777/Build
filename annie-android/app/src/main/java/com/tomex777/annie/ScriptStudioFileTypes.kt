@@ -70,7 +70,8 @@ internal fun studioImportTextDocument(
     val executable = extension in setOf("ts", "py", "lua")
     val fileName = if (executable) "$candidate.$extension" else {
         val stem = leaf.substringBeforeLast('.')
-            .replace(Regex("[^A-Za-z0-9_.-]"), "_").trim('.', '_').take(70).ifBlank { "document" }
+            .replace(Regex("[^A-Za-z0-9_.-]"), "_").trim('.', '_')
+            .take(63 - extension.length).ifBlank { "document" }
         "$stem.$extension"
     }
     val root = if (executable) files.createImportedExecutableFile(fileName)
