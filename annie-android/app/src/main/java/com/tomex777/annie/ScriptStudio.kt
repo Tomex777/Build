@@ -249,7 +249,10 @@ private fun ScriptStudioContent(
     var dialogTitle by remember { mutableStateOf<String?>(null) }
     var dialogValue by remember { mutableStateOf("") }
     var dialogAction by remember { mutableStateOf<(String) -> Unit>({}) }
-    var query by remember { mutableStateOf("") }
+    // Browsing and in-editor Find are different tasks. A filename filter must
+    // never silently become a text-search pattern after opening a document.
+    var fileSearch by remember { mutableStateOf("") }
+    var editorSearch by remember { mutableStateOf("") }
     var replacement by remember { mutableStateOf("") }
     var replaceOpen by remember { mutableStateOf(false) }
     var codeEditor by remember { mutableStateOf<CodeEditor?>(null) }
@@ -314,12 +317,15 @@ private fun ScriptStudioContent(
     }
 
     fun refreshProjects(preferredProject: String? = selectedProjectId, preferredPath: String? = selectedPath) {
+        val previousFile = selectedProjectId to selectedPath
         projects = workspace.files.listProjects()
         // No implicit selection after deletion or reloading an unselected workspace.
         val project = preferredProject?.let { id -> projects.firstOrNull { it.id == id } }
         selectedProjectId = project?.id
-        val path = preferredPath?.takeIf { it in project?.files.orEmpty() } ?: project?.entryPath
+        // Null means no file was intentionally opened; never fall back to main.js.
+        val path = preferredPath?.takeIf { it in project?.files.orEmpty() }
         selectedPath = path
+        if (previousFile != (selectedProjectId to selectedPath)) codeEditor = null
         val source = path?.let { project?.files?.get(it) }.orEmpty()
         val previous = editorValue
         val selection = if (previous.text == source) {
@@ -336,10 +342,27 @@ private fun ScriptStudioContent(
         selectedProjectId = project.id
         selectedPath = path
         currentDirectory = path.substringBeforeLast('/', "")
+        // The old native editor may have been disposed after a previous file.
+        // Drop the reference before binding a different document.
+        codeEditor = null
         editorValue = TextFieldValue(source, selection = TextRange(source.length))
         savedSource = source
         status = ""
         if (openEditor) page = StudioPage.EDITOR
+        return true
+    }
+
+    // Folder focus is not file selection. It may scope ENV to a project, but
+    // must not automatically load, edit or preview the folder's main.js.
+    fun focusDirectory(project: ScriptProject, directory: String): Boolean {
+        if (!saveBeforeNavigation()) return false
+        selectedProjectId = project.id
+        selectedPath = null
+        currentDirectory = directory
+        editorValue = TextFieldValue("")
+        savedSource = ""
+        codeEditor = null
+        status = ""
         return true
     }
 
@@ -434,17 +457,26 @@ private fun ScriptStudioContent(
     val importScript = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null && saveBeforeNavigation()) scope.launch {
             runCatching {
-                val source = withContext(Dispatchers.IO) {
-                    context.contentResolver.openInputStream(uri)?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }
-                        ?: error("Could not read the selected JavaScript file")
-                }
                 val displayName = context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
                     ?.use { cursor -> if (cursor.moveToFirst()) cursor.getString(0) else null }
                     ?: uri.lastPathSegment.orEmpty().substringAfterLast('/')
+                require(displayName.substringAfterLast('/').substringAfterLast('\\')
+                    .substringAfterLast('.', "").lowercase() in StudioFileTypes) {
+                    "Choose a supported code document, or use ZIP to import a package"
+                }
+                val source = withContext(Dispatchers.IO) {
+                    context.contentResolver.openInputStream(uri)?.use(::studioReadTextImport)
+                        ?: error("Could not read the selected document")
+                }
                 if (!saveBeforeNavigation()) return@launch
-                val file = workspace.files.importJavaScript(displayName, source)
-                refreshProjects(file.nameWithoutExtension, file.name)
-                status = "Imported ${file.name} · disabled until you review and enable it"
+                val (id, path) = withContext(Dispatchers.IO) {
+                    studioImportTextDocument(workspace.files, displayName, source)
+                }
+                fileSearch = ""
+                refreshProjects(id, path)
+                currentDirectory = path.substringBeforeLast('/', "")
+                page = StudioPage.EDITOR
+                status = "Imported $path · disabled until you review and enable it"
             }.onFailure { status = it.message ?: "Import failed" }
         }
     }
@@ -491,15 +523,22 @@ private fun ScriptStudioContent(
         val file = importFile ?: return@LaunchedEffect
         if (!saveBeforeNavigation()) { onFileImportOpened(); return@LaunchedEffect }
         runCatching {
-            if (file.extension.equals("js", true)) {
+            if (file.extension.lowercase() in StudioFileTypes) {
                 val staged = withContext(Dispatchers.IO) {
-                    require(file.length() <= 2L * 1024 * 1024) { "Script is too large" }
-                    workspace.files.importJavaScript(file.name, file.readText())
+                    file.inputStream().use { input ->
+                        studioImportTextDocument(workspace.files, file.name, studioReadTextImport(input))
+                    }
                 }
                 if (!saveBeforeNavigation()) { onFileImportOpened(); return@LaunchedEffect }
-                refreshProjects(staged.nameWithoutExtension, staged.name)
-                status = "Imported · review and enable to run"
+                fileSearch = ""
+                refreshProjects(staged.first, staged.second)
+                currentDirectory = staged.second.substringBeforeLast('/', "")
+                page = StudioPage.EDITOR
+                status = "Imported ${staged.second} · review and enable to run"
             } else {
+                require(file.extension.lowercase() in setOf("zip", "annie")) {
+                    "Choose a supported code document, or use ZIP to import a package"
+                }
                 val cached = withContext(Dispatchers.IO) {
                     require(file.length() <= 32L * 1024 * 1024) { "Package is too large" }
                     file.copyTo(File(context.cacheDir, "annie-package-import-${UUID.randomUUID()}.zip"))
@@ -513,7 +552,7 @@ private fun ScriptStudioContent(
                     status = "Review package"
                 } catch (failure: Throwable) { cached.delete(); throw failure }
             }
-        }.onFailure { status = "Unable to import this file. Check its package structure." }
+        }.onFailure { status = it.message ?: "Unable to import this file" }
         onFileImportOpened()
     }
     LaunchedEffect(openPackageImport) {
@@ -605,7 +644,16 @@ private fun ScriptStudioContent(
         ) {
             Column(Modifier.weight(1f)) {
                 Text("Script Studio", color = StudioText, fontSize = 21.sp, fontWeight = FontWeight.Bold)
-                Text(selectedProject?.let { "${it.name} · ${selectedPath ?: it.entryPath}" } ?: "Your JavaScript workspace", color = StudioMuted, fontSize = 12.sp, maxLines = 1)
+                Text(
+                    selectedProject?.let { project ->
+                        when {
+                            selectedPath != null -> "${project.name} · $selectedPath"
+                            currentDirectory.isNotBlank() -> "${project.name} / $currentDirectory"
+                            else -> project.name
+                        }
+                    } ?: "No file selected",
+                    color = StudioMuted, fontSize = 12.sp, maxLines = 1,
+                )
             }
             StudioAction("Host AI", onClick = { hostAiSettings = true })
             StudioAction(
@@ -621,7 +669,9 @@ private fun ScriptStudioContent(
                         else -> status = "Preview supports JavaScript commands and offline HTML/CSS documents."
                     }
                 },
-                enabled = !saving && selectedProject != null && selectedPath != null,
+                enabled = !saving && selectedProject != null &&
+                    selectedPath?.substringAfterLast('.', "")?.lowercase() in
+                        setOf("js", "ts", "py", "lua", "html", "css"),
             )
             Spacer(Modifier.width(8.dp))
             StudioIconAction(StudioGlyph.CLOSE, "Close Script Studio", onClick = { if (saveBeforeNavigation()) onClose() })
@@ -632,8 +682,9 @@ private fun ScriptStudioContent(
             StudioPage.entries.filterNot { it == StudioPage.EDITOR }.forEach { destination ->
                 val inFileSection = page == StudioPage.EDITOR && destination == StudioPage.FILES
                 StudioTab(destination.title, page == destination || inFileSection, Modifier.weight(1f)) {
-                    if (page != destination) {
+                    if (page != destination && saveBeforeNavigation()) {
                         codeEditor?.clearFocus()
+                        codeEditor = null
                         focusManager.clearFocus(force = true)
                         keyboardController?.hide()
                         page = destination
@@ -655,13 +706,11 @@ private fun ScriptStudioContent(
                                 } else if (isExecutableScript(name)) {
                                     workspace.files.createScript(name)
                                 } else {
-                                    // Non-JS documents always belong to a project directory.
-                                    val projectName = name.substringBeforeLast('.')
-                                    val folder = workspace.files.createFolder(projectName)
-                                    workspace.files.createFile(folder.name, name)
+                                    studioCreateStandaloneDocument(workspace.files, name)
                                 }
                             }.onSuccess { file ->
                                 val (id, path) = studioCreatedFileLocation(workspace.files.root, file, owner?.id)
+                                fileSearch = ""
                                 refreshProjects(id, path)
                                 currentDirectory = path.substringBeforeLast('/', "")
                                 status = "Created ${file.name}"
@@ -677,22 +726,23 @@ private fun ScriptStudioContent(
                                 else workspace.files.createFolder(owner.id, listOf(currentDirectory.trim('/'), name.trim('/')).filter(String::isNotBlank).joinToString("/"))
                             }.onSuccess { folder ->
                                 val id = if (owner == null) folder.name else owner!!.id
-                                val path = if (owner == null) "main.js" else folder.relativeTo(File(workspace.files.root, id)).invariantSeparatorsPath + "/main.js"
-                                refreshProjects(id, path)
-                                currentDirectory = path.substringBeforeLast('/', "")
-                                status = "Created \${folder.name}"
+                                val directory = if (owner == null) "" else folder.relativeTo(File(workspace.files.root, id)).invariantSeparatorsPath
+                                fileSearch = ""
+                                refreshProjects(id, null)
+                                currentDirectory = directory
+                                status = "Created ${folder.name}"
                             }.onFailure { status = it.message ?: "Could not create folder" }
                         }
                     })
                     StudioAction("Import", onClick = {
-                        importScript.launch(arrayOf("application/javascript", "text/javascript", "application/x-javascript", "text/plain"))
+                        importScript.launch(arrayOf("*/*"))
                     })
                     StudioAction("ZIP", onClick = {
                         importPackageArchive.launch(arrayOf("application/zip", "application/x-zip-compressed", "application/octet-stream"))
                     })
                 }
 
-                StudioInput(query, { query = it }, "Search files", Modifier.fillMaxWidth().padding(horizontal = 14.dp), tag = "script_file_search")
+                StudioInput(fileSearch, { fileSearch = it }, "Search files", Modifier.fillMaxWidth().padding(horizontal = 14.dp), tag = "script_file_search")
                 if (projects.isEmpty()) {
                     EmptyStudioState("No scripts yet", "Create a file or folder to start a script project.")
                 } else {
@@ -703,27 +753,37 @@ private fun ScriptStudioContent(
                         projects.forEach { project ->
                             val isFolder = File(workspace.files.root, project.id).isDirectory
                             val shown = if (isFolder) project.name else project.entryPath
-                            if (shown.contains(query, true)) {
+                            val projectMatches = shown.contains(fileSearch, true)
+                            val projectHasMatchingFile = isFolder && project.files.keys.any { it.contains(fileSearch, true) }
+                            if (projectMatches || projectHasMatchingFile) {
                                 item(key = "project:${project.id}") {
                                     ScriptFileRow(
                                         name = shown,
-                                        subtitle = if (isFolder) "Folder · ${project.files.size} ${if (project.files.size == 1) "file" else "files"}" else "JavaScript",
+                                        subtitle = if (isFolder) "Folder · ${project.files.size} ${if (project.files.size == 1) "file" else "files"}" else "${project.entryPath.substringAfterLast('.', "js").uppercase()} script",
                                         isFolder = isFolder,
-                                        isEntry = true,
-                                        selected = selectedProjectId == project.id && selectedPath == project.entryPath,
-                                        onClick = { if (isFolder) { if (selectFile(project, project.entryPath, openEditor = false)) currentDirectory = "" } else selectFile(project, project.entryPath) },
-                                        actions = listOf(
-                                            FileAction.RENAME,
-                                            FileAction.SHARE,
-                                            FileAction.EXPORT,
-                                            if (project.enabled) FileAction.DISABLE else FileAction.ENABLE,
-                                            FileAction.DELETE,
-                                        ) + if (project.hasPackageManifest) listOf(FileAction.PERMISSIONS) else emptyList(),
+                                        isEntry = !isFolder,
+                                        selected = selectedProjectId == project.id && (if (isFolder) selectedPath == null && currentDirectory.isBlank() else selectedPath == project.entryPath),
+                                        onClick = { if (isFolder) focusDirectory(project, "") else selectFile(project, project.entryPath) },
+                                        actions = listOf(FileAction.RENAME, FileAction.SHARE, FileAction.EXPORT) +
+                                            (if (isExecutableScript(project.entryPath)) {
+                                                listOf(if (project.enabled) FileAction.DISABLE else FileAction.ENABLE)
+                                            } else emptyList()) +
+                                            listOf(FileAction.DELETE) +
+                                            (if (project.hasPackageManifest) listOf(FileAction.PERMISSIONS) else emptyList()),
                                         onAction = { action ->
                                             when (action) {
                                                 FileAction.RENAME -> askForText("Rename ${if (isFolder) "project" else "script"}", project.name) { next ->
                                                     runCatching { workspace.files.renameProject(project.id, next) }
-                                                        .onSuccess { id -> refreshProjects(id, if (isFolder) "main.js" else "$id.js"); status = "Renamed to $id" }
+                                                        .onSuccess { id ->
+                                                            if (selectedProjectId == project.id) {
+                                                                val preservedPath = if (!isFolder && selectedPath == project.entryPath) {
+                                                                    "$id.${project.entryPath.substringAfterLast('.')}"
+                                                                } else selectedPath
+                                                                refreshProjects(id, preservedPath)
+                                                            } else refreshProjects()
+                                                            fileSearch = ""
+                                                            status = "Renamed to $id"
+                                                        }
                                                         .onFailure { status = it.message ?: "Rename failed" }
                                                 }
                                                 FileAction.SHARE -> shareProjectFile(project, project.entryPath)
@@ -733,7 +793,12 @@ private fun ScriptStudioContent(
                                                     if (confirm == project.name) {
                                                         runCatching { workspace.files.deleteProject(project.id) }
                                                             .onSuccess {
-                                                                refreshProjects(null, null)
+                                                                if (selectedProjectId == project.id) {
+                                                                    refreshProjects(null, null)
+                                                                    currentDirectory = ""
+                                                                } else refreshProjects()
+                                                                page = StudioPage.FILES
+                                                                fileSearch = ""
                                                                 scope.launch { onCommandsReloaded(workspace.reload()) }
                                                                 status = "Project deleted"
                                                             }
@@ -744,7 +809,9 @@ private fun ScriptStudioContent(
                                                     val enabled = action == FileAction.ENABLE
                                                     runCatching { workspace.files.setEnabled(project.id, enabled) }
                                                         .onSuccess {
-                                                            refreshProjects(project.id, selectedPath)
+                                                            // Permission/enable actions do not imply opening this
+                                                            // project's entry file or changing the active project.
+                                                            refreshProjects()
                                                             scope.launch { onCommandsReloaded(workspace.reload()) }
                                                             status = if (enabled) "Script enabled" else "Script disabled"
                                                         }
@@ -767,7 +834,7 @@ private fun ScriptStudioContent(
                                             isEntry = false,
                                             selected = false,
                                             indent = normalizedDirectory.contains('/'),
-                                            onClick = { currentDirectory = normalizedDirectory.substringBeforeLast('/', "") },
+                                            onClick = { focusDirectory(project, normalizedDirectory.substringBeforeLast('/', "")) },
                                             actions = emptyList(),
                                             onAction = {},
                                         )
@@ -786,7 +853,21 @@ private fun ScriptStudioContent(
                                         childFiles += path
                                     }
                                 }
-                                childDirectories.filter { it.contains(query, true) }.forEach { child ->
+                                // Source snapshots list files, not empty folders. Include the
+                                // actual directories so a newly created folder remains visible
+                                // before its first document is added.
+                                val rootDirectory = File(workspace.files.root, project.id).canonicalFile
+                                val browsedDirectory = File(rootDirectory, normalizedDirectory).canonicalFile
+                                if (browsedDirectory.toPath().startsWith(rootDirectory.toPath())) {
+                                    browsedDirectory.listFiles().orEmpty()
+                                        .filter { it.isDirectory && it.canonicalFile.toPath().startsWith(rootDirectory.toPath()) }
+                                        .forEach { childDirectories += it.name }
+                                }
+                                childDirectories.filter { child ->
+                                    val childPath = if (normalizedDirectory.isBlank()) child else "$normalizedDirectory/$child"
+                                    projectMatches || child.contains(fileSearch, true) ||
+                                        project.files.keys.any { path -> path.startsWith("$childPath/") && path.contains(fileSearch, true) }
+                                }.forEach { child ->
                                     val childPath = if (normalizedDirectory.isBlank()) child else "$normalizedDirectory/$child"
                                     item(key = "dir:" + project.id + ":" + childPath) {
                                         ScriptFileRow(
@@ -796,19 +877,19 @@ private fun ScriptStudioContent(
                                             isEntry = false,
                                             selected = false,
                                             indent = normalizedDirectory.isNotBlank(),
-                                            onClick = { currentDirectory = childPath },
+                                            onClick = { focusDirectory(project, childPath) },
                                             actions = emptyList(),
                                             onAction = {},
                                         )
                                     }
                                 }
-                                childFiles.filter { it.contains(query, true) }.forEach { path ->
+                                childFiles.filter { projectMatches || it.contains(fileSearch, true) }.forEach { path ->
                                     item(key = "file:" + project.id + ":" + path) {
                                         ScriptFileRow(
                                             name = path.substringAfterLast('/'),
                                             subtitle = project.name + " / " + path,
                                             isFolder = false,
-                                            isEntry = path == project.entryPath,
+                                            isEntry = path == project.entryPath && isExecutableScript(path),
                                             selected = selectedProjectId == project.id && selectedPath == path,
                                             indent = normalizedDirectory.isNotBlank(),
                                             onClick = { selectFile(project, path) },
@@ -823,8 +904,11 @@ private fun ScriptStudioContent(
                                                     FileAction.RENAME -> askForText("Rename or move file", path) { next ->
                                                         runCatching { workspace.files.renameFile(project.id, path, next) }
                                                             .onSuccess { moved ->
-                                                                refreshProjects(project.id, moved)
-                                                                currentDirectory = moved.substringBeforeLast('/', "")
+                                                                if (selectedProjectId == project.id && selectedPath == path) {
+                                                                    refreshProjects(project.id, moved)
+                                                                    currentDirectory = moved.substringBeforeLast('/', "")
+                                                                } else refreshProjects()
+                                                                fileSearch = ""
                                                                 status = "Moved to $moved"
                                                             }
                                                             .onFailure { status = it.message ?: "Rename failed" }
@@ -837,8 +921,13 @@ private fun ScriptStudioContent(
                                                         if (confirmation == path.substringAfterLast('/')) {
                                                             runCatching { workspace.files.deleteFile(project.id, path) }
                                                                 .onSuccess {
-                                                                    refreshProjects(project.id, project.entryPath)
-                                                                    currentDirectory = normalizedDirectory
+                                                                    val deletedOpenedFile = selectedProjectId == project.id && selectedPath == path
+                                                                    refreshProjects(
+                                                                        preferredProject = selectedProjectId,
+                                                                        preferredPath = if (deletedOpenedFile) null else selectedPath,
+                                                                    )
+                                                                    if (deletedOpenedFile) currentDirectory = normalizedDirectory
+                                                                    fileSearch = ""
                                                                     status = "Deleted $path"
                                                                 }.onFailure { status = it.message ?: "Delete failed" }
                                                         } else status = "Delete cancelled"
@@ -865,22 +954,22 @@ private fun ScriptStudioContent(
                         Column(Modifier.weight(1f)) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
                                 Text(path, color = StudioText, fontWeight = FontWeight.SemiBold, fontFamily = FontFamily.Monospace, fontSize = 14.sp, maxLines = 1)
-                                if (path == project.entryPath) EntryBadge()
+                                if (path == project.entryPath && isExecutableScript(path)) EntryBadge()
                             }
                         }
                         StudioAction("AI spec", icon = StudioGlyph.ASSIST, onClick = { exportAiSpec() }, enabled = !saving)
                         Spacer(Modifier.width(7.dp))
                         StudioAction("Run", emphasized = true, icon = StudioGlyph.RUN, onClick = { saveScript(runAfterSave = true) }, enabled = !saving && isExecutableScript(path))
                     }
-                    val matches = remember(query, editorValue.text) {
-                        if (query.isBlank()) 0 else Regex(Regex.escape(query), RegexOption.IGNORE_CASE).findAll(editorValue.text).count()
+                    val matches = remember(editorSearch, editorValue.text) {
+                        if (editorSearch.isBlank()) 0 else Regex(Regex.escape(editorSearch), RegexOption.IGNORE_CASE).findAll(editorValue.text).count()
                     }
                     Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                        StudioInput(query, { query = it }, "Find in file", Modifier.weight(1f), tag = "script_find_query")
-                        StudioAction("Find", icon = StudioGlyph.FIND, enabled = query.isNotBlank(), onClick = {
-                            codeEditor?.searcher?.search(query, EditorSearcher.SearchOptions(EditorSearcher.SearchOptions.TYPE_NORMAL, true))
+                        StudioInput(editorSearch, { editorSearch = it }, "Find in file", Modifier.weight(1f), tag = "script_find_query")
+                        StudioAction("Find", icon = StudioGlyph.FIND, enabled = editorSearch.isNotBlank(), onClick = {
+                            codeEditor?.searcher?.search(editorSearch, EditorSearcher.SearchOptions(EditorSearcher.SearchOptions.TYPE_NORMAL, true))
                         })
-                        Text(if (query.isBlank()) "" else "$matches", color = StudioMuted, fontSize = 11.sp)
+                        Text(if (editorSearch.isBlank()) "" else "$matches", color = StudioMuted, fontSize = 11.sp)
                         StudioIconAction(StudioGlyph.REPLACE, "Find and replace", onClick = { replaceOpen = !replaceOpen })
                         StudioIconAction(StudioGlyph.UNDO, "Undo", enabled = codeEditor?.text?.canUndo() == true, onClick = { codeEditor?.undo() })
                         StudioIconAction(StudioGlyph.REDO, "Redo", enabled = codeEditor?.text?.canRedo() == true, onClick = { codeEditor?.redo() })
@@ -892,14 +981,14 @@ private fun ScriptStudioContent(
                             StudioAction("Replace", enabled = matches > 0, contentDescription = "Replace next match", onClick = {
                                 codeEditor?.let { editor ->
                                     val source = editor.text.toString()
-                                    val pattern = Regex(Regex.escape(query), RegexOption.IGNORE_CASE)
+                                    val pattern = Regex(Regex.escape(editorSearch), RegexOption.IGNORE_CASE)
                                     val next = pattern.find(source, editor.text.cursor.left.coerceIn(0, source.length)) ?: pattern.find(source)
                                     next?.let { editor.text.replace(it.range.first, it.range.last + 1, replacement) }
                                 }
                             })
                             StudioAction("All", enabled = matches > 0, contentDescription = "Replace all matches", onClick = {
                                 codeEditor?.let { editor ->
-                                    val pattern = Regex(Regex.escape(query), RegexOption.IGNORE_CASE)
+                                    val pattern = Regex(Regex.escape(editorSearch), RegexOption.IGNORE_CASE)
                                     val source = editor.text.toString()
                                     // Content.replace retains the editor undo history. Treat
                                     // replacement literally, including dollar signs/backslashes.
@@ -911,6 +1000,7 @@ private fun ScriptStudioContent(
                     }
                     ScriptCodeEditor(
                         value = editorValue,
+                        fileType = path.substringAfterLast('.', "").lowercase(),
                         onValueChange = { editorValue = it },
                         onEditorReady = { codeEditor = it },
                         enabled = !saving,
@@ -1215,15 +1305,13 @@ private fun ScriptStudioContent(
                             } else if (isExecutableScript(name)) {
                                 workspace.files.createScript(name)
                             } else {
-                                // Standalone projects require an executable JS entry point;
-                                // keep auxiliary documents in their own project folder.
-                                val folder = workspace.files.createFolder(name.substringBeforeLast('.'))
-                                workspace.files.createFile(folder.name, name)
+                                studioCreateStandaloneDocument(workspace.files, name)
                             }
                             val (id, path) = studioCreatedFileLocation(workspace.files.root, file, owner?.id)
                             workspace.files.writeFile(id, path, proposed)
                             id to path
                         }.onSuccess { (id, path) ->
+                            fileSearch = ""
                             refreshProjects(id, path)
                             page = StudioPage.EDITOR
                             status = "Created $path from Assist"
@@ -1255,7 +1343,13 @@ private fun ScriptFileRow(
         border = BorderStroke(1.dp, if (selected) StudioBlue.copy(alpha = .65f) else StudioBorder.copy(alpha = .72f)),
         modifier = Modifier.fillMaxWidth().padding(start = if (indent) 18.dp else 0.dp),
     ) {
-        Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(start = 13.dp, end = 8.dp, top = 11.dp, bottom = 11.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            Modifier.fillMaxWidth()
+                .clickable(onClick = onClick)
+                .then(if (selected && !isFolder) Modifier.testTag("script_selected_file") else Modifier)
+                .padding(start = 13.dp, end = 8.dp, top = 11.dp, bottom = 11.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             if (isFolder) {
                 Icon(
                     studioGlyphVector(StudioGlyph.FOLDER),
@@ -1264,7 +1358,7 @@ private fun ScriptFileRow(
                     modifier = Modifier.size(20.dp),
                 )
             } else {
-                Text("JS", color = StudioGreen, fontSize = 13.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                Text(name.substringAfterLast('.', "FILE").uppercase().take(4), color = StudioGreen, fontSize = 13.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
             }
             Spacer(Modifier.width(11.dp))
             Column(Modifier.weight(1f)) {
@@ -1274,19 +1368,21 @@ private fun ScriptFileRow(
                 }
                 Text(subtitle, color = StudioMuted, fontSize = 11.sp, maxLines = 1)
             }
-            Box {
-                Icon(
-                    studioGlyphVector(StudioGlyph.MORE),
-                    contentDescription = "File actions",
-                    tint = StudioMuted,
-                    modifier = Modifier.size(36.dp).clickable { expanded = true }.padding(8.dp),
-                )
-                DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                    actions.forEach { action ->
-                        DropdownMenuItem(
-                            text = { Text(action.label(), color = if (action == FileAction.DELETE) StudioDanger else StudioText) },
-                            onClick = { expanded = false; onAction(action) },
-                        )
+            if (actions.isNotEmpty()) {
+                Box {
+                    Icon(
+                        studioGlyphVector(StudioGlyph.MORE),
+                        contentDescription = "File actions",
+                        tint = StudioMuted,
+                        modifier = Modifier.size(48.dp).clickable { expanded = true }.padding(12.dp),
+                    )
+                    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                        actions.forEach { action ->
+                            DropdownMenuItem(
+                                text = { Text(action.label(), color = if (action == FileAction.DELETE) StudioDanger else StudioText) },
+                                onClick = { expanded = false; onAction(action) },
+                            )
+                        }
                     }
                 }
             }
@@ -1687,6 +1783,7 @@ private fun StudioStatus(status: String, modifier: Modifier = Modifier) {
 @Composable
 private fun ScriptCodeEditor(
     value: TextFieldValue,
+    fileType: String,
     onValueChange: (TextFieldValue) -> Unit,
     onEditorReady: (CodeEditor) -> Unit,
     enabled: Boolean,
@@ -1695,33 +1792,40 @@ private fun ScriptCodeEditor(
     AndroidView(
         modifier = modifier,
         factory = { context ->
-            val registry = MonarchGrammarRegistry()
-            registry.loadGrammars(
-                monarchLanguages {
-                    language("typescript") {
-                        monarchLanguage = TypescriptLanguage
-                        defaultScopeName()
-                        languageConfiguration = "textmate/javascript/language-configuration.json"
+            // Applying TypeScript analysis to HTML, CSS, Python, Markdown or
+            // plain text produces false coloring and JavaScript completion.
+            // Sora's built-in plain language is preferable until a verified
+            // per-language tokenizer is bundled.
+            val syntaxLanguage = if (fileType in setOf("js", "ts")) {
+                val registry = MonarchGrammarRegistry()
+                registry.loadGrammars(
+                    monarchLanguages {
+                        language("typescript") {
+                            monarchLanguage = TypescriptLanguage
+                            defaultScopeName()
+                            languageConfiguration = "textmate/javascript/language-configuration.json"
+                        }
                     }
-                }
-            )
-            val grammar = registry.findGrammar("source.typescript")
-                ?: registry.findGrammar("typescript")
-                ?: error("Could not load JavaScript syntax grammar")
-            val language = MonarchLanguage(grammar, registry.findLanguageConfiguration("source.typescript"), registry, true).apply {
-                setCompleterKeywords(
-                    arrayOf(
-                        "annie.commands", "annie.commands.register",
-                        "annie.actions", "annie.sessions",
-                        "annie.http", "annie.http.request", "annie.browser",
-                        "annie.storage", "annie.storage.get", "annie.storage.set",
-                        "annie.env", "annie.env.define", "annie.env.get", "annie.env.set", "annie.env.secret", "annie.env.values",
-                        "annie.schedule", "annie.schedule.create", "annie.schedule.list", "annie.schedule.cancel", "annie.schedule.enable", "annie.schedule.disable",
-                        "annie.tasks", "annie.tasks.start", "annie.tasks.list", "annie.tasks.cancel", "annie.tasks.retry",
-                        "annie.messages", "annie.messages.form", "annie.messages.canvas", "annie.files", "annie.log",
-                    )
                 )
-            }
+                val grammar = registry.findGrammar("source.typescript")
+                    ?: registry.findGrammar("typescript")
+                    ?: error("Could not load JavaScript syntax grammar")
+                val language = MonarchLanguage(grammar, registry.findLanguageConfiguration("source.typescript"), registry, true).apply {
+                    setCompleterKeywords(
+                        arrayOf(
+                            "annie.commands", "annie.commands.register",
+                            "annie.actions", "annie.sessions",
+                            "annie.http", "annie.http.request", "annie.browser",
+                            "annie.storage", "annie.storage.get", "annie.storage.set",
+                            "annie.env", "annie.env.define", "annie.env.get", "annie.env.set", "annie.env.secret", "annie.env.values",
+                            "annie.schedule", "annie.schedule.create", "annie.schedule.list", "annie.schedule.cancel", "annie.schedule.enable", "annie.schedule.disable",
+                            "annie.tasks", "annie.tasks.start", "annie.tasks.list", "annie.tasks.cancel", "annie.tasks.retry",
+                            "annie.messages", "annie.messages.form", "annie.messages.canvas", "annie.files", "annie.log",
+                        )
+                    )
+                }
+                language
+            } else null
             AnnieScriptCodeEditor(context).apply {
                 onTextSync = {
                     val cursor = text.cursor
@@ -1732,17 +1836,17 @@ private fun ScriptCodeEditor(
                 // Monarch emits dynamic foreground ids after async tokenization. A regular
                 // EditorColorScheme (including SchemeDarcula) does not resolve those ids,
                 // which can make the code turn transparent while the caret still works.
-                // Keep the language and color scheme paired so document, spans and paint
-                // always describe the same visible editor state.
+                // Keep syntax and theme paired for JS/TS. Other document types
+                // use Sora's plain language with the same visible dark palette.
                 val annieTheme = ensureAnnieMonarchTheme(context)
                 setColorScheme(MonarchColorScheme.create(annieTheme))
-                setEditorLanguage(language)
+                syntaxLanguage?.let { setEditorLanguage(it) }
                 setTextSize(14f)
-                setTabWidth(4)
-                isLineNumberEnabled = true
-                isWordwrap = false
-                props.autoIndent = true
-                props.symbolPairAutoCompletion = true
+                setTabWidth(if (fileType in setOf("html", "css", "json")) 2 else 4)
+                isLineNumberEnabled = fileType !in setOf("md", "txt")
+                isWordwrap = fileType in setOf("html", "css", "json", "md", "txt")
+                props.autoIndent = fileType !in setOf("md", "txt")
+                props.symbolPairAutoCompletion = fileType !in setOf("md", "txt")
                 setText(value.text)
                 isEnabled = enabled
                 subscribeAlways<ContentChangeEvent> {
@@ -1831,7 +1935,7 @@ private class AnnieScriptCodeEditor(context: android.content.Context) : CodeEdit
 
 @Composable
 private fun StudioInput(value: String, onValueChange: (String) -> Unit, hint: String, modifier: Modifier = Modifier, tag: String? = null) {
-    Surface(color = StudioSurface, shape = RoundedCornerShape(11.dp), border = BorderStroke(1.dp, StudioBorder), modifier = modifier.heightIn(min = 40.dp)) {
+    Surface(color = StudioSurface, shape = RoundedCornerShape(11.dp), border = BorderStroke(1.dp, StudioBorder), modifier = modifier.heightIn(min = 48.dp)) {
         BasicTextField(
             value = value,
             onValueChange = onValueChange,
@@ -1859,10 +1963,10 @@ private fun StudioAction(
         color = when { !enabled -> Color(0xFF15202D); emphasized -> Color(0xFF16446A); else -> StudioSurface2 },
         shape = RoundedCornerShape(10.dp),
         border = BorderStroke(1.dp, if (emphasized) StudioBlue.copy(alpha = .55f) else StudioBorder),
-        modifier = Modifier.clickable(enabled = enabled, onClick = onClick).then(semanticModifier),
+        modifier = Modifier.heightIn(min = 48.dp).clickable(enabled = enabled, onClick = onClick).then(semanticModifier),
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 11.dp, vertical = 9.dp),
+            modifier = Modifier.heightIn(min = 48.dp).padding(horizontal = 11.dp, vertical = 9.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
@@ -1982,7 +2086,7 @@ private fun StudioTab(label: String, selected: Boolean, modifier: Modifier = Mod
         shape = RoundedCornerShape(10.dp),
         modifier = modifier.clickable(onClick = onClick).testTag("script_tab_${label.lowercase()}"),
     ) {
-        Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp)) {
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.heightIn(min = 48.dp).padding(horizontal = 12.dp, vertical = 9.dp)) {
             Text(label, color = if (selected) StudioBlue else StudioMuted, fontSize = 12.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium)
         }
     }

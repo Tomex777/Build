@@ -167,7 +167,16 @@ internal class ScriptFiles(context: Context) : PackageAssetResolver {
             AnniePackageArchive.readManifestIfPresent(file, id, file.nameWithoutExtension, sourceFiles.keys)
         } else null
         val entryRelative = importedManifest?.entryPoint ?: if (file.isDirectory) {
-            "main.js".takeIf { it in sourceFiles } ?: "main.ts".takeIf { it in sourceFiles } ?: "main.py".takeIf { it in sourceFiles } ?: "main.lua".takeIf { it in sourceFiles } ?: sourceFiles.keys.filter(::isExecutableScript).singleOrNull() ?: return null
+            val runnableFiles = sourceFiles.keys.filter(::isExecutableScript)
+            val chosen = "main.js".takeIf { it in sourceFiles }
+                ?: "main.ts".takeIf { it in sourceFiles }
+                ?: "main.py".takeIf { it in sourceFiles }
+                ?: "main.lua".takeIf { it in sourceFiles }
+                ?: runnableFiles.singleOrNull()
+                // Read-only document folders contain no runnable entry point.
+                // Keep them editable without fabricating an executable main.js.
+                ?: (if (runnableFiles.isEmpty()) sourceFiles.keys.sorted().firstOrNull() else null)
+            chosen ?: return null
         } else file.name
         if (entryRelative !in sourceFiles) return null
         ScriptProject(
@@ -175,7 +184,8 @@ internal class ScriptFiles(context: Context) : PackageAssetResolver {
             name = importedManifest?.displayName ?: file.nameWithoutExtension,
             entryPath = entryRelative,
             files = sourceFiles,
-            enabled = packageRegistry.get(id)?.enabled ?: enabledPrefs.getBoolean(id, importedManifest == null),
+            enabled = packageRegistry.get(id)?.enabled
+                ?: enabledPrefs.getBoolean(id, importedManifest == null && isExecutableScript(entryRelative)),
             importedManifest = importedManifest,
         )
     }.getOrNull()
@@ -222,6 +232,30 @@ internal class ScriptFiles(context: Context) : PackageAssetResolver {
     }
 
     /**
+     * Stage a non-JS executable import without briefly exposing the default
+     * enabled starter command from createScript(). No source bytes are written
+     * until the disabled flag is synchronously committed.
+     */
+    fun createImportedExecutableFile(name: String): File {
+        val suffix = name.substringAfterLast('.', "").lowercase()
+        require(suffix in setOf("ts", "py", "lua")) { "Unsupported executable source" }
+        val safe = validateName(name, ".$suffix")
+        val id = safe.substringBeforeLast('.')
+        require(!projectNameExists(id)) { "A script project with this name already exists" }
+        check(enabledPrefs.edit().putBoolean(id, false).commit()) {
+            "Could not disable imported source before staging"
+        }
+        val file = File(root, safe)
+        try {
+            require(file.createNewFile()) { "A script file with this name already exists" }
+            return file
+        } catch (failure: Throwable) {
+            enabledPrefs.edit().remove(id).commit()
+            throw failure
+        }
+    }
+
+    /**
      * Stages a loose JavaScript file as a package without evaluating it. Imported code stays
      * disabled until the user explicitly enables the package from Script Studio.
      */
@@ -238,9 +272,23 @@ internal class ScriptFiles(context: Context) : PackageAssetResolver {
             suffix++
         }
         val imported = File(root, "$candidate.js")
-        imported.writeText(source)
-        enabledPrefs.edit().putBoolean(candidate, false).apply()
-        return imported
+        // The disabled state must reach disk *before* the untrusted file becomes
+        // visible to a concurrent runtime reload. apply() only schedules a write
+        // and must not be used as the staging security boundary.
+        check(enabledPrefs.edit().putBoolean(candidate, false).commit()) {
+            "Could not disable imported JavaScript before staging"
+        }
+        var created = false
+        try {
+            require(imported.createNewFile()) { "An import with this name already exists" }
+            created = true
+            imported.writeText(source)
+            return imported
+        } catch (failure: Throwable) {
+            if (created) imported.delete()
+            enabledPrefs.edit().remove(candidate).commit()
+            throw failure
+        }
     }
 
     fun createFolder(name: String): File {
@@ -256,6 +304,27 @@ internal class ScriptFiles(context: Context) : PackageAssetResolver {
                 |  }
                 |});
             """.trimMargin())
+        }
+    }
+
+    /**
+     * Import-only document container. Unlike a new script folder it contains
+     * no runnable main.js or surprise command. Its disabled state is committed
+     * before the directory becomes visible to a concurrent workspace reload.
+     */
+    fun createDocumentProject(name: String): File {
+        val safe = validateName(name, "")
+        require(!projectNameExists(safe)) { "A project with this name already exists" }
+        check(enabledPrefs.edit().putBoolean(safe, false).commit()) {
+            "Could not disable the imported document"
+        }
+        val folder = File(root, safe)
+        try {
+            require(folder.mkdir()) { "A project with this name already exists" }
+            return folder
+        } catch (failure: Throwable) {
+            enabledPrefs.edit().remove(safe).commit()
+            throw failure
         }
     }
 
@@ -290,6 +359,9 @@ internal class ScriptFiles(context: Context) : PackageAssetResolver {
     fun setEnabled(projectId: String, enabled: Boolean) {
         val container = resolveProjectContainer(projectId)
         val project = readProject(container) ?: error("Script project could not be loaded")
+        require(!enabled || isExecutableScript(project.entryPath)) {
+            "Documents without executable source cannot be enabled"
+        }
         if (project.hasPackageManifest) {
             if (packageRegistry.get(projectId) == null) {
                 packageRegistry.ensureRecovered(InstalledPackageState(
@@ -413,7 +485,10 @@ internal class ScriptFiles(context: Context) : PackageAssetResolver {
     fun renameFile(projectId: String, relativePath: String, newRelativePath: String): String {
         val project = resolveProjectContainer(projectId)
         require(project.isDirectory) { "Rename the standalone project instead" }
-        require(relativePath != readProject(project)?.entryPath) { "$relativePath is the folder entry point and cannot be moved" }
+        val entry = readProject(project)?.entryPath
+        require(relativePath != entry || !isExecutableScript(relativePath)) {
+            "$relativePath is the runnable entry point and cannot be moved"
+        }
         val source = resolveProjectFile(projectId, relativePath)
         require(source.isFile) { "Script file does not exist" }
         val safeTarget = validateProjectTextPath(newRelativePath)
@@ -427,9 +502,18 @@ internal class ScriptFiles(context: Context) : PackageAssetResolver {
     fun deleteFile(projectId: String, relativePath: String) {
         val project = resolveProjectContainer(projectId)
         require(project.isDirectory) { "Delete the standalone project instead" }
-        require(relativePath != readProject(project)?.entryPath) { "$relativePath is the folder entry point and cannot be deleted" }
+        val entry = readProject(project)?.entryPath
+        require(relativePath != entry || !isExecutableScript(relativePath)) {
+            "$relativePath is the runnable entry point and cannot be deleted"
+        }
         val target = resolveProjectFile(projectId, relativePath)
         require(target.isFile && target.delete()) { "Could not delete script file" }
+        // Imported document-only projects can remove their sole entry file.
+        // Remove an empty project container so it cannot become a hidden,
+        // non-editable orphan after deleting its final document.
+        if (relativePath == entry && project.walkTopDown().none { it.isFile }) {
+            deleteProject(projectId)
+        }
     }
 
     private fun projectNameExists(id: String, except: File? = null): Boolean =

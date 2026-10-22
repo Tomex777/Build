@@ -79,8 +79,8 @@ class ScriptChatFlowTest {
         assertEquals(true, compose.onAllNodesWithText("MAIN", substring = false).fetchSemanticsNodes().isNotEmpty())
         saveEmulatorScreenshot("annie-script-studio-files")
         assertEquals(0, compose.onAllNodesWithText("Console", substring = false).fetchSemanticsNodes().size)
-        compose.onNodeWithTag("script_tab_editor").performClick()
-        // The tab dismisses the chat IME. Native window/inset animation can outlive
+        compose.onNodeWithText("chess.js", substring = false).performClick()
+        // Opening the chosen file dismisses the chat IME. Insets can outlive
         // Compose idleness, so wait for the actual control to enter the viewport.
         compose.waitUntil(8_000) {
             runCatching {
@@ -134,8 +134,9 @@ class ScriptChatFlowTest {
                     else androidx.compose.material3.Text("Test finished")
                 }
             }
-            compose.onNodeWithTag("script_tab_editor").performClick()
+            compose.onNodeWithTag("script_file_search").performTextInput(name)
             hideKeyboardAndWaitForWindowFocus()
+            compose.onNodeWithText(file.name, substring = false).performClick()
             compose.onNodeWithTag("script_editor").assertIsDisplayed()
             onView(isAssignableFrom(CodeEditor::class.java)).perform(insertCodeEditorText("\n//caret-proof"))
             // Debounced persistence requires no Save button.
@@ -156,7 +157,7 @@ class ScriptChatFlowTest {
         compose.waitUntil(5_000) {
             compose.onAllNodesWithTag("script_studio").fetchSemanticsNodes().isNotEmpty()
         }
-        compose.onNodeWithTag("script_tab_editor").performClick()
+        compose.onNodeWithText("chess.js", substring = false).performClick()
         compose.waitForIdle()
 
         // Give Monarch's asynchronous analyzer time to replace the initial plain-text spans.
@@ -198,9 +199,10 @@ class ScriptChatFlowTest {
                     else androidx.compose.material3.Text("Test finished")
                 }
             }
-            compose.onNodeWithTag("script_tab_editor").performClick()
-            compose.waitForIdle()
+            compose.onNodeWithTag("script_file_search").performTextInput(name)
             hideKeyboardAndWaitForWindowFocus()
+            compose.onNodeWithText("$name.js", substring = false).performClick()
+            compose.waitForIdle()
             onView(allOf(isAssignableFrom(CodeEditor::class.java), isDisplayed()))
                 .perform(verifyEditorSelectionAndClipboardSemantics())
         } finally {

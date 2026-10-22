@@ -20,6 +20,21 @@ class ScriptStudioFileTypesTest {
         assertEquals("js", studioDefaultFileType("picture.png"))
     }
 
+    @Test fun creationAcceptsSafeNestedCodeFiles() {
+        assertEquals("src/util.ts", studioNewFileName("src/util", "ts"))
+        assertEquals("notes/Journal.MD", studioNewFileName("notes/Journal.MD", "js"))
+        assertEquals("data/table.json", studioNewFileName("data/table.json", "html"))
+    }
+
+    @Test fun invalidNamesAreRejectedWithoutDismissOrHiddenFileSideEffects() {
+        for (name in listOf("../outside.js", "dir/../../escape.css", "/absolute.js",
+            "folder\\\\escape.js", "draft.exe", "file.", "x".repeat(65) + ".js",
+            "folder//doc.md", ".hidden.js")) {
+            org.junit.Assert.assertTrue("Invalid file name unexpectedly allowed: $name",
+                runCatching { studioNewFileName(name, "js") }.isFailure)
+        }
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun blankNameDoesNotBecomeAnInvisibleJsFile() {
         studioNewFileName(" ", "js")
