@@ -407,9 +407,11 @@ class Device:
         # Demand an actual visible selected filename in the webpage, not just
         # that the system picker closed, before sending the request.
         until = time.monotonic() + 16
-        while self.find(filename, partial=True) is None:
+        while not any(filename.casefold() in
+                (n.get("text", "") + " " + n.get("content-desc", "")).casefold()
+                for n in self.ui() if n.get("package") == PKG):
             if time.monotonic() >= until:
-                raise AssertionError("SAF returned but Gecko file input never displayed selected filename")
+                raise AssertionError("SAF returned but app-owned Gecko file input never displayed selected filename")
             time.sleep(.6)
         self.click("Upload test file", partial=True, timeout=15)
         wait_hit("/upload/submit", before)
