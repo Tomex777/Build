@@ -46,11 +46,12 @@ class FanPlayer(app: Application) : AndroidViewModel(app) {
         .setUsage(AudioAttributes.USAGE_MEDIA)
         .build()
     private val audioManager = app.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+    // Restore interrupted tracks after temporary focus loss; never restart one
+    // that the listener intentionally paused. Duck under navigation prompts.
+    private var resumeOnFocusGainSongId: String? = null
     private val focusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
         .setAudioAttributes(attrs)
-        .setOnAudioFocusChangeListener { focus ->
-            if (focus <= 0) pause()
-        }
+        .setOnAudioFocusChangeListener(::onAudioFocusChange)
         .build()
     private val files = mutableMapOf<String, String>()
     private var mediaPlayer: MediaPlayer? = null
@@ -371,11 +372,46 @@ class FanPlayer(app: Application) : AndroidViewModel(app) {
     private fun requestFocus(): Boolean =
         audioManager.requestAudioFocus(focusRequest) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
 
-    fun pause() {
+    private fun onAudioFocusChange(focus: Int) {
+        when (focus) {
+            AudioManager.AUDIOFOCUS_GAIN -> {
+                try { mediaPlayer?.setVolume(1f, 1f) } catch (_: IllegalStateException) {}
+                val toResume = resumeOnFocusGainSongId
+                resumeOnFocusGainSongId = null
+                if (toResume != null && _state.value.activeSongId == toResume &&
+                    !_state.value.isPlaying && !_state.value.isPreparing) {
+                    try {
+                        mediaPlayer?.start()
+                        _state.update { it.copy(isPlaying = mediaPlayer?.isPlaying == true) }
+                    } catch (_: IllegalStateException) {}
+                }
+            }
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
+                try { mediaPlayer?.setVolume(0.25f, 0.25f) }
+                catch (_: IllegalStateException) {}
+            }
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
+                resumeOnFocusGainSongId = if (_state.value.isPlaying)
+                    _state.value.activeSongId else null
+                pausePlayer()
+            }
+            AudioManager.AUDIOFOCUS_LOSS -> {
+                resumeOnFocusGainSongId = null
+                pausePlayer()
+            }
+        }
+    }
+
+    private fun pausePlayer() {
         try {
             mediaPlayer?.let { if (it.isPlaying) it.pause() }
-            _state.update { it.copy(isPlaying = false) }
         } catch (_: IllegalStateException) {}
+        _state.update { it.copy(isPlaying = false) }
+    }
+
+    fun pause() {
+        resumeOnFocusGainSongId = null
+        pausePlayer()
     }
 
     fun seekTo(fraction: Float) {
@@ -413,9 +449,13 @@ class FanPlayer(app: Application) : AndroidViewModel(app) {
     }
 
     private fun releaseCurrentPlayer() {
+        resumeOnFocusGainSongId = null
         val old = mediaPlayer
         mediaPlayer = null
-        try { old?.reset(); old?.release() } catch (_: Exception) {}
+        try { old?.reset() } catch (_: Exception) {}
+        // Release must run even if reset() fails, otherwise decoders/audio
+        // resources are leaked when skipping or replacing corrupt recordings.
+        try { old?.release() } catch (_: Exception) {}
         audioManager.abandonAudioFocusRequest(focusRequest)
     }
 
