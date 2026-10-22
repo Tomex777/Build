@@ -82,10 +82,12 @@ function readReplacements(){
 function paintConfig(){
  const m=config.modules;
  MODULES.forEach(id=>{const input=document.querySelector('[data-module="'+id+'"]');if(input){input.checked=m[id]===true;input.disabled=configBusy||(id==='ai'&&config.capabilities?.ai!==true)}});
+ $('memeMode').querySelector('option[value="automatic"]').disabled=config.capabilities?.memeAuto!==true;
  $('memeMode').value=['automatic','review'].includes(config.memes?.mode)?config.memes.mode:'review';
  $('memeDaily').value=[1,2,3,4].includes(config.memes?.dailyLimit)?String(config.memes.dailyLimit):'1';
  $('memeTime').value=/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(config.memes?.localTime||'')?config.memes.localTime:'18:00';
  fillChecks('memeCategories',config.memes?.categories);
+ $('newsMode').querySelector('option[value="automatic"]').disabled=config.capabilities?.newsAuto!==true;
  $('newsMode').value=['review','automatic'].includes(config.news?.mode)?config.news.mode:'review';
  $('spoilerPolicy').value=['avoid','warn'].includes(config.news?.spoilers)?config.news.spoilers:'avoid';
  $('newsTime').value=/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(config.news?.localTime||'')?config.news.localTime:'18:00';
@@ -138,6 +140,8 @@ function attachControls(){
    if(id==='news'&&el.checked&&!selected('newsInterests',INTERESTS).length){
      el.checked=false;note('Choose at least one news interest before enabling.',true);return;
    }
+   if(id==='memes'&&el.checked&&$('memeMode').value==='automatic'&&config.capabilities?.memeAuto!==true){el.checked=false;note('Automatic meme posting is unavailable until NIGHT verifies the scheduler.',true);return;}
+   if(id==='news'&&el.checked&&$('newsMode').value==='automatic'&&config.capabilities?.newsAuto!==true){el.checked=false;note('Automatic news posting is unavailable until NIGHT verifies the scheduler.',true);return;}
    const patch={modules:{[id]:el.checked}};
    if(id==='memes'&&el.checked)patch.memes={
      mode:$('memeMode').value,categories:selected('memeCategories',CATEGORIES),dailyLimit:Number($('memeDaily').value),localTime:$('memeTime').value,timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC'
