@@ -148,6 +148,7 @@ private fun NightBrowser(browser: BrowserController, openSaved: (File) -> Unit) 
     var peekUrl by remember { mutableStateOf<String?>(null) }
     var newJourneyDialog by remember { mutableStateOf(false) }
     var studioTabId by remember { mutableStateOf<String?>(null) }
+    var findVisible by remember { mutableStateOf(false) }
     val current = browser.active
     val context = LocalContext.current
     val archive = remember(browser) { TimeMachineArchive(context.applicationContext) }
@@ -158,6 +159,7 @@ private fun NightBrowser(browser: BrowserController, openSaved: (File) -> Unit) 
 
     LaunchedEffect(current.url, current.id) {
         if (!addressFocused) address = current.url
+        findVisible = false // A match selection never survives a new document or tab.
     }
     LaunchedEffect(browser.notice) {
         val message = browser.notice
@@ -177,9 +179,10 @@ private fun NightBrowser(browser: BrowserController, openSaved: (File) -> Unit) 
         browser.select(tab.id)
         page = if (tab.url.isBlank()) Page.HOME else Page.WEB
     }
-    BackHandler(enabled = page != Page.HOME || peekUrl != null) {
+    BackHandler(enabled = page != Page.HOME || peekUrl != null || findVisible) {
         when {
             peekUrl != null -> peekUrl = null
+            findVisible -> findVisible = false
             page == Page.WEB && current.canGoBack -> browser.goBack()
             page != Page.HOME -> page = Page.HOME
             else -> Unit
@@ -260,6 +263,11 @@ private fun NightBrowser(browser: BrowserController, openSaved: (File) -> Unit) 
                             }
                         }
                     )
+                }
+                if (page == Page.WEB && findVisible) {
+                    Box(Modifier.align(Alignment.TopCenter)) {
+                        FindInPageBar(tab = current, onClose = { findVisible = false })
+                    }
                 }
             }
 
@@ -380,6 +388,11 @@ private fun NightBrowser(browser: BrowserController, openSaved: (File) -> Unit) 
                                 (current.url.startsWith("https://") ||
                                  current.url.startsWith("http://")),
                             onClick = { dismiss { studioTabId = current.id } })
+                        DropdownMenuItem(
+                            text = { Text("Find in page") },
+                            leadingIcon = { Icon(Icons.Rounded.FindInPage, null) },
+                            enabled = page == Page.WEB && current.url.startsWith("http"),
+                            onClick = { dismiss { findVisible = true } })
                         DropdownMenuItem(
                             text = { Text("Bookmark page") },
                             leadingIcon = { Icon(Icons.Rounded.BookmarkAdd, null) },
