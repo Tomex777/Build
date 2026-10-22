@@ -17,7 +17,8 @@ class PuzzleGame private constructor(
     val imageKey: String, val pieces: MutableList<PuzzlePiece>,
     var hintsRemaining: Int = 3,
     var moves: Int = 0,
-    var preview: Boolean = false
+    var preview: Boolean = false,
+    var landscapeMode: Boolean = false
 ) {
     companion object {
         const val WORLD_WIDTH = 1000f
@@ -27,39 +28,49 @@ class PuzzleGame private constructor(
 
         private data class ScatterLayout(
             val perRow: Int, val stepX: Float, val stepY: Float,
-            val firstX: Float, val firstY: Float, val top: Float,
-            val bottom: Float, val end: Float
+            val firstX: Float, val firstY: Float,
+            val secondX: Float, val secondY: Float,
+            val top: Float, val left: Float, val worldWidth: Float, val end: Float
         )
 
         // Reserve enough tabletop for every real silhouette, including protruding tabs.
         // Packing uses non-overlapping hit footprints rather than pile-on-top scatter.
-        private fun scatterLayout(cols: Int, rows: Int): ScatterLayout {
+        private fun scatterLayout(cols: Int, rows: Int, landscape: Boolean): ScatterLayout {
             val pw=BOARD_WIDTH/cols
             val ph=BOARD_HEIGHT/rows
             val depth=min(pw,ph)*.30f
             val stepX=pw+2f*depth+10f
             val stepY=ph+2f*depth+10f
+            val half=(cols*rows+1)/2
+            if (landscape) {
+                val perRow=(350f/stepX).toInt().coerceIn(1,16)
+                val zoneRows=(half+perRow-1)/perRow
+                val boardTop=maxOf(80f, 80f + (zoneRows*stepY-BOARD_HEIGHT)/2f)
+                val end=maxOf(boardTop+BOARD_HEIGHT+110f,80f+zoneRows*stepY+110f)
+                return ScatterLayout(perRow,stepX,stepY,
+                    32f+depth,80f+depth,1322f+depth,80f+depth,
+                    boardTop,430f,1700f,end)
+            }
             val perRow=(900f/stepX).toInt().coerceIn(1,16)
-            val count=cols*rows
-            val above=(count+1)/2
-            val below=count-above
-            val upperRows=(above+perRow-1)/perRow
-            val lowerRows=(below+perRow-1)/perRow
+            val upperRows=(half+perRow-1)/perRow
+            val lowerRows=(cols*rows-half+perRow-1)/perRow
             val firstX=(WORLD_WIDTH-perRow*stepX)/2f+depth+4f
             val firstY=76f+depth
             val boardTop=70f+upperRows*stepY+110f
             val bottom=boardTop+BOARD_HEIGHT+110f
-            val end=bottom+lowerRows*stepY+110f
-            return ScatterLayout(perRow,stepX,stepY,firstX,firstY,boardTop,bottom,end)
+            val otherY=bottom+depth
+            val end=otherY+lowerRows*stepY+110f
+            return ScatterLayout(perRow,stepX,stepY,
+                firstX,firstY,firstX,otherY,boardTop,BOARD_LEFT,WORLD_WIDTH,end)
         }
 
         fun fresh(cols: Int, rows: Int, imageKey: String = "starter",
-                  seed: Long = System.nanoTime()): PuzzleGame {
-            require(cols in 2..16 && rows in 2..16 && cols * rows <= 256)
+                  seed: Long = System.nanoTime(), landscape: Boolean = false): PuzzleGame {
+            require(cols in 2..32 && rows in 2..32 && cols * rows <= 600)
             val rng = Random(seed)
             val pw = BOARD_WIDTH / cols
             val ph = BOARD_HEIGHT / rows
-            val layout=scatterLayout(cols,rows)
+            val layout=scatterLayout(cols,rows,landscape)
             val slotsPerRow = layout.perRow
             val total = cols * rows
             val topCount = (total + 1) / 2
@@ -70,20 +81,21 @@ class PuzzleGame private constructor(
                 val (slot, top) = slots[i]
                 val col = i % cols
                 val row = i / cols
-                val px=layout.firstX + (slot%slotsPerRow)*layout.stepX
-                val py=(if(top) layout.firstY else layout.bottom +
-                    min(pw,ph)*.30f) + (slot/slotsPerRow)*layout.stepY
+                val px=(if(top)layout.firstX else layout.secondX) +
+                    (slot%slotsPerRow)*layout.stepX
+                val py=(if(top)layout.firstY else layout.secondY) +
+                    (slot/slotsPerRow)*layout.stepY
                 PuzzlePiece(i, row, col, px, py)
             }.toMutableList()
-            return PuzzleGame(cols, rows, seed, imageKey, pieces)
+            return PuzzleGame(cols, rows, seed, imageKey, pieces, landscapeMode=landscape)
         }
 
         fun restore(cols: Int, rows: Int, seed: Long, imageKey: String,
                     positions: List<Triple<Float, Float, Boolean>>,
-                    hints: Int, moves: Int, preview: Boolean): PuzzleGame? {
-            if (cols !in 2..16 || rows !in 2..16 || cols * rows != positions.size ||
-                cols * rows > 256 || hints !in 0..3 || moves < 0) return null
-            val game = fresh(cols, rows, imageKey, seed)
+                    hints: Int, moves: Int, preview: Boolean, landscape: Boolean = false): PuzzleGame? {
+            if (cols !in 2..32 || rows !in 2..32 || cols * rows != positions.size ||
+                cols * rows > 600 || hints !in 0..3 || moves < 0) return null
+            val game = fresh(cols, rows, imageKey, seed, landscape)
             for ((i, data) in positions.withIndex()) {
                 if (!data.first.isFinite() || !data.second.isFinite() ||
                     abs(data.first) > 10000f || abs(data.second) > 10000f) return null
@@ -100,7 +112,9 @@ class PuzzleGame private constructor(
         }
     }
 
-    private val layout=scatterLayout(cols,rows)
+    private var layout=scatterLayout(cols,rows,landscapeMode)
+    val boardLeft: Float get() = layout.left
+    val worldWidth: Float get() = layout.worldWidth
     val boardTop: Float get() = layout.top
     val worldHeight: Float get() = layout.end
     val count: Int get() = cols * rows
@@ -109,8 +123,29 @@ class PuzzleGame private constructor(
     val pieceWidth: Float get() = BOARD_WIDTH / cols
     val pieceHeight: Float get() = BOARD_HEIGHT / rows
 
-    fun targetX(piece: PuzzlePiece): Float = BOARD_LEFT + piece.col * pieceWidth
+    fun targetX(piece: PuzzlePiece): Float = boardLeft + piece.col * pieceWidth
     fun targetY(piece: PuzzlePiece): Float = boardTop + piece.row * pieceHeight
+
+    /**
+     * Rotate the same puzzle between portrait tabletop (loose pieces above/below)
+     * and landscape tabletop (loose pieces left/right). Placed progress is preserved.
+     * Re-scatter unplaced pieces, rather than allowing stale portrait-only coordinates.
+     */
+    fun setLandscape(enabled: Boolean): Boolean {
+        if (enabled == landscapeMode) return false
+        val replacement = fresh(cols, rows, imageKey, seed, enabled)
+        landscapeMode=enabled
+        layout=scatterLayout(cols,rows,enabled)
+        for (p in pieces) {
+            if (p.placed) {
+                p.x=targetX(p);p.y=targetY(p)
+            } else {
+                p.x=replacement.pieces[p.id].x
+                p.y=replacement.pieces[p.id].y
+            }
+        }
+        return true
+    }
 
     /** 0 flat, +/-1: tabs on outward-facing edge. Neighbors must have opposite signs. */
     fun edge(row: Int, col: Int, direction: Int): Int {
@@ -133,8 +168,8 @@ class PuzzleGame private constructor(
     fun movePiece(id: Int, x: Float, y: Float) {
         val p = pieces.getOrNull(id) ?: return
         if (!p.placed && x.isFinite() && y.isFinite()) {
-            p.x = x.coerceIn(-250f, 1250f)
-            p.y = y.coerceIn(-250f, 2200f)
+            p.x = x.coerceIn(-250f, worldWidth + 250f)
+            p.y = y.coerceIn(-250f, worldHeight + 250f)
         }
     }
 
@@ -143,7 +178,7 @@ class PuzzleGame private constructor(
         val p = pieces.getOrNull(id) ?: return false
         if (p.placed) return false
         moves++
-        val tolerance = maxOf(min(pieceWidth, pieceHeight) * 0.38f, 28f)
+        val tolerance = (min(pieceWidth, pieceHeight) * 0.33f).coerceIn(7f, 26f)
         if (hypot((p.x - targetX(p)).toDouble(),
                   (p.y - targetY(p)).toDouble()) > tolerance) return false
         p.x = targetX(p); p.y = targetY(p); p.placed = true
