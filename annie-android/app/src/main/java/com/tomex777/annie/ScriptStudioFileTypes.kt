@@ -43,7 +43,9 @@ internal fun studioImportTextDocument(
     require(extension in StudioFileTypes) {
         "Choose a supported code document, or use ZIP to import a package"
     }
-    require(source.length <= 2 * 1024 * 1024) { "Document is too large" }
+    require(source.length <= ScriptFiles.MAX_SOURCE_CHARS) {
+        "Document is too large for the editor (512,000 characters maximum)"
+    }
     if (extension == "js") {
         val imported = files.importJavaScript(leaf, source)
         return imported.nameWithoutExtension to imported.name
@@ -51,7 +53,12 @@ internal fun studioImportTextDocument(
 
     val normalizedBase = leaf.substringBeforeLast('.')
         .replace(Regex("[^A-Za-z0-9_-]"), "_").trim('_').take(36).ifBlank { "imported" }
-    val existing = files.listProjects().map { it.id }.toSet()
+    // Include unfinished/empty directories as well as loaded projects.
+    // An unindexed folder must not turn a safe duplicate import into a failure.
+    val existing = files.listProjects().map { it.id }.toMutableSet()
+    files.root.listFiles().orEmpty().forEach { child ->
+        existing += if (child.isDirectory) child.name else child.nameWithoutExtension
+    }
     var candidate = normalizedBase
     var suffix = 2
     while (candidate in existing) {
