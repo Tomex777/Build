@@ -186,6 +186,24 @@ class AnnieBrowserChromeUiTest {
     }
 
     @Test
+    fun fullscreenPagePreservesGeckoSurfaceAndRemovesBrowserChrome() {
+        val page = state("https://example.org/watch")
+        rule.setContent {
+            AnnieBrowserChrome(
+                state = page.copy(tabs = page.tabs.map {
+                    if (it.id == "regular") it.copy(fullscreen = true) else it
+                }),
+                actions = actions(),
+                webContent = { Box(it) },
+                downloadsContent = { Box(it) },
+            )
+        }
+        rule.onNodeWithTag("annie_browser_tabs_webview").assertIsDisplayed()
+        rule.onNodeWithTag("annie_browser_go").assertDoesNotExist()
+        rule.onNodeWithTag("annie_browser_back").assertDoesNotExist()
+    }
+
+    @Test
     fun realAndroidScreenshotEvidenceForHomeAndTabs() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
