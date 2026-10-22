@@ -73,14 +73,14 @@ internal fun studioImportTextDocument(
             .replace(Regex("[^A-Za-z0-9_.-]"), "_").trim('.', '_').take(70).ifBlank { "document" }
         "$stem.$extension"
     }
-    val root = if (executable) files.createScript(fileName) else files.createDocumentProject(candidate)
+    val root = if (executable) files.createImportedExecutableFile(fileName)
+        else files.createDocumentProject(candidate)
     val projectId = if (executable) root.nameWithoutExtension else root.name
     val path = fileName
     try {
-        // Executable files have a starter stub until replaced. Disable them
-        // before copying untrusted code; document folders are born disabled.
-        if (executable) files.setEnabled(projectId, false)
-        else files.createFile(projectId, path)
+        // Both imported executable files and document folders are already
+        // disabled on disk. A runtime reload can never execute staged code.
+        if (!executable) files.createFile(projectId, path)
         files.writeFile(projectId, path, source)
     } catch (failure: Throwable) {
         // Remove only the project created by this import. Do not retain an
