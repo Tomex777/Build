@@ -41,7 +41,7 @@ class ScriptStudioFileCreationTest {
                 if (shown.value) ScriptStudioSheet(workspace, {})
             } }
             compose.onNodeWithTag("script_tab_editor").assertDoesNotExist()
-            compose.onNodeWithText("Your JavaScript workspace").assertExists()
+            compose.onNodeWithText("No file selected").assertExists()
             compose.onNodeWithTag("script_tab_files").assertExists()
             compose.onNodeWithTag("script_tab_env").assertExists()
             compose.onNodeWithTag("script_tab_api").assertExists()
@@ -225,7 +225,7 @@ class ScriptStudioFileCreationTest {
             compose.waitUntil(8_000) { removed.exists().not() }
             compose.onNodeWithTag("script_file_search").performTextClearance()
             compose.onNodeWithTag("script_selected_file").assertDoesNotExist()
-            compose.onNodeWithText("Your JavaScript workspace").assertExists()
+            compose.onNodeWithText("No file selected").assertExists()
             assertTrue("Remaining project must not be removed or selected", survivor.isDirectory)
         } finally {
             compose.runOnIdle { shown.value = false }
