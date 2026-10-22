@@ -82,7 +82,7 @@ try{
   await p.locator('[data-play="'+id+'"]').tap();
   await p.waitForFunction(()=>document.body.classList.contains('is-playing'));
   const rect=await p.locator('#board').boundingBox();
-  await p.waitForTimeout(650); // finite charts enter the visible lanes later
+  await p.waitForTimeout(60); // songs start with their first key already visible
   const first=await p.evaluate(()=>window.__nightPianoTest.geometry()[0]);
   await p.touchscreen.tap(rect.x+rect.width*.125,
    rect.y+rect.height*Math.max(30,first.bottom-30)/660);
