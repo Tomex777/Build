@@ -644,7 +644,7 @@ private fun ScriptStudioContent(
                             currentDirectory.isNotBlank() -> "${project.name} / $currentDirectory"
                             else -> project.name
                         }
-                    } ?: "Your JavaScript workspace",
+                    } ?: "No file selected",
                     color = StudioMuted, fontSize = 12.sp, maxLines = 1,
                 )
             }
