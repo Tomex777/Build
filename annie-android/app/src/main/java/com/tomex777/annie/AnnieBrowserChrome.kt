@@ -103,6 +103,12 @@ internal data class AnnieBrowserChromeTab(
 
 internal data class AnnieBrowserChromeEntry(val title: String, val url: String)
 
+internal data class AnnieBrowserChromeFind(
+ val visible: Boolean, val query: String, val current: Int, val total: Int, val found: Boolean,
+ val open: () -> Unit, val update: (String) -> Unit, val next: () -> Unit,
+ val previous: () -> Unit, val close: () -> Unit,
+)
+
 internal data class AnnieBrowserChromeState(
     val tabs: List<AnnieBrowserChromeTab>,
     val activeId: String,
