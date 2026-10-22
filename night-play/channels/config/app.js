@@ -233,14 +233,16 @@ function updateReview(){
  $('approvedCount').textContent=count+' approved'+(count===MAX_APPROVED?' · selection full':'');
  $('publishApproved').disabled=!count||reviewBusy||selectionUncertain||trayEditing||captionDirty.size>0||config?.modules?.memes!==true;
  $('scheduleButton').disabled=!count||reviewBusy||selectionUncertain||trayEditing||captionDirty.size>0||config?.modules?.memes!==true;
- $('nextBatch').disabled=reviewBusy||selectionUncertain||trayEditing||captionDirty.size>0;
- $('findMemes').disabled=reviewBusy||selectionUncertain||trayEditing||captionDirty.size>0;
+ $('nextBatch').disabled=reviewBusy||selectionUncertain||trayEditing||captionDirty.size>0||config?.modules?.memes!==true;
+ $('findMemes').disabled=reviewBusy||selectionUncertain||trayEditing||captionDirty.size>0||config?.modules?.memes!==true;
  for(const button of document.querySelectorAll('#selectedPosts button.selected-action'))
    button.disabled=reviewBusy||selectionUncertain||trayEditing||config?.modules?.memes!==true;
  for(const card of document.querySelectorAll('.review-card')){
    const candidateId=card.dataset.candidate;
    const c=batch?.candidates?.find(item=>item.id===candidateId);
    const selectedAlready=approved().some(item=>item.batchId===batch?.batchId&&item.candidateId===candidateId);
+   const previewButton=card.querySelector('[data-post-preview]');
+   if(previewButton)previewButton.disabled=reviewBusy||config?.modules?.memes!==true;
    for(const button of card.querySelectorAll('[data-review-action]')){
      const act=button.dataset.reviewAction;
      button.disabled=reviewBusy||selectionUncertain||trayEditing||config?.modules?.memes!==true
@@ -342,7 +344,7 @@ function reviewCard(c){
  const actions=make('div','action-row');
  const approve=make('button','btn primary','Approve'),decline=make('button','btn','Decline'),skip=make('button','btn','Skip'),preview=make('button','btn','Preview post');
  approve.dataset.reviewAction='approved';
- decline.dataset.reviewAction='declined';skip.dataset.reviewAction='skipped';
+ decline.dataset.reviewAction='declined';skip.dataset.reviewAction='skipped';preview.dataset.postPreview='1';
  if(!licensable(c)){approve.disabled=true;status.textContent='Review only · Media reuse rights not verified';}
  approve.type=decline.type=skip.type=preview.type='button';
  caption.addEventListener('input',()=>{
@@ -365,7 +367,7 @@ function paintReview(){
  paintSelection();updateReview();
 }
 async function findMemes(next){
- if(reviewBusy||!channel)return;
+ if(reviewBusy||!channel||config?.modules?.memes!==true)return;
  if(trayEditing){note('Save or cancel the approved caption edit first.',true,'reviewNotice');return;}
  if(selectionUncertain){note('Reload to verify the approved selection before finding more memes.',true,'reviewNotice');return;}
  if(captionDirty.size){note('Approve, decline, or skip edited captions before finding another batch.',true,'reviewNotice');return;}
@@ -383,7 +385,7 @@ async function findMemes(next){
  finally{reviewBusy=false;setBusy($('findMemes'),false);paintSelection();updateReview();}
 }
 async function previewPost(candidate,caption,batchId=batch?.batchId){
- if(!batchId)return;
+ if(!batchId||config?.modules?.memes!==true)return;
  const dialog=$('postPreview'),body=$('postPreviewContent');
  body.replaceChildren(make('p','config-note','Requesting the actual formatted post from NIGHT…'));
  if(!dialog.open)dialog.showModal();
