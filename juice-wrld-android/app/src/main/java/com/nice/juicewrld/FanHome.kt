@@ -65,6 +65,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil3.compose.SubcomposeAsyncImage
 import coil3.compose.SubcomposeAsyncImageContent
+import coil3.request.ImageRequest
+import coil3.network.NetworkHeaders
+import coil3.network.httpHeaders
 
 private val Night = Color(0xFF08080E)
 private val Panel = Color(0xFF15131F)
@@ -410,8 +413,17 @@ private fun FanHero() {
 
 @Composable
 private fun ArtistPortrait(modifier: Modifier) {
+    val context = LocalContext.current
+    val request = remember(context) {
+        ImageRequest.Builder(context)
+            .data("https://upload.wikimedia.org/wikipedia/commons/3/33/Juice_WRLD_-_Les_Ardentes_2019_%28cropped_2%29.jpg")
+            .httpHeaders(NetworkHeaders.Builder().set(
+                "User-Agent", "NIGHTJuiceWRLD/0.2.0 (https://github.com/Tomex777/Build)"
+            ).build())
+            .build()
+    }
     SubcomposeAsyncImage(
-        model = "https://upload.wikimedia.org/wikipedia/commons/3/33/Juice_WRLD_-_Les_Ardentes_2019_%28cropped_2%29.jpg",
+        model = request,
         contentDescription = "Juice WRLD performing in 2019, photo by Lexiou WesCudi",
         modifier = modifier,
         contentScale = ContentScale.Crop,
