@@ -2,7 +2,9 @@
 // Server-facing projection for Agent A. This never fetches external media and never grants rights.
 function toReviewCard(item,{previewUrl,previewData}={}){
  if(!item||item.kind!=='meme'||typeof item.id!=='string')throw new TypeError('Normalized meme required.');
- const allowedUrl=typeof previewUrl==='string'&&/^\/api\/channel-(?:media|assets)\/[A-Za-z0-9_/%.-]{1,240}$/.test(previewUrl);
+ // Accept opaque same-origin asset paths, not encoded slash/dot traversal or
+ // attacker-controlled URLs. A proxy route must independently check owner/JID.
+ const allowedUrl=typeof previewUrl==='string'&&/^\\/api\\/channel-(?:media|assets)\\/(?:[A-Za-z0-9_-]{1,100}\\/){0,5}[A-Za-z0-9_-]{1,100}(?:\\.(?:png|jpg|jpeg|webp))?$/.test(previewUrl);
  const allowedData=typeof previewData==='string'&&/^data:image\/(?:png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/i.test(previewData)&&previewData.length<=1900000;
  if(!allowedUrl&&!allowedData)throw new Error('Server-owned allowed preview required: no external hotlink.');
  const reviewOnly=item.publishable!==true;
