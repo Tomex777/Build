@@ -7,6 +7,7 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,6 +21,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -42,7 +46,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -61,6 +67,7 @@ class MainActivity : ComponentActivity() {
     private lateinit var game: PuzzleGame
     private lateinit var picture: Bitmap
     private var refresh: () -> Unit = {}
+    private var openLibrary: () -> Unit = {}
     private var board: PuzzleBoardView? = null
 
     private val difficulties=listOf(
@@ -77,15 +84,22 @@ class MainActivity : ComponentActivity() {
     )
 
     private val photoPicker=registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        if (uri!=null) runCatching {
-            val chosen=store.importPhoto(uri)
-            picture=chosen
-            game=PuzzleGame.fresh(game.cols,game.rows,"custom",
-                landscape=game.landscapeMode)
-            store.save(game)
-            refresh()
-        }.onFailure {
-            Toast.makeText(this,it.message ?: "Couldn't open this photo",Toast.LENGTH_LONG).show()
+        if(uri != null) {
+            Thread {
+                val result=runCatching { store.importPhoto(uri) }
+                runOnUiThread {
+                    result.onSuccess { chosen ->
+                        picture=chosen.bitmap
+                        game=PuzzleGame.fresh(game.cols,game.rows,chosen.photo.key,
+                            landscape=game.landscapeMode)
+                        store.save(game)
+                        refresh()
+                    }.onFailure {
+                        Toast.makeText(this,it.message ?: "Couldn't import this picture",
+                            Toast.LENGTH_LONG).show()
+                    }
+                }
+            }.start()
         }
     }
 
@@ -99,8 +113,8 @@ class MainActivity : ComponentActivity() {
         }
         store=PuzzleStore(this)
         game=store.load() ?: PuzzleGame.fresh(6,4)
-        val restoredPhoto=if(game.imageKey=="custom") store.loadPhoto() else null
-        if (game.imageKey=="custom" && restoredPhoto==null) game=PuzzleGame.fresh(6,4)
+        val restoredPhoto=if(game.imageKey!="starter")store.loadPhoto(game.imageKey) else null
+        if (game.imageKey!="starter" && restoredPhoto==null) game=PuzzleGame.fresh(6,4)
         picture=restoredPhoto ?: SceneImage.create()
         store.save(game)
         setContent {
@@ -155,8 +169,8 @@ class MainActivity : ComponentActivity() {
         val solved=revision.let { game.solved }
         if(wide) {
             Column(verticalArrangement=Arrangement.spacedBy(6.dp)) {
-                OutlinedButton(onClick={photoPicker.launch("image/*")},
-                    modifier=Modifier.fillMaxWidth()) { Text("Choose photo",fontSize=12.sp) }
+                OutlinedButton(onClick=openLibrary,
+                    modifier=Modifier.fillMaxWidth()) { Text("Pictures",fontSize=12.sp) }
                 OutlinedButton(onClick={update()},
                     modifier=Modifier.fillMaxWidth()) { Text("New puzzle",fontSize=12.sp) }
                 if(game.zoneCount>1) OutlinedButton(onClick=chooseZone,
@@ -224,6 +238,8 @@ class MainActivity : ComponentActivity() {
         var revision by remember { mutableIntStateOf(0) }
         var difficultyPicker by remember { mutableStateOf(false) }
         var zonePicker by remember { mutableStateOf(false) }
+        var libraryPicker by remember { mutableStateOf(false) }
+        openLibrary={libraryPicker=true}
         refresh={ revision++ }
         val landscape=LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
         if(game.setLandscape(landscape)) {
@@ -244,7 +260,7 @@ class MainActivity : ComponentActivity() {
                         verticalArrangement=Arrangement.spacedBy(9.dp)) {
                         Text("JIGSAW",fontSize=19.sp,fontWeight=FontWeight.Black,
                             color=forest,letterSpacing=1.2.sp)
-                        Text(if(game.imageKey=="custom")"Your photograph"
+                        Text(if(game.imageKey!="starter")"Your photograph"
                             else "Mountain · illustration",fontSize=11.sp,
                             color=muted,maxLines=1,overflow=TextOverflow.Ellipsis)
                         Progress(revision)
@@ -259,11 +275,11 @@ class MainActivity : ComponentActivity() {
                         Column {
                             Text("JIGSAW",fontSize=21.sp,fontWeight=FontWeight.Black,
                                 color=forest,letterSpacing=1.6.sp)
-                            Text(if(game.imageKey=="custom")"Your photograph"
+                            Text(if(game.imageKey!="starter")"Your photograph"
                                 else "Mountain · illustration",fontSize=11.sp,color=muted)
                         }
-                        OutlinedButton(onClick={photoPicker.launch("image/*")}) {
-                            Text("Choose photo",fontSize=12.sp)
+                        OutlinedButton(onClick=openLibrary) {
+                            Text("Pictures",fontSize=12.sp)
                         }
                     }
                     Spacer(Modifier.height(7.dp))
@@ -291,6 +307,61 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+
+        if(libraryPicker) AlertDialog(
+            onDismissRequest={libraryPicker=false},
+            title={Text("Your puzzle pictures")},
+            text={
+                Column(verticalArrangement=Arrangement.spacedBy(8.dp)) {
+                    Text("Choose an existing picture or import a new one. Your previous photographs stay saved.",
+                        color=muted,fontSize=12.sp)
+                    Button(onClick={
+                        libraryPicker=false
+                        photoPicker.launch("image/*")
+                    },modifier=Modifier.fillMaxWidth()) {
+                        Text("Add a picture from your phone")
+                    }
+                    val savedPhotos=remember(libraryPicker){store.listPhotos()}
+                    LazyColumn(Modifier.heightIn(max=320.dp),
+                        verticalArrangement=Arrangement.spacedBy(5.dp)) {
+                        item {
+                            OutlinedButton(onClick={
+                                picture=SceneImage.create()
+                                game=PuzzleGame.fresh(game.cols,game.rows,"starter",
+                                    landscape=landscape)
+                                store.save(game);revision++;libraryPicker=false
+                            },modifier=Modifier.fillMaxWidth()) {
+                                Text("Mountain · starter illustration")
+                            }
+                        }
+                        items(savedPhotos,key={it.key}) { entry ->
+                            OutlinedButton(onClick={
+                                val selected=store.loadPhoto(entry.key)
+                                if(selected!=null) {
+                                    picture=selected
+                                    game=PuzzleGame.fresh(game.cols,game.rows,entry.key,
+                                        landscape=landscape)
+                                    store.save(game);revision++;libraryPicker=false
+                                }
+                            },modifier=Modifier.fillMaxWidth()) {
+                                val thumbnail=remember(entry.key) {
+                                    store.loadThumbnail(entry.key)?.asImageBitmap()
+                                }
+                                if(thumbnail!=null) {
+                                    Image(bitmap=thumbnail,contentDescription="",
+                                        contentScale=ContentScale.Crop,
+                                        modifier=Modifier.size(54.dp))
+                                    Spacer(Modifier.width(8.dp))
+                                }
+                                Text(entry.title,maxLines=2,
+                                    overflow=TextOverflow.Ellipsis)
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton={TextButton(onClick={libraryPicker=false}){Text("Close")}}
+        )
 
         if(zonePicker && game.zoneCount>1) AlertDialog(
             onDismissRequest={zonePicker=false},
