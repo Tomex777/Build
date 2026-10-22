@@ -30,6 +30,7 @@ class PuzzleStore(private val context: Context) {
     private val photoDirectory get() = File(context.filesDir,"saved-photos").also{it.mkdirs()}
     private val photoIndex get() = File(context.filesDir,"saved-photos.json")
     private val winsFile get() = File(context.filesDir,"completed-jigsaw.json")
+    private val sessionsDir get() = File(context.filesDir,"puzzle-sessions").also{it.mkdirs()}
 
     /** The same solved seed is recorded once even when the activity redraws. */
     @Synchronized
@@ -135,11 +136,52 @@ class PuzzleStore(private val context: Context) {
             saveFile.writeText(root.toString())
             tmp.delete()
         }
+        // Maintain multiple resumable games. A new picture or difficulty
+        // never destroys progress on an earlier unfinished puzzle.
+        val session=File(sessionsDir,g.seed.toString()+".json")
+        val staged=File(sessionsDir,g.seed.toString()+".tmp")
+        staged.writeText(root.toString())
+        if(!staged.renameTo(session)) {
+            staged.copyTo(session,overwrite=true)
+            staged.delete()
+        }
     }
 
-    fun load(): PuzzleGame? = runCatching {
-        if (!saveFile.exists()) return null
-        val obj=JSONObject(saveFile.readText())
+    fun load(): PuzzleGame? = loadFrom(saveFile)
+
+    data class Session(val seed: Long, val picture: String, val pieces: Int,
+                       val done: Int, val mode: PuzzleMode, val seconds: Int)
+
+    fun unfinished(): List<Session> = runCatching {
+        sessionsDir.listFiles{file->file.isFile && file.name.endsWith(".json")}
+            ?.sortedByDescending{it.lastModified()}?.mapNotNull{file->
+                val obj=runCatching{JSONObject(file.readText())}.getOrNull()
+                    ?: return@mapNotNull null
+                val count=obj.optInt("cols")*obj.optInt("rows")
+                if(count<=0 || count>600)return@mapNotNull null
+                val array=obj.optJSONArray("pieces") ?: return@mapNotNull null
+                if(array.length()!=count)return@mapNotNull null
+                val progress=(0 until count).count{index->
+                    array.optJSONArray(index)?.optBoolean(2,false)==true
+                }
+                if(progress>=count)return@mapNotNull null
+                val image=obj.optString("image")
+                if(image!="starter" && imageFile(image)?.exists()!=true)
+                    return@mapNotNull null
+                val mode=runCatching{
+                    PuzzleMode.valueOf(obj.optString("mode",PuzzleMode.RELAXED.name))
+                }.getOrDefault(PuzzleMode.RELAXED)
+                Session(obj.optLong("seed"),image,count,progress,
+                    mode,obj.optInt("elapsedSeconds",0))
+            } ?: emptyList()
+    }.getOrDefault(emptyList())
+
+    fun resume(seed: Long): PuzzleGame? =
+        loadFrom(File(sessionsDir,seed.toString()+".json"))
+
+    private fun loadFrom(source: File): PuzzleGame? = runCatching {
+        if (!source.exists()) return null
+        val obj=JSONObject(source.readText())
         val arr=obj.getJSONArray("pieces")
         val positions=(0 until arr.length()).map { i ->
             val p=arr.getJSONArray(i)
