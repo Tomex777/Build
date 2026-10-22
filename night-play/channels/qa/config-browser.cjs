@@ -86,8 +86,12 @@ const server=http.createServer(async(req,res)=>{
  if(action==='channel:memes:review'){
   if(!config.modules.memes)return reply(403,{error:'Meme module is OFF'});
   const index=/^qa_batch_(\d+)_00001$/.exec(body.batchId)?.[1];
-  if(!index||!candidates(Number(index)).some(c=>c.id===body.candidateId))
-   return reply(400,{error:'Unknown candidate/batch'});
+  const candidate=index&&candidates(Number(index)).find(c=>c.id===body.candidateId);
+  if(!candidate)return reply(400,{error:'Unknown candidate/batch'});
+  if(!['approved','declined','skipped'].includes(body.decision))
+    return reply(400,{error:'Invalid decision'});
+  if(body.decision==='approved'&&candidate.publishable!==true)
+    return reply(403,{error:'Media redistribution rights not verified'});
   const arr=answers.get(Number(index))||[];
   const pos=arr.findIndex(x=>x.candidateId===body.candidateId);
   const saved={candidateId:body.candidateId,decision:body.decision,caption:body.caption};
@@ -158,6 +162,21 @@ async function main(){
   await err.screenshot({path:path.join(output,'config-backend-down.png'),fullPage:true});
   await errctx.close();brokenConfig=false;
 
+  // Stale revisions must rollback the visible switch, never overwrite another
+  // tab's newer authoritative config. This is a simulated conflict, not proof
+  // the live server has optimistic locking.
+  const conflicted=await context(browser,'A',390,844),stale=await conflicted.newPage();
+  await stale.goto(base+'/channels/config/?channel='+encodeURIComponent(A));
+  await stale.locator('#configUI:visible').waitFor();
+  configs.get('A').revision++;
+  await stale.locator('label.switch').filter({has:stale.locator('[data-module="news"]')}).click();
+  await stale.getByText(/Outdated revision/).waitFor();
+  assert.equal(await stale.locator('[data-module="news"]').isChecked(),false,
+    'Outdated UI toggle must rollback on revision 409');
+  assert.equal(configs.get('A').modules.news,false,'Stale update cannot enable module');
+  await stale.screenshot({path:path.join(output,'revision-conflict-rollback.png'),fullPage:true});
+  await conflicted.close();
+
   const ctx=await context(browser,'A',390,844),page=await ctx.newPage();
   await page.goto(base+'/channels/config/?channel='+encodeURIComponent(A));
   await page.locator('#configUI:visible').waitFor();
@@ -173,6 +192,14 @@ async function main(){
   const blockedCard=page.locator('.review-card').nth(3);
   if(await blockedCard.getByRole('button',{name:'Approve'}).isEnabled())
     findings.push('P1: rights-unverified review-only meme Approve button is enabled');
+  const forged=await page.evaluate(async(channelId)=>{
+    const response=await fetch('/api/account',{method:'POST',credentials:'same-origin',
+      headers:{'content-type':'application/json'},
+      body:JSON.stringify({action:'channel:memes:review',channelId,
+        batchId:'qa_batch_1_00001',candidateId:'fixture_1_4',decision:'approved',caption:'forged'})});
+    return response.status;
+  },A);
+  assert.equal(forged,403,'Fixture rejects rights-unverified approval even from crafted API POST');
   await page.locator('.review-card').first().getByRole('button',{name:'Approve'}).click();
   await page.locator('.review-card').first().getByText('Approved',{exact:true}).waitFor();
   assert.match(await page.locator('#approvedCount').innerText(),/^1 approved/);
