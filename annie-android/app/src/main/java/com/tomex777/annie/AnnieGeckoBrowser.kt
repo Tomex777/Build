@@ -845,6 +845,22 @@ internal fun AnnieGeckoStandaloneBrowser(
     val universalCopyToggle = remember(model) {
         { enabled: Boolean -> model.setUniversalCopy(enabled) }
     }
-    AnnieLegacyGeckoBrowserChrome(model = model, onExit = onExit,
-        universalCopy = universalCopyToggle)
+    val finder = model.findController
+    AnnieLegacyGeckoBrowserChrome(
+        model = model,
+        onExit = onExit,
+        universalCopy = universalCopyToggle,
+        find = AnnieBrowserChromeFind(
+            visible = finder.visible,
+            query = finder.query,
+            current = finder.current,
+            total = finder.total,
+            found = finder.found,
+            open = model::openFindInPage,
+            update = model::updateFindInPage,
+            next = model::findNext,
+            previous = model::findPrevious,
+            close = model::closeFindInPage,
+        ),
+    )
 }
