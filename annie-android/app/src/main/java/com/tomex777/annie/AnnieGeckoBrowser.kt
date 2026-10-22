@@ -91,6 +91,7 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
+import com.tomex777.annie.browser.engine.AnnieBrowserEngineBridge
 import org.mozilla.geckoview.GeckoResult
 import org.mozilla.geckoview.GeckoRuntime
 import org.mozilla.geckoview.GeckoSession
@@ -433,6 +434,8 @@ internal class AnnieGeckoTab(
 
 internal class AnnieGeckoBrowserModel(private val context: Context) {
     private val runtime = AnnieGeckoRuntime.get(context)
+    // Engine services ported from actual Omni Browser source (GPLv3).
+    private val upstreamEngine = AnnieBrowserEngineBridge(context, runtime)
     private val library = AnnieBrowserLibrary(context)
     private val prefs = context.applicationContext.getSharedPreferences("annie_gecko_tabs_v1", Context.MODE_PRIVATE)
     val tabs = mutableStateListOf<AnnieGeckoTab>()
@@ -462,7 +465,10 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
                 val entry = saved.optJSONObject(i)
                 val url = entry?.optString("url") ?: saved.optString(i)
                 if (AnnieBrowserAddress.resolve(url) == url) {
-                    newTab(address = url, desktopMode = entry?.optBoolean("desktop", false) == true)
+                    val savedId = entry?.optString("id").orEmpty()
+                        .takeIf { it.matches(Regex("[0-9a-fA-F-]{36}")) }
+                    newTab(address = url, desktopMode = entry?.optBoolean("desktop", false) == true,
+                        persistedId = savedId)
                 }
             }
         }
@@ -479,7 +485,7 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
         // and reset selection when the active tab was beyond the twelfth.
         val normalTabs = tabs.filterNot { it.privateMode }
         val urls = JSONArray()
-        normalTabs.forEach { urls.put(JSONObject().put("url", it.url).put("desktop", it.desktopMode)) }
+        normalTabs.forEach { urls.put(JSONObject().put("id", it.id).put("url", it.url).put("desktop", it.desktopMode)) }
         // A private tab never writes its URL, mode, identity or selection to disk.
         val selected = normalTabs.indexOfFirst { it.id == lastNormalSelectedId }.coerceAtLeast(0)
         prefs.edit().putString("open", urls.toString()).putInt("selected", selected).apply()
@@ -498,12 +504,17 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
         address: String = "https://www.google.com/",
         autoLoad: Boolean = true,
         desktopMode: Boolean = false,
+        persistedId: String? = null,
     ): AnnieGeckoTab {
         val url = AnnieBrowserAddress.resolve(address) ?: "https://www.google.com/"
         val session = GeckoSession(
             GeckoSessionSettings.Builder().usePrivateMode(privateMode).build()
         )
-        val tab = AnnieGeckoTab(UUID.randomUUID().toString(), privateMode, session, url)
+        // Preserve existing users' URL-only saved tabs, while granting all new tabs
+        // a stable identifier for upstream Gecko SessionState recovery.
+        val stableId = persistedId?.takeIf { candidate -> tabs.none { it.id == candidate } }
+            ?: UUID.randomUUID().toString()
+        val tab = AnnieGeckoTab(stableId, privateMode, session, url)
         tab.desktopMode = desktopMode
         applyDesktopSettings(tab)
         session.navigationDelegate = object : GeckoSession.NavigationDelegate {
@@ -545,6 +556,14 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
                 tab.loading = false
                 if (!success) tab.error = "Couldn't load this page. Check your connection."
             }
+            override fun onSessionStateChange(
+                session: GeckoSession,
+                sessionState: GeckoSession.SessionState,
+            ) {
+                // Real Omni-derived persistence: private and non-web URLs are skipped.
+                upstreamEngine.checkpoint(tab.id, sessionState, tab.title, tab.url,
+                    tab.privateMode, tab.canBack, tab.canForward)
+            }
         }
         session.contentDelegate = object : GeckoSession.ContentDelegate {
             override fun onTitleChange(session: GeckoSession, title: String?) {
@@ -574,12 +593,20 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
         session.open(runtime)
         tabs.add(tab)
         select(tab)
-        if (autoLoad) session.loadUri(url)
+        if (autoLoad) {
+            // A failure or Gecko version mismatch safely falls back to the saved URL.
+            val recovered = if (!privateMode && persistedId != null)
+                upstreamEngine.restoreNormalTab(tab.id) else null
+            if (recovered == null) session.loadUri(url)
+            else runCatching { session.restoreState(recovered) }
+                .onFailure { session.loadUri(url) }
+        }
         persistTabs()
         return tab
     }
 
     fun close(tab: AnnieGeckoTab) {
+        if (!tab.privateMode) upstreamEngine.forgetNormalTab(tab.id)
         tab.session.close()
         val index = tabs.indexOf(tab)
         tabs.remove(tab)
@@ -617,6 +644,10 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
         tab.session.settings.viewportMode = if (tab.desktopMode)
             GeckoSessionSettings.VIEWPORT_MODE_DESKTOP else GeckoSessionSettings.VIEWPORT_MODE_MOBILE
     }
+
+    /** Hook for Agent 2's opt-in page tool; never enable content injection by default. */
+    fun setUniversalCopy(enabled: Boolean, onFinished: () -> Unit = {}) =
+        upstreamEngine.setUniversalCopy(enabled, onFinished)
 
     fun toggleBookmark(tab: AnnieGeckoTab) {
         if (!tab.privateMode) library.bookmark(tab.title, tab.url)
