@@ -229,6 +229,10 @@ class AnimePoseStudyInstrumentedTest {
                     if (actor.id == actorId) actor.copy(
                         appearance = actor.appearance.copy(
                             hairPhysicsEnabled = true,
+                            // Hair-only acceptance must not compare against a moving
+                            // fabric/skirt spring; preserve the strict identical-body
+                            // camera assertion instead of accepting body motion.
+                            fabricPhysicsEnabled = false,
                             hairGravityStrength = gravity,
                             hairWindStrength = wind,
                         ),
