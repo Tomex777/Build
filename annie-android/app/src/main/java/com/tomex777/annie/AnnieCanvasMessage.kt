@@ -421,8 +421,10 @@ internal fun AnnieCanvasMessage(payload: JSONObject) {
                         Text("Open", color = BrowserTeal)
                     }
                 } else {
-                    TextButton(onClick = controller::restart, modifier = Modifier.testTag("annie_canvas_restart")) {
-                        Text("Restart", color = BrowserSoftText, fontSize = 12.sp)
+                    IconButton(onClick = controller::restart,
+                        modifier = Modifier.size(48.dp).testTag("annie_canvas_restart")) {
+                        Icon(AnnieIcons.Rotate, contentDescription = "Restart Canvas",
+                            tint = BrowserSoftText, modifier = Modifier.size(21.dp))
                     }
                     IconButton(onClick = controller::togglePause,
                         modifier = Modifier.size(48.dp).testTag("annie_canvas_pause")) {
@@ -490,7 +492,11 @@ internal class AnnieCanvasActivity : ComponentActivity() {
                                 contentDescription = if (controller?.pausedByUser == true) "Resume Canvas" else "Pause Canvas",
                                 tint = BrowserTeal)
                         }
-                        TextButton(onClick = { controller?.restart() }) { Text("Restart") }
+                        IconButton(onClick = { controller?.restart() },
+                            modifier = Modifier.size(48.dp).testTag("annie_canvas_fullscreen_restart")) {
+                            Icon(AnnieIcons.Rotate, contentDescription = "Restart Canvas",
+                                tint = BrowserSoftText)
+                        }
                         IconButton(onClick = {
                             controller?.close()
                             finish()
