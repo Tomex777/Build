@@ -1,8 +1,11 @@
 package com.nice.juicewrld
 
 import android.app.Application
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
+import androidx.core.content.ContextCompat
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
@@ -49,6 +52,11 @@ class FanPlayer(app: Application) : AndroidViewModel(app) {
     // Restore interrupted tracks after temporary focus loss; never restart one
     // that the listener intentionally paused. Duck under navigation prompts.
     private var resumeOnFocusGainSongId: String? = null
+    private val headphonesUnplugged = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == AudioManager.ACTION_AUDIO_BECOMING_NOISY) pause()
+        }
+    }
     private val focusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
         .setAudioAttributes(attrs)
         .setOnAudioFocusChangeListener(::onAudioFocusChange)
@@ -62,6 +70,13 @@ class FanPlayer(app: Application) : AndroidViewModel(app) {
     val state: StateFlow<FanPlayerState> = _state
 
     init {
+        // Stop music when wired/Bluetooth headphones disconnect: do not blast
+        // the next track through the phone speaker unexpectedly.
+        ContextCompat.registerReceiver(
+            app, headphonesUnplugged,
+            IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY),
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
         for (song in FanSongs.all) {
             val uri = prefs.getString("file:" + song.id, null)
             if (uri != null) files[song.id] = uri
@@ -462,6 +477,9 @@ class FanPlayer(app: Application) : AndroidViewModel(app) {
     override fun onCleared() {
         generation++
         releaseCurrentPlayer()
+        try {
+            getApplication<Application>().unregisterReceiver(headphonesUnplugged)
+        } catch (_: IllegalArgumentException) {}
         super.onCleared()
     }
 }
