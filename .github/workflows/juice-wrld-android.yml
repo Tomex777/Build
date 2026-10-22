@@ -92,15 +92,9 @@ jobs:
             # The downloaded APK was signed on a different CI runner. Gradle re-signs
             # the instrumentation install locally; remove the old debug cert first.
             adb uninstall com.nice.juicewrld || true
-            set +e
-            gradle -p juice-wrld-android --no-daemon :app:connectedDebugAndroidTest
-            TEST_EXIT=$?
-            set -e
-            for page in home love sad favorites song-sheet; do
-              adb exec-out run-as com.nice.juicewrld cat "files/screenshots/$page.png" > "screenshots/$page-api-${{ matrix.api }}.png" || rm -f "screenshots/$page-api-${{ matrix.api }}.png"
-            done
-            adb logcat -d -v brief -t 1200 > screenshots/logcat-api-${{ matrix.api }}.txt || true
-            exit "$TEST_EXIT"
+            # Each emulator-runner script line starts a new shell, so keep
+            # test exit status, loops and screenshot exports inside one bash call.
+            bash juice-wrld-android/scripts/ci-verify-emulator.sh "${{ matrix.api }}"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
