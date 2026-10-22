@@ -51,19 +51,23 @@ class SpringMotion(
         previousVelocity = velocity
 
         val gravity = gravityPower.coerceIn(0f, 2f)
-        // Parent-local gravity is already expressed in the joint's coordinate frame.
-        val effective = normalize(Vec3(
-            gravityLocal.x - acceleration.x.coerceIn(-25f, 25f) * .014f +
-                sin(seconds * 1.7f) * wind * .24f,
-            gravityLocal.y - acceleration.y.coerceIn(-25f, 25f) * .014f,
-            gravityLocal.z - acceleration.z.coerceIn(-25f, 25f) * .014f +
-                cos(seconds * 1.19f) * wind * .19f,
-        ))
+        val breeze = wind.coerceIn(0f, 2f)
+        // These are independent artist controls, not a combined direction
+        // multiplied by gravity: at Gravity=0 a breeze MUST still bend hair.
+        // Parent acceleration is also independent of gravity strength.
+        val down = normalize(gravityLocal)
+        val effective = Vec3(
+            down.x * gravity - acceleration.x.coerceIn(-25f, 25f) * .014f +
+                sin(seconds * 1.7f) * breeze * .24f,
+            down.y * gravity - acceleration.y.coerceIn(-25f, 25f) * .014f,
+            down.z * gravity - acceleration.z.coerceIn(-25f, 25f) * .014f +
+                cos(seconds * 1.19f) * breeze * .19f,
+        )
         val rest = normalize(restTip)
         val torque = cross(rest, effective)
         val maxTilt = 28f
-        val targetX = (torque.x * maxTilt * gravity).coerceIn(-maxTilt, maxTilt)
-        val targetZ = (torque.z * maxTilt * gravity).coerceIn(-maxTilt, maxTilt)
+        val targetX = (torque.x * maxTilt).coerceIn(-maxTilt, maxTilt)
+        val targetZ = (torque.z * maxTilt).coerceIn(-maxTilt, maxTilt)
         // Stable second-order damped spring at Android frame rates: responsiveness
         // follows VRM stiffness; nonzero damping avoids continual oscillation.
         val frequency = 2f + stiffness * 5.5f
