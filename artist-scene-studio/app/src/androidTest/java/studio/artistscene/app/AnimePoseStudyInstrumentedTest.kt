@@ -294,7 +294,7 @@ class AnimePoseStudyInstrumentedTest {
                 File(proof, "anime-hair-live-physics.log").writeText(physicsLog)
                 println("MISE_HAIR_LIVE_RENDERER_DIAG " +
                     physicsLog.lineSequence().filter { it.contains("Live renderer controls") }
-                        .takeLast(8).joinToString(" | ").take(2_500))
+                        .toList().takeLast(8).joinToString(" | ").take(2_500))
                 assertTrue(
                     "Native renderer callback did not consume the LIVE 2.0 gravity/wind " +
                         "for $actorId; async springRuntime may be stale/null",
