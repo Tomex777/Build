@@ -117,7 +117,7 @@ fun FanHome(player: FanPlayer = viewModel()) {
     }
 
     Column(
-        modifier = Modifier.fillMaxSize().background(Night).statusBarsPadding()
+        modifier = Modifier.fillMaxSize().background(Night).statusBarsPadding().navigationBarsPadding()
     ) {
         LazyColumn(
             modifier = Modifier.weight(1f).testTag("songs"),
