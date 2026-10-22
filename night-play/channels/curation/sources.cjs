@@ -100,9 +100,12 @@ function rssNewsAdapter({id,name,url,articleHosts=[],official=false,fetchImpl,in
  const trustedHost=new URL(endpoint).hostname;
  const trustedHosts=[trustedHost,...(Array.isArray(articleHosts)?articleHosts:[]).filter(x=>typeof x==='string'&&/^[a-z0-9.-]{4,253}$/.test(x)&&!x.endsWith('.')&&!x.startsWith('.'))];
  if(typeof interpreter!=='function')throw new TypeError('A source-specific metadata interpreter is required.');
- let until=0,cache=null;
+ let until=0,cache=null,inFlight=null;
  return Object.freeze({async discover(){
   const current=now();if(cache&&current<until)return cache;
+  if(inFlight)return inFlight;
+  // One bounded fetch per configured feed, even if many channel owners poll at once.
+  const task=(async()=>{
   const xml=await boundedGet(endpoint,{fetchImpl,allowedHosts:[trustedHost],headers:{accept:'application/rss+xml, application/atom+xml, application/xml, text/xml'}});
   const source={id,name,trustedHost,trustedHosts,official,provider:'rss'};
   let interpreterErrors=0;
@@ -115,6 +118,9 @@ function rssNewsAdapter({id,name,url,articleHosts=[],official=false,fetchImpl,in
   if(interpreterErrors&&!items.length)throw new SourceError('News feed metadata interpreter failed.');
   cache=Object.freeze({items:Object.freeze(items),source:Object.freeze({id,name,url:endpoint,official}),fetchedAt:new Date(current).toISOString(),interpreterErrors});
   until=current+Math.min(15,Math.max(1,official?5:10))*60000;return cache;
+  })();
+  inFlight=task;
+  try{return await task}finally{if(inFlight===task)inFlight=null;}
  }});
 }
 
