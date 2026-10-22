@@ -93,6 +93,9 @@ import org.json.JSONArray
 import org.json.JSONObject
 import com.tomex777.annie.browser.engine.AnnieBrowserEngineBridge
 import com.tomex777.annie.browser.engine.AnnieBrowserFindController
+import com.tomex777.annie.browser.engine.bookmarks.model.BookmarkCollection
+import com.tomex777.annie.browser.engine.bookmarks.export.exportNetscapeBookmarkHtml
+import com.tomex777.annie.browser.engine.bookmarks.parser.parseNetscapeBookmarkHtml
 import com.tomex777.annie.browser.engine.permissions.AnnieBrowserPermissionBroker
 import com.tomex777.annie.browser.engine.permissions.ContentPermissionPrompt
 import com.tomex777.annie.browser.engine.permissions.MediaPermissionPrompt
@@ -193,7 +196,10 @@ private class AnnieBrowserLibrary(context: Context) {
     private fun read(name: String): List<AnnieBrowserVisit> = runCatching {
         val array = JSONArray(prefs.getString(name, "[]"))
         buildList {
-            for (i in 0 until minOf(array.length(), 300)) {
+            // History remains bounded separately; migrated bookmarks must not
+            // be silently truncated to 300 when reopened after an HTML import.
+            val limit = if (name == "bookmarks") minOf(array.length(), 5000) else minOf(array.length(), 300)
+            for (i in 0 until limit) {
                 val entry = array.optJSONObject(i) ?: continue
                 val url = entry.optString("url")
                 if (AnnieBrowserAddress.resolve(url) == url) {
@@ -220,6 +226,22 @@ private class AnnieBrowserLibrary(context: Context) {
         bookmarks = if (bookmarks.any { it.url == url }) bookmarks.filterNot { it.url == url }
         else listOf(AnnieBrowserVisit(title.take(150), url)) + bookmarks
         save("bookmarks", bookmarks)
+    }
+
+    /** One atomic preferences transaction per imported HTML collection, not N toggles. */
+    fun importBookmarks(entries: List<AnnieBrowserVisit>): Int {
+        val known = bookmarks.map { it.url }.toMutableSet()
+        val additions = entries.filter { entry ->
+            AnnieBrowserAddress.resolve(entry.url) == entry.url && known.add(entry.url)
+        }.map { it.copy(title = it.title.take(150)) }
+        require(bookmarks.size + additions.size <= 5000) {
+            "Import exceeds 5,000 bookmarks; the existing library was not changed"
+        }
+        if (additions.isNotEmpty()) {
+            bookmarks = bookmarks + additions
+            save("bookmarks", bookmarks)
+        }
+        return additions.size
     }
 }
 
@@ -749,6 +771,23 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
 
     private fun applyUserAgentSettings(tab: AnnieGeckoTab, url: String) {
         tab.session.settings.userAgentOverride = userAgentManager.resolveUserAgent(url)
+    }
+
+    /** Exports all currently saved flat Annie bookmarks using Omni's real
+     *  Netscape HTML serializer. Agent 2 adds the document-picker UI. */
+    fun exportBookmarksHtml(): String {
+        val canonical = BookmarkCollection()
+        bookmarks.forEach { canonical.addBookmark(it.title, it.url) }
+        return exportNetscapeBookmarkHtml(canonical)
+    }
+
+    /** Original Omni parser; nested imported folders are currently flattened
+     *  into Annie's existing bookmarks until Agent 2 switches to the tree UI. */
+    fun importBookmarksHtml(html: String): Int {
+        val parsed = parseNetscapeBookmarkHtml(html)
+        return library.importBookmarks(
+            parsed.collection.allBookmarks().map { AnnieBrowserVisit(it.title, it.url) }
+        )
     }
 
     fun toggleBookmark(tab: AnnieGeckoTab) {
