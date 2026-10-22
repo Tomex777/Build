@@ -257,4 +257,22 @@ class AnnieCanvasLifecycleTest {
         }
     }
 
+    @Test fun userClosedCanvasRemainsClosedAfterItsLazyMessageControllerIsEvicted() {
+        // Canvas's message ID is retained by rememberSaveable in keyed chat
+        // LazyColumn. The native WebView must be destroyed on eviction, but the
+        // explicit user's Close preference should survive until Open is tapped.
+        val id = "canvas-lazy-close-regression-" + SystemClock.uptimeMillis()
+        val first = AnnieCanvasSessions.get(id)
+        first.close()
+        first.destroy()
+        val restored = AnnieCanvasSessions.get(id)
+        assertTrue("Explicitly closed Canvas should not reopen upon recycler attach",
+            restored.isClosed)
+        restored.reopen()
+        restored.destroy()
+        val opened = AnnieCanvasSessions.get(id)
+        assertTrue("Open must clear the old closed flag", !opened.isClosed)
+        opened.destroy()
+    }
+
 }
