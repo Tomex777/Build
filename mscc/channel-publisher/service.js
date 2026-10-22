@@ -10,14 +10,13 @@ const CATEGORIES = new Set(['relatable', 'wholesome', 'anime', 'nigerian', 'anim
 const INTERESTS = new Set(['casting', 'releases', 'trailers', 'renewals', 'romance', 'platforms'])
 const MAX_IMAGE_BYTES = 192 * 1024
 const fail = (status, message) => { throw new ChannelError(status, message) }
-const plain = x => x && typeof x === 'object' && !Array.isArray(x)
+const plain = x => x !== null && typeof x === 'object' && !Array.isArray(x)
 const isoTime = value => {
   if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/.test(value)) fail(400, 'Choose a valid UTC publishing time.')
   const millis = Date.parse(value)
-  if (!Number.isFinite(millis) || new Date(millis).toISOString() !== value.replace(/\.000Z$/, '.000Z')) fail(400, 'Choose a valid UTC publishing time.')
+  if (!Number.isFinite(millis) || new Date(millis).toISOString() !== (value.endsWith('Z') && !value.includes('.')?value.slice(0,-1)+'.000Z':value)) fail(400, 'Choose a valid UTC publishing time.')
   return millis
 }
-const enabled = x => x === true
 const clone = x => JSON.parse(JSON.stringify(x))
 const defaultConfig = () => ({
   revision: 0,
@@ -37,7 +36,7 @@ function patchConfig(current, patch) {
   if (!plain(patch) || !Object.keys(patch).length || Object.keys(patch).some(k => !['modules','memes','news','branding'].includes(k))) fail(400,'Unknown channel setting.')
   const next = clone(current)
   for (const [section, values] of Object.entries(patch)) {
-    if (!plain(values) || Object.keys(values).some(k => !(k in next[section]))) fail(400, 'Unknown or malformed channel setting.')
+    if (!plain(values) || Object.keys(values).some(k => !Object.hasOwn(next[section],k))) fail(400, 'Unknown or malformed channel setting.')
     for (const [k,v] of Object.entries(values)) {
       if (section === 'modules' && (typeof v !== 'boolean' || !MODULES.includes(k))) fail(400,'Channel module must be on or off.')
       if (section === 'modules' && k === 'ai' && v) fail(403, 'Channel AI requires separate supreme-owner authorization.')
