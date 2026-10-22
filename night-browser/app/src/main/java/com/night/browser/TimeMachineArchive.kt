@@ -196,9 +196,12 @@ class TimeMachineArchive(context: Context) {
                         check(TimeMachinePdfHealth.inspect(part, bytes) == ArchiveFileHealth.READY) {
                             "The saved PDF was incomplete or unreadable"
                         }
-                        // Count files already saved, not only previously cached UI state.
-                        val used = usedBytes
-                        check(TimeMachineLimits.canAdd(versions.size, used, bytes)) {
+                        // Check quota *before* moving the new .part to a final
+                        // .pdf name. usedBytes already counts finalized PDFs;
+                        // checking after rename would count this incoming PDF
+                        // twice and reject valid captures near the 150 MB cap.
+                        val existingBytes = usedBytes
+                        check(TimeMachineLimits.canAdd(versions.size, existingBytes, bytes)) {
                             "Archive storage limit reached"
                         }
                         check(part.renameTo(finalFile)) { "Could not finalize PDF" }
