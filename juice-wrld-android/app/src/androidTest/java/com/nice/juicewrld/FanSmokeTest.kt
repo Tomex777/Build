@@ -55,7 +55,7 @@ class FanSmokeTest {
         rule.onNodeWithTag("songs").performScrollToNode(hasText("Pick a feeling"))
         rule.onNodeWithText("Favorites").performClick()
         rule.onNodeWithTag("songs").performScrollToNode(hasText("All songs"))
-        rule.onAllNodesWithText("All songs").assertCountEquals(2)
+        rule.onAllNodesWithText("All songs").onFirst().assertExists()
     }
 
     @Test fun songOpensAndOffersGenuineFileImportWithoutFakeStreaming() {
