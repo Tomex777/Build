@@ -231,6 +231,30 @@ internal class ScriptFiles(context: Context) : PackageAssetResolver {
     }
 
     /**
+     * Stage a non-JS executable import without briefly exposing the default
+     * enabled starter command from createScript(). No source bytes are written
+     * until the disabled flag is synchronously committed.
+     */
+    fun createImportedExecutableFile(name: String): File {
+        val suffix = name.substringAfterLast('.', "").lowercase()
+        require(suffix in setOf("ts", "py", "lua")) { "Unsupported executable source" }
+        val safe = validateName(name, ".$suffix")
+        val id = safe.substringBeforeLast('.')
+        require(!projectNameExists(id)) { "A script project with this name already exists" }
+        check(enabledPrefs.edit().putBoolean(id, false).commit()) {
+            "Could not disable imported source before staging"
+        }
+        val file = File(root, safe)
+        try {
+            require(file.createNewFile()) { "A script file with this name already exists" }
+            return file
+        } catch (failure: Throwable) {
+            enabledPrefs.edit().remove(id).commit()
+            throw failure
+        }
+    }
+
+    /**
      * Stages a loose JavaScript file as a package without evaluating it. Imported code stays
      * disabled until the user explicitly enables the package from Script Studio.
      */
