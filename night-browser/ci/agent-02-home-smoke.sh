@@ -174,7 +174,11 @@ capture "07-home-393dp"
 # Search on a real Gecko session through the only Home address field.
 touch "Search or enter address"
 adb shell input text "example.com"
-adb shell input keyevent 66
+# API26 Gboard sometimes treats adb KEYCODE_ENTER as an IME newline/dismiss,
+# even when Compose exposes ImeAction.Go. Use the same VISIBLE submit
+# control real users can tap. Assert the address was actually typed first.
+ui has "example.com"
+touch "Go to address or search"
 sleep 12
 ui not "Quick access"
 capture "08-navigated-geckoview"
