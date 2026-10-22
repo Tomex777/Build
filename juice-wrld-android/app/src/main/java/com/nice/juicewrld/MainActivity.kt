@@ -186,7 +186,7 @@ fun JuiceScreen(model: JuiceViewModel = viewModel()) {
                     )
                 }
             }
-            if (state.hasMore && !state.savedTab && query.isBlank() && filter == "All") {
+            if (state.hasMore && !state.savedTab) {
                 item(span = { GridItemSpan(maxLineSpan) }) {
                     Button(
                         onClick = { model.fetchPage(refresh = false) },
