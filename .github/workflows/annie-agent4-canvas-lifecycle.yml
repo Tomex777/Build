@@ -37,9 +37,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
       - run: npm install -g typescript@5.9.3
       - name: Validate Android integration and Canvas build
         run: |
@@ -66,14 +63,7 @@ jobs:
           arch: x86_64
           profile: pixel_2
           emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -partition-size 4096
-          script: |
-            mkdir -p annie-android/build/agent4-evidence
-            adb logcat -c
-            set -o pipefail
-            timeout --signal=TERM --kill-after=20s 600s gradle --no-daemon --stacktrace -p annie-android :app:connectedDebugAndroidTest '-Pandroid.testInstrumentationRunnerArguments.class=com.tomex777.annie.AnnieCanvasLifecycleTest' 2>&1 | tee annie-android/build/agent4-evidence/lifecycle.log
-            timeout --signal=TERM --kill-after=20s 900s gradle --no-daemon --stacktrace -p annie-android :app:connectedDebugAndroidTest '-Pandroid.testInstrumentationRunnerArguments.class=com.tomex777.annie.AnnieCanvasMessageTest' 2>&1 | tee annie-android/build/agent4-evidence/snake-regression.log
-            adb logcat -d > annie-android/build/agent4-evidence/logcat.txt
-            adb pull /sdcard/Pictures/AnnieCI annie-android/build/agent4-evidence/screenshots || true
+          script: bash annie-android/ci/run-agent4-canvas-lifecycle.sh
       - name: Preserve test artifacts and screenshots
         if: always()
         uses: actions/upload-artifact@v4
