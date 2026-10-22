@@ -26,6 +26,11 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '22'
+      - name: Parse actual channels UI and fixture scripts
+        run: |
+          node --check night-play/channels/config/app.js
+          node --check night-play/channels/config/browser-smoke.cjs
+          node --check night-play/channels/browser-smoke.cjs
       - name: Install browser helper
         run: npm install --no-save playwright@1.56.1
       - name: Execute authenticated channel control and five-width Chromium playthrough
