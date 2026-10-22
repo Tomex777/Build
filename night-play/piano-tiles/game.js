@@ -23,16 +23,30 @@ function updateHud(){
  $("score").textContent=String(score);$("streak").textContent=String(streak);
  $("best").textContent=String(Math.max(score,readBest()));
 }
-// Endless is an actual continuous mode, not a finite song masquerading as one.
+// Endless mode now plays an original, *harmonically coherent* C / G / Am / F
+// piano phrase. It alternates two eight-bar variations rather than selecting
+// unrelated pitches that sound like random beeps even through a real piano.
+const ENDLESS_MELODY=[
+ // Opening motif: C major, G major, A minor, F major (8 notes per bar).
+ 261.63,329.63,392,523.25,392,329.63,293.66,261.63,
+ 246.94,293.66,392,493.88,440,392,293.66,246.94,
+ 220,261.63,329.63,440,523.25,440,329.63,261.63,
+ 174.61,261.63,349.23,440,392,349.23,329.63,261.63,
+ // A second phrase rises and returns to the tonic.
+ 261.63,392,440,523.25,659.25,523.25,440,392,
+ 246.94,392,440,493.88,587.33,493.88,392,293.66,
+ 220,329.63,392,440,523.25,659.25,523.25,440,
+ 174.61,261.63,349.23,440,392,329.63,293.66,261.63
+];
 function extendEndless(count){
  const result=[],lanes=[0,2,1,3,0,3,1,2,1,3,2,0,3,1,0,2];
- const pitches=[261.63,293.66,329.63,392,440,523.25,587.33,659.25];
  for(let k=0;k<count;k++){
   const i=endlessIndex++,lane=lanes[i%lanes.length];
-  const hold=i>3&&i%19===10;
-  const beat=Math.max(.36,.67-Math.min(.29,i*.0017));
-  result.push({lane,freq:pitches[(i*3+Math.floor(i/4))%pitches.length],at:endlessNextAt,
-   duration:hold?.67:0,hold,state:"waiting",pointer:null,start:0,
+  const hold=i>3&&i%16===15;
+  const beat=Math.max(.39,.68-Math.min(.29,i*.00135));
+  const motif=ENDLESS_MELODY[i%ENDLESS_MELODY.length];
+  result.push({lane,freq:motif,at:endlessNextAt,
+   duration:hold?.76:0,hold,state:"waiting",pointer:null,start:0,
    scoreGiven:false,voice:null,flash:0,hitBottom:null});
   endlessNextAt+=beat;
  }
