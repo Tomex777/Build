@@ -28,7 +28,7 @@ const origin='http://127.0.0.1:'+server.address().port;
 const snap=page=>page.evaluate(()=>window.__nightDinoTest.snapshot());
 let browser;
 try{
- browser=await chromium.launch({headless:true,channel:'chrome',args:['--no-sandbox']});
+ browser=await chromium.launch({headless:true,args:['--no-sandbox']});
  for(const [width,height] of [[320,568],[360,740],[390,844],[412,915],[1280,800]]){
   const page=await browser.newPage({viewport:{width,height},hasTouch:true,isMobile:width<700});
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
@@ -55,12 +55,14 @@ try{
   assert.ok(overflow<=1,'no horizontal overflow at '+width);
   const arena=await page.locator('#stage').boundingBox();
   const rect=await page.locator('.runner-canvas').boundingBox();
-  // All NIGHT Play arcade games use the 390:550 stage footprint.
+  // Runner remains as wide as the other games but its height is deliberately
+  // reduced: no enormous empty sky. Surrounding whitespace is tappable.
   const other=await browser.newPage({viewport:{width,height},hasTouch:true,isMobile:width<700});
   await other.goto(origin+'/action/?game=slice',{waitUntil:'domcontentloaded'});
   const reference=await other.locator('#screen').boundingBox();
   assert.ok(Math.abs(arena.width-reference.width)<=4,'Dino and Fruit Slice widths align at '+width);
-  assert.ok(Math.abs(arena.height-reference.height)<=4,'Dino and Fruit Slice heights align at '+width+
+  const heightRatio=arena.height/reference.height;
+  assert.ok(heightRatio>=.76&&heightRatio<=.92,'compact stage must be noticeably shorter than Fruit Slice at '+width+
     ': Dino='+arena.height+', Slice='+reference.height);
   await other.close();
   assert.ok(Math.abs(rect.height-arena.height)<=3,
@@ -84,6 +86,18 @@ try{
    await input.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
    await page.waitForTimeout(570);
    assert.equal((await snap(page)).jumping,false,'original jump lands');
+   // Real tap on title OUTSIDE the game also jumps, Chrome-offline style.
+   const intro=await page.locator('.night-game-intro h1').boundingBox();
+   const outerX=intro.x+intro.width/2,outerY=intro.y+intro.height/2;
+   await input.send('Input.dispatchTouchEvent',{type:'touchStart',
+     touchPoints:[{id:3,x:outerX,y:outerY}]});
+   await page.waitForTimeout(135);
+   const outside=await snap(page);
+   assert.ok(outside.jumping&&outside.dinosaurY<outside.groundY-12,
+     'tapping the page outside the arena jumps immediately');
+   await input.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+   await page.waitForTimeout(520);
+   assert.equal((await snap(page)).jumping,false,'external jump lands correctly');
    assert.equal(await page.locator('#duckButton').count(),0,'no visible duck dock/control');
    // Recognizable single-surface swipe down triggers original Chromium duck.
    const dx=x,dy=y-55;
@@ -95,6 +109,7 @@ try{
    assert.equal((await snap(page)).ducking,false,'swipe release stands');
    await page.locator('#pauseButton').click();
    const paused=await snap(page);
+   assert.equal(paused.jumping,false,'pause button must not cause a global jump');
    assert.equal(paused.paused,true,'pause toggled');
    await page.waitForTimeout(100);
    assert.equal((await snap(page)).distanceRan,paused.distanceRan,'pause freezes original engine');
@@ -109,13 +124,18 @@ try{
    // Natural spawning and collision, without any control input.
    await page.waitForFunction(()=>window.__nightDinoTest.snapshot().dead,null,{timeout:18000});
    assert.ok((await snap(page)).score>0,'earned score from real game');
-   await page.locator('#overlayAction').click();
-   assert.equal((await snap(page)).dead,false,'restarts after collision');
+   // Tapping an empty area OUTSIDE the playfield also restarts a dead run,
+   // just as tapping Chrome's offline page does.
+   await input.send('Input.dispatchTouchEvent',{type:'touchStart',
+     touchPoints:[{id:4,x:outerX,y:outerY}]});
+   await page.waitForTimeout(110);
+   assert.equal((await snap(page)).dead,false,'outer-page tap restarts after collision');
+   await input.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
    await page.waitForTimeout(100);
    assert.ok((await snap(page)).distanceRan<200,'new round resets distance');
   }
   assert.deepEqual(errors,[],'no browser exceptions at '+width);
-  console.log('PASS',width,{overflow,arenaHeight:arena.height,canvasHeight:rect.height,zoom:initial.zoom,referenceHeight:reference.height,originalJumpVelocity:initial.jumpVelocity,canvasWidth:rect.width,skin:'NIGHT'});
+  console.log('PASS',width,{overflow,arenaHeight:arena.height,canvasHeight:rect.height,zoom:initial.zoom,referenceHeight:reference.height,heightRatio,originalJumpVelocity:initial.jumpVelocity,canvasWidth:rect.width,skin:'NIGHT'});
   await page.close();
  }
 }finally{if(browser)await browser.close();await new Promise(done=>server.close(done));}
