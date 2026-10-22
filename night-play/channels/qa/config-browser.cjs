@@ -19,6 +19,9 @@ function initial() {return {revision:0,modules:{memes:false,news:false,anonymous
   capabilities:{ai:false}};}
 for(const owner of ['A','B'])configs.set(owner,initial());
 const answers=new Map(),activeBatch=new Map(),requests=[],jobs=[];
+const selections=new Map(['A','B'].map(owner=>[owner,{
+ id:'qa_selection_'+owner+'_00001',revision:0,items:[]
+}]));
 let brokenConfig=false,ownerARevoked=false,nextBatchCounter=0;
 function candidates(batch) {return Array.from({length:4},(_,i)=>({
  id:'fixture_'+batch+'_'+(i+1),title:['Relatable','Old but funny','Anime','Animals'][i]+' sample '+batch,
@@ -28,8 +31,9 @@ function candidates(batch) {return Array.from({length:4},(_,i)=>({
  sourceName:'Offline fixture, not a live licensed feed',
  sourceUrl:'https://example.org/fixture/'+batch+'/'+i
 }));}
-const makeBatch=batch=>({batchId:'qa_batch_'+batch+'_00001',candidates:candidates(batch),
- decisions:answers.get(batch)||[]});
+const makeBatch=(batch,owner)=>({batchId:'qa_batch_'+batch+'_00001',
+ candidates:candidates(batch),decisions:answers.get(owner+':'+batch)||[],
+ selection:clone(selections.get(owner))});
 function clone(x){return JSON.parse(JSON.stringify(x));}
 function isOwn(owner,id){return (owner==='A'&&id===A)||(owner==='B'&&id===B);}
 const server=http.createServer(async(req,res)=>{
@@ -81,13 +85,13 @@ const server=http.createServer(async(req,res)=>{
  if(action==='channel:jobs:list')return reply(200,{jobs:jobs.filter(j=>j.owner===owner)});
  if(action==='channel:memes:current'){
   const saved=activeBatch.get(owner);
-  return saved?reply(200,makeBatch(saved)):reply(404,{error:'No persisted batch'});
+  return saved?reply(200,makeBatch(saved,owner)):reply(200,{selection:clone(selections.get(owner)),decisions:[]});
  }
  if(action==='channel:memes:find'){
   if(!config.modules.memes)return reply(403,{error:'Meme module is OFF'});
   const batch=body.next?++nextBatchCounter+1:1;
   activeBatch.set(owner,batch);
-  return reply(200,makeBatch(batch));
+  return reply(200,makeBatch(batch,owner));
  }
  if(action==='channel:memes:review'){
   if(!config.modules.memes)return reply(403,{error:'Meme module is OFF'});
@@ -98,20 +102,36 @@ const server=http.createServer(async(req,res)=>{
     return reply(400,{error:'Invalid decision'});
   if(body.decision==='approved'&&candidate.publishable!==true)
     return reply(403,{error:'Media redistribution rights not verified'});
-  const arr=answers.get(Number(index))||[];
+  const selection=selections.get(owner);
+  if(body.expectedSelectionRevision!==selection.revision)
+    return reply(409,{error:'Outdated approved-selection revision'});
+  if(typeof body.caption!=='string'||body.caption.length>1800)
+    return reply(400,{error:'Invalid caption'});
+  const key=owner+':'+Number(index),arr=answers.get(key)||[];
   const pos=arr.findIndex(x=>x.candidateId===body.candidateId);
   const saved={candidateId:body.candidateId,decision:body.decision,caption:body.caption};
   if(pos<0)arr.push(saved);else arr[pos]=saved;
-  answers.set(Number(index),arr);
-  return reply(200,saved);
+  answers.set(key,arr);
+  selection.items=selection.items.filter(item=>
+    !(item.batchId===body.batchId&&item.candidateId===body.candidateId));
+  if(body.decision==='approved'){
+    if(selection.items.length>=32)return reply(400,{error:'Approved tray capacity reached'});
+    selection.items.push({...candidate,batchId:body.batchId,candidateId:body.candidateId,
+      caption:body.caption});
+  }
+  selection.revision++;
+  return reply(200,{...saved,selection:clone(selection)});
  }
  if(action==='channel:memes:publish'){
   if(!config.modules.memes)return reply(403,{error:'Meme module is OFF'});
-  const all=[...answers.values()].flat().filter(x=>x.decision==='approved');
-  // Future backend must receive an immutable selection snapshot across batches.
-  const queued=all.map(x=>({id:'job_'+x.candidateId,owner,status:'queued'}));
+  const selection=selections.get(owner);
+  if(body.selectionId!==selection.id||body.expectedSelectionRevision!==selection.revision)
+    return reply(409,{error:'Stale or foreign selection'});
+  const queued=selection.items.map(item=>({id:'job_'+item.candidateId,owner,
+    channelId,status:'queued',title:item.title,caption:item.caption}));
   jobs.push(...queued);
-  return reply(200,{jobs:queued});
+  selection.items=[];selection.revision++;
+  return reply(200,{jobs:queued,selection:clone(selection)});
  }
  return reply(400,{error:'Unsupported action'});
 });
@@ -239,8 +259,8 @@ async function main(){
   assert.match(await page.locator('#approvedCount').innerText(),/^1 approved/,
     'Server-restored batch must preserve approved decision after reload');
   await page.screenshot({path:path.join(output,'approved-after-reload.png'),fullPage:true});
-  if(await page.locator('.review-card').first().getByRole('button',{name:'Skip'}).count()!==1)
-    findings.push('P1: no explicit per-candidate Skip decision/button; Decline cannot substitute for Skip');
+  assert.equal(await page.locator('.review-card').first().getByRole('button',{name:'Skip'}).count(),1,
+    'Explicit per-candidate Skip must be separate from Decline');
   await page.getByRole('button',{name:'Next four'}).click();
   await page.locator('.review-card').first().getByRole('heading',{name:/sample 2/}).waitFor();
   await page.screenshot({path:path.join(output,'review-next-batch.png'),fullPage:true});
