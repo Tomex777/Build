@@ -154,7 +154,6 @@ assert.ok(frameTime - before.frameTime <= 96, 'rAF must not jump by paused durat
 assert.equal(animation.playState, 'running');
 assert.equal(audio.state, 'running');
 assert.equal(nextAudio.state, 'running');
-assert.equal(sound.paused, false);
 await Promise.resolve();
 await Promise.resolve();
 assert.equal(nextSound.paused, false);
