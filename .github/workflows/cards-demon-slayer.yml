@@ -1,0 +1,92 @@
+name: NIGHT Demon Slayer Card Candidates
+
+on:
+  push:
+    branches: [feature/cards-mitsuri-demon-slayer-20261022]
+    paths:
+      - 'cards/bin/seed-demon-slayer.mjs'
+      - 'cards/bin/demon-slayer-gallery.mjs'
+      - 'cards/bin/mitsuri-review-proofs.mjs'
+      - 'cards/catalog/demon-slayer*'
+      - 'cards/tests/demon-slayer-sources.test.mjs'
+      - '.github/workflows/cards-demon-slayer.yml'
+  pull_request:
+    paths:
+      - 'cards/bin/seed-demon-slayer.mjs'
+      - 'cards/bin/demon-slayer-gallery.mjs'
+      - 'cards/bin/mitsuri-review-proofs.mjs'
+      - 'cards/catalog/demon-slayer*'
+      - 'cards/tests/demon-slayer-sources.test.mjs'
+      - '.github/workflows/cards-demon-slayer.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: night-demon-slayer-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  mitsuri:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: cards
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: cards/package-lock.json
+      - name: Install pinned render dependencies
+        run: npm ci
+      - name: Acquire real Mitsuri art from the official game, verify and pin bytes
+        run: node bin/seed-demon-slayer.mjs --write-lock
+      - name: Validate Demon Slayer source identity and NIGHT renderer contracts
+        run: npm test
+      - name: Install browser system dependencies
+        run: npx playwright install-deps chromium
+      - name: Install exact NIGHT Chrome renderer
+        run: |
+          curl -fL --retry 3 https://storage.googleapis.com/chrome-for-testing-public/131.0.6778.204/linux64/chrome-headless-shell-linux64.zip -o "$RUNNER_TEMP/night-chrome.zip"
+          unzip -q "$RUNNER_TEMP/night-chrome.zip" -d "$RUNNER_TEMP/night-browser"
+          chmod +x "$RUNNER_TEMP/night-browser/chrome-headless-shell-linux64/chrome-headless-shell"
+          echo "NIGHT_BROWSER_PATH=$RUNNER_TEMP/night-browser/chrome-headless-shell-linux64/chrome-headless-shell" >> "$GITHUB_ENV"
+      - name: Render actual shared NIGHT Nocturne 3000x4800 card and 320px proof
+        run: npm run build -- --series demon-slayer --width 3000 --out dist/demon-slayer
+      - name: Produce original-source and native-pixel real-image review proofs
+        run: node bin/mitsuri-review-proofs.mjs
+      - name: Export source-based candidate collection gallery
+        run: |
+          npm run gallery -- --series demon-slayer --out dist/demon-slayer --file dist/DemonSlayer-Collection.html
+          node bin/demon-slayer-gallery.mjs dist/DemonSlayer-Collection.html
+      - name: Pin original source metadata only after successful render
+        if: success() && github.event_name == 'push'
+        working-directory: .
+        run: |
+          git config user.name 'NIGHT Cards Provenance'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add cards/catalog/demon-slayer-source-lock.json cards/catalog/demon-slayer.json cards/catalog/power/demon-slayer.json
+          if ! git diff --cached --quiet; then
+            git commit -m "cards(demon-slayer): lock actual Mitsuri original and power metadata"
+            git push origin "HEAD:$GITHUB_REF_NAME"
+          fi
+      - name: Card master, phone proof, source hashes, and gallery
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NIGHT-Mitsuri-Original-Art-Card
+          path: |
+            cards/dist/demon-slayer/
+            cards/dist/DemonSlayer-Collection.html
+            cards/catalog/demon-slayer.json
+            cards/catalog/power/demon-slayer.json
+            cards/catalog/demon-slayer-source-lock.json
+          if-no-files-found: warn
+          compression-level: 0
+          retention-days: 14

@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "series": "demon-slayer",
+  "name": "Demon Slayer / NIGHT Collection",
+  "dimensions": [
+    3000,
+    4800
+  ],
+  "status": "original-artwork-candidates-not-reviewed",
+  "sourcePage": "https://game.kimetsu.com/hinokami2/character/?chara=32",
+  "rights": "Official game artwork. Copyright reserved: private reference candidate only; no commercial redistribution rights implied.",
+  "sources": [
+    {
+      "id": "mitsuri-love-hashira",
+      "number": 1,
+      "character": "mitsuri-kanroji",
+      "name": "Mitsuri Kanroji",
+      "title": "Mitsuri",
+      "form": "Love Hashira / Swordsmith Village",
+      "formId": "love-hashira",
+      "continuity": "demon-slayer-anime-swordsmith-village",
+      "aliases": [
+        "Mitsuri",
+        "Mitsuri Kanroji",
+        "Love Hashira",
+        "Kanroji Mitsuri"
+      ],
+      "source": {
+        "provider": "kimetsu-hinokami-chronicles-2-official",
+        "page": "https://game.kimetsu.com/hinokami2/character/?chara=32",
+        "image": "https://game.kimetsu.com/hinokami2/assets/img/character/main/chara32.png",
+        "rights": "Copyright reserved — © Koyoharu Gotouge / Shueisha, Aniplex, ufotable; game materials are not freely redistributable.",
+        "usage": "reference-only",
+        "credit": "Demon Slayer: The Hinokami Chronicles 2 official character artwork",
+        "artist": "Official Demon Slayer game production"
+      },
+      "rank": {
+        "letter": "A",
+        "scope": "Mitsuri Kanroji — active Love Hashira, Swordsmith Village battle, before a separate marked-form assessment",
+        "basis": "Unmarked Love Hashira: exceptional muscle density, flexible Love Breathing Nichirin sword, fast and precise cutting of Zohakuten's wooden dragon attacks before the Slayer Mark appears. She is an elite Hashira combatant.",
+        "limits": "The early encounter with Zohakuten shows her vulnerability to compressed sound and does not establish prolonged survival without the Demon Slayer Mark. Later marked feats must remain a separately illustrated and ranked form.",
+        "references": [
+          "https://demonslayer-anime.com/sva/story/10.html",
+          "https://game.kimetsu.com/hinokami2/character/?chara=32"
+        ]
+      }
+    }
+  ],
+  "pendingForms": [
+    {
+      "id": "mitsuri-demon-slayer-mark",
+      "character": "mitsuri-kanroji",
+      "formId": "love-hashira-marked",
+      "reason": "Needs matching official artwork visibly depicting the Demon Slayer Mark; never repurpose unmarked art or inherit unverified power grading."
+    }
+  ]
+}
