@@ -12,6 +12,7 @@ const basic = {
   args:['on', channel],
   message:{ key:{ remoteJid:'2341234567890@s.whatsapp.net' } },
   isSupremeOwner:true,
+  botProfile:{ id:'josiah' },
   account:{ id:'bot-josiah', sock:{ newsletterMetadata:metadata } },
   channelAiGet: id => entries.get(id) || { enabled:false, accountId:'' },
   channelAiSet: (id, enabled, accountId) => {
