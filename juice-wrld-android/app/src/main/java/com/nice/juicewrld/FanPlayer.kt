@@ -231,7 +231,10 @@ class FanPlayer(app: Application) : AndroidViewModel(app) {
     fun playInMood(songId: String, mood: Mood) {
         val ids = FanSongs.filter(mood, "", _state.value.favorites)
             .map { it.id }.filter { it in files }
-        if (songId !in ids) return
+        if (songId !in ids) {
+            play(songId)
+            return
+        }
         if (songId != _state.value.activeSongId || _state.value.queueIds.isEmpty()) {
             _state.update { it.copy(
                 queueIds = MusicQueue.build(ids, songId, _state.value.shuffle)
