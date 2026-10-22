@@ -86,7 +86,7 @@ fun JuiceScreen(model: JuiceViewModel = viewModel()) {
             query, filter
         )
     }
-    Column(Modifier.fillMaxSize().background(Ink)) {
+    Column(Modifier.fillMaxSize().background(Ink).statusBarsPadding()) {
         LazyVerticalGrid(
             modifier = Modifier.weight(1f).fillMaxWidth(),
             columns = GridCells.Adaptive(minSize = 148.dp),
