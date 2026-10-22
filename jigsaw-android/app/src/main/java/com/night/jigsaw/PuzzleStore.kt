@@ -29,6 +29,7 @@ class PuzzleStore(private val context: Context) {
         root.put("hints",g.hintsRemaining);root.put("moves",g.moves)
         root.put("preview",g.preview)
         root.put("landscape",g.landscapeMode)
+        root.put("zone",g.activeZone)
         val arr=JSONArray()
         g.pieces.forEach { p ->
             arr.put(JSONArray().put(p.x.toDouble()).put(p.y.toDouble()).put(p.placed))
@@ -55,7 +56,7 @@ class PuzzleStore(private val context: Context) {
         PuzzleGame.restore(obj.getInt("cols"),obj.getInt("rows"),obj.getLong("seed"),
             image, positions, obj.optInt("hints",3),
             obj.optInt("moves",0),obj.optBoolean("preview",false),
-            obj.optBoolean("landscape",false))
+            obj.optBoolean("landscape",false),obj.optInt("zone",0))
     }.getOrNull()
 
     fun loadPhoto(): Bitmap? = BitmapFactory.decodeFile(photoFile.absolutePath)
