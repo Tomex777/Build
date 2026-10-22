@@ -233,10 +233,14 @@ export function createNightPlayHandler(play, { publicKey = readFileSync(new URL(
       if (!body || Array.isArray(body) || typeof body !== 'object') return reply(400, { error:'Invalid request.' })
       play.limit('rpc-global', 1800)
       play.limit((body.action==='party:state'?'rpc-poll-client:':'rpc-client:') + String(body.client || 'unknown'), body.action==='party:state'?900:180)
-      const result = body.action === 'channel:verify' ? await (async () => {
+      const channelAction = typeof body.action === 'string' &&
+        /^channel:(?:config:(?:get|update)|memes:(?:find|current|review|publish)|post:preview|jobs:(?:list|cancel))$/.test(body.action)
+      const result = body.action === 'channel:verify' || channelAction ? await (async () => {
         const userId = body.session ? play.session(body.session)?.user_id : null
         if (!userId) throw new PlayError(401,'Connect WhatsApp to continue.')
+        play.limit('channel-rpc:' + userId, 120, 60000)
         if (body.channelId !== undefined && !/^\d{8,25}@newsletter$/.test(String(body.channelId))) throw new PlayError(400,'Invalid channel.')
+        if (channelAction) return play.channels.publisher.handle(body.action, body, userId, accounts)
         return play.channels.verifyUser(userId, accounts, body.channelId)
       })() : play.request(body)
       // An already-linked browser can obtain its permitted WhatsApp photo
