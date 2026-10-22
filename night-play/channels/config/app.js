@@ -191,7 +191,7 @@ function attachControls(){
 }
 function imageFromSource(candidate){
  if(typeof candidate.previewData==='string'&&/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/i.test(candidate.previewData)&&candidate.previewData.length<=1900000)return candidate.previewData;
- if(typeof candidate.previewUrl==='string'&&/^\/api\/channel-(?:media|assets)\/[a-zA-Z0-9_/%.-]{1,240}$/.test(candidate.previewUrl))return candidate.previewUrl;
+ if(typeof candidate.previewUrl==='string'&&/^\/api\/channel-(?:media|assets)\/(?:[A-Za-z0-9_-]{1,100}\/){0,5}[A-Za-z0-9_-]{1,100}(?:\.(?:png|jpg|jpeg|webp))?$/.test(candidate.previewUrl))return candidate.previewUrl;
  return '';
 }
 function validBatch(result){
