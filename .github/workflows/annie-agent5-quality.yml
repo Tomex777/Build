@@ -78,9 +78,20 @@ jobs:
             set +e
             timeout --signal=TERM --kill-after=20s 760s gradle --no-daemon --stacktrace -p annie-android :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.tomex777.annie.ChatInsetTest,com.tomex777.annie.AnnieVoiceTouchTargetsTest,com.tomex777.annie.AnnieVoiceGestureTest,com.tomex777.annie.AnnieVoiceRecordingTest,com.tomex777.annie.AnnieVoiceChatLifecycleTest
             status=$?
-            adb pull /sdcard/Pictures/AnnieCI annie-android/build/agent5-evidence/screenshots || true
+            adb pull /sdcard/Pictures/AnnieCI annie-android/build/agent5-evidence/screenshots-default || true
+            adb shell wm size > annie-android/build/agent5-evidence/display-default.txt
+            adb shell wm density >> annie-android/build/agent5-evidence/display-default.txt
+            # Pixel 2 physical 1080px / 3px per dp = 360dp narrow-phone layout.
+            # Exercise chat insets, per-chat drafts and voice playback a second time.
+            adb shell wm density 480
+            adb shell wm size > annie-android/build/agent5-evidence/display-360dp.txt
+            adb shell wm density >> annie-android/build/agent5-evidence/display-360dp.txt
+            timeout --signal=TERM --kill-after=20s 420s gradle --no-daemon --stacktrace -p annie-android :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.tomex777.annie.ChatInsetTest,com.tomex777.annie.AnnieVoiceTouchTargetsTest
+            narrow_status=$?
+            adb pull /sdcard/Pictures/AnnieCI annie-android/build/agent5-evidence/screenshots-360dp || true
+            adb shell wm density reset
             adb logcat -d > annie-android/build/agent5-evidence/logcat.txt
-            exit "$status"
+            if [ "$status" -ne 0 ] || [ "$narrow_status" -ne 0 ]; then exit 1; fi
       - name: Upload tests and real screenshot evidence
         if: always()
         uses: actions/upload-artifact@v4
