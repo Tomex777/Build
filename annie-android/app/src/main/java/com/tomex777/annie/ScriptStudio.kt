@@ -1918,7 +1918,7 @@ private class AnnieScriptCodeEditor(context: android.content.Context) : CodeEdit
 
 @Composable
 private fun StudioInput(value: String, onValueChange: (String) -> Unit, hint: String, modifier: Modifier = Modifier, tag: String? = null) {
-    Surface(color = StudioSurface, shape = RoundedCornerShape(11.dp), border = BorderStroke(1.dp, StudioBorder), modifier = modifier.heightIn(min = 40.dp)) {
+    Surface(color = StudioSurface, shape = RoundedCornerShape(11.dp), border = BorderStroke(1.dp, StudioBorder), modifier = modifier.heightIn(min = 48.dp)) {
         BasicTextField(
             value = value,
             onValueChange = onValueChange,
