@@ -1,6 +1,9 @@
 package com.tomex777.annie
 
 import android.content.Context
+import android.graphics.Rect
+import android.os.SystemClock
+import android.view.MotionEvent
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.key
@@ -40,6 +43,7 @@ class AnnieOmniSessionRestoreTest {
         val originalBackup = backup.takeIf { it.exists() }?.readBytes()
         val server = GeckoLocalFixture()
         lateinit var model: AnnieGeckoBrowserModel
+        lateinit var geckoView: GeckoView
         var initialized = false
         lateinit var normalId: String
         lateinit var privateId: String
@@ -65,7 +69,7 @@ class AnnieOmniSessionRestoreTest {
                 val current = uiSession.value
                 if (current != null) key(current) {
                     AndroidView(
-                        factory = { GeckoView(it).apply { setSession(current) } },
+                        factory = { GeckoView(it).apply { setSession(current); geckoView = this } },
                         modifier = Modifier.fillMaxSize(),
                         onRelease = { it.releaseSession() }
                     )
@@ -74,6 +78,25 @@ class AnnieOmniSessionRestoreTest {
             compose.runOnUiThread { assertTrue(model.load(model.active!!, server.baseUrl + "/one")) }
             compose.waitUntil(45_000) {
                 model.active?.title == "Gecko one" && model.active?.loading == false
+            }
+            // Gecko only commits a navigable back-stack on an activated first
+            // document on some API levels. Match the existing E2E test's
+            // native-tap requirement before navigating to the second page.
+            val rect = Rect()
+            compose.runOnUiThread { geckoView.getGlobalVisibleRect(rect) }
+            var lastTap = 0L
+            compose.waitUntil(45_000) {
+                val now = SystemClock.uptimeMillis()
+                if (model.active?.title != "Gecko one activated" && now - lastTap >= 500L) {
+                    lastTap = now
+                    for (action in listOf(MotionEvent.ACTION_DOWN, MotionEvent.ACTION_UP)) {
+                        val event = MotionEvent.obtain(now, SystemClock.uptimeMillis(),
+                            action, rect.exactCenterX(), rect.exactCenterY(), 0)
+                        try { InstrumentationRegistry.getInstrumentation().sendPointerSync(event) }
+                        finally { event.recycle() }
+                    }
+                }
+                model.active?.title == "Gecko one activated"
             }
             compose.runOnUiThread { assertTrue(model.load(model.active!!, server.baseUrl + "/two")) }
             compose.waitUntil(45_000) {
