@@ -67,6 +67,15 @@ function realm(
       for (const handler of this.listeners.get(name) || []) handler();
     }
   }
+  class Element {
+    animate() {
+      return {
+        playState: 'running',
+        pause() { this.playState = 'paused'; },
+        play() { this.playState = 'running'; },
+      };
+    }
+  }
   class AudioContext {
     constructor() {
       this.state = 'running';
@@ -90,7 +99,7 @@ function realm(
     clearTimeout: (key) => { if (!cancellationRace) pending.delete(key); },
     requestAnimationFrame: (callback) => schedule(callback, 16),
     cancelAnimationFrame: (key) => { if (!cancellationRace) pending.delete(key); },
-    HTMLMediaElement, AudioContext,
+    HTMLMediaElement, AudioContext, Element,
   };
   if (nativeIdle) {
     window.requestIdleCallback = (callback) =>
@@ -167,6 +176,9 @@ a.window.__annieCanvasHost.pause();
 assert.equal(a.window.__annieCanvasHost.paused, true);
 assert.ok(a.css.has('annie-host-paused'));
 assert.equal(animation.playState, 'paused');
+const lateAnimation = new a.window.Element().animate();
+assert.equal(lateAnimation.playState, 'paused',
+  'New Web Animations API motion must be held during host Pause');
 assert.equal(sound.paused, true, 'Detached audio element should pause');
 assert.equal(audio.state, 'suspended');
 await audio.resume();
@@ -205,6 +217,7 @@ assert.equal(delayed, 1);
 assert.equal(idleExecutions, 1, 'Suspended idle callbacks resume exactly once');
 assert.ok(frameTime - before.frameTime <= 96, 'rAF must not jump by paused duration');
 assert.equal(animation.playState, 'running');
+assert.equal(lateAnimation.playState, 'running');
 assert.equal(audio.state, 'running');
 assert.equal(nextAudio.state, 'running');
 await Promise.resolve();
