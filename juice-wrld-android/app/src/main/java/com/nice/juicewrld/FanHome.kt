@@ -491,7 +491,7 @@ private fun FeelingCard(mood: Mood, selected: Boolean, count: Int, onClick: () -
         )
         Spacer(Modifier.height(3.dp))
         Text(
-            "$"+"{count} songs", color = White.copy(alpha = .77f),
+            "${count} songs", color = White.copy(alpha = .77f),
             fontSize = 11.sp, maxLines = 1
         )
     }
