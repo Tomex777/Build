@@ -1,5 +1,8 @@
 package com.nice.jigsaw
 
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
+import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -8,7 +11,9 @@ import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RectF
 import android.graphics.Region
+import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
+import android.view.animation.DecelerateInterpolator
 import android.view.View
 import kotlin.math.ceil
 import kotlin.math.hypot
@@ -38,6 +43,7 @@ class PuzzleBoardView(context: Context) : View(context) {
     private var lastY = 0f
     private var pinchDistance = 0f
     private var activePiece = -1
+    private var snapAnimator: ValueAnimator? = null
     // Keep a grabbed piece under the finger while the tabletop scrolls toward an offscreen target.
     private val edgeScroller = object : Runnable {
         override fun run() {
@@ -74,6 +80,8 @@ class PuzzleBoardView(context: Context) : View(context) {
     fun bind(newGame: PuzzleGame, newPhoto: Bitmap, onChange: () -> Unit) {
         notifyChange = onChange
         if (game === newGame && photo === newPhoto && sprites.isNotEmpty()) { invalidate(); return }
+        snapAnimator?.cancel()
+        snapAnimator=null
         game = newGame
         photo = newPhoto
         sprites.values.forEach { it.bitmap.recycle() }
@@ -289,8 +297,36 @@ class PuzzleBoardView(context: Context) : View(context) {
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                 if (activePiece>=0) {
-                    if (event.actionMasked==MotionEvent.ACTION_UP) game?.release(activePiece)
-                    notifyChange()
+                    val id=activePiece
+                    val g=game!!
+                    val p=g.pieces[id]
+                    val fromX=p.x
+                    val fromY=p.y
+                    if (event.actionMasked==MotionEvent.ACTION_UP && g.release(id)) {
+                        val toX=p.x
+                        val toY=p.y
+                        p.x=fromX;p.y=fromY
+                        performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                        snapAnimator?.cancel()
+                        snapAnimator=ValueAnimator.ofFloat(0f,1f).apply {
+                            duration=170L
+                            interpolator=DecelerateInterpolator()
+                            addUpdateListener { animation ->
+                                val t=animation.animatedValue as Float
+                                p.x=fromX+(toX-fromX)*t
+                                p.y=fromY+(toY-fromY)*t
+                                invalidate()
+                            }
+                            addListener(object : AnimatorListenerAdapter() {
+                                override fun onAnimationEnd(animation: Animator) {
+                                    p.x=toX;p.y=toY
+                                    notifyChange()
+                                    invalidate()
+                                }
+                            })
+                            start()
+                        }
+                    } else notifyChange()
                 }
                 activePiece=-1
                 performClick()
@@ -301,6 +337,8 @@ class PuzzleBoardView(context: Context) : View(context) {
     }
 
     override fun onDetachedFromWindow() {
+        snapAnimator?.cancel()
+        snapAnimator=null
         removeCallbacks(edgeScroller)
         sprites.values.forEach { it.bitmap.recycle() }
         sprites.clear()
