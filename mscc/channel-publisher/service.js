@@ -40,6 +40,7 @@ function patchConfig(current, patch) {
     for (const [k,v] of Object.entries(values)) {
       if (section === 'modules' && (typeof v !== 'boolean' || !MODULES.includes(k))) fail(400,'Channel module must be on or off.')
       if (section === 'modules' && k === 'ai' && v) fail(403, 'Channel AI requires separate supreme-owner authorization.')
+      if (section === 'modules' && v && ['news','anonymous'].includes(k)) fail(503,'This content module is not connected to approved publishing yet.')
       if (section === 'memes' && k === 'categories' && (!Array.isArray(v) || !v.length || v.length>7 || v.some(y=>!CATEGORIES.has(y)) || new Set(v).size!==v.length)) fail(400,'Choose supported meme categories.')
       if (section === 'news' && k === 'interests' && (!Array.isArray(v) || !v.length || v.length>6 || v.some(y=>!INTERESTS.has(y)) || new Set(v).size!==v.length)) fail(400,'Choose supported news interests.')
       if (['memes','news'].includes(section) && k === 'mode' && !['review','automatic'].includes(v)) fail(400,'Invalid publishing mode.')
