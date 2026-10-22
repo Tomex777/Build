@@ -2,7 +2,7 @@ name: Annie Agent 2 browser UI acceptance
 
 on:
   push:
-    branches: [annie-agent2-browser-ux-20261022]
+    branches: [annie-agent2-browser-ux-20261022, annie-browser-agent1-agent2-integration-20261022]
     paths:
       - 'annie-android/**'
       - '.github/workflows/annie-agent2-browser-ui.yml'
@@ -87,7 +87,7 @@ jobs:
               adb shell wm size "$dimensions"
               adb shell wm density "$density"
               adb shell input keyevent 3 || true
-              timeout --signal=TERM --kill-after=20s 900s gradle --no-daemon --stacktrace -p annie-android :app:connectedDebugAndroidTest "-Pandroid.testInstrumentationRunnerArguments.class=com.tomex777.annie.AnnieBrowserChromeUiTest,com.tomex777.annie.AnnieGeckoBrowserUiTest"
+              timeout --signal=TERM --kill-after=20s 900s gradle --no-daemon --stacktrace -p annie-android :app:connectedDebugAndroidTest "-Pandroid.testInstrumentationRunnerArguments.class=com.tomex777.annie.AnnieBrowserChromeUiTest,com.tomex777.annie.AnnieGeckoBrowserUiTest,com.tomex777.annie.AnnieBrowserBlankHomeTest,com.tomex777.annie.AnnieGeckoTabRestoreTest"
               mkdir -p "annie-android/build/agent2-evidence/$viewport"
               # Chrome screenshots are actual Compose UI running in Android.
               # This second evidence set is from a REAL Gecko local HTTP page
