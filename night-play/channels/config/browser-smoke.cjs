@@ -5,7 +5,7 @@ const root=path.join(__dirname,'../..');
 const output=path.join(root,'visual-output');
 fs.mkdirSync(output,{recursive:true});
 const chan='120363282083849178@newsletter',other='120363282083849179@newsletter';
-let linked=false,connected=false,down=false,configUnavailable=false,rawNameVerified=true,batchNumber=0,publishAttempts=0;
+let linked=false,connected=false,down=false,configUnavailable=false,rawNameVerified=true,malformedReviewReceipt=false,batchNumber=0,publishAttempts=0;
 let settings={revision:1,modules:{memes:false,news:false,anonymous:false,ai:false},
  memes:{mode:'review',categories:[],dailyLimit:1},news:{mode:'review',interests:[],spoilers:'avoid'},branding:{captionReplacementsEnabled:false,captionReplacements:[],signatureEnabled:false,posterName:'',watermarkEnabled:false,watermarkOpacity:0.22,watermarkPosition:'auto'},capabilities:{ai:false}};
 let decisions={},jobs=[];
@@ -92,6 +92,7 @@ const server=http.createServer(async(req,res)=>{
      if(current?.batchId===q.batchId){
        decisions[q.candidateId]=decision;current.decisions=Object.values(decisions);
      }
+     if(malformedReviewReceipt){malformedReviewReceipt=false;return send(res,200,decision);}
      return send(res,200,{...decision,selection});
    }
    if(action==='channel:memes:publish'){
@@ -283,6 +284,15 @@ async function main(){
    assert.equal(await page.locator('.review-card').first().getByRole('button',{name:'Approve'}).isEnabled(),true,'Approve restored after removing a selected post');
    selection={...selection,revision:selection.revision+1,items:[]};
    await page.reload();await page.locator('#configUI').waitFor({state:'visible'});
+   malformedReviewReceipt=true;
+   await page.locator('.review-card').first().getByRole('button',{name:'Approve'}).click();
+   await page.getByText(/NIGHT has not confirmed the saved selections/).waitFor();
+   assert.equal(await page.getByRole('button',{name:'Find memes'}).isDisabled(),true,'Malformed server ACK blocks future actions');
+   assert.equal(await page.getByRole('button',{name:'Publish approved'}).isDisabled(),true,'Unknown approval status cannot enqueue');
+   await page.reload();await page.locator('#configUI').waitFor({state:'visible'});
+   assert.equal(await page.locator('.selected-item').count(),1,'Server committed a review even though response lost selection; reload reconciles');
+   await page.locator('.selected-item').first().getByRole('button',{name:/Remove Selected/}).click();
+   await page.getByText('0 approved',{exact:true}).waitFor();
    const before=publishAttempts;
    await page.goto(base+'/channels/config/?channel='+encodeURIComponent(other));
    await page.getByText('Access unavailable',{exact:true}).waitFor();
