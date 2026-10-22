@@ -451,6 +451,7 @@ internal class AnnieGeckoTab(
     var canForward by mutableStateOf(false)
     var desktopMode by mutableStateOf(false)
     var error by mutableStateOf<String?>(null)
+    var fullscreen by mutableStateOf(false)
     // Omni-style lazy restoration: only the selected GeckoSession is opened
     // on cold start; inactive sessions cost no renderer/network resources.
     var needsRestoration = false
@@ -541,6 +542,11 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
         // its SessionState on deactivation, improving crash recovery.
         val previouslySelected = active
         if (previouslySelected != null && previouslySelected.id != tab.id) {
+            if (previouslySelected.fullscreen) {
+                previouslySelected.fullscreen = false
+                if (previouslySelected.session.isOpen)
+                    previouslySelected.session.exitFullScreen()
+            }
             findController.close(previouslySelected.session)
             if (previouslySelected.session.isOpen) previouslySelected.session.setActive(false)
         }
@@ -634,6 +640,10 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
             }
         }
         session.contentDelegate = object : GeckoSession.ContentDelegate {
+            override fun onFullScreen(session: GeckoSession, fullScreen: Boolean) {
+                // Only a genuine Gecko document event controls immersive UI.
+                tab.fullscreen = fullScreen
+            }
             override fun onTitleChange(session: GeckoSession, title: String?) {
                 tab.title = title?.take(150)?.ifBlank { "New tab" } ?: "New tab"
                 if (!tab.privateMode) library.visit(tab.title, tab.url)
@@ -642,6 +652,7 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
                 AnnieGeckoDownloadStore.accept(context, response)
             }
             override fun onCrash(session: GeckoSession) {
+                tab.fullscreen = false
                 tab.error = "Browser tab crashed. Reload to recover."
                 tab.loading = false
             }
@@ -670,6 +681,8 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
 
     fun close(tab: AnnieGeckoTab) {
         if (tab !in tabs) return
+        if (tab.fullscreen && tab.session.isOpen) tab.session.exitFullScreen()
+        tab.fullscreen = false
         if (!tab.privateMode) upstreamEngine.forgetNormalTab(tab.id)
         if (tab.session.isOpen) tab.session.close()
         val index = tabs.indexOf(tab)
@@ -850,6 +863,8 @@ internal fun AnnieGeckoStandaloneBrowser(
         model = model,
         onExit = onExit,
         universalCopy = universalCopyToggle,
+        fullscreen = model.active?.fullscreen == true,
+        exitFullscreen = { model.active?.session?.exitFullScreen() },
         find = AnnieBrowserChromeFind(
             visible = finder.visible,
             query = finder.query,
