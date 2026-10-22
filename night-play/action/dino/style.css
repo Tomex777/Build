@@ -1,6 +1,6 @@
 :root{color-scheme:light;--ink:#182c26;--green:#265a44;--border:#dae5db}*{box-sizing:border-box}body{margin:0;min-height:100svh;background:#f8f9f6;color:var(--ink);font:14px/1.5 system-ui,-apple-system,Arial,sans-serif}button{font:inherit;cursor:pointer;touch-action:manipulation}a{text-decoration:none}button:focus-visible,a:focus-visible,[role=button]:focus-visible{outline:3px solid #5b9978;outline-offset:3px}svg{display:block}.night-shell-header{grid-template-columns:1fr auto 1fr}.night-svg-defs{position:absolute;width:0;height:0;overflow:hidden}
 .dino-page{width:min(100%,850px);margin:0 auto;padding:16px 12px 40px}.night-game-intro{text-align:center;padding:4px 0 12px}.night-game-intro h1{margin:2px 0 0;font-weight:900;line-height:1.1;letter-spacing:-1.5px;font-size:clamp(29px,4.8vw,39px)}.night-eyebrow{font-size:10px;font-weight:900;color:#77927e;letter-spacing:1.5px}.night-play-hud{display:flex;align-items:center;justify-content:space-evenly;gap:14px;width:min(100%,600px);margin:0 auto 12px;padding:8px 14px;border:1px solid var(--border);background:#fff;border-radius:13px;color:#234d37}.night-hud-value{text-align:center;min-width:80px}.night-hud-value small{display:block;font-size:10px;color:#7b9285;font-weight:850;letter-spacing:1px}.night-hud-value strong{display:block;font-size:21px;line-height:1.4;font-weight:950;font-variant-numeric:tabular-nums}.dino-pause{height:40px;width:40px;border-radius:11px;background:#ecf3ed;color:#305c44;border:1px solid #d4e3d7;display:grid;place-items:center}.dino-pause .night-ico{width:20px;height:20px}
- .dino-stage{width:min(100%,520px);aspect-ratio:390/550;height:auto;max-height:calc(100svh - 260px);margin:0 auto;overflow:hidden;border:1px solid #cbdcce;border-radius:18px;position:relative;background:linear-gradient(180deg,#b6d8e6 0%,#dce9e5 56%,#f7e5bd 100%);touch-action:none;isolation:isolate}.dino-stage:after{content:"";position:absolute;inset:auto 0 0;height:8px;background:linear-gradient(#8fb8a3,#608b75);border-top:1px solid #507e66;z-index:0;pointer-events:none}.sun{position:absolute;right:18%;top:10%;height:42px;width:42px;background:#fff1c9;border-radius:50%;box-shadow:0 0 0 14px #fff4d540;z-index:0}.dino-mountain{position:absolute;inset:auto 0 25px;height:clamp(140px,34%,230px);pointer-events:none;z-index:0}.mountain-back{background:#a1bdb7;clip-path:polygon(0 70%,12% 47%,19% 58%,33% 28%,48% 65%,60% 42%,73% 58%,87% 25%,100% 55%,100% 100%,0 100%);opacity:.47}.mountain-front{background:#82a6a4;clip-path:polygon(0 85%,13% 58%,25% 72%,38% 48%,53% 73%,70% 56%,82% 78%,93% 49%,100% 61%,100% 100%,0 100%);opacity:.34}.arena-hint{position:absolute;top:17px;left:17px;color:#355943;font-weight:850;font-size:11px;letter-spacing:1.1px;z-index:1;opacity:.75}
+ .dino-stage{width:min(100%,520px);aspect-ratio:390/455;height:auto;max-height:min(480px,calc(100svh - 215px));margin:0 auto;overflow:hidden;border:1px solid #cbdcce;border-radius:18px;position:relative;background:linear-gradient(180deg,#b6d8e6 0%,#dce9e5 56%,#f7e5bd 100%);touch-action:none;isolation:isolate}.dino-stage:after{content:"";position:absolute;inset:auto 0 0;height:8px;background:linear-gradient(#8fb8a3,#608b75);border-top:1px solid #507e66;z-index:0;pointer-events:none}.sun{position:absolute;right:18%;top:10%;height:42px;width:42px;background:#fff1c9;border-radius:50%;box-shadow:0 0 0 14px #fff4d540;z-index:0}.dino-mountain{position:absolute;inset:auto 0 25px;height:clamp(140px,34%,230px);pointer-events:none;z-index:0}.mountain-back{background:#a1bdb7;clip-path:polygon(0 70%,12% 47%,19% 58%,33% 28%,48% 65%,60% 42%,73% 58%,87% 25%,100% 55%,100% 100%,0 100%);opacity:.47}.mountain-front{background:#82a6a4;clip-path:polygon(0 85%,13% 58%,25% 72%,38% 48%,53% 73%,70% 56%,82% 78%,93% 49%,100% 61%,100% 100%,0 100%);opacity:.34}.arena-hint{position:absolute;top:17px;left:17px;color:#355943;font-weight:850;font-size:11px;letter-spacing:1.1px;z-index:1;opacity:.75}
  .runner-world{position:absolute;bottom:0;left:0;right:0;height:100%;z-index:1;overflow:hidden;background:transparent!important;padding:0!important}
 .runner-world .icon-offline{visibility:hidden} .runner-world .runner-container{height:100%!important;max-width:none!important;width:100%!important;transform:none!important;position:relative!important;overflow:hidden!important;top:0!important;margin:0!important} .runner-world .runner-canvas{height:100%!important;max-width:none!important;display:block;position:absolute!important;inset:0 auto auto 0!important;image-rendering:pixelated;opacity:1!important;background:transparent!important}.runner-world .controller{display:none!important}
 #offline-resources{display:none!important}
@@ -12,8 +12,7 @@
 @media(min-width:700px) and (max-height:600px){.dino-page{padding-top:5px}.night-game-intro{padding:1px 0 4px} .dino-stage{height:auto;max-height:calc(100svh - 175px)}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 
-/* Taller portrait playfield: native Chromium canvas stays 150px high and is
-   anchored at the bottom. No sprite stretch, jump-gravity change or DOM zoom. */
+/* Compact playfield with original Chromium physics and a uniform render camera. */
 .dino-stage::before{content:"";position:absolute;inset:0;pointer-events:none;z-index:0;background:
  radial-gradient(ellipse 72px 12px at 15% 24%,#ffffff65 0 62%,transparent 65%),
  radial-gradient(ellipse 87px 13px at 79% 34%,#ffffff59 0 62%,transparent 65%),
@@ -21,16 +20,13 @@
 @media (min-width:651px) and (max-height:600px){ .dino-stage{height:auto;max-height:calc(100svh - 175px)}}
 @media (max-width:650px) and (max-height:580px){ .dino-stage{height:auto;max-height:none}}
 
-/* Keep the Endless Runner stage identical in footprint to NIGHT Play's
-   other 390×550 action games at every responsive width. The Chromium canvas
-   fills the arena above its fixed 33px ground strip, not a 150px viewport. */
-@media(min-width:651px){.dino-stage{width:min(100%,520px);height:auto;max-height:calc(100svh - 260px)}}
-@media(max-width:650px){.dino-stage{width:100%;aspect-ratio:390/550;height:auto;max-height:none}}
+/* Compact runner-only arena. The previous 390:550 playfield left too much
+ * empty sky; 390:455 preserves full-width, readable sprites and movement.
+ * Unlike a Chrome offline error-page, taps outside this arena also jump. */
+@media(min-width:651px){.dino-stage{width:min(100%,520px);aspect-ratio:390/455;height:auto;max-height:min(480px,calc(100svh - 215px))}}
+@media(max-width:650px){.dino-stage{width:100%;aspect-ratio:390/455;height:auto;max-height:none}}
 @media(max-width:650px) and (max-height:580px){.dino-stage{max-height:none}}
-
-/* The Chromium engine now uses a uniform camera scale, rather than a
-  bottom-only 150px canvas or a stretched texture. Matching other NIGHT games
-  is checked against the actual Fruit Slice canvas at phone and desktop sizes. */
+/* Original Chromium sprite world is scaled uniformly; no stretched texture. */
 .runner-world .runner-canvas{width:100%!important;height:100%!important;image-rendering:pixelated}
 
 /* Restore the previous runner's blue-sky cityscape behind the original
