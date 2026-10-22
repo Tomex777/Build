@@ -124,8 +124,13 @@ try{
    // Natural spawning and collision, without any control input.
    await page.waitForFunction(()=>window.__nightDinoTest.snapshot().dead,null,{timeout:18000});
    assert.ok((await snap(page)).score>0,'earned score from real game');
-   await page.locator('#overlayAction').click();
-   assert.equal((await snap(page)).dead,false,'restarts after collision');
+   // Tapping an empty area OUTSIDE the playfield also restarts a dead run,
+   // just as tapping Chrome's offline page does.
+   await input.send('Input.dispatchTouchEvent',{type:'touchStart',
+     touchPoints:[{id:4,x:outerX,y:outerY}]});
+   await page.waitForTimeout(110);
+   assert.equal((await snap(page)).dead,false,'outer-page tap restarts after collision');
+   await input.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
    await page.waitForTimeout(100);
    assert.ok((await snap(page)).distanceRan<200,'new round resets distance');
   }
