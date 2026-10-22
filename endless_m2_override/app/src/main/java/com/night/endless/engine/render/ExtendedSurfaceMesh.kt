@@ -57,6 +57,22 @@ internal object ExtendedSurfaceMesh {
                 .000019 * sin((x+warp)*520.0+z*135.0) +
                     .000006 * fractal(x*500.0,z*500.0)
             }
+            "mercury" -> {
+                // Shattered impact-breccia plates with low broken stone chips,
+                // not the same regolith response as hydrated Ceres fines.
+                // Wavelengths stay above the one-metre foreground mesh Nyquist.
+                val chips = fractal(x*340.0+12.0,z*340.0-7.0)
+                val facet = sin(x*1100.0+z*640.0) *
+                    cos(z*980.0-x*420.0)
+                .000034 * chips + .000014 * facet
+            }
+            "ceres" -> {
+                // Fine, softly gardened dark hydrated regolith with subtle
+                // localized hummocks, unlike Mercury's angular broken caps.
+                val soft = fractal(x*260.0-9.0,z*260.0+4.0)
+                val mixed = fractal(x*160.0+13.0,z*160.0-11.0)
+                .000020 * soft + .000012 * mixed
+            }
             else -> .000018 * fractal(x*560.0,z*560.0)
         }
     }
