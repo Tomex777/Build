@@ -43,6 +43,7 @@ class ScriptStudioFileCreationTest {
             compose.onNodeWithTag("script_tab_files").assertExists()
             compose.onNodeWithTag("script_tab_env").assertExists()
             compose.onNodeWithTag("script_tab_api").assertExists()
+            saveEmulatorScreenshot("annie-agent3-studio-no-file-selected")
             compose.onNodeWithText(file.name, substring = false).performClick()
             onView(isAssignableFrom(CodeEditor::class.java)).check { view, failure ->
                 if (failure != null) throw failure
@@ -72,6 +73,7 @@ class ScriptStudioFileCreationTest {
             } }
             compose.onNodeWithText(folder.name, substring = false).performClick()
             compose.onNodeWithTag("script_editor").assertDoesNotExist()
+            saveEmulatorScreenshot("annie-agent3-studio-folder-focus")
             compose.onNodeWithText("${folder.name} · main.js").assertDoesNotExist()
             compose.onNodeWithText("main.js", substring = false).performClick()
             compose.onNodeWithTag("script_editor").assertExists()
