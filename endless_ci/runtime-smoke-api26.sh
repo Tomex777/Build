@@ -82,7 +82,7 @@ echo "Instrumentation runner: $RUNNER"
 adb -s emulator-5554 logcat -c || true
 
 set +e
-timeout 5m adb -s emulator-5554 shell am instrument -w -r     -e class com.night.endless.CompatibilityRuntimeTest     "$RUNNER"     | tee "$ARTIFACT_DIR/instrumentation.txt"
+timeout 5m adb -s emulator-5554 shell am instrument -w -r     -e class com.night.endless.CompatibilityRuntimeTest,com.night.endless.SurfaceControlRuntimeTest     "$RUNNER"     | tee "$ARTIFACT_DIR/instrumentation.txt"
 instrument_status=${PIPESTATUS[0]}
 set -e
 

@@ -107,13 +107,19 @@ fi
 echo "Instrumentation runner: $RUNNER"
 adb -s emulator-5554 logcat -c || true
 
+# Do not pipe a long-running adb instrumentation command into tee.
+# On API 36 a complete JUnit run printed "OK (7 tests)" and
+# INSTRUMENTATION_CODE: -1 but its adb->tee pipe never closed; the CI job
+# was ultimately cancelled 46 minutes after those tests had passed.
+# Write directly to a file so a stray inherited pipe writer cannot keep
+# the shell step alive indefinitely. timeout -k also kills a hung adb.
 set +e
-timeout 13m adb -s emulator-5554 shell am instrument -w -r \
-    -e class com.night.endless.MarsSurfaceRuntimeTest,com.night.endless.MoonSurfaceRuntimeTest,com.night.endless.ExtendedSurfaceRuntimeTest,com.night.endless.OrbitalNavigationRuntimeTest,com.night.endless.DeepTimeRuntimeTest,com.night.endless.CosmicScaleRuntimeTest,com.night.endless.GasGiantRuntimeTest \
-    "$RUNNER" \
-    | tee "$ARTIFACT_DIR/instrumentation.txt"
-instrument_status=${PIPESTATUS[0]}
+timeout -k 10s 13m adb -s emulator-5554 shell am instrument -w -r \
+    -e class com.night.endless.MarsSurfaceRuntimeTest,com.night.endless.MoonSurfaceRuntimeTest,com.night.endless.ExtendedSurfaceRuntimeTest,com.night.endless.OrbitalNavigationRuntimeTest,com.night.endless.DeepTimeRuntimeTest,com.night.endless.CosmicScaleRuntimeTest,com.night.endless.GasGiantRuntimeTest,com.night.endless.SurfaceControlRuntimeTest \
+    "$RUNNER" > "$ARTIFACT_DIR/instrumentation.txt" 2>&1
+instrument_status=$?
 set -e
+cat "$ARTIFACT_DIR/instrumentation.txt"
 
 if [[ "$instrument_status" -ne 0 ]]; then
     echo "Instrumentation command failed with exit $instrument_status" >&2
