@@ -46,6 +46,47 @@ class UnderTreeSceneTest {
         assertEquals(scene, SceneProjectCodec.decode(SceneProjectCodec.encode(scene)))
     }
 
+    @Test fun actualVroidFacingDirectionsShowBothFacesAndInviteConversation() {
+        // The bundled VRoid faces local -Z, verified by the front-camera
+        // anime-pose study. Use real authored yaw and head joint angles:
+        // don't replace these skinned figures with cosmetic face decals.
+        val scene = UnderTreeScene.create()
+        val first = scene.actors.single { it.id == UnderTreeScene.FIRST_STUDENT_ID }
+        val second = scene.actors.single { it.id == UnderTreeScene.SECOND_STUDENT_ID }
+        val firstGaze = first.transform.rotationEulerDegrees.y +
+            first.rig!!.joints.getValue("figure/head").y
+        val secondGaze = second.transform.rotationEulerDegrees.y +
+            second.rig!!.joints.getValue("figure/head").y
+
+        fun gazeX(yawDegrees: Float): Double =
+            -kotlin.math.sin(Math.toRadians(yawDegrees.toDouble()))
+        fun gazeZ(yawDegrees: Float): Double =
+            -kotlin.math.cos(Math.toRadians(yawDegrees.toDouble()))
+
+        assertTrue("Classmate A should turn inward toward B on her right",
+            first.transform.position.x < second.transform.position.x && gazeX(firstGaze) > .25)
+        assertTrue("Classmate B should turn inward toward A on his left",
+            gazeX(secondGaze) < -.25)
+        assertTrue("Both modeled faces must stay visible from the front +Z camera",
+            gazeZ(firstGaze) > .8 && gazeZ(secondGaze) > .8)
+
+        val camera = scene.cameras.single()
+        assertTrue("Keep the default sample camera closer than the old 6m shot",
+            camera.position.z in 4.7f..5.5f)
+        assertTrue("Frame the characters rather than mostly empty sky",
+            camera.target.y in .9f..1.45f)
+        // At the original 320x640 portrait ratio, this is the view width at
+        // student depth. It is a guardrail, not a substitute for device PNG QA.
+        val depth = camera.position.z - minOf(
+            first.transform.position.z, second.transform.position.z)
+        val portraitWidthAtStudents = 2.0 * depth *
+            kotlin.math.tan(Math.toRadians(camera.verticalFovDegrees.toDouble() / 2.0)) * .5
+        assertTrue("Clipping both characters defeats a tighter portrait shot",
+            portraitWidthAtStudents >= 2.2)
+        assertTrue("The classmate pair should no longer be tiny in a wide frame",
+            portraitWidthAtStudents < 2.9)
+    }
+
     @Test fun detailedOakReplacesOnlyUntouchedOldDemoTree() {
         val latest = UnderTreeScene.create()
         val oldTree = PrototypeScene.starterAssets().first { it.asset?.assetId == "starter.mise.tree" }
