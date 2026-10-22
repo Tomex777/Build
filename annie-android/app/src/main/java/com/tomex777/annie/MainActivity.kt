@@ -802,6 +802,7 @@ internal fun AnnieChat() {
                   },
                   onSelectChat = { id ->
                       activeChatId = id
+                      persistHistory() // Keep last-opened chat first after a real process restart.
                       navigationDrawerOpen = false
                   },
                   onOpen = { destination ->
@@ -854,6 +855,7 @@ internal fun AnnieChat() {
                     },
                     onSelectChat = { id ->
                         activeChatId = id
+                        persistHistory()
                         activeSheet = null
                     },
                     onExtensions = {
