@@ -105,7 +105,8 @@ export async function makeReusableWatermark({
   const source=approvedFallbackPng||await renderText({displayName,width,height,tone,canvasLibrary});
   if(!Buffer.isBuffer(source)||source.length>MAX_LAYER_FILE)throw new Error('Watermark source exceeds asset budget.');
   const meta=await sharp(source,{limitInputPixels:approvedFallbackPng?2_000_000:MAX_RENDER_PIXELS}).metadata();
-  if(meta.format!=='png'||(meta.pages??1)>1)throw new Error('Watermark must be static transparent PNG.');
+  if(meta.format!=='png'||(meta.pages??1)>1||!meta.hasAlpha)
+    throw new Error('Watermark must be a static PNG with an actual alpha channel (transparent background).');
   // A manually supplied owner-approved fallback can be larger; resize/letterbox.
   const layer=approvedFallbackPng&& (meta.width!==width||meta.height!==height)
     ?await sharp(source,{limitInputPixels:2_000_000})
