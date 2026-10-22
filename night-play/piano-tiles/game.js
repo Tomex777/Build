@@ -275,7 +275,16 @@ function release(id){
  if(ended||!running)return;
  if(elapsed>=n.start+n.duration-.07){
   finishNote(n,true);$("status").textContent="Long note complete";
- }else lose("Hold the long tile");
+ }else{
+  // Piano Tiles 2 style: the player can release early and continue, but
+  // only earns a fraction of the sustained-note bonus. Never award a full
+  // held-note score for a one-frame tap.
+  const fraction=Math.max(0,Math.min(1,(elapsed-n.start)/n.duration));
+  finishNote(n,false);
+  score+=Math.floor(fraction*70);
+  updateHud();
+  $("status").textContent="Partial hold";
+ }
 }
 function xy(e){
  const r=board.getBoundingClientRect();
