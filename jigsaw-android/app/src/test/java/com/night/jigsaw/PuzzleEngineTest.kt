@@ -92,8 +92,8 @@ class PuzzleEngineTest {
         val first=g.pieces[0]
         val second=g.pieces[1]
         val width=g.pieceWidth
-        g.movePiece(0,430f,150f)
-        g.movePiece(1,430f+width+1f,150f)
+        g.movePiece(0,430f,1400f)
+        g.movePiece(1,430f+width+1f,1400f)
         assertFalse(g.release(1))
         assertEquals(first.groupId,second.groupId)
         assertEquals(2,g.groupMembers(0).size)
@@ -113,8 +113,8 @@ class PuzzleEngineTest {
         val g=PuzzleGame.fresh(8,6,seed=8765)
         val a=g.pieces[0]
         val b=g.pieces[1]
-        g.movePiece(0,400f,140f)
-        g.movePiece(1,400f+g.pieceWidth,140f)
+        g.movePiece(0,400f,1400f)
+        g.movePiece(1,400f+g.pieceWidth,1400f)
         assertFalse(g.release(1))
         val groups=g.pieces.map{it.groupId}
         val locations=g.pieces.map{Triple(it.x,it.y,it.placed)}
@@ -139,8 +139,8 @@ class PuzzleEngineTest {
         assertEquals(edgeCount,g.pieces.count{g.visible(it)})
         val edge=g.pieces[1]
         val inner=g.pieces[9]
-        g.movePiece(1,420f,150f)
-        g.movePiece(9,420f,150f+g.pieceHeight)
+        g.movePiece(1,420f,1400f)
+        g.movePiece(9,420f,1400f+g.pieceHeight)
         assertFalse(g.release(9))
         assertEquals(edge.groupId,inner.groupId)
         assertTrue(g.visible(inner))
