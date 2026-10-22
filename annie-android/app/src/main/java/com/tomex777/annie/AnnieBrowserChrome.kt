@@ -541,31 +541,62 @@ internal fun AnnieBrowserChrome(
                     }
                 }
                 state.isNewTab -> {
-                    Column(
-                        Modifier.fillMaxSize().padding(horizontal = 22.dp, vertical = 38.dp)
+                    // There are no fabricated speed-dials here. Only actual
+                    // bookmarks and previously visited normal-session pages.
+                    val recents = if (active.privateMode) emptyList()
+                        else state.history.filterNot { visit ->
+                            state.bookmarks.any { bookmark -> bookmark.url == visit.url }
+                        }.take(8)
+                    LazyColumn(
+                        Modifier.fillMaxSize().padding(horizontal = 22.dp)
                             .testTag("annie_browser_home"),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                            top = 38.dp, bottom = 30.dp),
                     ) {
-                        Text("Annie Browser", color = BrowserBrightText,
-                            fontSize = if (maxWidth >= 600.dp) 32.sp else 26.sp,
-                            fontWeight = FontWeight.SemiBold)
-                        if (active.privateMode) {
-                            Text("Private tab", color = BrowserSoftText,
-                                fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp))
+                        item {
+                            Text("Annie Browser", color = BrowserBrightText,
+                                fontSize = if (maxWidth >= 600.dp) 32.sp else 26.sp,
+                                fontWeight = FontWeight.SemiBold)
+                            if (active.privateMode) {
+                                Text("Private tab", color = BrowserSoftText,
+                                    fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp))
+                            }
+                            Box(Modifier.padding(top = 19.dp).size(width = 48.dp, height = 2.dp)
+                                .background(BrowserTeal))
                         }
                         if (state.bookmarks.isNotEmpty()) {
-                            Text("Bookmarks", color = BrowserSoftText,
-                                modifier = Modifier.padding(top = 32.dp, bottom = 10.dp),
-                                fontSize = 12.sp)
-                            LazyColumn {
-                                items(state.bookmarks.take(12), key = { it.url }) { entry ->
-                                    Text(
-                                        entry.title.ifBlank { entry.url },
-                                        color = BrowserBrightText,
-                                        modifier = Modifier.fillMaxWidth().clickable {
-                                            actions.openSaved(entry.url)
-                                        }.padding(vertical = 13.dp),
-                                        maxLines = 1, overflow = TextOverflow.Ellipsis,
-                                    )
+                            item {
+                                Text("Bookmarks", color = BrowserSoftText, fontSize = 12.sp,
+                                    modifier = Modifier.padding(top = 30.dp, bottom = 8.dp))
+                            }
+                            items(state.bookmarks.take(12), key = { "saved:" + it.url }) { entry ->
+                                Column(
+                                    Modifier.fillMaxWidth().clickable { actions.openSaved(entry.url) }
+                                        .padding(vertical = 12.dp),
+                                ) {
+                                    Text(entry.title.ifBlank { entry.url },
+                                        color = BrowserBrightText, maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis)
+                                    Text(entry.url, color = BrowserSoftText, fontSize = 12.sp,
+                                        maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                }
+                            }
+                        }
+                        if (recents.isNotEmpty()) {
+                            item {
+                                Text("Recent", color = BrowserSoftText, fontSize = 12.sp,
+                                    modifier = Modifier.padding(top = 24.dp, bottom = 8.dp))
+                            }
+                            items(recents, key = { "recent:" + it.url }) { entry ->
+                                Column(
+                                    Modifier.fillMaxWidth().clickable { actions.openSaved(entry.url) }
+                                        .padding(vertical = 12.dp),
+                                ) {
+                                    Text(entry.title.ifBlank { entry.url },
+                                        color = BrowserBrightText, maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis)
+                                    Text(entry.url, color = BrowserSoftText, fontSize = 12.sp,
+                                        maxLines = 1, overflow = TextOverflow.Ellipsis)
                                 }
                             }
                         }
