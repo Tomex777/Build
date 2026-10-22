@@ -77,7 +77,9 @@ function chooseFourMemes(items,{enabled=false,categories=[],allowDark=false,used
 }
 function normalizeNews(record,source,{now=Date.now(),maxAgeDays=14}={}){
  if(!record||typeof record!=='object'||!source?.trustedHost)return null;
- const url=safeUrl(record.url);if(!url||new URL(url).hostname!==source.trustedHost)return null;
+ const url=safeUrl(record.url);
+ const trustedHosts=Array.isArray(source.trustedHosts)?source.trustedHosts:[source.trustedHost];
+ if(!url||!trustedHosts.includes(new URL(url).hostname))return null;
  const published=Date.parse(record.publishedAt||'');
  if(!Number.isFinite(published)||published>now+3600000||published<now-maxAgeDays*86400000)return null;
  const title=String(record.title||'').replace(/\s+/g,' ').trim();if(title.length<8||title.length>240)return null;
