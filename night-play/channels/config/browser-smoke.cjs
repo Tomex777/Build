@@ -38,7 +38,7 @@ const server=http.createServer(async(req,res)=>{
    let raw='';for await(const part of req)raw+=part;
    let q;try{q=JSON.parse(raw)}catch{return send(res,400,{error:'Invalid JSON'})}
    const requested=q.channelId,action=q.action;
-   if(action==='channel:list')return send(res,200,{channels:linked?[{id:chan,name:'K-Drama 🌙 Zone',status:connected?'connected':'awaiting_admin',anonymousStartEnabled:false,proof:'NIGHT-TEST-1234'}]:[]});
+   if(action==='channel:list')return send(res,200,{channels:linked?[{id:chan,name:'K-Drama 🌙 Zone',verifiedDisplayName:'K-Drama 🌙 Zone',verifiedNameSource:'whatsapp-raw',status:connected?'connected':'awaiting_admin',anonymousStartEnabled:false,proof:'NIGHT-TEST-1234'}]:[]});
    if(!linked||!connected||requested!==chan)return send(res,403,{error:'Channel ownership not verified'});
    if(configUnavailable&&action==='channel:config:get')return send(res,503,{error:'Configuration service unavailable'});
    if(action==='channel:config:get')return send(res,200,settings);
