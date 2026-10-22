@@ -245,3 +245,13 @@ test('verified only platform, region and genre metadata survives normalization',
  const news=normalizeNews({...official,title:row.title,url:'https://studio.example/story',publishedAt:new Date(NOW).toISOString()},{id:'official',trustedHost:'studio.example',official:true},{now:NOW});
  assert.equal(news.genre,'Romance');assert.equal(news.platform,'Viki');assert.equal(news.availabilityRegion,'Nigeria');
 });
+
+test('candidate provenance is immutable and numeric abuse is bounded',()=>{
+ const candidate=meme('imm',{width:Infinity,height:999999999,byteLength:Infinity,upvotes:Infinity,license:{fake:true}});
+ assert.equal(candidate.media.width,0);assert.equal(candidate.media.height,16000);
+ assert.equal(candidate.media.byteLength,0);assert.equal(candidate.metrics.upvotes,0);
+ assert.equal(candidate.source.license,null);
+ assert.equal(Object.isFrozen(candidate.media),true);assert.equal(Object.isFrozen(candidate.source),true);
+ assert.equal(Object.isFrozen(candidate.metrics),true);
+ assert.throws(()=>{candidate.source.rights='cleared'},TypeError);
+});
