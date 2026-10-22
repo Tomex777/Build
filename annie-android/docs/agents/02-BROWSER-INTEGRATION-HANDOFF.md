@@ -10,16 +10,20 @@ Branch: `annie-agent2-browser-ux-20261022`; issue: #590. Targets the coordinated
 - Native bookmark/history lists populated **only by the model's actual saved records**, real download panel composition, private tab action, desktop toggle, sharing, Gecko content slot, loading progress, focus handling, Android/system insets and 48dp touch targets.
 - Only genuinely un-navigated tabs with an empty URL or `about:blank` display the Annie Browser home state. No fake website tiles, advertising copy, duplicate navigation CTA or mock downloads.
 - `AnnieLegacyGeckoBrowserChrome` adapts the existing Gecko model without creating another runtime, recreating history or disturbing script-isolated WebView profiles.
+- **Now wired into the real standalone browser entrypoint**: the old Compose tab/address/footer chrome below the existing file-picker lifecycle is replaced with `AnnieLegacyGeckoBrowserChrome(model, onExit)`. Both engine delegates and file chooser ownership are retained. Browser UX is no longer orphaned code.
+- Optional opt-in **Universal Copy** menu entry is deliberately hidden until the Omni engine supplies an actual enable/disable callback; it is disabled on private tabs and browser disposal. The adapter accepts an optional callback from Agent 1; it does not pretend the extension works before connection.
+- Real UI instrumentation captures Compose-root screenshots of Home and Tabs from device runs; `.github/workflows/annie-agent2-browser-ui.yml` builds and runs API26/API36 at 360dp/393dp/tablet/landscape. Output is **pending**, not fabricated.
 - Compose instrumentation `AnnieBrowserChromeUiTest` covers blank start page, actual address dispatch, tab select-versus-close and library state.
 
 ## Agent 1 must supply and wire
 
 1. Preserve stable state/action semantics or replace the **adapter** with Omni BrowserViewModel bindings (the chrome itself is engine-independent).
-2. At the existing browser screen after ActivityResult file-picker registration and DisposableEffect cleanup, replace **only the old Column browser chrome** with `AnnieLegacyGeckoBrowserChrome(model, onExit)` (or equivalent binding to imported Omni services). Do not replace file-picker ownership or Gecko session isolation. The original screen/engine file remains Agent 1-owned.
-3. Create new tabs initially as a true blank/home state, not an automatically loaded `https://www.google.com/`. `AnnieBrowserAddress.resolve()` currently rejects `about:blank`; treat blank as an **internal sentinel** and NEVER allow the user to inject `about:`, `javascript:`, `file:`, etc. through the omnibox. New-tab home must not send a network request.
+2. **UI tail is already wired in Agent 2 PR**, immediately after the original ActivityResult file-picker registration and `DisposableEffect` cleanup; preserve this UI replacement when merging Agent 1 backend changes. The old browser chrome has been removed. Agent 1 owns model/session internals and must not restore it.
+3. **Still outstanding in Agent 1 backend**: create new tabs initially as a true blank/home state, not an automatically loaded `https://www.google.com/`. `AnnieBrowserAddress.resolve()` currently rejects `about:blank`; treat blank as an **internal sentinel** and NEVER allow the user to inject `about:`, `javascript:`, `file:`, etc. through the omnibox. New-tab home must not send a network request.
 4. Expose native Gecko media fullscreen and permission prompt hooks from real Omni implementation. Compose chrome must not fake them.
 5. Account for orientation/process-death restoration, tab selection/scroll, normal/private persistence and history in the ported state source. Do not persist private URLs.
-6. IMPORTANT: upstream Omni GPLv3 source/trademark attribution is Agent 1 ownership; Agent 2's UI component does not provide evidence of the upstream source port.
+6. To expose the actual optional upstream Universal Copy extension, pass `universalCopy = { enabled -> model.setUniversalCopy(enabled) }` from the host after Agent 1 engine merges. Until then the menu item stays hidden. Do not enable by default or in private mode.
+7. IMPORTANT: upstream Omni GPLv3 source/trademark attribution is Agent 1 ownership; Agent 2's UI component does not provide evidence of the upstream source port.
 
 ## Validation that must happen before merging
 
