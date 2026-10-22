@@ -1,0 +1,41 @@
+name: Jigsaw Android native
+on:
+  push:
+    branches:
+      - feature/jigsaw-standalone-native-20261022
+    paths:
+      - 'jigsaw-android/**'
+      - '.github/workflows/jigsaw-android.yml'
+  pull_request:
+    paths:
+      - 'jigsaw-android/**'
+      - '.github/workflows/jigsaw-android.yml'
+  workflow_dispatch:
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - run: sdkmanager --install 'platforms;android-36' 'build-tools;36.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+      - name: Compile and unit-test native engine
+        working-directory: jigsaw-android
+        run: gradle :app:testDebugUnitTest :app:assembleDebug --no-daemon --stacktrace
+      - name: Verify APK identity and offline-native implementation
+        run: |
+          test -f jigsaw-android/app/build/outputs/apk/debug/app-debug.apk
+          ! grep -R 'android.webkit.WebView\|<uses-permission android:name="android.permission.INTERNET"' jigsaw-android/app/src/main
+          $ANDROID_HOME/build-tools/36.0.0/aapt dump badging jigsaw-android/app/build/outputs/apk/debug/app-debug.apk | grep "package: name='com.nice.jigsaw'"
+          $ANDROID_HOME/build-tools/36.0.0/aapt dump badging jigsaw-android/app/build/outputs/apk/debug/app-debug.apk | grep "sdkVersion:'26'"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: jigsaw-standalone-native-debug-apk
+          path: jigsaw-android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
