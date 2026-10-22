@@ -1649,6 +1649,9 @@ class EndlessRenderer(
     }
 
     private fun drawSaturnRing() {
+        // The planet itself is hidden in pre-formation deep time. Its rings
+        // must not remain as a phantom annulus around empty space.
+        if (!isBodyFormed("saturn", deepTimeAgeGa)) return
         val saturn = byId["saturn"] ?: return
         val buffer = ringBuffer ?: return
 
