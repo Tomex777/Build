@@ -35,6 +35,8 @@ class FanSmokeTest {
         rule.onNodeWithText("THE 999 FAN SPACE").assertExists()
         rule.onNodeWithText("Discover").assertDoesNotExist()
         rule.onNodeWithText("Saved").assertDoesNotExist()
+        rule.onNodeWithText("THE MUSIC").assertDoesNotExist()
+        rule.onNodeWithText("Every song, every mood").assertDoesNotExist()
         screenshot("home")
         rule.onNodeWithTag("moods").performScrollToNode(hasText("Love"))
         rule.onNodeWithText("Love").performClick()

@@ -9,6 +9,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -91,8 +94,13 @@ private val scheme = darkColorScheme(
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        window.statusBarColor = android.graphics.Color.rgb(8, 8, 14)
+        // This is a fullscreen fan experience. Keep the navigation gesture bar,
+        // but let the status bar appear temporarily on a deliberate edge swipe.
         window.navigationBarColor = android.graphics.Color.rgb(8, 8, 14)
+        WindowCompat.getInsetsController(window, window.decorView).apply {
+            systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            hide(WindowInsetsCompat.Type.statusBars())
+        }
         setContent {
             MaterialTheme(colorScheme = scheme) {
                 FanHome()
@@ -222,7 +230,7 @@ fun FanHome(player: FanPlayer = viewModel()) {
                         OutlinedButton(
                             onClick = { folderPicker.launch(null) },
                             enabled = !state.importing,
-                            modifier = Modifier.height(43.dp),
+                            modifier = Modifier.height(48.dp),
                             contentPadding = PaddingValues(horizontal = 13.dp),
                             shape = RoundedCornerShape(13.dp),
                             border = BorderStroke(1.dp, Hairline),
@@ -558,14 +566,14 @@ private fun SongRow(
             Text("♪", color = Lavender, fontSize = 20.sp,
                 modifier = Modifier.padding(horizontal = 4.dp))
         } else if (attached) {
-            IconButton(onClick = onPlay, modifier = Modifier.size(39.dp)) {
+            IconButton(onClick = onPlay, modifier = Modifier.size(44.dp)) {
                 Icon(Icons.Filled.PlayArrow, tint = Lavender,
                     contentDescription = "Play " + song.title + " from device", modifier = Modifier.size(23.dp))
             }
         }
         IconButton(
             onClick = onFavorite,
-            modifier = Modifier.size(41.dp).semantics {
+            modifier = Modifier.size(44.dp).semantics {
                 contentDescription = if (favorite) "Unfavorite " + song.title else "Favorite " + song.title
             }
         ) {
@@ -682,14 +690,6 @@ private fun MiniPlayer(
 ) {
     if (song == null) return
     Column(Modifier.fillMaxWidth().background(Color(0xFF1D182B))) {
-        LinearProgressIndicator(
-            progress = {
-                if (state.durationMs > 0) state.positionMs.toFloat() / state.durationMs
-                else 0f
-            },
-            modifier = Modifier.fillMaxWidth().height(2.dp),
-            color = Lavender, trackColor = Color(0xFF453752)
-        )
         Row(
             Modifier.fillMaxWidth().heightIn(min = 64.dp).padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -702,12 +702,12 @@ private fun MiniPlayer(
                 Spacer(Modifier.height(2.dp))
                 Text("From your device", fontSize = 11.sp, color = Gray)
             }
-            IconButton(onClick = { onSkip(-1) }, modifier = Modifier.size(36.dp)) {
+            IconButton(onClick = { onSkip(-1) }, modifier = Modifier.size(44.dp)) {
                 Icon(Icons.Filled.SkipPrevious, contentDescription = "Previous imported song",
                     tint = White)
             }
             IconButton(
-                onClick = onToggle, modifier = Modifier.size(43.dp).clip(CircleShape)
+                onClick = onToggle, modifier = Modifier.size(48.dp).clip(CircleShape)
                     .background(Lavender),
                 enabled = !state.isPreparing,
             ) {
@@ -722,7 +722,7 @@ private fun MiniPlayer(
                     )
                 }
             }
-            IconButton(onClick = { onSkip(1) }, modifier = Modifier.size(36.dp)) {
+            IconButton(onClick = { onSkip(1) }, modifier = Modifier.size(44.dp)) {
                 Icon(Icons.Filled.SkipNext, contentDescription = "Next imported song", tint = White)
             }
         }
@@ -735,7 +735,7 @@ private fun MiniPlayer(
                     dragging?.let(onSeek)
                     dragging = null
                 },
-                modifier = Modifier.fillMaxWidth().height(19.dp).padding(horizontal = 15.dp),
+                modifier = Modifier.fillMaxWidth().height(44.dp).padding(horizontal = 15.dp),
                 colors = SliderDefaults.colors(thumbColor = Lavender, activeTrackColor = Lavender,
                     inactiveTrackColor = Color(0xFF4C435B))
             )
