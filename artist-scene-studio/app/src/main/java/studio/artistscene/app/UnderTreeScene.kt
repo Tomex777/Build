@@ -201,6 +201,9 @@ object UnderTreeScene {
         ) return scene
 
         val fresh = create()
+        val actualTree = scene.actors.first { it.id == TREE_ID }
+        val stockTree = fresh.actors.first { it.id == TREE_ID }
+        if (actualTree != stockTree) return scene
         val replacement = mutableMapOf<String, Actor>()
         data class LegacyHead(val yaw: Float, val z: Float)
         val originals = mapOf(
