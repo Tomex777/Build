@@ -240,6 +240,11 @@ class ScriptStudioFileCreationTest {
             compose.onNodeWithText("Continue").performClick()
             compose.waitUntil(8_000) { File(workspace.files.root, "$id/$id.html").isFile }
             compose.onNodeWithTag("script_editor").assertExists()
+            onView(isAssignableFrom(CodeEditor::class.java)).check { view, failure ->
+                if (failure != null) throw failure
+                assertTrue("HTML documents should wrap on phone screens",
+                    (view as CodeEditor).isWordwrap)
+            }
             assertFalse(File(workspace.files.root, "$id/main.js").exists())
             assertFalse("A document cannot run a generated command", workspace.files.isEnabled(id))
             compose.onNodeWithText("Files", substring = false).performClick()
