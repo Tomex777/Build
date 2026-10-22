@@ -9,6 +9,12 @@
 package com.tomex777.annie
 
 import androidx.activity.compose.BackHandler
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.view.WindowInsetsControllerCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -99,6 +105,7 @@ internal data class AnnieBrowserChromeTab(
     val canForward: Boolean = false,
     val bookmarked: Boolean = false,
     val error: String? = null,
+    val fullscreen: Boolean = false,
 )
 
 internal data class AnnieBrowserChromeEntry(val title: String, val url: String)
@@ -133,6 +140,7 @@ internal class AnnieBrowserChromeActions(
     val openSaved: (String) -> Unit,
     val toggleDesktop: () -> Unit,
     val share: () -> Unit,
+    val exitFullscreen: (() -> Unit)? = null,
     /** Absent until Agent 1's GPLv3 Omni WebExtension engine is actually bound. */
     val universalCopy: ((Boolean) -> Unit)? = null,
 )
@@ -156,6 +164,7 @@ internal fun AnnieBrowserChrome(
 ) {
     val active = state.active ?: return
     val keyboard = LocalSoftwareKeyboardController.current
+    val context = LocalContext.current
     val focus = LocalFocusManager.current
     var address by rememberSaveable(active.id, stateSaver = TextFieldValue.Saver) {
         mutableStateOf(TextFieldValue(active.url.takeUnless { it == "about:blank" }.orEmpty()))
@@ -224,9 +233,10 @@ internal fun AnnieBrowserChrome(
         focus.clearFocus(force = true)
         keyboard?.hide()
     }
-    BackHandler(enabled = menuOpen || find?.visible == true ||
+    BackHandler(enabled = active.fullscreen || menuOpen || find?.visible == true ||
         panel != null || tabsOpen || editing || active.canBack) {
         when {
+            active.fullscreen -> (actions.exitFullscreen ?: actions.exit).invoke()
             menuOpen -> menuOpen = false
             find?.visible == true -> dismissFind()
             tabsOpen -> tabsOpen = false
@@ -237,9 +247,28 @@ internal fun AnnieBrowserChrome(
         }
     }
 
+    DisposableEffect(context, active.fullscreen) {
+        var owner: Context = context
+        while (owner is ContextWrapper && owner !is Activity) {
+            owner = owner.baseContext
+        }
+        val activity = owner as? Activity
+        if (activity != null && active.fullscreen) {
+            val controller = WindowInsetsControllerCompat(activity.window, activity.window.decorView)
+            controller.hide(WindowInsetsCompat.Type.systemBars())
+        }
+        onDispose {
+            if (activity != null && active.fullscreen) {
+                WindowInsetsControllerCompat(activity.window, activity.window.decorView)
+                    .show(WindowInsetsCompat.Type.systemBars())
+            }
+        }
+    }
+
     Column(
         modifier.fillMaxSize().background(BrowserNight)
-            .statusBarsPadding().navigationBarsPadding().imePadding()
+            .then(if (active.fullscreen) Modifier else Modifier
+                .statusBarsPadding().navigationBarsPadding().imePadding())
             .testTag("annie_gecko_browser"),
     ) {
         Row(
