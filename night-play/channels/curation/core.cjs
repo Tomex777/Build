@@ -6,6 +6,7 @@ const IGNORED_QUERY=/^(utm_.+|fbclid|gclid|ref|ref_src|source)$/i;
 const HTTPS=/^https:\/\//i;
 const WEIGHTS=Object.freeze({interest:22,quality:22,engagement:14,feedback:20,originality:14,freshness:8});
 const clamp=(v,min=0,max=1)=>Math.min(max,Math.max(min,Number.isFinite(Number(v))?Number(v):min));
+const boundedPositiveInt=(v,cap)=>Number.isFinite(Number(v))?Math.max(0,Math.min(cap,Math.floor(Number(v)))):0;
 const tokens=value=>String(value||'').normalize('NFKC').toLowerCase().replace(/[\p{P}\p{S}]+/gu,' ').split(/\s+/).filter(Boolean);
 function safeUrl(value){
  if(typeof value!=='string'||value.length>2048||!HTTPS.test(value))return null;
@@ -24,9 +25,9 @@ function normalizeMeme(record,source){
  const rights=record.rights==='cleared'&&source?.rightsVerified===true?'cleared':'unknown';
  return Object.freeze({id:identifier('meme',String(source?.id||'source')+'|'+String(record.externalId||url)),kind:'meme',
  category,caption:String(record.caption||'').slice(0,800),createdAt:new Date(age).toISOString(),
- media:{url:mediaUrl,mime:record.mime,width:Math.max(0,Math.floor(Number(record.width)||0)),height:Math.max(0,Math.floor(Number(record.height)||0)),byteLength:Math.max(0,Math.floor(Number(record.byteLength)||0)),perceptualHash:/^[\da-f]{16}$/i.test(record.perceptualHash||'')?record.perceptualHash.toLowerCase():null},
- source:{id:String(source?.id||''),provider:String(source?.provider||'unknown'),url:sourceUrl,externalId:String(record.externalId||''),author:String(record.author||'').slice(0,120),attributionRequired:true,rights,license:record.license||null},
- metrics:{upvotes:Math.max(0,Number(record.upvotes)||0),ratio:clamp(record.upvoteRatio||0),legibility:clamp(record.legibility??.5),originality:clamp(record.originality??.65)},
+ media:Object.freeze({url:mediaUrl,mime:record.mime,width:boundedPositiveInt(record.width,16000),height:boundedPositiveInt(record.height,16000),byteLength:boundedPositiveInt(record.byteLength,64*1024*1024),perceptualHash:/^[\da-f]{16}$/i.test(record.perceptualHash||'')?record.perceptualHash.toLowerCase():null}),
+ source:Object.freeze({id:String(source?.id||'').slice(0,120),provider:String(source?.provider||'unknown').slice(0,60),url:sourceUrl,externalId:String(record.externalId||'').slice(0,180),author:String(record.author||'').slice(0,120),attributionRequired:true,rights,license:typeof record.license==='string'?record.license.slice(0,160):null}),
+ metrics:Object.freeze({upvotes:boundedPositiveInt(record.upvotes,1000000000),ratio:clamp(record.upvoteRatio||0),legibility:clamp(record.legibility??.5),originality:clamp(record.originality??.65)}),
  publishable:rights==='cleared',reviewOnly:rights!=='cleared',publishBlockedReason:rights==='cleared'?null:'rights_unverified'});
 }
 function hashNear(a,b,distance=5){
@@ -88,7 +89,7 @@ function normalizeNews(record,source,{now=Date.now(),maxAgeDays=14}={}){
  const explicitKey=typeof record.storyKey==='string'&&/^[A-Za-z0-9:._-]{4,120}$/.test(record.storyKey)?record.storyKey:null;
  const fingerprint=identifier('story',explicitKey||((show||'general').toLowerCase()+'|'+event+'|'+normalized.slice(0,10).sort().join(' ')));
  return Object.freeze({id:identifier('news',url),kind:'news',title,summary,publishedAt:new Date(published).toISOString(),show,tags,genre:String(record.genre||'').slice(0,48),platform:String(record.platform||'').slice(0,80),availabilityRegion:String(record.availabilityRegion||'').slice(0,80),spoiler:record.spoiler===true,eventDate:Number.isFinite(Date.parse(record.eventDate||''))?new Date(record.eventDate).toISOString():null,verification,requiresReview:verification!=='official'||record.spoiler===true,fingerprint,
- source:{id:String(source.id||''),name:String(source.name||''),url,provider:source.provider||'rss',attributionRequired:true},autoEligible:verification==='official'&&record.spoiler!==true});
+ source:Object.freeze({id:String(source.id||'').slice(0,120),name:String(source.name||'').slice(0,120),url,provider:String(source.provider||'rss').slice(0,60),attributionRequired:true}),autoEligible:verification==='official'&&record.spoiler!==true});
 }
 function chooseNews(items,{enabled=false,interests=[],shows=[],includeSpoilers=false,now=Date.now(),maxAgeDays=14,limit=4}={}){
  if(!enabled)return [];
