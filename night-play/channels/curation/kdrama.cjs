@@ -31,6 +31,10 @@ function interpretKDramaEntry(row,{showAliases=[],confirmedBySource={}}={}){
  if(!row||typeof row.title!=='string')return null;
  const title=row.title.replace(/\s+/g,' ').trim();if(title.length<8||title.length>240)return null;
  const tags=Object.entries(EVENT_PATTERNS).filter(([,re])=>re.test(title)).map(([tag])=>tag);
+ const feedCategories=(Array.isArray(row.categories)?row.categories:[]).slice(0,30);
+ // Editorial drama-labelled show features can enter manual review even if the
+ // headline has no casting/date/trailer keyword; never upgrade them to official.
+ if(!tags.length&&feedCategories.some(c=>typeof c==='string'&&/^(?:k[- ]?drama|korean dramas?|dramas?|drama preview|tv drama)$/i.test(c.trim())))tags.push('other');
  const event=tags.find(x=>['casting','releases','trailers','renewals'].includes(x))||'update';
  const approved=confirmedBySource&&typeof confirmedBySource==='object'?confirmedBySource:{};
  const confirmation=Object.hasOwn(approved,row.guid)?approved[row.guid]:null;
