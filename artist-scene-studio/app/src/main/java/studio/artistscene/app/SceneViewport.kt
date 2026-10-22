@@ -542,6 +542,10 @@ private fun SceneScope.ActorModelNode(
     val springRuntime = remember(loaded, asset, rigRuntime) {
         loaded?.let { VrmSpringRuntime.fromAsset(context, asset, it, rigRuntime?.definition) }
     }
+    // Parent Node.onFrame is installed while produceState(model) is still null.
+    // SceneView retains that lambda even after async GLB loading/recomposition:
+    // keep the *runtime* live too, not only the current immutable Actor settings.
+    val latestSpringRuntime = rememberUpdatedState(springRuntime)
     val hasBoundRestPose = remember(rigRuntime) { AtomicBoolean(false) }
     val animationClips = remember(loaded) {
         loaded?.animator?.let { animator ->
@@ -609,7 +613,7 @@ private fun SceneScope.ActorModelNode(
             onFrame = {
                 // Real gravitational hair and cloth deformation updates skinned
                 // joint transforms on the renderer's frame, never via UI bitmaps.
-                springRuntime?.advance(latestActor.value, System.nanoTime())
+                latestSpringRuntime.value?.advance(latestActor.value, System.nanoTime())
                 val manager = engine.transformManager
                 val world = manager.getWorldTransform(manager.getInstance(entity), rootMatrix)
                 val pivot = Vec3(world[12], world[13], world[14])
