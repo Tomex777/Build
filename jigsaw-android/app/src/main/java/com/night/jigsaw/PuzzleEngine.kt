@@ -357,8 +357,17 @@ class PuzzleGame private constructor(
 
     fun hint(): Boolean {
         if (solved || hintsRemaining <= 0 || mode==PuzzleMode.MEMORY)return false
-        val p = pieces.firstOrNull { !it.placed && visible(it) } ?: return false
-        p.x = targetX(p); p.y = targetY(p); p.placed = true
+        // Prefer an isolated piece so one hint normally places one piece.
+        // If all remaining pieces are joined, keep the assembly intact.
+        val p = pieces.firstOrNull {
+            !it.placed && visible(it) && groupMembers(it.id).size==1
+        } ?: pieces.firstOrNull{!it.placed && visible(it)} ?: return false
+        for (piece in groupMembers(p.id)) {
+            piece.x=targetX(piece)
+            piece.y=targetY(piece)
+            piece.placed=true
+            piece.groupId=piece.id
+        }
         hintsRemaining--
         return true
     }
