@@ -64,7 +64,7 @@ const server=http.createServer(async(req,res)=>{
      decisions={};
      current={batchId:'batch_0_'+String(base).padStart(8,'0'),candidates:[1,2,3,4].map((n,i)=>({
        id:'meme_'+base+'_'+n,title:'Test candidate '+n,category:n%2?'anime':'relatable',
-       sourceName:'QA licensed fixtures',sourceUrl:'https://example.org/qa-fixture-'+n,rightsStatus:'verified',publishable:true,reviewOnly:false,
+       sourceName:'QA licensed fixtures',sourceUrl:'https://example.org/qa-fixture-'+n,rightsStatus:n===4?'unknown':'verified',publishable:n!==4,reviewOnly:n===4,
        previewData:fixtures[i],caption:'Caption for '+n
      })),decisions:[]};
      return send(res,200,current);
@@ -159,6 +159,7 @@ async function main(){
    await page.locator('.review-card').first().waitFor();
    assert.equal(await page.locator('.review-card').count(),4,'Real batch has four sourced images');
    assert.equal(await page.locator('.review-art img').count(),4);
+   assert.equal(await page.locator('.review-card').nth(3).getByRole('button',{name:'Approve'}).isDisabled(),true,'No approval for unknown media reuse rights');
    const cards=page.locator('.review-card');
    await cards.nth(0).locator('textarea').fill('Caption edited by owner');
    await cards.nth(0).getByRole('button',{name:'Preview post'}).click();
