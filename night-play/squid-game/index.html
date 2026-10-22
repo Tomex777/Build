@@ -291,51 +291,22 @@ async function initThree(){
  const faceNose=sphere(.09,'#c58e78',0,-.2,.99,head,9);faceNose.scale.set(.8,1,.65);
  // Shoulder, elbow, knee and ankle articulation rather than stiff box people.
  const roots=[];
- const skinTones=['#bf8b6d','#a36e55','#d4a181','#8d604d','#cc9478'];
- const hairTones=['#1e2422','#342d27','#4c352c','#232b2b'];
- for(const p of players){
-  const root=new T.Group();scene.add(root);
-  const body=new T.Group();root.add(body);
-  const green=p.shade,skin=skinTones[(p.id-1)%skinTones.length];
-  // Rounded padded tracksuit with proper shoulder proportions.
-  const torso=box(1.0,1.5,.63,green,0,2.05,0,body);
-  torso.scale.x=1.03;
-  box(.095,1.35,.02,'#f2eadb',0,2.07,-.34,body,false);
-  box(.76,.22,.14,'#e9e4d6',0,2.43,.38,body);
-  box(.95,.57,.66,green,0,1.14,0,body);
-  const neck=cylinder(.19,.2,.33,skin,0,2.96,0,body);
-  const face=sphere(.42,skin,0,3.36,-.07,body,16);
-  const hairstyle=sphere(.46,hairTones[(p.id-1)%4],0,3.59,-.01,body,12);
-  hairstyle.scale.set(1.03,.56,1.03);
-  for(const s of [-1,1])sphere(.17,hairTones[(p.id-1)%4],s*.30,3.49,-.06,body,9);
-  const arms=[],legs=[];
-  for(const s of [-1,1]){
-   const arm=new T.Group();arm.position.set(s*.65,2.69,0);body.add(arm);
-   limb(.235,1.13,green,arm,0,-.49,0);
-   box(.075,.83,.03,'#e6e6d7',s*.18,-.48,-.2,arm,false);
-   sphere(.18,skin,0,-1.07,0,arm,9);
-   arms.push(arm);
-   const leg=new T.Group();leg.position.set(s*.29,1.04,0);body.add(leg);
-   limb(.235,.92,'#306c5a',leg,0,-.43,0);
-   box(.42,.26,.77,'#e8e9e0',0,-.89,-.12,leg);
-   legs.push(leg);
-  }
-  // Actual back-number patch faces the chase camera; original 3-digit identity remains legible.
-  box(.73,.42,.036,'#f2eee0',0,2.20,.35,body);
-  const c=document.createElement('canvas');c.width=160;c.height=96;
-  const cctx=c.getContext('2d');cctx.fillStyle='#f2eee0';cctx.fillRect(0,0,160,96);
-  cctx.fillStyle='#1b342b';cctx.font='900 68px Arial';cctx.textAlign='center';
-  cctx.fillText(String(p.id).padStart(3,'0'),80,72);
-  const texture=new T.CanvasTexture(c);texture.colorSpace=T.SRGBColorSpace;
-  const number=object(new T.PlaneGeometry(.69,.40),new T.MeshBasicMaterial({map:texture,side:T.DoubleSide}),body,false);
-  number.position.set(0,2.205,.376);
-  const marker=p.id===1?object(new T.TorusGeometry(.88,.063,7,48),new T.MeshBasicMaterial({color:'#fff0a3'}),root,false):null;
-  if(marker){marker.rotation.x=-Math.PI/2;marker.position.y=.10}
-  // Ground contact shadow and movement dust only for the current character.
-  const dust=p.id===1?object(new T.SphereGeometry(.2,8,6),new T.MeshBasicMaterial({color:'#e9ddc4',transparent:true,opacity:.26,depthWrite:false}),root,false):null;
-  if(dust){dust.scale.set(2.9,.13,2);dust.position.set(0,.08,.45)}
-  roots.push({root,body,arms,legs,p,dust});
- }
+for(const p of players){
+ const root=new T.Group();scene.add(root);
+ const body=new T.Group();root.add(body);
+ box(1.1,1.5,.62,p.shade,0,2.1,0,body);
+ box(.08,1.45,.07,'#f6f1e5',0,2.1,.34,root);
+ box(.9,.6,.65,p.shade,0,1.2,0,body);
+ const arms=[],legs=[];
+ for(const s of [-1,1]){const arm=new T.Group();arm.position.set(s*.68,2.7,0);body.add(arm);box(.36,1.12,.4,p.shade,0,-.55,0,arm);box(.06,1,.05,'#f2e9d7',s*.2,-.52,.23,arm);arms.push(arm);
+ const leg=new T.Group();leg.position.set(s*.27,1.0,0);body.add(leg);box(.37,1.08,.4,'#326f5e',0,-.50,0,leg);box(.4,.22,.65,'#e8e8df',0,-1,.1,leg);legs.push(leg)}
+ sphere(.43,'#bd8268',0,3.2,0,body);sphere(.45,'#252b29',0,3.42,-.075,root);
+ box(.62,.35,.14,'#f2f2e6',0,2.35,.41,root);
+ const c=document.createElement('canvas');c.width=128;c.height=64;const cctx=c.getContext('2d');cctx.fillStyle='#f5f5ed';cctx.fillRect(0,0,128,64);cctx.fillStyle='#16372b';cctx.font='bold 43px Arial';cctx.textAlign='center';cctx.fillText(String(p.id).padStart(3,'0'),64,48);
+ const texture=new T.CanvasTexture(c);const number=new T.Mesh(new T.PlaneGeometry(.56,.28),new T.MeshBasicMaterial({map:texture,transparent:true,side:T.DoubleSide}));number.position.set(0,2.36,.492);body.add(number);
+ if(p.id===1){const disc=new T.Mesh(new T.TorusGeometry(.9,.07,8,48),new T.MeshBasicMaterial({color:'#fff4ae'}));disc.rotation.x=-Math.PI/2;disc.position.y=.12;root.add(disc)}
+ roots.push({root,body,arms,legs,p,dust:null});
+}
  let cameraReady=false,lastRender=performance.now(),headAngle=Math.PI;
  arena.classList.remove('fallback3d');
  three={render(){
