@@ -756,7 +756,22 @@ class EndlessRenderer(
             moonSurfaceMode -> MoonSurfaceTerrain::renderedHeightAt
             else -> {
                 val bodyId = extendedSurfaceId ?: return
-                { px, pz -> ExtendedSurfaceMesh.heightAt(bodyId, px, pz) }
+                // The traveller collides with the same raised foreground
+                // triangles visible beneath their feet, not the smoother
+                // analytic fallback. Europa's modeled ice double-ridges can
+                // rise >30cm between orbital DEM samples; destination-only
+                // analytic sampling let people walk through that relief.
+                //
+                // Do not construct GL textures on the UI thread: the
+                // synchronized renderer publishes this terrain on its first
+                // completed surface frame. Before that, use the actual
+                // triangulated coarse mesh rather than an unmeshed analytic
+                // height. All calls are serialized with onDrawFrame().
+                val visibleTerrain = extendedTerrains[bodyId]
+                { px: Double, pz: Double ->
+                    visibleTerrain?.groundHeightAt(px, pz)
+                        ?: ExtendedSurfaceMesh.renderedHeightAt(bodyId, px, pz)
+                }
             }
         }
         val next = SurfaceWalkingPhysics.move(x, z, dx, dz, surface)
