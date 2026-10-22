@@ -1,0 +1,37 @@
+name: NIGHT Channels Agent B curation
+
+on:
+  push:
+    branches:
+      - agentB/channel-curation-news-20261022
+    paths:
+      - 'night-play/channels/curation/**'
+      - '.github/workflows/night-channels-agentB-curation.yml'
+  pull_request:
+    paths:
+      - 'night-play/channels/curation/**'
+      - '.github/workflows/night-channels-agentB-curation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Node syntax
+        run: |
+          node --check night-play/channels/curation/core.cjs
+          node --check night-play/channels/curation/sources.cjs
+          node --check night-play/channels/curation/kdrama.cjs
+          node --check night-play/channels/curation/feeds.cjs
+          node --check night-play/channels/curation/contracts.cjs
+          node --check night-play/channels/curation/curation.test.cjs
+      - name: Rights, RSS, ranking and auth source tests
+        run: node --test night-play/channels/curation/curation.test.cjs
