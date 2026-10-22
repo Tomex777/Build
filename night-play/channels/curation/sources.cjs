@@ -30,8 +30,13 @@ async function boundedGet(url,{fetchImpl=globalThis.fetch,headers={},allowedHost
  }catch(e){if(e instanceof SourceError)throw e;if(controller.signal.aborted)throw new SourceError('Source request timed out.');throw new SourceError('Source temporarily unavailable.');}
  finally{clearTimeout(timer)}
 }
-function redditAdapter({tokenProvider,fetchImpl,claimQuota,userAgent='NIGHTChannelsCuration/1.0 (authorized app; contact operator)',subreddits=[]}={}){
+function redditAdapter({tokenProvider,fetchImpl,claimQuota,userAgent,subreddits=[]}={}){
  if(typeof tokenProvider!=='function')throw new TypeError('An approved Reddit OAuth token provider is required.');
+ // Reddit requires an accurately registered app identifier and accountable operator.
+ // Never invent a production username or use an anonymous/generic crawler identity.
+ if(typeof userAgent!=='string'||!/^(?:web|android|ios):[A-Za-z0-9_.-]{3,100}:v?\d+(?:\.\d+){0,2} \(by \/u\/[A-Za-z0-9_-]{3,20}\)$/.test(userAgent))
+  throw new TypeError('A registered Reddit app User-Agent in platform:app:version (by /u/operator) format is required.');
+ if(!Array.isArray(subreddits))throw new TypeError('An array of approved subreddits is required.');
  const approved=new Set(subreddits.filter(s=>/^[A-Za-z0-9_]{3,21}$/.test(s)).map(s=>s.toLowerCase()));let nextAllowedAt=0;
  return Object.freeze({async discover({subreddit,category='other',limit=25,after=null,now=Date.now()}={}){
   if(!approved.has(String(subreddit).toLowerCase()))throw new SourceError('Subreddit not authorized for discovery.');
