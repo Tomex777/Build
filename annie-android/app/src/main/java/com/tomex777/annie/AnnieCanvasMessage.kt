@@ -145,6 +145,7 @@ internal fun canvasHasVisibleComposeArea(coordinates: LayoutCoordinates): Boolea
 internal class AnnieCanvasController(
     private val id: String,
     initiallyClosed: Boolean = false,
+    initiallyPaused: Boolean = false,
 ) {
     private var web: WebView? = null
     private var inlineHost: FrameLayout? = null
@@ -156,7 +157,7 @@ internal class AnnieCanvasController(
     private var suspended: Boolean? = null
     private var observedHost: FrameLayout? = null
     private var observedTree: ViewTreeObserver? = null
-    var pausedByUser by mutableStateOf(false)
+    var pausedByUser by mutableStateOf(initiallyPaused)
         private set
     var isClosed by mutableStateOf(initiallyClosed)
         private set
@@ -255,6 +256,7 @@ internal class AnnieCanvasController(
     fun togglePause() {
         if (isClosed) return
         pausedByUser = !pausedByUser
+        AnnieCanvasSessions.rememberPaused(id, pausedByUser)
         syncSuspension()
     }
 
@@ -364,6 +366,7 @@ internal class AnnieCanvasController(
         isClosed = false
         AnnieCanvasSessions.rememberClosed(id, false)
         pausedByUser = false
+        AnnieCanvasSessions.rememberPaused(id, false)
         // AndroidView is mounted again by Compose and loads the same document.
     }
 
@@ -418,10 +421,19 @@ internal object AnnieCanvasSessions {
     // user Close must NOT silently reopen on scrolling back. Keep only tiny
     // bounded flags, never live WebViews, for closed chat message instances.
     private val closedIds = LinkedHashSet<String>()
-    private const val MAX_CLOSED_IDS = 384
+    private val pausedIds = LinkedHashSet<String>()
+    private const val MAX_SESSION_FLAGS = 384
 
-    fun get(id: String, restoredClosed: Boolean = false): AnnieCanvasController = sessions.getOrPut(id) {
-        AnnieCanvasController(id, restoredClosed || synchronized(closedIds) { id in closedIds })
+    fun get(
+        id: String,
+        restoredClosed: Boolean = false,
+        restoredPaused: Boolean = false,
+    ): AnnieCanvasController = sessions.getOrPut(id) {
+        AnnieCanvasController(
+            id,
+            restoredClosed || synchronized(closedIds) { id in closedIds },
+            restoredPaused || synchronized(pausedIds) { id in pausedIds },
+        )
     }
     fun find(id: String): AnnieCanvasController? = sessions[id]
     fun remove(id: String, controller: AnnieCanvasController) {
@@ -432,8 +444,20 @@ internal object AnnieCanvasSessions {
             closedIds.remove(id)
             if (closed) {
                 closedIds.add(id)
-                while (closedIds.size > MAX_CLOSED_IDS) {
+                while (closedIds.size > MAX_SESSION_FLAGS) {
                     closedIds.remove(closedIds.first())
+                }
+            }
+        }
+    }
+
+    fun rememberPaused(id: String, paused: Boolean) {
+        synchronized(pausedIds) {
+            pausedIds.remove(id)
+            if (paused) {
+                pausedIds.add(id)
+                while (pausedIds.size > MAX_SESSION_FLAGS) {
+                    pausedIds.remove(pausedIds.first())
                 }
             }
         }
@@ -453,10 +477,12 @@ internal fun AnnieCanvasMessage(payload: JSONObject) {
     // Compose saves this boolean with the chat item's stable LazyColumn key.
     // Restoring a closed message must not allocate/render its WebView first.
     var closedAcrossRestore by rememberSaveable(id) { mutableStateOf(false) }
-    val controller = remember(id) { AnnieCanvasSessions.get(id, closedAcrossRestore) }
-    LaunchedEffect(controller.isClosed) {
-        closedAcrossRestore = controller.isClosed
+    var pausedAcrossRestore by rememberSaveable(id) { mutableStateOf(false) }
+    val controller = remember(id) {
+        AnnieCanvasSessions.get(id, closedAcrossRestore, pausedAcrossRestore)
     }
+    LaunchedEffect(controller.isClosed) { closedAcrossRestore = controller.isClosed }
+    LaunchedEffect(controller.pausedByUser) { pausedAcrossRestore = controller.pausedByUser }
     DisposableEffect(controller, owner) {
         controller.setInlineForeground(owner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED))
         val observer = LifecycleEventObserver { _, event ->
@@ -487,6 +513,7 @@ internal fun AnnieCanvasMessage(payload: JSONObject) {
                     TextButton(onClick = {
                         controller.reopen()
                         closedAcrossRestore = false
+                        pausedAcrossRestore = false
                     }, modifier = Modifier.testTag("annie_canvas_reopen")) {
                         Text("Open", color = BrowserTeal)
                     }
@@ -496,8 +523,10 @@ internal fun AnnieCanvasMessage(payload: JSONObject) {
                         Icon(AnnieIcons.Rotate, contentDescription = "Restart Canvas",
                             tint = BrowserSoftText, modifier = Modifier.size(21.dp))
                     }
-                    IconButton(onClick = controller::togglePause,
-                        modifier = Modifier.size(48.dp).testTag("annie_canvas_pause")) {
+                    IconButton(onClick = {
+                        controller.togglePause()
+                        pausedAcrossRestore = controller.pausedByUser
+                    }, modifier = Modifier.size(48.dp).testTag("annie_canvas_pause")) {
                         Icon(if (controller.pausedByUser) AnnieIcons.Play else AnnieIcons.Pause,
                             contentDescription = if (controller.pausedByUser) "Resume Canvas" else "Pause Canvas",
                             tint = BrowserTeal, modifier = Modifier.size(21.dp))
