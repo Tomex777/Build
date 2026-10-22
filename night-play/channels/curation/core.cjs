@@ -86,7 +86,7 @@ function normalizeNews(record,source,{now=Date.now(),maxAgeDays=14}={}){
  const published=Date.parse(record.publishedAt||'');
  if(!Number.isFinite(published)||published>now+3600000||published<now-maxAgeDays*86400000)return null;
  const title=String(record.title||'').replace(/\s+/g,' ').trim();if(title.length<8||title.length>240)return null;
- const tags=[...new Set((Array.isArray(record.tags)?record.tags:[]).filter(t=>SIMPLE_TAGS.has(t)))];
+ const tags=Object.freeze([...new Set((Array.isArray(record.tags)?record.tags:[]).filter(t=>SIMPLE_TAGS.has(t)))]);
  const headline=classifyHeadline(title);
  const spoiler=record.spoiler===true||headline.spoiler;
  const rumor=record.rumor===true||headline.rumor;
