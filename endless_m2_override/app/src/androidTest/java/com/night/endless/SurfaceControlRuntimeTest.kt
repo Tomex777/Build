@@ -226,10 +226,23 @@ class SurfaceControlRuntimeTest {
             perf.writeText(
                 "device=${Build.MODEL}\nsdk=${Build.VERSION.SDK_INT}\n" +
                     "elapsedMs=${elapsed}\ncompletedFrames=${frames}\n" +
-                    "fpsOverWholeTest=${frames * 1000.0 / elapsed}\n" +
+                    "observedFramesPerSecondIncludingWaits=${frames * 1000.0 / elapsed}\n" +
                     "processPssKiB=${Debug.getPss()}\n" +
-                    "method=Android GLES runtime; includes test waits and screenshot\n"
+                    "method=Android GLES runtime; includes waits and screenshots; not a benchmark\n"
             )
+            // End-of-test CI dumpsys can say "No process found" after the
+            // ActivityScenario is closed. Collect live OS diagnostics here.
+            // Note: graphics frame stats need not represent GLSurfaceView
+            // GPU workload on every Android/driver implementation.
+            try {
+                File(perf.parentFile, "controls-meminfo-active.txt")
+                    .writeText(ui.executeShellCommand("dumpsys meminfo com.night.endless"))
+                File(perf.parentFile, "controls-gfxinfo-active.txt")
+                    .writeText(ui.executeShellCommand("dumpsys gfxinfo com.night.endless framestats"))
+            } catch (diagnosticFailure: Exception) {
+                File(perf.parentFile, "controls-diagnostic-unavailable.txt")
+                    .writeText(diagnosticFailure.toString())
+            }
         } finally {
             scenario.close()
         }
