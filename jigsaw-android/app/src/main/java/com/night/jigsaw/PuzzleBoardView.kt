@@ -31,6 +31,7 @@ class PuzzleBoardView(context: Context) : View(context) {
     private var game: PuzzleGame? = null
     private var photo: Bitmap? = null
     private var renderedZone: Int = -1
+    private var nextPiecePile: Int = 0
     private var notifyChange: () -> Unit = {}
     private val sprites = mutableMapOf<Int, Sprite>()
     private val drawOrder = mutableListOf<Int>()
@@ -125,6 +126,37 @@ class PuzzleBoardView(context: Context) : View(context) {
         val targetY=g.boardTop+regionHeight*(row+.5f)
         panX=width/2f-targetX*baseScale*zoom
         panY=height/2f-targetY*baseScale*zoom
+        invalidate()
+    }
+
+    /**
+     * 600 pieces cannot be comfortably searched by panning an entire virtual
+     * tabletop. Bring the next active pile into focus. Successive taps
+     * alternate top/bottom in portrait and left/right in landscape.
+     */
+    fun jumpToPieces() {
+        val g=game ?: return
+        val remaining=g.pieces.filter{!it.placed && g.visible(it)}
+        if(remaining.isEmpty()) { focusZone(); return }
+        val first=if(g.landscapeMode)remaining.filter{it.x<g.boardLeft}
+                  else remaining.filter{it.y<g.boardTop}
+        val second=if(g.landscapeMode)remaining.filter{it.x>g.boardLeft}
+                   else remaining.filter{it.y>g.boardTop}
+        val candidates=if(nextPiecePile%2==0)first else second
+        nextPiecePile++
+        val focus=if(candidates.isNotEmpty())candidates else remaining
+        val left=focus.minOf{it.x}
+        val top=focus.minOf{it.y}
+        val right=focus.maxOf{it.x}+g.pieceWidth
+        val bottom=focus.maxOf{it.y}+g.pieceHeight
+        baseScale=width.coerceAtLeast(1).toFloat()/g.worldWidth
+        val focusScale=min(
+            width.coerceAtLeast(1)*.9f/(right-left).coerceAtLeast(1f),
+            height.coerceAtLeast(1)*.85f/(bottom-top).coerceAtLeast(1f)
+        )
+        zoom=(focusScale/baseScale).coerceIn(.75f,5f)
+        panX=width/2f-(left+right)/2f*baseScale*zoom
+        panY=height/2f-(top+bottom)/2f*baseScale*zoom
         invalidate()
     }
 
