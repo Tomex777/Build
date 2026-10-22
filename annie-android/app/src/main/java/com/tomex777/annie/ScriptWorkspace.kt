@@ -168,15 +168,15 @@ internal class ScriptFiles(context: Context) : PackageAssetResolver {
         } else null
         val entryRelative = importedManifest?.entryPoint ?: if (file.isDirectory) {
             val runnableFiles = sourceFiles.keys.filter(::isExecutableScript)
-            "main.js".takeIf { it in sourceFiles }
+            val chosen = "main.js".takeIf { it in sourceFiles }
                 ?: "main.ts".takeIf { it in sourceFiles }
                 ?: "main.py".takeIf { it in sourceFiles }
                 ?: "main.lua".takeIf { it in sourceFiles }
                 ?: runnableFiles.singleOrNull()
                 // Read-only document folders contain no runnable entry point.
                 // Keep them editable without fabricating an executable main.js.
-                ?: if (runnableFiles.isEmpty()) sourceFiles.keys.sorted().firstOrNull() else null
-                ?: return null
+                ?: (if (runnableFiles.isEmpty()) sourceFiles.keys.sorted().firstOrNull() else null)
+            chosen ?: return null
         } else file.name
         if (entryRelative !in sourceFiles) return null
         ScriptProject(
