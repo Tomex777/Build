@@ -27,9 +27,10 @@ function interpretKDramaEntry(row,{showAliases=[],confirmedBySource={}}={}){
  const title=row.title.replace(/\s+/g,' ').trim();if(title.length<8||title.length>240)return null;
  const tags=Object.entries(EVENT_PATTERNS).filter(([,re])=>re.test(title)).map(([tag])=>tag);
  const event=tags.find(x=>['casting','releases','trailers','renewals'].includes(x))||'update';
- const confirmation=Object.hasOwn(confirmedBySource,row.guid)?confirmedBySource[row.guid]:null;
+ const approved=confirmedBySource&&typeof confirmedBySource==='object'?confirmedBySource:{};
+ const confirmation=Object.hasOwn(approved,row.guid)?approved[row.guid]:null;
  const confirmed=confirmation?.verified===true&&!RUMOR.test(title);
- return {show:String(confirmation?.show||findShow(title,showAliases)),event:confirmation?.event||event,
+ return {show:String(confirmation?.show||findShow(title,Array.isArray(showAliases)?showAliases:[])),event:confirmation?.event||event,
  tags,rumor:RUMOR.test(title),spoiler:SPOILER.test(title),confirmed,
  storyKey:typeof confirmation?.storyKey==='string'?confirmation.storyKey:null,eventDate:confirmation?.eventDate||null};
 }
