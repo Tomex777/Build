@@ -1,0 +1,70 @@
+name: Jigsaw Android native
+on:
+  push:
+    branches:
+      - feature/jigsaw-standalone-native-20261022
+    paths:
+      - 'jigsaw-android/**'
+      - '.github/workflows/jigsaw-android.yml'
+  pull_request:
+    paths:
+      - 'jigsaw-android/**'
+      - '.github/workflows/jigsaw-android.yml'
+  workflow_dispatch:
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - run: sdkmanager --install 'platforms;android-36' 'build-tools;36.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+      - name: Compile and unit-test native engine
+        working-directory: jigsaw-android
+        run: gradle :app:testDebugUnitTest :app:assembleDebug --no-daemon --stacktrace
+      - name: Verify APK identity and native gameplay implementation
+        run: |
+          test -f jigsaw-android/app/build/outputs/apk/debug/app-debug.apk
+          ! grep -R 'android.webkit.WebView' jigsaw-android/app/src/main
+          $ANDROID_HOME/build-tools/36.0.0/aapt dump badging jigsaw-android/app/build/outputs/apk/debug/app-debug.apk | grep "package: name='com.night.jigsaw'"
+          $ANDROID_HOME/build-tools/36.0.0/aapt dump badging jigsaw-android/app/build/outputs/apk/debug/app-debug.apk | grep "sdkVersion:'26'"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: jigsaw-standalone-native-debug-apk
+          path: jigsaw-android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+  emulator-smoke:
+    needs: android
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: actions/download-artifact@v4
+        with:
+          name: jigsaw-standalone-native-debug-apk
+          path: apk
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          emulator-options: -no-window -no-audio -no-snapshot -gpu swiftshader_indirect
+          script: bash jigsaw-android/scripts/emulator-smoke.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: jigsaw-native-emulator-screenshots
+          path: jigsaw-android/qa-screenshots/
+          if-no-files-found: warn
