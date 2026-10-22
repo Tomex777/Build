@@ -1,4 +1,4 @@
-/* NIGHT Play hand-drawn pixel character and hazard sheet.
+/* NIGHT Play original runner character and custom obstacle atlas.
  * Swaps appearance at the exact Chromium source coordinates. No physics,
  * obstacle spawning, hitbox, velocity, or T-Rex animation timers are changed.
  * All art is authored for NIGHT Play, not extracted from Chrome's artwork.
@@ -18,62 +18,74 @@ function spriteCanvas(w,h,paint){
   coords.forEach(([x,y],i)=>i?g.lineTo(x,y):g.moveTo(x,y));g.closePath();g.fill()};
  paint({r,poly,g});return canvas;
 }
-// New NIGHT runner: courier with mint helmet, copper scarf, visor and
-// two-frame stride. The body never leaves Chromium's 44×47 sprite footprint.
+// Original NIGHT Play runner visual, restored from action/games.js before
+// the Chromium engine migration. Dark-green cap, warm face, green shirt,
+// tan waist band and light trainers — *not* the later mint-armoured courier.
+// Each original Chromium frame is redrawn in a source-sized canvas, so no
+// physics, obstacle collision box or frame timer needs to change.
 function courier(frame){
- const duck=frame==='duck1'||frame==='duck2';
- const width=duck?59:44;
- return spriteCanvas(width,47,({r,poly})=>{
-  if(duck){
-   const sway=frame==='duck1'?0:2;
-   r(4,37,51,7,'outline');r(8,31,45,11,'teal');
-   r(12,27,36,8,'navy');r(20,22,26,9,'mint');r(34,23,8,4,'pale');
-   poly([[6,28],[18,28],[15,33],[3,33]],'rust');
-   poly([[16,18],[45,18],[52,24],[49,34],[17,34],[12,29]],'outline');
-   poly([[18,18],[43,18],[49,24],[46,30],[18,30],[14,26]],'mint');
-   r(35,22,12,5,'navy');r(45,23,3,2,'gold');
-   r(11+sway,38,15,5,'navy');r(37-sway,38,15,5,'navy');
-   r(9+sway,43,17,3,'outline');r(34-sway,43,19,3,'outline');
-   r(7,25,6,5,'ruby');return;
-  }
-  const run1=frame==='run1',run2=frame==='run2',jump=frame==='jump',crash=frame==='crash';
-  // Two separate feet animate against the original 12fps runner state.
+ const duck=frame==='duck1'||frame==='duck2',width=duck?59:44;
+ // Render at 3× then downsample into Chromium's existing atlas dimensions:
+ // restores the old smooth-shape style rather than using blocky pixel art.
+ const aa=3,canvas=document.createElement('canvas');
+ canvas.width=width*aa;canvas.height=47*aa;
+ const g=canvas.getContext('2d');g.scale(aa,aa);
+ g.lineJoin='round';g.lineCap='round';
+ const fill=(x,y,w,h,col,rad=0)=>{
+  g.fillStyle=col;g.beginPath();
+  if(rad)g.roundRect(x,y,w,h,Math.min(rad,h/2,w/2));
+  else g.rect(x,y,w,h);
+  g.fill();
+ };
+ const disk=(x,y,r,col)=>{g.beginPath();g.arc(x,y,r,0,Math.PI*2);g.fillStyle=col;g.fill()};
+ const line=(x,y,x2,y2,color,lw)=>{g.strokeStyle=color;g.lineWidth=lw;
+  g.beginPath();g.moveTo(x,y);g.lineTo(x2,y2);g.stroke()};
+ const stride=frame==='run1'?-1:frame==='run2'?1:0;
+ g.translate(width/2,46);
+ if(duck){
+  // The recognizable side-facing crouch from the initial action game.
+  const sway=frame==='duck1'?-1:1;
+  fill(-25,-11,47,8,'#32725b',4);
+  fill(-27,-5,50,5,'#be885e',3);
+  fill(-23,-2,17,3,'#28463e',2);fill(7,-2,17,3,'#28463e',2);
+  fill(-19,-17,23,12,'#32725b',5);
+  disk(11,-18,10,'#e9b18c');
+  fill(2,-29,20,8,'#254f49',4);
+  fill(0,-23,21,4,'#386f5b',2);
+  disk(16,-18,1.6,'#253a37');
+  fill(-17+sway,-2,15,3,'#f4e9d4',2);
+  fill(10-sway,-2,16,3,'#f4e9d4',2);
+ } else {
+  const jumping=frame==='jump',crash=frame==='crash';
+  if(crash){g.rotate(.17);g.translate(1,2)}
+  else if(jumping){g.rotate(-.08)}
+  // Scale the original 51-pixel-tall model into the original 47px atlas
+  // WITHOUT scaling the engine's collision geometry or jump height.
+  g.scale(.87,.87);
+  // Swinging arms, staggered trousers and rounded cream trainers:
+  // reconstruct the exact palette/proportions from old paintRunner().
+  const swing=jumping?5:stride*6;
+  line(-8,-29,-15,-22+stride*4,'#e7ae89',5);
+  line(8,-29,14,-22-stride*4,'#e7ae89',5);
+  line(-5,-16,-7+swing,-6,'#2b5448',7);
+  line(5,-16,7-swing,-6,'#2b5448',7);
+  fill(-13+swing,-6,13,6,'#f4e9d4',3);
+  fill(2-swing,-6,13,6,'#f4e9d4',3);
+  // Simple green jersey, contrast collar and the tan waist band.
+  fill(-11,-34,22,21,'#32725b',6);
+  fill(-9,-27,18,4,'#8ac0a2',2);
+  fill(-10,-16,20,7,'#be885e',3);
+  disk(0,-41,10,'#e9b18c');
+  // Original green cap, curved peak and tiny eye.
+  fill(-11,-51,22,8,'#254f49',5);
+  fill(-11,-44,22,4,'#386f5b',2);
+  disk(4,-40,1.5,'#253a37');
   if(crash){
-   r(9,37,24,8,'navy');r(6,43,29,4,'outline');
-   r(12,25,23,13,'teal');r(5,31,8,5,'rust');
-   r(16,12,23,18,'outline');r(18,13,19,15,'mint');
-   r(30,18,7,4,'navy');r(32,19,3,2,'ruby');
-   r(12,36,9,4,'gold');return;
+   // Small tilt and shut eye, not a different space-suit character.
+   line(1,-40,7,-40,'#253a37',1.8);
   }
-  // Feet and shin guards, alternating for the run frames.
-  if(jump){r(15,33,9,7,'navy');r(24,33,9,8,'navy');r(13,39,11,4,'outline');r(25,40,11,4,'outline')}
-  else if(run1){
-   r(15,31,8,9,'navy');r(12,39,10,5,'outline');r(10,43,15,3,'navy');
-   r(24,31,8,11,'navy');r(26,40,10,5,'outline');r(25,44,15,2,'navy')
-  }else if(run2){
-   r(16,31,9,11,'navy');r(17,40,12,5,'outline');
-   r(26,31,9,7,'navy');r(30,37,9,5,'outline');r(30,41,12,4,'navy')
-  }else{
-   r(16,31,8,12,'navy');r(15,42,11,4,'outline');
-   r(26,31,8,12,'navy');r(25,42,11,4,'outline')
-  }
-  // Back scarf and backpack create a recognizable silhouette.
-  poly([[11,20],[19,20],[17,25],[7,29],[4,27],[12,23]],'rust');
-  r(9,24,9,9,'outline');r(11,25,8,7,'gold');
-  poly([[15,17],[32,17],[37,24],[32,34],[14,34],[12,24]],'outline');
-  poly([[17,18],[31,18],[35,24],[30,32],[16,32],[14,24]],'teal');
-  r(17,20,13,4,'mint');r(21,27,9,3,'shadow');
-  // Hood with separated cap peak and readable eyes.
-  poly([[17,7],[25,4],[35,6],[40,12],[38,21],[31,25],[18,23],[14,16]],'outline');
-  poly([[18,9],[26,6],[34,8],[38,13],[36,20],[29,23],[19,21],[16,16]],'mint');
-  r(22,8,11,4,'pale');r(26,13,12,8,'skin');
-  r(29,13,10,5,'navy');r(32,15,3,2,'cream');
-  r(36,20,4,3,'outline');
-  // Glove and amber arm band.
-  r(32,25,6,5,'gold');r(35,27,6,5,'outline');
-  r(33,29,7,3,'skin');
-  if(jump){r(15,35,8,3,'gold');r(28,35,7,3,'gold')}
- });
+ }
+ return canvas;
 }
 function thornPillar(width,height,kind,variation=0){
  return spriteCanvas(width,height,({r,poly})=>{
@@ -150,8 +162,11 @@ function install(){
    const dw=Math.min(width*pixelRatio,out.width-x);
    g.clearRect(x,y,dw,height*pixelRatio);
    const artwork=paint();
+   g.imageSmoothingEnabled=entry.key==='TREX';
+   g.imageSmoothingQuality='high';
    g.drawImage(artwork,0,0,artwork.width,artwork.height,
     x,y,dw,height*pixelRatio);
+   g.imageSmoothingEnabled=false;
   }
  }
  return new Promise((resolve,reject)=>{
