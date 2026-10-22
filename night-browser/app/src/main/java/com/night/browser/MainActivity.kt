@@ -369,6 +369,11 @@ private fun NightBrowser(browser: BrowserController, openSaved: (File) -> Unit) 
                             enabled = !current.isPrivate,
                             onClick = { dismiss { if (!current.isPrivate) page = Page.JOURNEYS } })
                         DropdownMenuItem(
+                            text = { Text("Find in page") },
+                            leadingIcon = { Icon(Icons.Rounded.FindInPage, null) },
+                            enabled = page == Page.WEB && current.url.startsWith("http"),
+                            onClick = { dismiss { findVisible = true } })
+                        DropdownMenuItem(
                             text = { Text("Library") },
                             leadingIcon = { Icon(Icons.Rounded.Bookmarks, null) },
                             onClick = { dismiss { page = Page.LIBRARY } })
@@ -388,11 +393,6 @@ private fun NightBrowser(browser: BrowserController, openSaved: (File) -> Unit) 
                                 (current.url.startsWith("https://") ||
                                  current.url.startsWith("http://")),
                             onClick = { dismiss { studioTabId = current.id } })
-                        DropdownMenuItem(
-                            text = { Text("Find in page") },
-                            leadingIcon = { Icon(Icons.Rounded.FindInPage, null) },
-                            enabled = page == Page.WEB && current.url.startsWith("http"),
-                            onClick = { dismiss { findVisible = true } })
                         DropdownMenuItem(
                             text = { Text("Bookmark page") },
                             leadingIcon = { Icon(Icons.Rounded.BookmarkAdd, null) },
