@@ -89,6 +89,9 @@ jobs:
             mkdir -p screenshots
             adb shell screencap -p /sdcard/juice-wrld.png
             adb pull /sdcard/juice-wrld.png screenshots/start-api-${{ matrix.api }}.png
+            # The downloaded APK was signed on a different CI runner. Gradle re-signs
+            # the instrumentation install locally; remove the old debug cert first.
+            adb uninstall com.nice.juicewrld || true
             set +e
             gradle -p juice-wrld-android --no-daemon :app:connectedDebugAndroidTest
             TEST_EXIT=$?
