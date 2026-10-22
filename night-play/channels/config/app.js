@@ -97,7 +97,8 @@ function paintConfig(){
    $('signatureEnabled').checked=branding.signatureEnabled===true;
    $('posterName').value=typeof branding.posterName==='string'?branding.posterName:'';
    $('watermarkEnabled').checked=branding.watermarkEnabled===true;
-   $('watermarkEnabled').disabled=!verifiedChannelName();
+   // If an older server already stored ON, permit disabling it even while name proof is unavailable.
+   $('watermarkEnabled').disabled=!verifiedChannelName()&&branding.watermarkEnabled!==true;
    const alpha=[0.15,0.2,0.22,0.25,0.3].includes(branding.watermarkOpacity)?branding.watermarkOpacity:0.22;
    $('watermarkOpacity').value=String(alpha);
    $('watermarkPosition').value=['auto','bottom-left','bottom-right','top-left','top-right'].includes(branding.watermarkPosition)?branding.watermarkPosition:'auto';
