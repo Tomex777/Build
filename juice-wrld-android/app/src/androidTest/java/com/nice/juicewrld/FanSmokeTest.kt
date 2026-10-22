@@ -2,6 +2,7 @@ package com.nice.juicewrld
 
 import android.graphics.Bitmap
 import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.assertExists
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
