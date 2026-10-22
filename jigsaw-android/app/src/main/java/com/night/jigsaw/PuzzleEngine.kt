@@ -174,7 +174,7 @@ class PuzzleGame private constructor(
             3 -> when(col){0->"left";1->"middle";else->"right"}
             else -> ""
         }
-        return "$"+"{vertical} "+"$"+"{horizontal}"
+        return vertical + " " + horizontal
     }
     val count: Int get() = cols * rows
     val completed: Int get() = pieces.count { it.placed }
