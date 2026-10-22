@@ -66,4 +66,7 @@ internal class AnnieBrowserEngineBridge(context: Context, runtime: GeckoRuntime)
     }
 
     fun isUniversalCopyInstalled(): Boolean = universalCopy.isInstalled()
+
+    /** Drain accepted session writes without blocking browser close. */
+    fun close() = sessions.shutdownWhenIdle()
 }

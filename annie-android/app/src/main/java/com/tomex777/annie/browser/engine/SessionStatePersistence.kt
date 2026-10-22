@@ -43,13 +43,16 @@ class SessionStatePersistence(private val baseDir: File) {
         private const val SESSION_STATE_FILE = "browser_session_states.json"
         private const val DEBOUNCE_MS = 500L
         private const val FORCE_CHECKPOINT_TIMEOUT_MS = 3_000L
+        // Shared across browser instances during quick reopen/activity recreation.
+        private val GLOBAL_DISK_LOCK = Any()
+        private val CLOSED_TAB_IDS = ConcurrentHashMap.newKeySet<String>()
     }
 
     // Original upstream code read/modified a shared JSON file on multiple IO
     // threads. Serialize file transactions so concurrent tab checkpoints cannot
     // overwrite each other, lose history, or resurrect a just-closed tab.
-    private val diskLock = Any()
-    private val forgottenTabs = ConcurrentHashMap.newKeySet<String>()
+    private val diskLock = GLOBAL_DISK_LOCK
+    private val forgottenTabs = CLOSED_TAB_IDS
 
     /** In-flight debounce jobs per tab. */
     private val pendingJobs = ConcurrentHashMap<String, Job>()
@@ -229,6 +232,17 @@ class SessionStatePersistence(private val baseDir: File) {
                 } catch (e: Exception) {
                     Log.w(TAG, "Failed to clear all durable states", e)
                 }
+            }
+        }
+    }
+
+    /** Flush pending debounced checkpoints off the Android UI thread. */
+    fun shutdownWhenIdle() {
+        CoroutineScope(Dispatchers.IO).launch {
+            try { pendingJobs.values.toList().joinAll() }
+            finally {
+                pendingJobs.clear()
+                persistenceScope.cancel()
             }
         }
     }

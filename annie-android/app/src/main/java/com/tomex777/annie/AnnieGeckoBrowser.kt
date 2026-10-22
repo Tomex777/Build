@@ -665,6 +665,7 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
     fun destroy() {
         tabs.toList().forEach { it.session.close() }
         tabs.clear()
+        upstreamEngine.close()
     }
 }
 
