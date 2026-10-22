@@ -11,6 +11,9 @@ const decisions=new Map(),captionDirty=new Set();
 const jid=/^\d{8,25}@newsletter$/;
 const make=(tag,cls,text)=>{const el=document.createElement(tag);if(cls)el.className=cls;if(text!==undefined)el.textContent=String(text);return el};
 const setBusy=(el,value)=>{if(el)el.disabled=value;};
+const verifiedChannelName=()=>channel?.verifiedNameSource==='whatsapp-raw'
+  &&typeof channel.verifiedDisplayName==='string'&&channel.verifiedDisplayName.trim()
+  ?channel.verifiedDisplayName:null;
 const toast=message=>{const t=$('toast');t.textContent=message;t.hidden=false;clearTimeout(toast.timer);toast.timer=setTimeout(()=>t.hidden=true,4300)};
 const note=(message,isError=false,id='notice')=>{const n=$(id);n.hidden=!message;n.className='config-banner'+(isError?' error':'');n.textContent=message||''};
 const showState=(title,body,retry=false)=>{$('state').hidden=false;$('configUI').hidden=true;$('stateTitle').textContent=title;$('stateText').textContent=body;$('retry').hidden=!retry};
@@ -94,11 +97,13 @@ function paintConfig(){
    $('signatureEnabled').checked=branding.signatureEnabled===true;
    $('posterName').value=typeof branding.posterName==='string'?branding.posterName:'';
    $('watermarkEnabled').checked=branding.watermarkEnabled===true;
+   $('watermarkEnabled').disabled=!verifiedChannelName();
    const alpha=[0.15,0.2,0.22,0.25,0.3].includes(branding.watermarkOpacity)?branding.watermarkOpacity:0.22;
    $('watermarkOpacity').value=String(alpha);
    $('watermarkPosition').value=['auto','bottom-left','bottom-right','top-left','top-right'].includes(branding.watermarkPosition)?branding.watermarkPosition:'auto';
  }
- $('watermarkName').textContent=channel?.name||'';
+ $('watermarkName').textContent=verifiedChannelName()||'Exact channel name not yet verified';
+ $('watermarkWarning').hidden=Boolean(verifiedChannelName());
  $('configUI').hidden=false;$('state').hidden=true;
 }
 async function changeConfig(patch,control){
@@ -153,6 +158,7 @@ function attachControls(){
    try{captionReplacements=readReplacements();}catch(error){note(errorMessage(error),true);return;}
    const captionReplacementsEnabled=$('captionReplacementsEnabled').checked;
    if(captionReplacementsEnabled&&!captionReplacements.length){note('Add a caption replacement before enabling the word swaps.',true);return;}
+   if($('watermarkEnabled').checked&&!verifiedChannelName()){note('NIGHT must verify the unmodified WhatsApp channel name before saving a watermark.',true);return;}
    const posterName=$('posterName').value.trim();
    const signatureEnabled=$('signatureEnabled').checked;
    if(signatureEnabled&&!posterName){
