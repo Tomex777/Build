@@ -170,7 +170,7 @@ export class ChannelPublisher {
       this.db.prepare('INSERT INTO play_channel_batches VALUES (?,?,?,?)').run(batchId,userId,channelId,this.now())
       for (const item of items) {
         const rights=item.rightsEvidence
-        const cleared=rights?.verifiedByServer===true && rights?.status==='cleared' && text(rights?.licenseId,140) && !!rights.licenseId
+        const cleared=rights?.verifiedByServer===true && rights?.status==='cleared' && text(rights?.licenseId,140) && !!rights.licenseId && rights.sha256===digest(item.image) && rights.sourceUrl===item.sourceUrl
         this.db.prepare('INSERT INTO play_channel_candidates VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)').run(randomUUID().replaceAll('-','_'),batchId,userId,channelId,item.caption,item.title,item.category,item.sourceName,item.sourceUrl,item.image,item.mime,digest(item.image),cleared?rights.licenseId:'',cleared?1:0)
       }
     })
