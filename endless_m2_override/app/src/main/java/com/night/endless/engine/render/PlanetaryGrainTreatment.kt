@@ -16,7 +16,8 @@ import kotlin.math.sqrt
  * Scientific scope: deterministic ARTIST-INTERPRETED grain, not spacecraft
  * imagery, elemental abundance measurements or georeferenced terrain.
  * Orbital/landscape geology and the real MOLA/LOLA meshes remain independent.
- * Texture repeats over ~2.3 m, and is mip-filtered before it reaches the GPU.
+ * Two rotated shader samples repeat over ~9 m and ~2 m; the fine material
+ * is mip-filtered before it reaches the GPU.
  */
 internal object PlanetaryGrainTreatment {
     private const val SIDE = SurfaceMicroMaterial.SIDE
@@ -78,8 +79,14 @@ internal object PlanetaryGrainTreatment {
      */
     private fun iceCrack(x: Int, z: Int): Double {
         val cell = 32
-        val cx = x / cell
-        val cz = z / cell
+        // Domain-warp plate boundaries so they are not rigid hexagonal
+        // paving patterns. Both warps wrap at exactly the atlas period.
+        val wx = x + (noise(x.toDouble(), z.toDouble(), 32, 1201) - .5) * 8.0 +
+            (noise(x.toDouble(), z.toDouble(), 8, 1211) - .5) * 1.6
+        val wz = z + (noise(x.toDouble(), z.toDouble(), 32, 1223) - .5) * 8.0 +
+            (noise(x.toDouble(), z.toDouble(), 8, 1237) - .5) * 1.6
+        val cx = floor(wx / cell).toInt()
+        val cz = floor(wz / cell).toInt()
         var nearest = Double.POSITIVE_INFINITY
         var runnerUp = Double.POSITIVE_INFINITY
         for (iz in cz - 1..cz + 1) for (ix in cx - 1..cx + 1) {
@@ -87,8 +94,8 @@ internal object PlanetaryGrainTreatment {
             val sz = iz and 7
             val px = ix * cell + 4.0 + hash(sx, sz, 1181) * 24.0
             val pz = iz * cell + 4.0 + hash(sx, sz, 1187) * 24.0
-            val dx = px - x
-            val dz = pz - z
+            val dx = px - wx
+            val dz = pz - wz
             val distance = dx * dx + dz * dz
             if (distance < nearest) {
                 runnerUp = nearest
@@ -171,8 +178,9 @@ internal object PlanetaryGrainTreatment {
                     // Crosscutting micro-fractures with brighter ridge lips,
                     // against smoother water ice. Macroscopic plates/chaos
                     // live in the separate landscape terrain/shader model.
-                    val dark = iceCrack(x, z) * (.62 + .31 * broad)
-                    val lip = (1.0 - abs(dark - .25) / .25).coerceIn(0.0, 1.0)
+                    val dark = iceCrack(x, z) *
+                        (.20 + .66 * broad) * (.55 + .45 * fine)
+                    val lip = (1.0 - abs(dark - .20) / .22).coerceIn(0.0, 1.0)
                     albedo += .060 * lip - .16 * dark + .026 * jitter
                     relief += .065 * lip - .082 * dark
                     mineral += .21 * dark
