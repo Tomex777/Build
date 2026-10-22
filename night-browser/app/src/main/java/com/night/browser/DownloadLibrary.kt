@@ -192,6 +192,10 @@ class DownloadLibrary private constructor(private val context: Context) {
             }
         }
 
+    /** This checks only our normal-profile Library rows, never private history. */
+    fun existingInProgressDuplicate(url: String, filename: String): LibraryDownload? =
+        DownloadDuplicatePolicy.findInProgress(url, filename, items)
+
     /** Query the Android provider off the UI thread, then update observable state on main. */
     suspend fun refresh() {
         val systemRecords = items.filter { it.localFile.isBlank() }
