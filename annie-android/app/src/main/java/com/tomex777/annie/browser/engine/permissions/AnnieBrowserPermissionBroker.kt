@@ -25,7 +25,8 @@ internal class AnnieSitePermissionStore(context: Context) {
         "annie_browser_site_permissions_v1", Context.MODE_PRIVATE
     )
 
-    fun origin(url: String): String? = runCatching {
+    fun origin(url: String): String? {
+        return runCatching {
         val uri = URI(url)
         val scheme = uri.scheme?.lowercase(Locale.ROOT)?.takeIf { it == "https" || it == "http" }
             ?: return null
@@ -40,7 +41,8 @@ internal class AnnieSitePermissionStore(context: Context) {
             else -> ":$port"
         }
         "$scheme://$host$suffix"
-    }.getOrNull()
+        }.getOrNull()
+    }
 
     private fun key(url: String, permission: String): String? {
         if (!permission.matches(Regex("[a-z][a-z0-9_-]{0,50}"))) return null
