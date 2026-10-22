@@ -15,6 +15,7 @@ import com.night.endless.engine.scene.CelestialBody
 import com.night.endless.engine.scene.DeepTimeHistory
 import com.night.endless.engine.scene.KeplerEphemeris
 import com.night.endless.engine.scene.GiantSatelliteOrbit
+import com.night.endless.engine.scene.LunarOrbitApproximation
 import com.night.endless.engine.scene.UniverseClock
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -1209,21 +1210,12 @@ class EndlessRenderer(
                         )
                 }
                 body.id == "moon" -> {
-                    // Elliptical (e=0.0549), 5.145° inclined approximation.
-                    // This is NOT JPL's high-precision lunar ephemeris.
-                    val elapsedDays = (utcMillis - 946728000000L) / 86400000.0
-                    val mean = Math.toRadians(134.963) + 2.0 * PI * elapsedDays / 27.321661
-                    val eccentric = KeplerEphemeris.solveEccentricAnomaly(mean % (2.0 * PI), .0549)
-                    val x = body.orbitRadius * (cos(eccentric) - .0549)
-                    val z = body.orbitRadius * sqrt(1.0 - .0549 * .0549) * sin(eccentric)
-                    val tilt = Math.toRadians(5.145)
-                    val node = Math.toRadians(125.045 - .0529539 * elapsedDays)
-                    val local = Vec3d(
-                        x * cos(node) - z * sin(node) * cos(tilt),
-                        z * sin(tilt),
-                        x * sin(node) + z * cos(node) * cos(tilt)
-                    )
-                    (map["earth"]?.position ?: Vec3d.ZERO) + local
+                    // The SAME eccentric, inclined, nodally precessing model
+                    // now generates the visual orbit guide and the actual
+                    // Moon's Earth-relative position, so neither contradicts
+                    // the other when inspecting Earth's satellite.
+                    (map["earth"]?.position ?: Vec3d.ZERO) +
+                        LunarOrbitApproximation.relativePosition(utcMillis, body.orbitRadius)
                 }
                 else -> KeplerEphemeris.position(body.id, utcMillis, body.orbitRadius)
                     ?: Vec3d.ZERO
@@ -1544,13 +1536,19 @@ class EndlessRenderer(
             val jpl = KeplerEphemeris.orbitPoints(
                 body.id, clock.currentTimeMillis(), body.orbitRadius, segments
             )
-            val values = if (body.id == "europa" || body.id == "titan") {
-                // A real inclined orbit line must match the displayed
-                // satellite at every phase, especially Titan relative to
-                // Saturn's equally tilted rings.
-                val parentTilt = body.parentId?.let { byId[it]?.axialTiltDeg } ?: 0.0
-                GiantSatelliteOrbit.polyline(body.orbitRadius, parentTilt, segments)
-            } else {
+            val values = when {
+                body.id == "moon" -> {
+                    LunarOrbitApproximation.orbitPolyline(
+                        clock.currentTimeMillis(), body.orbitRadius, segments
+                    )
+                }
+                body.id == "europa" || body.id == "titan" -> {
+                    // Giant satellites and their displayed orbit lines share
+                    // an inclined equatorial plane with the ring/planet model.
+                    val parentTilt = body.parentId?.let { byId[it]?.axialTiltDeg } ?: 0.0
+                    GiantSatelliteOrbit.polyline(body.orbitRadius, parentTilt, segments)
+                }
+                else -> {
                 jpl ?: FloatArray(segments * 3).also { out ->
                     for (i in 0 until segments) {
                         val angle = i.toDouble() / segments * 2.0 * PI
@@ -1558,6 +1556,7 @@ class EndlessRenderer(
                         out[i * 3 + 1] = 0f
                         out[i * 3 + 2] = (sin(angle) * body.orbitRadius).toFloat()
                     }
+                }
                 }
             }
             orbitBuffers[body.id] = floatBuffer(values)
