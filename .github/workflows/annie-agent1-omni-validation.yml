@@ -69,7 +69,7 @@ jobs:
           script: |
             set -euo pipefail
             mkdir -p annie-android/build/agent1-omni-evidence
-            for klass in AnnieGeckoTabRestoreTest AnnieOmniExtensionTest AnnieGeckoBrowserEndToEndTest AnnieGeckoBrowserUiTest; do
+            for klass in AnnieGeckoTabRestoreTest AnnieOmniExtensionTest AnnieOmniSessionRestoreTest AnnieGeckoBrowserEndToEndTest AnnieGeckoBrowserUiTest; do
               timeout --signal=TERM --kill-after=20s 480s gradle --no-daemon --stacktrace -p annie-android :app:connectedDebugAndroidTest "-Pandroid.testInstrumentationRunnerArguments.class=com.tomex777.annie.$klass"
               mkdir -p "annie-android/build/agent1-omni-evidence/$klass"
               cp -R annie-android/app/build/outputs/androidTest-results "annie-android/build/agent1-omni-evidence/$klass/outputs"
