@@ -15,7 +15,10 @@ function toReviewCard(item,{previewUrl,previewData}={}){
   sourceName:item.source?.provider==='reddit'?'Reddit · r/'+String(item.source?.id||'').split('/').pop():String(item.source?.provider||'Source'),
   sourceUrl:item.source?.url||'',
   ...(allowedUrl?{previewUrl}:{previewData}),
-  rightsStatus:item.source?.rights||'unknown',
+  // Agent A specifically accepts the `verified` enum, not the curation
+  // internals' `cleared` enum. This is only an advisory UI flag; C rechecks.
+  rightsStatus:reviewOnly?'unverified':'verified',
+  sourceRights:item.source?.rights||'unknown',
   reviewOnly,publishable:!reviewOnly,
   publishBlockedReason:reviewOnly?'rights_unverified':null,
   // Must be enforced by C at review, enqueue and send, never only by this flag.
