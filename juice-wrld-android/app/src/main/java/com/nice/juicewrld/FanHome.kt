@@ -1,0 +1,755 @@
+package com.nice.juicewrld
+
+import android.content.ActivityNotFoundException
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Headphones
+import androidx.compose.material.icons.filled.LibraryMusic
+import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Repeat
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.UploadFile
+import androidx.compose.material.icons.filled.OpenInNew
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import coil3.compose.SubcomposeAsyncImage
+import coil3.compose.SubcomposeAsyncImageContent
+
+private val Night = Color(0xFF08080E)
+private val Panel = Color(0xFF15131F)
+private val Panel2 = Color(0xFF211C2E)
+private val Hairline = Color(0xFF292636)
+private val White = Color(0xFFF7F3FF)
+private val Gray = Color(0xFFA9A3B6)
+private val Lavender = Color(0xFFB997F6)
+private val Rose = Color(0xFFFA9BBB)
+
+private val scheme = darkColorScheme(
+    primary = Lavender, onPrimary = Night, background = Night, onBackground = White,
+    surface = Panel, onSurface = White, outline = Hairline
+)
+
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        window.statusBarColor = android.graphics.Color.rgb(8, 8, 14)
+        window.navigationBarColor = android.graphics.Color.rgb(8, 8, 14)
+        setContent {
+            MaterialTheme(colorScheme = scheme) {
+                FanHome()
+            }
+        }
+    }
+}
+
+@Composable
+fun FanHome(player: FanPlayer = viewModel()) {
+    val state by player.state.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    var moodName by rememberSaveable { mutableStateOf(Mood.ALL.name) }
+    var search by rememberSaveable { mutableStateOf("") }
+    var openedId by rememberSaveable { mutableStateOf<String?>(null) }
+    var pickingId by rememberSaveable { mutableStateOf<String?>(null) }
+    val mood = Mood.entries.firstOrNull { it.name == moodName } ?: Mood.ALL
+    val songs = remember(mood, search, state.favorites) {
+        FanSongs.filter(mood, search, state.favorites)
+    }
+    val filePicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        val id = pickingId
+        if (uri != null && id != null) player.attachFile(id, uri)
+        pickingId = null
+    }
+
+    Column(
+        modifier = Modifier.fillMaxSize().background(Night).statusBarsPadding()
+    ) {
+        LazyColumn(
+            modifier = Modifier.weight(1f),
+            contentPadding = PaddingValues(bottom = 25.dp),
+        ) {
+            item {
+                FanHeader(
+                    isFavorite = mood == Mood.FAVORITES,
+                    onFavorite = {
+                        moodName = if (mood == Mood.FAVORITES) Mood.ALL.name else Mood.FAVORITES.name
+                    }
+                )
+            }
+            item {
+                FanHero(
+                    onLove = { moodName = Mood.LOVE.name },
+                    onSongs = { moodName = Mood.ALL.name }
+                )
+            }
+            item {
+                Row(
+                    Modifier.fillMaxWidth().padding(start = 22.dp, end = 22.dp, top = 30.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("Pick a feeling", fontSize = 23.sp, letterSpacing = (-0.7).sp,
+                        color = White, fontWeight = FontWeight.ExtraBold)
+                    Spacer(Modifier.weight(1f))
+                    Text("999", color = Lavender, fontSize = 15.sp,
+                        fontWeight = FontWeight.Black, letterSpacing = 2.sp)
+                }
+            }
+            item {
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 22.dp, vertical = 15.dp),
+                    horizontalArrangement = Arrangement.spacedBy(11.dp)
+                ) {
+                    items(
+                        listOf(Mood.LOVE, Mood.SAD, Mood.HEARTBREAK, Mood.HYPE, Mood.CHILL),
+                        key = { it.name }
+                    ) { item ->
+                        FeelingCard(
+                            mood = item,
+                            selected = mood == item,
+                            count = FanSongs.count(item, state.favorites),
+                            onClick = { moodName = if (mood == item) Mood.ALL.name else item.name }
+                        )
+                    }
+                }
+            }
+            item {
+                Column(Modifier.padding(horizontal = 22.dp, vertical = 7.dp)) {
+                    Text("THE MUSIC", color = Lavender, fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold, letterSpacing = 3.sp)
+                    Spacer(Modifier.height(7.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            when (mood) {
+                                Mood.ALL -> "Every song, every mood"
+                                Mood.FAVORITES -> "Your favorites"
+                                else -> mood.label + " songs"
+                            },
+                            fontSize = 23.sp, letterSpacing = (-0.7).sp,
+                            color = White, fontWeight = FontWeight.ExtraBold,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Text(songs.size.toString() + " songs", fontSize = 12.sp, color = Gray)
+                    }
+                    Spacer(Modifier.height(16.dp))
+                    FanSearch(
+                        text = search,
+                        onTextChange = { search = it }
+                    )
+                }
+            }
+            item {
+                val chipOrder = listOf(
+                    Mood.ALL, Mood.LOVE, Mood.SAD, Mood.HEARTBREAK,
+                    Mood.HYPE, Mood.CHILL, Mood.FAVORITES
+                )
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 22.dp, vertical = 14.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(chipOrder, key = { it.name }) { item ->
+                        MoodChip(item, mood == item) { moodName = item.name }
+                    }
+                }
+            }
+            if (songs.isEmpty()) {
+                item { FanEmpty(mood, search) }
+            } else {
+                items(songs, key = { it.id }) { song ->
+                    SongRow(
+                        song = song,
+                        favorite = song.id in state.favorites,
+                        attached = song.id in state.attached,
+                        playing = song.id == state.activeSongId && state.isPlaying,
+                        onFavorite = { player.toggleFavorite(song.id) },
+                        onOpen = { openedId = song.id },
+                        onPlay = { player.play(song.id) }
+                    )
+                }
+            }
+            item {
+                Column(
+                    Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, top = 29.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    HorizontalDivider(color = Hairline, thickness = 1.dp)
+                    Spacer(Modifier.height(21.dp))
+                    Text("999 FOREVER", color = Lavender, fontWeight = FontWeight.Black,
+                        letterSpacing = 3.sp, fontSize = 11.sp)
+                    Spacer(Modifier.height(5.dp))
+                    Text("An unofficial fan-made collection.", color = Gray, fontSize = 11.sp)
+                }
+            }
+        }
+        if (state.activeSongId != null) {
+            MiniPlayer(
+                state = state,
+                song = FanSongs.find(state.activeSongId!!),
+                onToggle = { player.play(state.activeSongId!!) },
+                onSkip = player::skip,
+                onSeek = player::seekTo,
+                onOpen = { openedId = state.activeSongId }
+            )
+        }
+    }
+
+    if (state.error != null) {
+        AlertDialog(
+            onDismissRequest = player::dismissError,
+            confirmButton = { TextButton(onClick = player::dismissError) { Text("OK") } },
+            title = { Text("Audio unavailable") },
+            text = { Text(state.error ?: "") },
+            containerColor = Panel2, titleContentColor = White, textContentColor = Gray
+        )
+    }
+    val selected = openedId?.let(FanSongs::find)
+    if (selected != null) {
+        SongSheet(
+            song = selected,
+            favorite = selected.id in state.favorites,
+            attached = selected.id in state.attached,
+            playing = selected.id == state.activeSongId && state.isPlaying,
+            preparing = selected.id == state.activeSongId && state.isPreparing,
+            onDismiss = { openedId = null },
+            onFavorite = { player.toggleFavorite(selected.id) },
+            onPlay = { player.play(selected.id); openedId = null },
+            onPickFile = {
+                pickingId = selected.id
+                filePicker.launch(arrayOf("audio/*"))
+            },
+            onOfficial = {
+                openOfficialSong(context, selected)
+            }
+        )
+    }
+}
+
+@Composable
+private fun FanHeader(isFavorite: Boolean, onFavorite: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            Modifier.size(45.dp).clip(RoundedCornerShape(15.dp))
+                .background(Brush.linearGradient(listOf(Lavender, Color(0xFF7850B8)))),
+            contentAlignment = Alignment.Center
+        ) {
+            Text("9", color = Night, fontSize = 28.sp, fontWeight = FontWeight.Black)
+        }
+        Spacer(Modifier.width(11.dp))
+        Column {
+            Text("JUICE WRLD", color = White, fontSize = 18.sp,
+                letterSpacing = 2.sp, fontWeight = FontWeight.Black)
+            Spacer(Modifier.height(2.dp))
+            Text("THE 999 FAN SPACE", color = Gray, fontSize = 9.sp,
+                letterSpacing = 2.0.sp, fontWeight = FontWeight.Bold)
+        }
+        Spacer(Modifier.weight(1f))
+        IconButton(
+            modifier = Modifier.size(45.dp).clip(CircleShape)
+                .background(Panel).semantics {
+                    contentDescription = if (isFavorite) "Show all songs" else "Show favorites"
+                },
+            onClick = onFavorite
+        ) {
+            Icon(
+                if (isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                tint = if (isFavorite) Rose else Lavender, contentDescription = null
+            )
+        }
+    }
+}
+
+@Composable
+private fun FanHero(onLove: () -> Unit, onSongs: () -> Unit) {
+    Box(
+        Modifier.fillMaxWidth().padding(horizontal = 17.dp, vertical = 5.dp)
+            .heightIn(min = 226.dp).clip(RoundedCornerShape(25.dp))
+            .background(
+                Brush.linearGradient(
+                    listOf(Color(0xFF42235C), Color(0xFF251936), Color(0xFF151121))
+                )
+            )
+    ) {
+        Text("999",
+            fontSize = 132.sp, fontWeight = FontWeight.Black,
+            color = White.copy(alpha = 0.055f), letterSpacing = (-7).sp,
+            modifier = Modifier.align(Alignment.TopEnd).offset(x = 10.dp, y = (-18).dp)
+        )
+        Row(
+            Modifier.fillMaxWidth().padding(start = 20.dp, end = 13.dp, top = 20.dp, bottom = 20.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text("999 FOREVER", color = Rose, fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = 2.1.sp, fontSize = 10.sp)
+                Spacer(Modifier.height(11.dp))
+                Text(
+                    "Songs for\nevery feeling.",
+                    color = White, fontWeight = FontWeight.Black, fontSize = 29.sp,
+                    lineHeight = 32.sp, letterSpacing = (-1).sp
+                )
+                Spacer(Modifier.height(11.dp))
+                Text("From heartbreak to pure hype.", color = Color(0xFFDDD0EB),
+                    fontSize = 11.sp, lineHeight = 16.sp)
+                Spacer(Modifier.height(15.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                    Text(
+                        "EXPLORE SONGS",
+                        color = White, fontSize = 9.sp, letterSpacing = 0.5.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        modifier = Modifier.clip(RoundedCornerShape(18.dp))
+                            .background(Color(0xFF8156B3)).clickable(onClick = onSongs)
+                            .padding(horizontal = 12.dp, vertical = 11.dp)
+                    )
+                    Icon(
+                        Icons.Filled.ArrowForward,
+                        contentDescription = null, tint = Lavender,
+                        modifier = Modifier.size(16.dp).align(Alignment.CenterVertically)
+                    )
+                }
+            }
+            AlbumCover(
+                album = "Legends Never Die",
+                modifier = Modifier.width(123.dp).aspectRatio(0.87f)
+                    .clip(RoundedCornerShape(16.dp)),
+                title = "Juice WRLD"
+            )
+        }
+    }
+}
+
+private fun moodColors(mood: Mood): List<Color> = when (mood) {
+    Mood.LOVE -> listOf(Color(0xFF914466), Color(0xFF2D1C3F))
+    Mood.HEARTBREAK -> listOf(Color(0xFF754461), Color(0xFF231C35))
+    Mood.SAD -> listOf(Color(0xFF4D547E), Color(0xFF1B223D))
+    Mood.HYPE -> listOf(Color(0xFF78444E), Color(0xFF342137))
+    Mood.CHILL -> listOf(Color(0xFF376E77), Color(0xFF1A3448))
+    else -> listOf(Color(0xFF6F5187), Color(0xFF241D34))
+}
+
+@Composable
+private fun FeelingCard(mood: Mood, selected: Boolean, count: Int, onClick: () -> Unit) {
+    Box(
+        Modifier.width(135.dp).height(112.dp).clip(RoundedCornerShape(18.dp))
+            .background(Brush.linearGradient(moodColors(mood)))
+            .clickable(onClick = onClick)
+    ) {
+        Text("9", fontSize = 112.sp, fontWeight = FontWeight.Black,
+            color = White.copy(alpha = 0.09f),
+            modifier = Modifier.align(Alignment.CenterEnd).offset(x = 12.dp, y = (-23).dp))
+        Column(
+            Modifier.fillMaxSize().padding(14.dp), verticalArrangement = Arrangement.Bottom
+        ) {
+            Text(mood.label, color = White, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
+            Spacer(Modifier.height(4.dp))
+            Text(count.toString() + " songs", color = White.copy(alpha = .75f), fontSize = 11.sp)
+        }
+        if (selected) {
+            Box(
+                Modifier.align(Alignment.TopEnd).padding(9.dp).size(8.dp)
+                    .clip(CircleShape).background(White)
+            )
+        }
+    }
+}
+
+@Composable
+private fun FanSearch(text: String, onTextChange: (String) -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().height(53.dp).clip(RoundedCornerShape(16.dp))
+            .background(Panel).padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(Icons.Filled.Search, contentDescription = null, tint = Gray,
+            modifier = Modifier.size(20.dp))
+        Spacer(Modifier.width(12.dp))
+        BasicTextField(
+            value = text, onValueChange = onTextChange, singleLine = true,
+            modifier = Modifier.weight(1f).semantics { contentDescription = "Search Juice WRLD songs" },
+            cursorBrush = SolidColor(Lavender),
+            textStyle = TextStyle(fontSize = 14.sp, color = White),
+            decorationBox = { inner ->
+                Box {
+                    if (text.isEmpty()) Text("Search songs or albums", color = Gray, fontSize = 14.sp)
+                    inner()
+                }
+            }
+        )
+        if (text.isNotEmpty()) {
+            IconButton(onClick = { onTextChange("") }, modifier = Modifier.size(34.dp)) {
+                Icon(Icons.Filled.Close, contentDescription = "Clear search", tint = Gray,
+                    modifier = Modifier.size(19.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun MoodChip(mood: Mood, selected: Boolean, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier.height(40.dp).clip(CircleShape)
+            .background(if (selected) White else Panel)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 15.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(5.dp)
+    ) {
+        if (mood == Mood.FAVORITES) {
+            Icon(
+                Icons.Filled.Favorite,
+                tint = if (selected) Color(0xFF954D6A) else Rose,
+                contentDescription = null, modifier = Modifier.size(13.dp)
+            )
+        }
+        Text(mood.label, color = if (selected) Night else Gray, fontSize = 12.sp,
+            fontWeight = FontWeight.Bold)
+    }
+}
+
+@Composable
+private fun SongRow(
+    song: FanSong, favorite: Boolean, attached: Boolean, playing: Boolean,
+    onFavorite: () -> Unit, onOpen: () -> Unit, onPlay: () -> Unit
+) {
+    Row(
+        Modifier.fillMaxWidth().heightIn(min = 80.dp)
+            .clickable(onClick = onOpen)
+            .padding(start = 22.dp, end = 17.dp, top = 8.dp, bottom = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        AlbumCover(song.album, Modifier.size(58.dp).clip(RoundedCornerShape(13.dp)), song.title)
+        Spacer(Modifier.width(13.dp))
+        Column(Modifier.weight(1f)) {
+            Text(song.title, color = White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold,
+                maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Spacer(Modifier.height(5.dp))
+            Text(song.album, color = Gray, fontSize = 11.sp,
+                maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        if (playing) {
+            Text("♪", color = Lavender, fontSize = 20.sp,
+                modifier = Modifier.padding(horizontal = 4.dp))
+        } else if (attached) {
+            IconButton(onClick = onPlay, modifier = Modifier.size(39.dp)) {
+                Icon(Icons.Filled.PlayArrow, tint = Lavender,
+                    contentDescription = "Play " + song.title + " from device", modifier = Modifier.size(23.dp))
+            }
+        }
+        IconButton(
+            onClick = onFavorite,
+            modifier = Modifier.size(41.dp).semantics {
+                contentDescription = if (favorite) "Unfavorite " + song.title else "Favorite " + song.title
+            }
+        ) {
+            Icon(
+                if (favorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                tint = if (favorite) Rose else Color(0xFF80798D),
+                contentDescription = null, modifier = Modifier.size(20.dp)
+            )
+        }
+    }
+}
+
+private fun albumArt(album: String): String? = when (album) {
+    "Goodbye & Good Riddance" -> "https://coverartarchive.org/release/e129a939-e8df-45b6-a04c-a2bd6bf992d7/front-250"
+    "Death Race for Love" -> "https://coverartarchive.org/release/c89c95de-e9b6-453a-a593-45e3a28eb256/front-250"
+    "Legends Never Die" -> "https://coverartarchive.org/release/a9820d2a-86f3-44c8-82d7-e05e28d4a5f2/front-250"
+    "Fighting Demons" -> "https://coverartarchive.org/release/1900e0cf-4cd9-4681-93d3-0c71bf88771f/front-250"
+    else -> null
+}
+
+@Composable
+private fun AlbumCover(album: String, modifier: Modifier, title: String) {
+    val art = albumArt(album)
+    if (art == null) {
+        CoverPlaceholder(album, modifier)
+    } else {
+        SubcomposeAsyncImage(
+            model = art,
+            contentDescription = album + " album artwork",
+            modifier = modifier, contentScale = ContentScale.Crop,
+            loading = { CoverPlaceholder(album, Modifier.fillMaxSize()) },
+            error = { CoverPlaceholder(album, Modifier.fillMaxSize()) },
+            success = { SubcomposeAsyncImageContent(contentScale = ContentScale.Crop) }
+        )
+    }
+}
+
+@Composable
+private fun CoverPlaceholder(album: String, modifier: Modifier) {
+    val seed = (album.hashCode() and Int.MAX_VALUE) % 5
+    val tone = listOf(
+        listOf(Color(0xFF75466C), Color(0xFF242036)),
+        listOf(Color(0xFF394D84), Color(0xFF1A1F39)),
+        listOf(Color(0xFF69508A), Color(0xFF25203D)),
+        listOf(Color(0xFF89566B), Color(0xFF322039)),
+        listOf(Color(0xFF486F77), Color(0xFF202B37))
+    )[seed]
+    Box(
+        modifier.background(Brush.linearGradient(tone)),
+        contentAlignment = Alignment.Center
+    ) {
+        Text("999", fontSize = 30.sp, fontWeight = FontWeight.Black,
+            color = White.copy(alpha = 0.43f), letterSpacing = (-1.6).sp)
+    }
+}
+
+@Composable
+private fun FanEmpty(mood: Mood, search: String) {
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(top = 45.dp, bottom = 35.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(Icons.Filled.MusicNote, contentDescription = null, tint = Lavender,
+            modifier = Modifier.size(32.dp))
+        Spacer(Modifier.height(13.dp))
+        Text(
+            if (mood == Mood.FAVORITES && search.isEmpty())
+                "No favorites yet"
+            else "No matching songs",
+            fontWeight = FontWeight.Bold, fontSize = 17.sp, color = White
+        )
+        Spacer(Modifier.height(6.dp))
+        Text(
+            if (mood == Mood.FAVORITES && search.isEmpty())
+                "Heart a song and find it here."
+            else "Try another feeling or search.",
+            color = Gray, fontSize = 12.sp
+        )
+    }
+}
+
+@Composable
+private fun MiniPlayer(
+    state: FanPlayerState, song: FanSong?,
+    onToggle: () -> Unit, onSkip: (Int) -> Unit,
+    onSeek: (Float) -> Unit, onOpen: () -> Unit
+) {
+    if (song == null) return
+    Column(Modifier.fillMaxWidth().background(Color(0xFF1D182B))) {
+        LinearProgressIndicator(
+            progress = {
+                if (state.durationMs > 0) state.positionMs.toFloat() / state.durationMs
+                else 0f
+            },
+            modifier = Modifier.fillMaxWidth().height(2.dp),
+            color = Lavender, trackColor = Color(0xFF453752)
+        )
+        Row(
+            Modifier.fillMaxWidth().heightIn(min = 64.dp).padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            AlbumCover(song.album, Modifier.size(42.dp).clip(RoundedCornerShape(10.dp)), song.title)
+            Spacer(Modifier.width(10.dp))
+            Column(Modifier.weight(1f).clickable(onClick = onOpen)) {
+                Text(song.title, fontSize = 13.sp, color = White, fontWeight = FontWeight.Bold,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Spacer(Modifier.height(2.dp))
+                Text("From your device", fontSize = 11.sp, color = Gray)
+            }
+            IconButton(onClick = { onSkip(-1) }, modifier = Modifier.size(36.dp)) {
+                Icon(Icons.Filled.SkipPrevious, contentDescription = "Previous imported song",
+                    tint = White)
+            }
+            IconButton(
+                onClick = onToggle, modifier = Modifier.size(43.dp).clip(CircleShape)
+                    .background(Lavender),
+                enabled = !state.isPreparing,
+            ) {
+                if (state.isPreparing) {
+                    CircularProgressIndicator(modifier = Modifier.size(17.dp),
+                        strokeWidth = 2.dp, color = Night)
+                } else {
+                    Icon(
+                        if (state.isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                        contentDescription = if (state.isPlaying) "Pause" else "Play",
+                        tint = Night, modifier = Modifier.size(23.dp)
+                    )
+                }
+            }
+            IconButton(onClick = { onSkip(1) }, modifier = Modifier.size(36.dp)) {
+                Icon(Icons.Filled.SkipNext, contentDescription = "Next imported song", tint = White)
+            }
+        }
+        if (state.durationMs > 0) {
+            var dragging by remember(state.activeSongId) { mutableStateOf<Float?>(null) }
+            Slider(
+                value = dragging ?: (state.positionMs.toFloat() / state.durationMs).coerceIn(0f, 1f),
+                onValueChange = { dragging = it },
+                onValueChangeFinished = {
+                    dragging?.let(onSeek)
+                    dragging = null
+                },
+                modifier = Modifier.fillMaxWidth().height(19.dp).padding(horizontal = 15.dp),
+                colors = SliderDefaults.colors(thumbColor = Lavender, activeTrackColor = Lavender,
+                    inactiveTrackColor = Color(0xFF4C435B))
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SongSheet(
+    song: FanSong, favorite: Boolean, attached: Boolean,
+    playing: Boolean, preparing: Boolean,
+    onDismiss: () -> Unit, onFavorite: () -> Unit,
+    onPlay: () -> Unit, onPickFile: () -> Unit, onOfficial: () -> Unit
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss, containerColor = Color(0xFF181521),
+        contentColor = White, dragHandle = {
+            Box(
+                Modifier.padding(top = 12.dp, bottom = 18.dp).width(46.dp).height(4.dp)
+                    .clip(CircleShape).background(Color(0xFF696174))
+            )
+        }
+    ) {
+        Column(
+            Modifier.fillMaxWidth().padding(horizontal = 23.dp)
+                .navigationBarsPadding().padding(bottom = 25.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            AlbumCover(
+                song.album, Modifier.size(152.dp).clip(RoundedCornerShape(20.dp)), song.title
+            )
+            Spacer(Modifier.height(16.dp))
+            Text(song.title, color = White, fontSize = 25.sp,
+                fontWeight = FontWeight.Black, textAlign = TextAlign.Center)
+            Spacer(Modifier.height(6.dp))
+            Text(song.album + " · " + song.year, color = Gray, fontSize = 12.sp)
+            Spacer(Modifier.height(14.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
+                song.moods.take(2).forEach { mood ->
+                    Text(
+                        mood.label, color = Lavender, fontWeight = FontWeight.Bold,
+                        fontSize = 11.sp,
+                        modifier = Modifier.clip(CircleShape).background(Panel2)
+                            .padding(horizontal = 12.dp, vertical = 7.dp)
+                    )
+                }
+            }
+            Spacer(Modifier.height(20.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Button(
+                    onClick = if (attached) onPlay else onPickFile,
+                    enabled = !preparing,
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Lavender, contentColor = Night),
+                    modifier = Modifier.weight(1f).height(50.dp)
+                ) {
+                    Icon(
+                        if (attached) {
+                            if (playing) Icons.Filled.Pause else Icons.Filled.PlayArrow
+                        } else Icons.Filled.UploadFile,
+                        contentDescription = null, modifier = Modifier.size(19.dp)
+                    )
+                    Spacer(Modifier.width(7.dp))
+                    Text(
+                        if (attached) {
+                            if (playing) "Pause audio" else "Play my audio"
+                        } else "Add audio file",
+                        fontWeight = FontWeight.Bold, fontSize = 13.sp
+                    )
+                }
+                IconButton(
+                    onClick = onFavorite,
+                    modifier = Modifier.size(50.dp).clip(RoundedCornerShape(14.dp))
+                        .background(Panel2)
+                ) {
+                    Icon(
+                        if (favorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                        contentDescription = if (favorite) "Remove favorite" else "Add favorite",
+                        tint = if (favorite) Rose else White
+                    )
+                }
+            }
+            Spacer(Modifier.height(11.dp))
+            OutlinedButton(
+                onClick = onOfficial, modifier = Modifier.fillMaxWidth().height(48.dp),
+                border = BorderStroke(1.dp, Hairline),
+                shape = RoundedCornerShape(14.dp)
+            ) {
+                Icon(Icons.Filled.OpenInNew, contentDescription = null, tint = White,
+                    modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(9.dp))
+                Text("Listen on YouTube Music", color = White,
+                    fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+            }
+            if (attached) {
+                TextButton(onClick = onPickFile) {
+                    Text("Replace audio file", color = Gray, fontSize = 12.sp)
+                }
+            } else {
+                Text(
+                    "Add your own audio to listen inside the app. No copyrighted recordings are included.",
+                    color = Gray, fontSize = 11.sp, lineHeight = 16.sp,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(start = 15.dp, end = 15.dp, top = 11.dp)
+                )
+            }
+        }
+    }
+}
+
+private fun openOfficialSong(context: Context, song: FanSong) {
+    val q = Uri.encode("Juice WRLD " + song.title)
+    val url = "https://music.youtube.com/search?q=" + q
+    try {
+        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+    } catch (_: ActivityNotFoundException) {
+        android.widget.Toast.makeText(context, "No browser available",
+            android.widget.Toast.LENGTH_SHORT).show()
+    }
+}
