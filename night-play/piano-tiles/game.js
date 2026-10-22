@@ -158,6 +158,10 @@ async function begin(){
   // Decode on the player's gesture, cache on-device and only then start.
   await window.NightPiano.prepare();
   clearRun();running=true;paused=false;ended=false;
+  // Start with the first key already visible and descending; do not make
+  // players stare at an empty piano board for the first second or two.
+  // The key still takes ~0.9s to reach the natural lower playing area.
+  elapsed=Math.max(0,notes[0].at-.90);
   document.body.classList.add("is-playing");
   $("cover").hidden=true;$("restart").hidden=false;
   setPauseButton();$("status").textContent="Tap any visible tile";
