@@ -28,6 +28,7 @@ class PuzzleStore(private val context: Context) {
         root.put("seed",g.seed);root.put("image",g.imageKey)
         root.put("hints",g.hintsRemaining);root.put("moves",g.moves)
         root.put("preview",g.preview)
+        root.put("landscape",g.landscapeMode)
         val arr=JSONArray()
         g.pieces.forEach { p ->
             arr.put(JSONArray().put(p.x.toDouble()).put(p.y.toDouble()).put(p.placed))
@@ -53,7 +54,8 @@ class PuzzleStore(private val context: Context) {
         if (image=="custom" && !photoFile.exists()) return null
         PuzzleGame.restore(obj.getInt("cols"),obj.getInt("rows"),obj.getLong("seed"),
             image, positions, obj.optInt("hints",3),
-            obj.optInt("moves",0),obj.optBoolean("preview",false))
+            obj.optInt("moves",0),obj.optBoolean("preview",false),
+            obj.optBoolean("landscape",false))
     }.getOrNull()
 
     fun loadPhoto(): Bitmap? = BitmapFactory.decodeFile(photoFile.absolutePath)
