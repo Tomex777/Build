@@ -34,6 +34,12 @@ class AnnieCanvasDocumentTest {
         assertTrue(page.contains("default-src 'none'"))
         assertTrue(page.contains("connect-src 'none'"))
         assertTrue(page.contains("form-action 'none'"))
+        assertTrue("Canvas host hooks must load ahead of user JS",
+            page.indexOf("__annieCanvasHost") < page.indexOf("window.counterReady = true;"))
+        assertTrue(page.contains("window.__annieCanvasInitiallyPaused = false;"))
+        assertTrue(page.contains("html.annie-host-paused *"))
+        assertFalse("Canvas must never expose a privileged Android bridge",
+            page.contains("addJavascriptInterface"))
         assertFalse(page.contains("https://"))
     }
 
@@ -63,8 +69,20 @@ class AnnieCanvasDocumentTest {
         val page = canvas.page()
         assertTrue(page.contains("<\\/STYLE>"))
         assertTrue(page.contains("<\\/SCRIPT>"))
-        assertEquals(1, Regex("</script>", RegexOption.IGNORE_CASE).findAll(page).count())
+        assertEquals(2, Regex("</script>", RegexOption.IGNORE_CASE).findAll(page).count())
         assertEquals(1, Regex("</style>", RegexOption.IGNORE_CASE).findAll(page).count())
+    }
+
+    @Test fun initiallySuspendedCanvasRunsBootstrapBeforeNestedUserScripts() {
+        val canvas = AnnieCanvasDocument(
+            "Paused", "<script>window.started = true;</script>",
+            "", "window.afterHtml = true;", 220
+        )
+        val page = canvas.page(initiallyPaused = true)
+        assertTrue(page.contains("window.__annieCanvasInitiallyPaused = true;"))
+        assertTrue(page.indexOf("__annieCanvasHost") < page.indexOf("window.started = true;"))
+        assertTrue(page.indexOf("__annieCanvasHost") < page.indexOf("window.afterHtml = true;"))
+        assertTrue(page.contains("connect-src 'none'"))
     }
 
 }
