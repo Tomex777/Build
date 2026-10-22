@@ -522,7 +522,13 @@ class MainActivity : ComponentActivity() {
                         Text("Continue saved puzzles")
                     }
                     val savedPhotos=remember(libraryPicker,libraryRevision){store.listPhotos()}
-                    Text("${savedPhotos.size} saved · ${store.savedPhotoBytes()/1_048_576} MB",
+                    val storedBytes=remember(libraryPicker,libraryRevision){
+                        store.savedPhotoBytes()
+                    }
+                    val photoKeysInUse=remember(libraryPicker,libraryRevision){
+                        store.unfinished().map{it.picture}.toSet()
+                    }
+                    Text("${savedPhotos.size} saved · ${storedBytes/1_048_576} MB",
                         color=muted,fontSize=11.sp)
                     LazyColumn(Modifier.heightIn(max=320.dp),
                         verticalArrangement=Arrangement.spacedBy(5.dp)) {
@@ -571,7 +577,7 @@ class MainActivity : ComponentActivity() {
                                 }
                             }
                             if(entry.key!=game.imageKey &&
-                                store.unfinished().none{it.picture==entry.key}) {
+                                entry.key !in photoKeysInUse) {
                                 TextButton(onClick={photoToRemove=entry}) {
                                     Text("Remove",fontSize=11.sp)
                                 }
