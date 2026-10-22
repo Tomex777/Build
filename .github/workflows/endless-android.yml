@@ -7,6 +7,7 @@ on:
       - endless-realism-20261013
       - feature/endless-grounded-walking-20261020
       - feature/endless-terrain-lighting-20261022
+      - agent1/endless-oblate-ring-shadow-20261022
   workflow_dispatch:
 
 concurrency:
