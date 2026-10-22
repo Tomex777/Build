@@ -529,7 +529,7 @@ private fun ScriptStudioContent(
                 page = StudioPage.EDITOR
                 status = "Imported ${staged.second} · review and enable to run"
             } else {
-                require(file.extension.equals("zip", true)) {
+                require(file.extension.lowercase() in setOf("zip", "annie")) {
                     "Choose a supported code document, or use ZIP to import a package"
                 }
                 val cached = withContext(Dispatchers.IO) {
