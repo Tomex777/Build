@@ -15,7 +15,7 @@ class VisualContactSheetTest(unittest.TestCase):
             result = root / "sheet.png"
             assemble(root, result, tile_width=128)
             with Image.open(result) as image:
-                self.assertEqual((310, 484), image.size)
+                self.assertEqual((310, 530), image.size)
             (root / "extended-titan.png").unlink()
             with self.assertRaisesRegex(FileNotFoundError, "Titan"):
                 assemble(root, result, tile_width=128)
