@@ -100,6 +100,9 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -149,6 +152,19 @@ private val Blue = Color(0xFF168EEA)
 private val SoftText = Color(0xFF9CB2CC)
 private val BrightText = Color(0xFFEEF5FF)
 private val Teal = Color(0xFF54D6AE)
+
+// Only unsent text is stored in saved instance state. The actual chat history
+// remains in ChatHistoryStore; never save a MediaRecorder or speech session.
+private val chatDraftSaver = listSaver<SnapshotStateMap<String, TextFieldValue>, String>(
+    save = { drafts -> drafts.entries.flatMap { (id, value) -> listOf(id, value.text) } },
+    restore = { values ->
+        mutableStateMapOf<String, TextFieldValue>().apply {
+            values.chunked(2).forEach { pair ->
+                if (pair.size == 2) put(pair[0], TextFieldValue(pair[1], selection = TextRange(pair[1].length)))
+            }
+        }
+    },
+)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -238,7 +254,7 @@ internal fun AnnieChat() {
             if (isEmpty()) add(newWelcomeChat())
         }
     }
-    var activeChatId by remember { mutableStateOf(chats.first().id) }
+    var activeChatId by rememberSaveable { mutableStateOf(chats.first().id) }
     val activeChat = chats.firstOrNull { it.id == activeChatId } ?: chats.first()
     val character = AnnieCharacters.byId(activeChat.characterId)
     val messages = activeChat.messages
@@ -256,7 +272,7 @@ internal fun AnnieChat() {
     )
     // Keep unsent text isolated per conversation. Switching personas or reopening an
     // existing chat must not erase the draft or show another chat's private text.
-    val chatDrafts = remember { mutableStateMapOf<String, TextFieldValue>() }
+    val chatDrafts = rememberSaveable(saver = chatDraftSaver) { mutableStateMapOf<String, TextFieldValue>() }
     val draft = chatDrafts[activeChatId] ?: TextFieldValue("")
     var lastSentMessageId by remember { mutableStateOf<Long?>(null) }
     val animatedMessageIds = remember { mutableStateMapOf<Long, Boolean>() }
