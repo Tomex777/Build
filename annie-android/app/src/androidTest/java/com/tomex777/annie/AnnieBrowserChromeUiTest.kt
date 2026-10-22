@@ -124,6 +124,7 @@ class AnnieBrowserChromeUiTest {
         rule.onNodeWithTag("annie_browser_tab_switcher").performClick()
         rule.onNodeWithTag("annie_browser_tab_private").performClick()
         rule.onNodeWithTag("annie_browser_tabs_address").assertTextEquals("https://example.org")
+        rule.onNodeWithContentDescription("Private browsing").assertIsDisplayed()
     }
 
     @Test
