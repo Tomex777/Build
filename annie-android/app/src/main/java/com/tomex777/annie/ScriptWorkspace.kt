@@ -486,7 +486,7 @@ internal class ScriptFiles(context: Context) : PackageAssetResolver {
         // Imported document-only projects can remove their sole entry file.
         // Remove an empty project container so it cannot become a hidden,
         // non-editable orphan after deleting its final document.
-        if (relativePath == entry && project.listFiles().orEmpty().isEmpty()) {
+        if (relativePath == entry && project.walkTopDown().none { it.isFile }) {
             deleteProject(projectId)
         }
     }
