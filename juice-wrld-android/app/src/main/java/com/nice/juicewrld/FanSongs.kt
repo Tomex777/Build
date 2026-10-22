@@ -118,7 +118,7 @@ object SongFileMatcher {
         "remix", "instrumental", "cover", "karaoke", "nightcore", "slowed", "spedup"
     )
     private fun tokens(text: String): List<String> =
-        text.lowercase().split(separator).filter { it.isNotBlank() }
+        text.lowercase().replace("&", " and ").split(separator).filter { it.isNotBlank() }
 
     fun matchFilename(filename: String): FanSong? {
         val ext = filename.substringAfterLast('.', "").lowercase()
