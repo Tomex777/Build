@@ -1,0 +1,57 @@
+# NIGHT Channels — Agent D: captions and branding
+
+This directory is a **standalone, server-side component**, deliberately not wired into the live MSCC router or NIGHT Play UI. See `night-play/channels/AGENTS.md` and coordination [#568](https://github.com/Tomex777/Build/issues/568). It is **not live** and must not be treated as an authorization layer.
+
+## Contracts to Agent A / Agent C
+
+Each verified channel may opt in to branding independently. Suggested server-side revisioned fields (all OFF by default):
+
+```json
+{
+  "branding": {
+    "captionReplacementsEnabled": false,
+    "captionReplacements": [{"from": "what the fuck", "to": "WTF"}],
+    "signatureEnabled": false,
+    "posterName": "",
+    "watermarkEnabled": false,
+    "watermarkOpacity": 0.22,
+    "watermarkPosition": "auto",
+    "watermarkStyleVersion": 1
+  }
+}
+```
+
+A must never describe local-only options as saved. C must validate values against verified, owner+channel+bot-account-scoped durable storage before enqueue AND final send. An image processing success is not proof a WhatsApp Channel post was delivered.
+
+**Canonical preview/send transformation:** `prepareChannelContent({text,mediaBuffer,channelId,verifiedDisplayName,posterName,sourceKind:'manual'|'automation',branding,maxUtf8Bytes,rendererVerifiedEmoji,approvedFallbackPng,watermarkCache})` in `prepare.mjs`. It defaults every feature OFF, returns the original bytes unchanged when watermark is OFF, and rejects malformed enabled transformations. Use **the same helper** for A's authenticated server-rendered preview and C's final send to avoid what-you-saw/what-was-posted differences. It does *not* verify access or send: those are C's independently enforced gates.
+
+**Exact emoji-name fallback integration:** when host color emoji is NOT certified, `approvedFallbackPng` may carry a **trusted server-stored**, owner-approved overlay from an authenticated channel identity/asset approval flow. D passes it through unchanged from the single preview/send helper to Sharp; it must never be taken from a raw client request or auto-rendered from a different name. A **preferred optional format** is `{light: <approved light-ink PNG Buffer>, dark: <approved dark-ink PNG Buffer>}`: the compositor chooses the variant matching sampled destination contrast (light ink on a dark photo; dark ink on a light photo), with a distinct hash/cache key for each. Both variants must be separately owner-reviewed and must depict the **same exact verified Unicode channel name**, preserving color emojis. A single Buffer remains supported for existing callers but needs visual review on **both** light and dark backgrounds; recoloring a single PNG automatically would corrupt multicolor glyphs. The selected fallback must be reapproved on channel rename, unlink, account change, and branding revision; bind the approval to the immutable verified channel JID + **exact display-name bytes/hash** + overlay hash. The asset must be a static PNG with an alpha channel; opaque logo rectangles and layers that become practically invisible at the selected final opacity are rejected. Owner visual approval is still required because software cannot prove the text inside a PNG equals the verified channel name. No emoji-font certification flag is set simply because a fallback exists. Missing fallback on unverified-emoji host **fails closed**.
+
+**Caption resource guard:** raw caption input is capped before Unicode/regex transformations at `max(8192, 4 * maxUtf8Bytes)` UTF-8 bytes, in addition to the final formatted caption byte budget. Malformed *enabled* replacement rule arrays fail closed rather than silently removing configured replacements.
+
+**Authorship boundary:** `sourceKind:'manual'` accepts a signature only from the actual authenticated poster provided by C in `posterName` (never a configurable auto persona); `sourceKind:'automation'` may sign only with the owner-configured canonical `branding.posterName`, and fails closed when missing. Never derive the manual poster from a client-supplied name or from the channel's display name. Browser preview and final send must use the same author source. For reviewed and scheduled content, C must freeze the approved caption, author and watermark revision into an immutable approval snapshot: a later account/profile rename must not silently alter the reviewed post, and module OFF/revoked admin must still prevent final sending. Agent A currently stores `branding.posterName`, so that is the **canonical saved/transport field**. The D bridge temporarily accepts an older `signaturePosterName` only if no conflicting `posterName` exists; conflicting nonempty values fail closed until C migrates. C should persist one field (`posterName`), not two.
+
+Caption: `composeChannelCaption({text,replacements:{enabled,rules},poster:{enabled,name},maxUtf8Bytes})`. The poster is the actual person/pseudonym explicitly specified by the poster (or an explicitly configured automatic-content persona); it is **not** the channel display name. Output signature uses a WhatsApp-text `> PERSON` line. WhatsApp's actual rendering must be tested on the **approved beta fork/test channel** before production, and a fallback must be verified if blockquotes differ.
+
+Watermark: `makeReusableWatermark({channelId,displayName,tone,opacity,styleVersion,cache,...})` returns PNG bytes with the same verified channel name (without NFC/ASCII/emoji/ZWJ transformations); `watermarkStaticImage({input,channelId,displayName,cache,opacity,position,...})` composes JPEG/PNG/WebP. `WatermarkCache.invalidateChannel(jid)` on rename, unlink, revocation or transfer. Do not trust a client-supplied channel name: take it from the server's original verified WhatsApp metadata, and ensure the upstream `mscc/night-play-channels.js` sanitiser is corrected — its reported `\p{Cf}` removal currently breaks U+200D emoji and surrogate-pair truncation. **Do not silently watermark with a corrupted name.**
+
+## Security / memory / visual notes
+
+- Exported media transformations **do not post** or schedule anything. Agent C owns SQLite config/queue/permissions, final-send recheck and fork-specific media upload.
+- Text replacements are opt-in, one-pass, phrase/Unicode word-boundary aware; do not advertise them as evading WhatsApp moderation. No OCR or in-image language recognition.
+- Render name with existing `@napi-rs/canvas` Skia engine. On the deployment host register licensed, appropriate Unicode + color emoji fonts using `GlobalFonts.registerFromPath(...)` as required; no font files should be attached to users. Sharp's SVG text path was **visually observed** producing monochrome/missing emojis, so this implementation deliberately does not use it for text shaping.
+- **Fail closed for emoji names** until actual server-side color-emoji/RTL/ZWJ screenshots have been reviewed and the caller explicitly sets `colorEmojiVerified:true`. A user-approved transparent PNG overlay is available as a controlled fallback. The fallback image must visually correspond to the channel's exact name; software cannot infer this just from PNG pixels.
+- Uniform final-layer alpha `0.15–0.30` dims **both text and colored emoji**, not just the SVG fill. Asset key includes exact full channel name, channel JID, tone, dimensions, style revision and opacity; no cross-channel reuse.
+- Single bounded image worker is required in C. Max input 8 MiB, 4 MP, source types JPEG/PNG/static WebP, max reusable layer 1024×256 (~1 MiB raw RGBA), output <= 8 MiB; GIF/video/multipage rejection. Measured in isolated local Node 22 / Sharp 0.34.1: eight flat 3000×2000 jobs ~1.9s / peak ~163 MiB RSS, but eight high-entropy 3000×2000 JPEG jobs ~18.6s / peak ~288 MiB RSS; eight high-entropy 2400×1600 jobs ~11.6s / peak ~251 MiB RSS. A 4000×3000 run peaked ~343 MiB. Accordingly the first-release cap is 4 MP (not an assertion of production 1 GB safety). These are synthetic local results, **not** proof of available memory in MSCC Azure. Real Azure+multi-account RSS requires independent measurement. Quiet-corner positioning is a *heuristic*, not OCR or punchline detection; review mode still gives human placement control. Corner scoring now samples the actual projected watermark footprint rather than a narrower unrelated region, and `watermarkStaticImage(...).warnings` flags visually busy placements for manual review. Warnings must be surfaced by C's preview metadata and acted on by A/owner; they are **not** automated image-text recognition.
+- `sharp` is **not yet in** `mscc/package.json` at the inspected head. The isolated module intentionally does not modify C's package/lock files. C/maintainer must install, pin, budget and check Sharp under the protected MSCC release workflow before integrating.
+- **Follow-up resource fixture (22 Oct 2026, local only):** independently rebuilt an analogous single-job Sharp JPEG composite with a high-entropy 2400×1600 (3.84 MP) source and eight serial operations, sampling process RSS every 10 ms while the native operations ran: 2,774 samples; ~252 MiB peak RSS, 64 MiB measured baseline, ~29 s total. This is a synthetic proxy workload, **not** the exact checked-out D module and **not** the live multi-account Azure server. D's `resource-bench.mjs` now samples in-flight RSS instead of only post-job RSS, but has not been rerun on the target host. Production memory gate stays open.
+
+Recommended tests after the dependency exists: `node mscc/channel-branding/caption.test.mjs`, `node mscc/channel-branding/prepare.test.mjs`, `node mscc/channel-branding/watermark.test.mjs`, `node mscc/channel-branding/integration.test.mjs` (the two image tests require pinned `sharp`). The integration check asserts **byte-for-byte parity** for immutable authorized preview/send inputs and different asset keys when approval-relevant opacity changes. The bounded resource probe is `node mscc/channel-branding/resource-bench.mjs` (isolated workload only). Development-only visual evidence using Chromium+Noto Color Emoji does **not** certify Skia on the Azure bot host or a WhatsApp-published media item.
+
+## Visual acceptance evidence (development only)
+
+Manually inspected a transparent color-emoji layer and separate dark/light 1200×680 composite fixtures. The new `font-visual-probe.mjs` now emits `native-transparent-watermark.png`, `native-composited-dark.png`, and `native-composited-light.png` on a real host, but **these new files have not yet been generated or reviewed on Azure**. Both show legible exact Unicode and translucent emoji while leaving the underlying source unobscured; the light fixture is intentionally pale at 25% alpha. **These are Chromium font visual references, NOT screenshots of @napi-rs/canvas on Azure, actual WhatsApp channel publication, or a combined-preview web control.** The target-host `font-visual-probe.mjs` must still be run with approved fonts and its PNGs inspected before enabling emoji output.
+
+## Acceptance before release
+
+Validate nickname `NIGHT 👩🏽‍💻`, mixed RTL/Latin, stylized combining marks, flags, skin tones and long names on the exact host font set. Inspect actual transparent PNG and composited JPEG/PNG/WebP, opacity and position on both dark and light busy images. Check 320/360/390/412 phone preview layouts with A and the real main combined-preview URL after integration. C must test owner separation, OFF/revoke, upload/retry, 1 GB RSS, and unauthorized-channel refusal, then stage separate protected Azure release only with approval.
