@@ -37,6 +37,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -113,6 +114,8 @@ internal class AnnieBrowserChromeActions(
     val openSaved: (String) -> Unit,
     val toggleDesktop: () -> Unit,
     val share: () -> Unit,
+    /** Absent until Agent 1's GPLv3 Omni WebExtension engine is actually bound. */
+    val universalCopy: ((Boolean) -> Unit)? = null,
 )
 
 private val ChromeBorder = Color(0xFF263C52)
@@ -141,6 +144,8 @@ internal fun AnnieBrowserChrome(
     var panel by remember { mutableStateOf<String?>(null) }
     var tabsOpen by remember { mutableStateOf(false) }
     var menuOpen by remember { mutableStateOf(false) }
+    var universalCopyEnabled by remember { mutableStateOf(false) }
+    val canCreateTab = state.tabs.size < 20
     var navigationSerial by remember { mutableStateOf(0) }
     val pageFocus = remember(active.id) { FocusRequester() }
 
@@ -168,7 +173,12 @@ internal fun AnnieBrowserChrome(
             navigationSerial++
         }
     }
-    BackHandler(enabled = panel != null || tabsOpen || editing || active.canBack) {
+    // The page tool injects a WebExtension into sites. It is explicitly opt-in
+    // and must be disabled when the user leaves this browser UI.
+    DisposableEffect(actions.universalCopy) {
+        onDispose { actions.universalCopy?.invoke(false) }
+    }
+    BackHandler(enabled = menuOpen || panel != null || tabsOpen || editing || active.canBack) {
         when {
             menuOpen -> menuOpen = false
             tabsOpen -> tabsOpen = false
@@ -274,6 +284,7 @@ internal fun AnnieBrowserChrome(
                                 color = BrowserBrightText)
                             IconButton(
                                 onClick = { actions.newTab(false); tabsOpen = false },
+                                enabled = canCreateTab,
                                 modifier = Modifier.testTag("annie_browser_new_tab"),
                             ) {
                                 Icon(AnnieIcons.Add, contentDescription = "New tab", tint = BrowserTeal)
@@ -449,10 +460,10 @@ internal fun AnnieBrowserChrome(
                     Icon(AnnieIcons.More, contentDescription = "Browser menu", tint = BrowserBrightText)
                 }
                 DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                    DropdownMenuItem(text = { Text("New tab") }, onClick = {
+                    DropdownMenuItem(text = { Text("New tab") }, enabled = canCreateTab, onClick = {
                         menuOpen = false; actions.newTab(false); panel = null; tabsOpen = false
                     })
-                    DropdownMenuItem(text = { Text("New private tab") }, onClick = {
+                    DropdownMenuItem(text = { Text("New private tab") }, enabled = canCreateTab, onClick = {
                         menuOpen = false; actions.newTab(true); panel = null; tabsOpen = false
                     })
                     DropdownMenuItem(text = { Text("Bookmarks") }, onClick = {
@@ -466,6 +477,16 @@ internal fun AnnieBrowserChrome(
                     })
                     DropdownMenuItem(text = { Text(if (state.desktopMode) "Mobile site" else "Desktop site") },
                         onClick = { menuOpen = false; actions.toggleDesktop() })
+                    if (actions.universalCopy != null) {
+                        DropdownMenuItem(
+                            text = { Text(if (universalCopyEnabled) "Universal Copy: On" else "Universal Copy: Off") },
+                            onClick = {
+                                menuOpen = false
+                                universalCopyEnabled = !universalCopyEnabled
+                                actions.universalCopy.invoke(universalCopyEnabled)
+                            },
+                        )
+                    }
                     DropdownMenuItem(text = { Text("Share link") },
                         onClick = { menuOpen = false; actions.share() })
                 }
@@ -484,6 +505,8 @@ internal fun AnnieBrowserChrome(
 internal fun AnnieLegacyGeckoBrowserChrome(
     model: AnnieGeckoBrowserModel,
     onExit: () -> Unit,
+    /** Pass model::setUniversalCopy only after the actual Omni engine PR is integrated. */
+    universalCopy: ((Boolean) -> Unit)? = null,
 ) {
     val tab = model.active ?: return
     val state = AnnieBrowserChromeState(
@@ -500,7 +523,7 @@ internal fun AnnieLegacyGeckoBrowserChrome(
         history = model.history.map { AnnieBrowserChromeEntry(it.title, it.url) },
         desktopMode = tab.desktopMode,
     )
-    val actions = remember(model, tab.id) {
+    val actions = remember(model, tab.id, universalCopy) {
         AnnieBrowserChromeActions(
             exit = onExit,
             navigate = { input -> model.load(tab, input) },
@@ -514,6 +537,7 @@ internal fun AnnieLegacyGeckoBrowserChrome(
             openSaved = { address -> model.load(tab, address) },
             toggleDesktop = { model.toggleDesktop(tab) },
             share = { model.share(tab) },
+            universalCopy = universalCopy,
         )
     }
     AnnieBrowserChrome(
