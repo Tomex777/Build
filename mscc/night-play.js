@@ -55,6 +55,7 @@ export class NightPlay {
     }
     this.db.prepare('DELETE FROM play_channel_consent WHERE expires_at<=?').run(this.now())
     this.db.prepare("DELETE FROM play_channel_claims WHERE state!='connected' AND expires_at<=?").run(this.now())
+    this.channels.publisher.cleanup()
     this.partyRooms.cleanup()
     this.nextCleanup = this.now() + 60_000
   }
