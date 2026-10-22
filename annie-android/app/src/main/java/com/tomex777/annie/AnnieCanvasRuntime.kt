@@ -1,0 +1,142 @@
+package com.tomex777.annie
+
+/**
+ * Runs before any Canvas HTML or user JavaScript. All hooks stay inside this
+ * Canvas WebView. No Android bridge and no global WebView.pauseTimers().
+ *
+ * Timers and frames created while paused remain queued; intervals do not
+ * catch up missed ticks. rAF receives a virtual timestamp without the pause
+ * duration so an animation doesn't jump on resume.
+ */
+internal val CANVAS_LIFECYCLE_BOOTSTRAP = """
+(function () {
+  'use strict';
+  var originalTimeout = window.setTimeout.bind(window);
+  var originalClearTimeout = window.clearTimeout.bind(window);
+  var originalFrame = window.requestAnimationFrame.bind(window);
+  var originalCancelFrame = window.cancelAnimationFrame.bind(window);
+  var jobs = new Map();
+  var nextId = 1000000000;
+  var paused = window.__annieCanvasInitiallyPaused === true;
+  var pausedAt = paused ? performance.now() : 0;
+  var frameOffset = 0;
+  var suspendedMedia = [];
+  var suspendedAnimations = [];
+
+  function invoke(job, timestamp) {
+    if (!jobs.has(job.id) || paused) return;
+    if (job.kind === 'frame') {
+      jobs.delete(job.id);
+      job.callback(timestamp - frameOffset);
+      return;
+    }
+    if (job.kind === 'timeout') jobs.delete(job.id);
+    else { job.remaining = job.delay; schedule(job); }
+    job.callback.apply(window, job.args);
+  }
+
+  function schedule(job) {
+    if (paused) return;
+    if (job.kind === 'frame') {
+      job.nativeId = originalFrame(function (timestamp) { invoke(job, timestamp); });
+    } else {
+      job.due = performance.now() + job.remaining;
+      job.nativeId = originalTimeout(function () { invoke(job, performance.now()); }, job.remaining);
+    }
+  }
+
+  function addJob(kind, callback, delay, args) {
+    if (typeof callback !== 'function') return 0;
+    var interval = Math.max(0, Number(delay) || 0);
+    var job = {
+      id: nextId++, kind: kind, callback: callback, args: args || [],
+      delay: interval, remaining: interval, nativeId: null, due: 0
+    };
+    jobs.set(job.id, job);
+    schedule(job);
+    return job.id;
+  }
+
+  function clearJob(id) {
+    var job = jobs.get(Number(id));
+    if (!job) return;
+    if (job.nativeId !== null) {
+      if (job.kind === 'frame') originalCancelFrame(job.nativeId);
+      else originalClearTimeout(job.nativeId);
+    }
+    jobs.delete(job.id);
+  }
+
+  window.setTimeout = function (callback, delay) {
+    return addJob('timeout', callback, delay, Array.prototype.slice.call(arguments, 2));
+  };
+  window.clearTimeout = clearJob;
+  window.setInterval = function (callback, delay) {
+    return addJob('interval', callback, Math.max(1, Number(delay) || 0),
+      Array.prototype.slice.call(arguments, 2));
+  };
+  window.clearInterval = clearJob;
+  window.requestAnimationFrame = function (callback) {
+    return addJob('frame', callback, 0, []);
+  };
+  window.cancelAnimationFrame = clearJob;
+
+  function pause() {
+    if (paused) return;
+    paused = true;
+    pausedAt = performance.now();
+    document.documentElement.classList.add('annie-host-paused');
+    jobs.forEach(function (job) {
+      if (job.nativeId === null) return;
+      if (job.kind === 'frame') originalCancelFrame(job.nativeId);
+      else {
+        originalClearTimeout(job.nativeId);
+        job.remaining = Math.max(0, job.due - pausedAt);
+      }
+      job.nativeId = null;
+    });
+    suspendedMedia = [];
+    document.querySelectorAll('audio,video').forEach(function (media) {
+      if (!media.paused) { suspendedMedia.push(media); media.pause(); }
+    });
+    suspendedAnimations = [];
+    if (document.getAnimations) document.getAnimations().forEach(function (animation) {
+      if (animation.playState === 'running') {
+        animation.pause();
+        suspendedAnimations.push(animation);
+      }
+    });
+  }
+
+  function resume() {
+    if (!paused) return;
+    frameOffset += performance.now() - pausedAt;
+    paused = false;
+    document.documentElement.classList.remove('annie-host-paused');
+    jobs.forEach(schedule);
+    suspendedAnimations.forEach(function (animation) {
+      if (animation.playState === 'paused') animation.play();
+    });
+    suspendedAnimations = [];
+    suspendedMedia.forEach(function (media) {
+      if (media.isConnected && media.paused) {
+        var promise = media.play();
+        if (promise && promise.catch) promise.catch(function () {});
+      }
+    });
+    suspendedMedia = [];
+  }
+
+  // Deliberately no JavascriptInterface; these methods are confined to the
+  // sandboxed page and invoked on its own WebView from the native host.
+  Object.defineProperty(window, '__annieCanvasHost', {
+    value: Object.freeze({
+      pause: pause, resume: resume,
+      get paused() { return paused; },
+      get pendingJobs() { return jobs.size; }
+    }),
+    configurable: false
+  });
+  if (paused) document.documentElement.classList.add('annie-host-paused');
+})();
+""".trimIndent()
