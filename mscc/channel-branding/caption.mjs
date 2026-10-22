@@ -14,8 +14,9 @@ export function replaceCaptionWords(input, { enabled = false, rules = [] } = {})
   const pairs = rules.map(rule => {
     if (typeof rule?.from !== 'string' || typeof rule?.to !== 'string') throw new TypeError('Invalid replacement.');
     const from = rule.from.trim().normalize('NFC');
-    if (!from || from.length > 80 || rule.to.length > 120 || /[\r\n]/u.test(from) ||
-        UNSAFE_RULE_TEXT.test(rule.to)) throw new RangeError('Invalid replacement length or phrase.');
+    if (!from || from.length > 80 || rule.to.length > 120 ||
+        UNSAFE_RULE_TEXT.test(from) || UNSAFE_RULE_TEXT.test(rule.to))
+      throw new RangeError('Invalid replacement length or phrase.');
     if (seen.has(from.toLocaleLowerCase('en'))) throw new Error('Duplicate replacement phrase.');
     seen.add(from.toLocaleLowerCase('en'));
     const pattern = escapeRegex(from).replace(/\s+/gu, '\\s+');
