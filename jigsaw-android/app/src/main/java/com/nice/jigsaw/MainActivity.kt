@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -78,8 +77,9 @@ class MainActivity : ComponentActivity() {
             .hide(WindowInsetsCompat.Type.statusBars())
         store=PuzzleStore(this)
         game=store.load() ?: PuzzleGame.fresh(6,4)
-        image=if(game.imageKey=="custom") store.loadPhoto() ?: SceneImage.create()
-              else SceneImage.create()
+        val restoredPhoto = if (game.imageKey=="custom") store.loadPhoto() else null
+        if (game.imageKey=="custom" && restoredPhoto==null) game=PuzzleGame.fresh(6,4)
+        image=restoredPhoto ?: SceneImage.create()
         store.save(game)
         setContent {
             MaterialTheme(colorScheme=lightColorScheme(primary=forest,background=bg,
