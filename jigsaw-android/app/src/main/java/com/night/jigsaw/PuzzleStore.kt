@@ -110,7 +110,7 @@ class PuzzleStore(private val context: Context) {
     }
 
     /** Resize/crop the selected local photo before storing it; do not retain a fragile gallery URI. */
-    fun importPhoto(uri: Uri): ImportedPuzzlePhoto {
+    fun importPhoto(uri: Uri, titleOverride: String?=null): ImportedPuzzlePhoto {
         val resolver=context.contentResolver
         val probe=BitmapFactory.Options().apply { inJustDecodeBounds=true }
         resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it,null,probe) }
@@ -145,7 +145,7 @@ class PuzzleStore(private val context: Context) {
             RectF(0f,0f,2400f,1800f),Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG))
         upright.recycle()
         val key="photo-"+UUID.randomUUID().toString()
-        val title=runCatching{
+        val title=titleOverride?.take(70)?.ifBlank{null} ?: runCatching{
             context.contentResolver.query(uri,
                 arrayOf(OpenableColumns.DISPLAY_NAME),null,null,null)?.use{cursor->
                 if(cursor.moveToFirst())cursor.getString(0) else null
