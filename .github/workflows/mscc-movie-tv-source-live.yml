@@ -5,7 +5,6 @@ on:
   push:
     branches:
       - fix/mscc-movies-tv-reliability
-      - test/mscc-tv-live-qualification-20261022
     paths:
       - 'mscc/**'
       - '.github/workflows/mscc-movie-tv-source-live.yml'
