@@ -22,11 +22,16 @@ class AnnieOmniFindInPageTest {
     @Test fun findNextAndClearActOnLiveGeckoPage() {
         val server = GeckoLocalFixture()
         val app = InstrumentationRegistry.getInstrumentation().targetContext
+        val prefs = app.getSharedPreferences("annie_gecko_tabs_v1", android.content.Context.MODE_PRIVATE)
+        val original = prefs.all
+        var initialized = false
         lateinit var model: AnnieGeckoBrowserModel
         lateinit var tab: AnnieGeckoTab
         try {
+            prefs.edit().clear().commit()
             compose.runOnUiThread {
                 model = AnnieGeckoBrowserModel(app)
+                initialized = true
                 val prior = model.tabs.toList()
                 tab = model.newTab(address = server.baseUrl + "/one", autoLoad = false)
                 prior.forEach(model::close)
@@ -56,7 +61,18 @@ class AnnieOmniFindInPageTest {
             assertEquals(0, model.findController.current)
             assertEquals(0, model.findController.total)
         } finally {
-            compose.runOnUiThread { if (::model.isInitialized) model.destroy() }
+            compose.runOnUiThread { if (initialized) model.destroy() }
+            val edit = prefs.edit().clear()
+            original.forEach { (key, value) ->
+                when (value) {
+                    is String -> edit.putString(key, value)
+                    is Int -> edit.putInt(key, value)
+                    is Long -> edit.putLong(key, value)
+                    is Boolean -> edit.putBoolean(key, value)
+                    is Float -> edit.putFloat(key, value)
+                }
+            }
+            edit.commit()
             server.close()
         }
     }
