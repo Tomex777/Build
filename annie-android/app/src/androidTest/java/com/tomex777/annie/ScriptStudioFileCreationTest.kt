@@ -98,6 +98,42 @@ class ScriptStudioFileCreationTest {
         }
     }
 
+    @Test fun newEmptyNestedFolderIsBrowsableAndDoesNotSelectMainJs() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val workspace = ScriptWorkspace(context)
+        val folder = workspace.files.createFolder("nested" + System.nanoTime().toString().takeLast(8))
+        workspace.files.createFolder(folder.name, "assets")
+        val shown = mutableStateOf(true)
+        try {
+            compose.setContent { AnnieTheme {
+                if (shown.value) ScriptStudioSheet(workspace, {})
+            } }
+            compose.onNodeWithTag("script_file_search").performTextInput(folder.name)
+            closeSoftKeyboard()
+            compose.onNodeWithText(folder.name, substring = false).performClick()
+            // Empty directories are not present in ScriptProject.files. They must
+            // still be visible and usable without a dummy generated main.js.
+            compose.onNodeWithText("assets", substring = false).assertExists()
+            compose.onNodeWithText("assets", substring = false).performClick()
+            compose.onNodeWithText("${folder.name} / assets").assertExists()
+            compose.onNodeWithTag("script_editor").assertDoesNotExist()
+            compose.onNodeWithTag("script_file_search").performTextClearance()
+            compose.onNodeWithText("New File").performClick()
+            compose.onNodeWithTag("script_file_type_css").performClick()
+            compose.onNodeWithTag("script_file_name").performTextInput("colors")
+            compose.onNodeWithText("Continue").performClick()
+            compose.waitUntil(8_000) { File(folder, "assets/colors.css").isFile }
+            assertTrue(File(folder, "assets/main.js").exists().not())
+            assertTrue(File(folder, "main.js").isFile)
+            compose.onNodeWithTag("script_editor").assertExists()
+        } finally {
+            compose.runOnIdle { shown.value = false }
+            compose.waitForIdle()
+            workspace.close()
+            workspace.files.deleteProject(folder.name)
+        }
+    }
+
     @Test fun typeSelectionCreatesHtmlAndExplicitCssExtensionOverridesIt() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val workspace = ScriptWorkspace(context)
