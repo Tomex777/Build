@@ -130,7 +130,12 @@ export class ChannelPublisher {
     return {account,name}
   }
   async update(userId,channelId,revision,patch,accounts) {
-    await this.permission(userId,channelId,accounts)
+    // Emergency shutdown is permitted even when WhatsApp is offline or admin role
+    // was revoked; it can only make server-side features less permissive.
+    this.claim(userId,channelId)
+    const emergencyOff=plain(patch)&&Object.keys(patch).length===1&&plain(patch.modules)&&
+      Object.keys(patch.modules).length>0&&Object.entries(patch.modules).every(([k,v])=>MODULES.includes(k)&&v===false)
+    if(!emergencyOff) await this.permission(userId,channelId,accounts)
     if (!Number.isInteger(revision) || revision<0) fail(400,'Invalid settings revision.')
     // Optimistic atomic revision guard, prevents two devices overwriting each other.
     const prev=this.config(userId,channelId)
