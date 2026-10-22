@@ -159,26 +159,33 @@ function placement(which,w,h,layerW,layerH){
   return {left:which.endsWith('left')?gap:w-layerW-gap,
     top:which.startsWith('top')?gap:h-layerH-gap};
 }
-function chooseCorner(data,channels,w,h){
+function chooseCorner(data,channels,w,h,layerRatioWidth,layerRatioHeight){
   const corners=['top-left','top-right','bottom-left','bottom-right'];
   let best='bottom-right',bestScore=Infinity;
-  const tones={};
+  const tones={},scores={};
+  const gap=Math.max(1,Math.round(Math.min(w,h)*.025));
+  const layerW=Math.max(1,Math.min(w-2*gap,Math.round(w*layerRatioWidth)));
+  const layerH=Math.max(1,Math.min(h-2*gap,Math.round(h*layerRatioHeight)));
   const lum=(x,y)=>{
     const i=(y*w+x)*channels;
     return .2126*data[i]+.7152*data[i+1]+.0722*data[i+2];
   };
   for(const part of corners){
-    const x0=part.endsWith('left')?2:Math.round(w*.53),x1=part.endsWith('left')?Math.round(w*.47):w-2;
-    const y0=part.startsWith('top')?2:Math.round(h*.70),y1=part.startsWith('top')?Math.round(h*.29):h-2;
+    // Score the ACTUAL projected watermark footprint, not a smaller 47%-width
+    // zone that can miss a meme caption under the wide translucent text layer.
+    const x0=part.endsWith('left')?gap:w-layerW-gap;
+    const y0=part.startsWith('top')?gap:h-layerH-gap;
+    const x1=Math.min(w-1,x0+layerW),y1=Math.min(h-1,y0+layerH);
     let busy=0,total=0,count=0;
     for(let y=y0;y<y1-1;y+=2)for(let x=x0;x<x1-1;x+=2){
       const l=lum(x,y);total+=l;count++;
       busy+=Math.abs(l-lum(x+1,y))+Math.abs(l-lum(x,y+1));
     }
     tones[part]=count&&total/count>145?'dark':'light';
-    if(count&&busy/count<bestScore){bestScore=busy/count;best=part;}
+    scores[part]=count?busy/count:Infinity;
+    if(scores[part]<bestScore){bestScore=scores[part];best=part;}
   }
-  return {position:best,tones};
+  return {position:best,tones,scores};
 }
 
 /** Media is composed in memory, never enqueued or posted here.
@@ -204,13 +211,14 @@ export async function watermarkStaticImage({
   const rotated=[5,6,7,8].includes(meta.orientation);
   const w=rotated?meta.height:meta.width,h=rotated?meta.width:meta.height;
   if(w<240||h<140)throw new Error('Image too small for a legible watermark with edge padding.');
-  const thumb=await sharp(input,{limitInputPixels:MAX_PIXELS}).timeout({seconds:15}).rotate()
-    .resize(64,64,{fit:'fill'}).removeAlpha().raw().toBuffer({resolveWithObject:true});
-  const decision=chooseCorner(thumb.data,thumb.info.channels,thumb.info.width,thumb.info.height);
-  const usePosition=position==='auto'?decision.position:position;
-  const tone=decision.tones[usePosition];
   const layerWidth=Math.min(800,Math.max(200,Math.floor(w*.67)));
   const layerHeight=Math.max(64,Math.min(144,Math.floor(layerWidth*.18),Math.floor(h*.30)));
+  const thumb=await sharp(input,{limitInputPixels:MAX_PIXELS}).timeout({seconds:15}).rotate()
+    .resize(64,64,{fit:'fill'}).removeAlpha().raw().toBuffer({resolveWithObject:true});
+  const decision=chooseCorner(thumb.data,thumb.info.channels,thumb.info.width,thumb.info.height,
+    layerWidth/w,layerHeight/h);
+  const usePosition=position==='auto'?decision.position:position;
+  const tone=decision.tones[usePosition];
   const asset=await makeReusableWatermark({
     channelId,displayName,styleVersion,opacity,tone,width:layerWidth,height:layerHeight,
     cache,renderText,canvasLibrary,approvedFallbackPng,colorEmojiVerified,sharpLibrary:sharp
@@ -225,7 +233,11 @@ export async function watermarkStaticImage({
       await output.webp({quality:85}).toBuffer():
       await output.png({compressionLevel:8}).toBuffer();
   if(result.length>maxOutputBytes)throw new Error('Composited result exceeds output byte budget.');
+  const warnings=asset.glyphsVerified?[]:['Glyph coverage still needs target-server review.'];
+  // High-detail areas may contain crucial meme text: never falsely promise
+  // this simple edge score is OCR/punchline detection. Expose a review warning.
+  if(decision.scores[usePosition]>18)
+    warnings.push('Watermark area is visually busy; inspect its placement before publishing.');
   return {buffer:result,format:meta.format,position:usePosition,tone,
-    assetKey:asset.key,channelId,displayName,opacity,
-    warnings:asset.glyphsVerified?[]:['Glyph coverage still needs target-server review.']};
+    assetKey:asset.key,channelId,displayName,opacity,warnings};
 }
