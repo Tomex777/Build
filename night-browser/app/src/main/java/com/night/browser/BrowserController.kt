@@ -56,6 +56,10 @@ class BrowserTab(
     // In-memory reduced page preview. Never written to the browsing-history store.
     var thumbnail by mutableStateOf<Bitmap?>(null)
     var sessionState: String? = null
+    // A Gecko HistoryList entry can precede or follow its location callback.
+    // Hold only the latest tab-local entry; never write private history to disk.
+    var latestHistoryUrl: String? = null
+    var latestHistoryTitle: String? = null
 }
 
 class BrowserController(
@@ -270,6 +274,12 @@ class BrowserController(
                         schedulePersist()
                     }
                 }
+                // bfcache/history traversal may restore a page without a new
+                // network onPageStop or onTitleChange. Trust Gecko's matched
+                // HistoryItem title only for this exact committed URL.
+                BrowserHistoryTitle.atCommittedUrl(
+                    url, tab.latestHistoryUrl, tab.latestHistoryTitle
+                )?.let { tab.title = it }
             }
 
             override fun onCanGoBack(session: GeckoSession, canGoBack: Boolean) {
@@ -347,6 +357,13 @@ class BrowserController(
             override fun onSessionStateChange(
                 session: GeckoSession, state: GeckoSession.SessionState
             ) {
+                state.getOrNull(state.currentIndex)?.let { item ->
+                    tab.latestHistoryUrl = item.uri
+                    tab.latestHistoryTitle = item.title
+                    BrowserHistoryTitle.atCommittedUrl(
+                        tab.url, item.uri, item.title
+                    )?.let { tab.title = it }
+                }
                 if (!tab.isPrivate) {
                     tab.sessionState = state.toString()
                     schedulePersist()
