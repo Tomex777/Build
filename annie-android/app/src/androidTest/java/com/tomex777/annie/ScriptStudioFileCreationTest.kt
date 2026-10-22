@@ -134,6 +134,42 @@ class ScriptStudioFileCreationTest {
         }
     }
 
+    @Test fun importedTextTypesAreNeverAutoEnabledAndPreserveTheirContent() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val workspace = ScriptWorkspace(context)
+        val suffix = System.nanoTime().toString().takeLast(8)
+        val sources = mapOf(
+            "ts" to "const answer: number = 42;",
+            "py" to "print('hello')",
+            "lua" to "print('hello')",
+            "html" to "<!doctype html><title>Imported</title>",
+            "css" to "body { background: black; }",
+            "json" to "{\"ready\": true}",
+            "md" to "# Imported",
+            "txt" to "plain text document",
+        )
+        val importedIds = mutableListOf<String>()
+        try {
+            sources.forEach { (extension, source) ->
+                val name = "safe_${suffix}_$extension.$extension"
+                val (id, path) = studioImportTextDocument(workspace.files, name, source)
+                importedIds += id
+                assertTrue("Imported project must be disabled: $extension",
+                    workspace.files.listProjects().first { it.id == id }.enabled.not())
+                org.junit.Assert.assertEquals(source, workspace.files.readFile(id, path))
+                org.junit.Assert.assertEquals(extension, path.substringAfterLast('.'))
+            }
+            val stream = java.io.ByteArrayInputStream(ByteArray(2 * 1024 * 1024 + 1))
+            assertTrue("Oversized imports must be rejected before decoding",
+                runCatching { studioReadTextImport(stream) }.isFailure)
+            assertTrue("Unsupported image import must be rejected",
+                runCatching { studioImportTextDocument(workspace.files, "photo.png", "binary") }.isFailure)
+        } finally {
+            workspace.close()
+            importedIds.forEach { id -> workspace.files.deleteProject(id) }
+        }
+    }
+
     @Test fun typeSelectionCreatesHtmlAndExplicitCssExtensionOverridesIt() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val workspace = ScriptWorkspace(context)
