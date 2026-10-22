@@ -402,3 +402,18 @@ test('source feedback is bounded against malformed identity flooding',()=>{
  assert.equal(feedback.sources['source:590'],undefined);
  assert.equal(feedback.sources['__proto__'],undefined);
 });
+
+test('Atom drama category metadata can rescue a legitimate review-only show feature',async()=>{
+ const atom='<feed><entry><title>“Aurora” stars reflect on their new characters</title>'+
+  '<link href="https://www.soompi.com/article/987654/aurora-stars"/>'+
+  '<updated>2026-10-21T12:00:00Z</updated><category term="Drama"/></entry></feed>';
+ const rows=parseFeed(atom);
+ assert.equal(rows.length,1);
+ assert.deepEqual(rows[0].categories,['Drama']);
+ const adapter=createKDramaFeed('soompi',{operatorApproved:true,now:()=>NOW,showAliases:['Aurora'],fetchImpl:async()=>new Response(atom)});
+ const out=await adapter.discover();
+ assert.equal(out.items.length,1);
+ assert(out.items[0].tags.includes('other'));
+ assert.equal(out.items[0].show,'Aurora');
+ assert.equal(out.items[0].autoEligible,false);
+});
