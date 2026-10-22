@@ -50,6 +50,12 @@ class SessionStatePersistence(private val baseDir: File) {
     /** Monotonically-increasing write generation for stale-write detection. */
     private val writeGeneration = AtomicLong(0L)
 
+    // Original upstream code read/modified a shared JSON file on multiple IO
+    // threads. Serialize file transactions so concurrent tab checkpoints cannot
+    // overwrite each other, lose history, or resurrect a just-closed tab.
+    private val diskLock = Any()
+    private val forgottenTabs = ConcurrentHashMap.newKeySet<String>()
+
     /** In-flight debounce jobs per tab. */
     private val pendingJobs = ConcurrentHashMap<String, Job>()
 
@@ -69,6 +75,9 @@ class SessionStatePersistence(private val baseDir: File) {
             return
         }
 
+        // Re-activating a tab after a previous close is explicit; ordinary
+        // navigation continues checkpointing the same stable normal-tab ID.
+        forgottenTabs.remove(tabId)
         // Cancel any in-flight job for this tab.
         pendingJobs[tabId]?.cancel()
 
@@ -187,9 +196,11 @@ class SessionStatePersistence(private val baseDir: File) {
      */
     fun removeDurableState(tabId: String) {
         // Port fix: a pending debounce must never resurrect a just-closed tab.
+        forgottenTabs.add(tabId)
         pendingJobs.remove(tabId)?.cancel()
         durableStateCache.remove(tabId)
         persistenceScope.launch {
+            synchronized(diskLock) {
             try {
                 val file = File(baseDir, SESSION_STATE_FILE)
                 if (!file.exists()) return@launch
@@ -201,6 +212,7 @@ class SessionStatePersistence(private val baseDir: File) {
                 }
             } catch (e: Exception) {
                 Log.w(TAG, "Failed to remove durable state for $tabId", e)
+            }
             }
         }
     }
@@ -232,6 +244,8 @@ class SessionStatePersistence(private val baseDir: File) {
     // ─────────────────────────────────────────────────────────────────────────
 
     private fun performAtomicWrite(state: AnnieSessionState) {
+        synchronized(diskLock) {
+        if (forgottenTabs.contains(state.tabId)) return
         try {
             val file = File(baseDir, SESSION_STATE_FILE)
             val existingJson = if (file.exists()) {
@@ -255,9 +269,13 @@ class SessionStatePersistence(private val baseDir: File) {
         } catch (e: Exception) {
             Log.e(TAG, "Failed to persist SessionState for ${state.tabId}", e)
         }
+        }
     }
 
     private fun performAtomicWriteBatch(states: List<AnnieSessionState>) {
+        synchronized(diskLock) {
+        val validStates = states.filterNot { forgottenTabs.contains(it.tabId) }
+        if (validStates.isEmpty()) return
         try {
             val file = File(baseDir, SESSION_STATE_FILE)
             val existingJson = if (file.exists()) {
@@ -270,7 +288,7 @@ class SessionStatePersistence(private val baseDir: File) {
                 JSONObject()
             }
             val statesObj = existingJson.optJSONObject("states") ?: JSONObject()
-            states.forEach { state ->
+            validStates.forEach { state ->
                 statesObj.put(state.tabId, state.toJson())
                 durableStateCache[state.tabId] = state
             }
@@ -279,9 +297,10 @@ class SessionStatePersistence(private val baseDir: File) {
             existingJson.put("lastWritten", System.currentTimeMillis())
 
             atomicWriteFile(existingJson.toString())
-            Log.d(TAG, "Batch-persisted ${states.size} SessionStates")
+            Log.d(TAG, "Batch-persisted ${validStates.size} SessionStates")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to batch-persist SessionStates", e)
+        }
         }
     }
 
