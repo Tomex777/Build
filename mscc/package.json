@@ -73,7 +73,7 @@
     "check:wordchain-scp": "node wordchain-scp-selftest.js",
     "check:cards": "node card-selftest.js",
     "check:syntax": "find . -type f \\( -name '*.js' -o -name '*.mjs' \\) ! -path './node_modules/*' -print0 | xargs -0 -n1 node --check",
-    "check:extended": "node anime-reaction-failover-selftest.js && node night-channel-links-selftest.js && node night-play-avatar-selftest.js && node night-play-channels-selftest.js && node night-play-matches-selftest.js && node night-play-party-selftest.js && node web-search-selftest.js && node youtube-dlp-selftest.js && node youtube-music-selftest.js && node youtube-mux-selftest.js && node youtube-resolution-selftest.js && node youtube-video-selftest.js && node sfx-selftest.js",
+    "check:extended": "node anime-reaction-failover-selftest.js && node night-channel-links-selftest.js && node night-play-avatar-selftest.js && node night-play-channels-selftest.js && node night-play-matches-selftest.js && node night-play-party-selftest.js && node web-search-selftest.js && node youtube-dlp-selftest.js && node youtube-music-selftest.js && node youtube-mux-selftest.js && node youtube-resolution-selftest.js && node youtube-video-selftest.js && node sfx-selftest.js && node channel-publisher/selftest.js",
     "check:stress": "node aggressive-regression-selftest.js"
   },
   "engines": {
@@ -95,6 +95,7 @@
     "qrcode": "^1.5.4",
     "ruhend-scraper": "9.0.1",
     "webtorrent": "3.0.21",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "sharp": "0.34.1"
   }
 }
