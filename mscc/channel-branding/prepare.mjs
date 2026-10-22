@@ -1,0 +1,44 @@
+// Shared, side-effect-free transform for owner preview AND final send.
+// NEVER authorization, storage, scheduling or actual publication.
+import {composeChannelCaption} from './caption.mjs';
+import {watermarkStaticImage} from './watermark.mjs';
+
+export async function prepareChannelContent({
+  text='',mediaBuffer=null,channelId,verifiedDisplayName,
+  posterName='',branding={},maxUtf8Bytes=2048,
+  rendererVerifiedEmoji=false,watermarkCache=null,
+  sharpLibrary=null,canvasLibrary=null,
+  transform=watermarkStaticImage
+}={}){
+  if(typeof text!=='string')throw new TypeError('Post caption must be text.');
+  if(mediaBuffer!==null&&!Buffer.isBuffer(mediaBuffer))throw new TypeError('Post media must be a Buffer.');
+  if(branding===null||typeof branding!=='object'||Array.isArray(branding))throw new TypeError('Invalid branding config.');
+  const caption=composeChannelCaption({
+    text,maxUtf8Bytes,
+    replacements:{enabled:branding.captionReplacementsEnabled===true,
+      rules:Array.isArray(branding.captionReplacements)?branding.captionReplacements:[]},
+    poster:{enabled:branding.signatureEnabled===true,name:posterName||branding.signaturePosterName||''}
+  });
+  if(branding.watermarkEnabled!==true||mediaBuffer===null){
+    // Avoid touching binary data for OFF modules; identity of media remains intact.
+    return {caption,mediaBuffer,watermarked:false,watermarkAssetKey:null};
+  }
+  // Owner-provided channel name is forbidden. C MUST provide a value from
+  // verified original WhatsApp metadata, and fail closed on account/admin loss.
+  if(typeof verifiedDisplayName!=='string'||!verifiedDisplayName.trim()){
+    throw new Error('Cannot watermark without verified channel display name.');
+  }
+  const composited=await transform({
+    input:mediaBuffer,channelId,displayName:verifiedDisplayName,
+    opacity:branding.watermarkOpacity??.22,
+    position:branding.watermarkPosition||'auto',
+    styleVersion:branding.watermarkStyleVersion??1,
+    colorEmojiVerified:rendererVerifiedEmoji,
+    cache:watermarkCache,sharpLibrary,canvasLibrary
+  });
+  if(!Buffer.isBuffer(composited?.buffer)||!composited?.assetKey)throw new Error('Image compositor failed closed.');
+  return {caption,mediaBuffer:composited.buffer,watermarked:true,
+    watermarkAssetKey:composited.assetKey,
+    imageFormat:composited.format,watermarkPosition:composited.position,
+    warnings:composited.warnings||[]};
+}
