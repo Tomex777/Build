@@ -49,6 +49,18 @@ function paintConfig(){
  $('newsMode').value=['review','automatic'].includes(config.news?.mode)?config.news.mode:'review';
  $('spoilerPolicy').value=['avoid','warn'].includes(config.news?.spoilers)?config.news.spoilers:'avoid';
  fillChecks('newsInterests',config.news?.interests);
+ const branding=config.branding;
+ $('brandingControls').hidden=!branding;
+ $('brandingUnavailable').hidden=Boolean(branding);
+ if(branding){
+   $('signatureEnabled').checked=branding.signatureEnabled===true;
+   $('posterName').value=typeof branding.posterName==='string'?branding.posterName:'';
+   $('watermarkEnabled').checked=branding.watermarkEnabled===true;
+   const alpha=[0.15,0.2,0.25,0.3].includes(branding.watermarkOpacity)?branding.watermarkOpacity:0.2;
+   $('watermarkOpacity').value=String(alpha);
+   $('watermarkPosition').value=['bottom-left','bottom-right','top-left','top-right'].includes(branding.watermarkPosition)?branding.watermarkPosition:'bottom-right';
+ }
+ $('watermarkName').textContent=channel?.name||'';
  $('configUI').hidden=false;$('state').hidden=true;
 }
 async function changeConfig(patch,control){
@@ -77,6 +89,20 @@ function attachControls(){
    if(!categories.length){note('Choose at least one meme category.',true);return;}
    changeConfig({memes:{mode:$('memeMode').value,categories,dailyLimit:Number($('memeDaily').value)}},$('saveMemes'));
  });
+ $('saveBranding').addEventListener('click',()=>{
+   if(!config?.branding)return;
+   const posterName=$('posterName').value.trim();
+   const signatureEnabled=$('signatureEnabled').checked;
+   if(signatureEnabled&&!posterName){
+     note('An automatic post needs an explicitly credited person. Enter a poster name or disable the signature.',true);return;
+   }
+   changeConfig({branding:{
+     signatureEnabled,posterName,watermarkEnabled:$('watermarkEnabled').checked,
+     watermarkOpacity:Number($('watermarkOpacity').value),
+     watermarkPosition:$('watermarkPosition').value
+   }},$('saveBranding'));
+ });
+ $('closePostPreview').addEventListener('click',()=>$('postPreview').close());
  $('saveNews').addEventListener('click',()=>{
    const interests=selected('newsInterests',INTERESTS);
    if(!interests.length){note('Choose at least one news interest.',true);return;}
@@ -140,14 +166,15 @@ function reviewCard(c){
  const status=make('p','decision',state==='approved'?'Approved':state==='declined'?'Declined':state==='skipped'?'Skipped':'');
  status.setAttribute('aria-live','polite');
  const actions=make('div','action-row');
- const approve=make('button','btn primary','Approve'),decline=make('button','btn','Decline');
- approve.type=decline.type='button';
+ const approve=make('button','btn primary','Approve'),decline=make('button','btn','Decline'),preview=make('button','btn','Preview post');
+ approve.type=decline.type=preview.type='button';
  caption.addEventListener('input',()=>{
    captionDirty.add(c.id);status.textContent='Caption edited — approve again to save';updateReview();
  });
  approve.addEventListener('click',()=>decide(c,'approved',caption.value,card,status,actions));
  decline.addEventListener('click',()=>decide(c,'declined',caption.value,card,status,actions));
- actions.append(approve,decline);
+ preview.addEventListener('click',()=>previewPost(c,caption.value));
+ actions.append(approve,decline,preview);
  body.append(actions,status);card.append(art,body);
  return card;
 }
@@ -171,6 +198,26 @@ async function findMemes(next){
    paintReview();note('',false,'reviewNotice');
  }catch(error){note(errorMessage(error)+' No content was approved or published.',true,'reviewNotice');}
  finally{reviewBusy=false;setBusy($('findMemes'),false);updateReview();}
+}
+async function previewPost(candidate,caption){
+ if(!batch)return;
+ const dialog=$('postPreview'),body=$('postPreviewContent');
+ body.replaceChildren(make('p','config-note','Requesting the actual formatted post from NIGHT…'));
+ if(!dialog.open)dialog.showModal();
+ try{
+   const result=await api('channel:post:preview',{batchId:batch.batchId,candidateId:candidate.id,caption});
+   const image=imageFromSource(result||{});
+   if(!image||typeof result?.formattedCaption!=='string'||result.formattedCaption.length>2200)
+     throw Error('NIGHT has not returned a verified final-media preview.');
+   const art=make('div','review-art'),img=make('img');
+   img.src=image;img.alt='Watermarked post preview from NIGHT';art.append(img);
+   const label=make('p','config-note','Caption as it will be sent');
+   const displayed=make('p','config-preview-caption',result.formattedCaption);
+   displayed.style.whiteSpace='pre-wrap';displayed.style.overflowWrap='anywhere';
+   body.replaceChildren(art,label,displayed);
+ }catch(error){
+   body.replaceChildren(make('p','config-note',errorMessage(error)+' No final preview is available. Approving here will not bypass the publishing checks.'));
+ }
 }
 async function decide(candidate,decision,caption,card,status,actions){
  if(reviewBusy||!batch)return;
