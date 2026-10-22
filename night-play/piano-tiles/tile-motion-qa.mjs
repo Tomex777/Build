@@ -10,7 +10,7 @@ import {chromium} from 'playwright';
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 const visual=join(root,'visual-output','piano-tiles');mkdirSync(visual,{recursive:true});
 const assets=new Set(['game-shell.css','piano-tiles/index.html','piano-tiles/style.css',
- 'piano-tiles/game.js','piano-tiles/piano-audio.js',
+ 'piano-tiles/game.js','piano-tiles/piano-audio.js','piano-tiles/song-library.js',
  ...['C3','Fs3','A3','C4','Ds4','Fs4','A4','C5','Ds5','Fs5'].map(n=>'piano-tiles/samples/'+n+'.mp3')]);
 const contentType={'.js':'text/javascript','.html':'text/html','.css':'text/css','.mp3':'audio/mpeg'};
 const server=createServer((req,res)=>{
@@ -26,8 +26,7 @@ let browser;
 async function launchPage(song){
  const page=await browser.newPage({viewport:{width:390,height:844},hasTouch:true,isMobile:true});
  await page.goto(base+'/piano-tiles/',{waitUntil:'domcontentloaded'});
- if(song)await page.locator('[data-song="'+song+'"]').tap();
- await page.locator('#coverAction').tap();
+ await page.locator('[data-play="'+(song||'endless')+'"]').tap();
  await page.waitForFunction(()=>document.body.classList.contains('is-playing'));
  return page;
 }
