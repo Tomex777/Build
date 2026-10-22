@@ -58,6 +58,7 @@ required = {
         "manuallyPausedCanvasRemainsPausedAfterLazyItemEviction",
         "closeCardRemainsClosedAfterComposeSavedStateRestoration",
         "fullscreenLandscapeRotationRetainsTheOneRunningCanvasWebView",
+        "stableChatMessageIdPreservesExplicitCloseAcrossWholeChatNavigation",
     },
     "AnnieCanvasMessageTest": {
         "webGlShadersDrawReadPixelsAndSurviveFullscreen",
