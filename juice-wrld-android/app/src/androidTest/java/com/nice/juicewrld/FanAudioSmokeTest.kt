@@ -30,6 +30,8 @@ class FanAudioSmokeTest {
         val first = File(app.cacheDir, "fan-smoke-lucid.wav")
         val second = File(app.cacheDir, "fan-smoke-robbery.wav")
         val prefs = app.getSharedPreferences("juice-fan", Context.MODE_PRIVATE)
+        val originalLucid = prefs.getString("file:lucid-dreams", null)
+        val originalRobbery = prefs.getString("file:robbery", null)
         writeWav(first, frequencyHz = 440.0)
         writeWav(second, frequencyHz = 523.25)
         // Pre-seeding the *same* persisted URI slots used by SAF isolates media
@@ -69,7 +71,12 @@ class FanAudioSmokeTest {
             player?.let { current ->
                 instrumentation.runOnMainSync { current.pause() }
             }
-            prefs.edit().remove("file:lucid-dreams").remove("file:robbery").commit()
+            val restore = prefs.edit()
+            if (originalLucid == null) restore.remove("file:lucid-dreams")
+            else restore.putString("file:lucid-dreams", originalLucid)
+            if (originalRobbery == null) restore.remove("file:robbery")
+            else restore.putString("file:robbery", originalRobbery)
+            restore.commit()
             first.delete()
             second.delete()
         }
