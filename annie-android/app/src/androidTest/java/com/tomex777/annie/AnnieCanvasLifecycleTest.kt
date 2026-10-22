@@ -1,5 +1,6 @@
 package com.tomex777.annie
 
+import android.content.pm.ActivityInfo
 import android.os.Build
 import android.os.SystemClock
 import android.view.View
@@ -29,6 +30,8 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry
+import androidx.test.runner.lifecycle.Stage
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
@@ -36,6 +39,7 @@ import org.json.JSONObject
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotSame
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -312,6 +316,81 @@ class AnnieCanvasLifecycleTest {
             0, allCanvasWebViews().size)
         compose.onNodeWithTag("annie_canvas_reopen").performClick()
         compose.waitUntil(10_000) { allCanvasWebViews().size == 1 }
+    }
+
+    @Test fun fullscreenLandscapeRotationRetainsTheOneRunningCanvasWebView() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val payload = document("Rotation regression")
+        compose.setContent { AnnieTheme { AnnieCanvasMessage(payload) } }
+        compose.waitUntil(10_000) { allCanvasWebViews().size == 1 }
+        val originalWebView = allCanvasWebViews().single()
+        compose.waitUntil(10_000) {
+            eval(originalWebView, "window.frames || 0").toInt() > 4
+        }
+        val monitor = instrumentation.addMonitor(AnnieCanvasActivity::class.java.name, null, false)
+        var fullscreen: AnnieCanvasActivity? = null
+        try {
+            compose.onNodeWithTag("annie_canvas_fullscreen").performClick()
+            fullscreen = instrumentation.waitForMonitorWithTimeout(monitor, 8_000)
+                as? AnnieCanvasActivity ?: error("Could not open fullscreen Canvas")
+            compose.waitUntil(8_000) {
+                var ready = false
+                instrumentation.runOnMainSync {
+                    ready = allWebViewsOnThread(fullscreen!!.window.decorView)
+                        .any { it === originalWebView }
+                }
+                ready
+            }
+            val pendingBefore = eval(
+                originalWebView, "window.__annieCanvasHost.pendingJobs").toInt()
+            instrumentation.runOnMainSync {
+                fullscreen!!.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+            }
+            var rotated: AnnieCanvasActivity? = null
+            compose.waitUntil(20_000) {
+                instrumentation.runOnMainSync {
+                    rotated = ActivityLifecycleMonitorRegistry.getInstance()
+                        .getActivitiesInStage(Stage.RESUMED)
+                        .filterIsInstance<AnnieCanvasActivity>()
+                        .firstOrNull { it !== fullscreen }
+                }
+                rotated != null
+            }
+            compose.waitUntil(10_000) {
+                var attached = false
+                instrumentation.runOnMainSync {
+                    val active = rotated
+                    attached = active != null && allWebViewsOnThread(active.window.decorView)
+                        .any { it === originalWebView }
+                }
+                attached
+            }
+            assertSame("Rotation must reparent the exact Canvas WebView",
+                originalWebView, rotated?.let { active ->
+                    var found: WebView? = null
+                    instrumentation.runOnMainSync {
+                        found = allWebViewsOnThread(active.window.decorView).firstOrNull()
+                    }
+                    found
+                })
+            assertEquals("Orientation must not start duplicate JS loops",
+                pendingBefore,
+                eval(originalWebView, "window.__annieCanvasHost.pendingJobs").toInt())
+            val frameBefore = eval(originalWebView, "window.frames").toInt()
+            compose.waitUntil(10_000) {
+                eval(originalWebView, "window.frames").toInt() > frameBefore
+            }
+            saveEmulatorScreenshot("annie-agent4-canvas-landscape-reused")
+        } finally {
+            instrumentation.runOnMainSync {
+                ActivityLifecycleMonitorRegistry.getInstance()
+                    .getActivitiesInStage(Stage.RESUMED)
+                    .filterIsInstance<AnnieCanvasActivity>()
+                    .forEach { it.finish() }
+                fullscreen?.takeUnless { it.isDestroyed }?.finish()
+            }
+            instrumentation.removeMonitor(monitor)
+        }
     }
 
 }
