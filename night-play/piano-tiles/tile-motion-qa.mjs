@@ -3,11 +3,12 @@
 // melody skipping. Run with Playwright under the project's shared preview code.
 import assert from 'node:assert/strict';
 import {createServer} from 'node:http';
-import {readFileSync} from 'node:fs';
+import {readFileSync,mkdirSync} from 'node:fs';
 import {dirname,resolve,join,extname} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {chromium} from 'playwright';
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
+const visual=join(root,'visual-output','piano-tiles');mkdirSync(visual,{recursive:true});
 const assets=new Set(['game-shell.css','piano-tiles/index.html','piano-tiles/style.css',
  'piano-tiles/game.js','piano-tiles/piano-audio.js',
  ...['C3','Fs3','A3','C4','Ds4','Fs4','A4','C5','Ds5','Fs5'].map(n=>'piano-tiles/samples/'+n+'.mp3')]);
@@ -49,6 +50,7 @@ try{
  browser=await chromium.launch({headless:true,args:['--no-sandbox','--autoplay-policy=no-user-gesture-required']});
  const p=await launchPage();
  await p.waitForTimeout(80);
+ await p.screenshot({path:join(visual,'piano-falling-390.png')});
  const before=await state(p);
  const future=24;
  assert.equal(before.s.complete,0);
@@ -103,6 +105,7 @@ try{
  const tailStart=holding1.g[heldCandidate].tailLength;
  await melodic.waitForTimeout(220);
  const holding2=await state(melodic);
+ await melodic.screenshot({path:join(visual,'piano-long-note-held-390.png')});
  const tailEnd=holding2.g[heldCandidate].tailLength;
  assert.ok(tailEnd<tailStart-30,'hold-tail did not contract smoothly '+tailStart+' '+tailEnd);
  assert.ok(tailEnd>138,'hold tail collapsed too quickly');
