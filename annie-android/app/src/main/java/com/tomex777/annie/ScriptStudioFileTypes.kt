@@ -66,14 +66,14 @@ internal fun studioImportTextDocument(
             .replace(Regex("[^A-Za-z0-9_.-]"), "_").trim('.', '_').take(70).ifBlank { "document" }
         "$stem.$extension"
     }
-    val root = if (executable) files.createScript(fileName) else files.createFolder(candidate)
+    val root = if (executable) files.createScript(fileName) else files.createDocumentProject(candidate)
     val projectId = if (executable) root.nameWithoutExtension else root.name
     val path = fileName
     try {
-        // Disable the project *before* storing untrusted imported source. A
-        // concurrent workspace reload must never observe a runnable import.
-        files.setEnabled(projectId, false)
-        if (!executable) files.createFile(projectId, path)
+        // Executable files have a starter stub until replaced. Disable them
+        // before copying untrusted code; document folders are born disabled.
+        if (executable) files.setEnabled(projectId, false)
+        else files.createFile(projectId, path)
         files.writeFile(projectId, path, source)
     } catch (failure: Throwable) {
         // Remove only the project created by this import. Do not retain an
