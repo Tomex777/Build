@@ -31,6 +31,7 @@ class PuzzleBoardView(context: Context) : View(context) {
     private var game: PuzzleGame? = null
     private var photo: Bitmap? = null
     private var renderedZone: Int = -1
+    private var renderedEdges: Boolean = false
     private var nextPiecePile: Int = 0
     private var notifyChange: () -> Unit = {}
     private val sprites = mutableMapOf<Int, Sprite>()
@@ -83,7 +84,8 @@ class PuzzleBoardView(context: Context) : View(context) {
     fun bind(newGame: PuzzleGame, newPhoto: Bitmap, onChange: () -> Unit) {
         notifyChange = onChange
         if (game === newGame && photo === newPhoto &&
-            renderedZone==newGame.activeZone && sprites.isNotEmpty()) {
+            renderedZone==newGame.activeZone &&
+            renderedEdges==newGame.edgesOnly && sprites.isNotEmpty()) {
             invalidate();return
         }
         snapAnimator?.cancel()
@@ -91,6 +93,7 @@ class PuzzleBoardView(context: Context) : View(context) {
         game = newGame
         photo = newPhoto
         renderedZone=newGame.activeZone
+        renderedEdges=newGame.edgesOnly
         sprites.values.forEach { it.bitmap.recycle() }
         sprites.clear()
         drawOrder.clear()
