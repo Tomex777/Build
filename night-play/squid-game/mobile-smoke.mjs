@@ -6,6 +6,12 @@ import {fileURLToPath} from 'node:url';
 import {chromium} from 'playwright';
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
+const designSource=readFileSync(path.join(root,'squid-game/index.html'),'utf8');
+// Preserve the user's preferred original block-like contestant design and matched moving parts.
+assert.match(designSource,/box\(1\.1,1\.5,\.62,p\.shade/,'original cuboid torso is retained');
+assert.match(designSource,/sphere\(\.45,'#252b29',0,3\.42,-\.075,body\)/,'hair moves with the head, not separately');
+assert.match(designSource,/leg\.position\.set\(s\*\.27,1\.155,0\)/,'feet are grounded on the track');
+
 const server=createServer((req,res)=>{
  const route=new URL(req.url,'http://localhost').pathname;
  const rel=route==='/squid-game/'?'squid-game/index.html':route==='/game-shell.css'?'game-shell.css':null;
@@ -52,6 +58,32 @@ try{
   await page.screenshot({path:path.join(output,'squid-3d-'+width+'.jpg'),type:'jpeg',quality:80,fullPage:true});
  }
  await page.setViewportSize({width:390,height:844});
+ // Real held pointer: leaving the button while captured must NOT cut off movement.
+ await page.reload({waitUntil:'domcontentloaded'});
+ await page.locator('#start').click();
+ await page.locator('#run').scrollIntoViewIfNeeded();
+ const runBox=await page.locator('#run').boundingBox();
+ assert.ok(runBox,'forward button must be on screen');
+ await page.mouse.move(runBox.x+runBox.width/2,runBox.y+runBox.height/2);
+ await page.mouse.down();
+ await page.waitForTimeout(250);
+ const beforeDrag=await page.locator('#progress').evaluate(el=>parseFloat(el.style.width)||0);
+ await page.mouse.move(runBox.x+runBox.width+55,runBox.y-12,{steps:4});
+ await page.waitForTimeout(260);
+ const afterDrag=await page.locator('#progress').evaluate(el=>parseFloat(el.style.width)||0);
+ assert.ok(afterDrag>beforeDrag+1.2,'dragging a held pointer outside must keep the captured run active');
+ await page.mouse.up();
+ await page.waitForTimeout(140);
+ const onRelease=await page.locator('#progress').evaluate(el=>parseFloat(el.style.width)||0);
+ await page.waitForTimeout(300);
+ const afterRelease=await page.locator('#progress').evaluate(el=>parseFloat(el.style.width)||0);
+ assert.ok(Math.abs(afterRelease-onRelease)<.05,'player must stop exactly on pointer release with no sliding');
+ // Red-light grace freezes the animation/position, even if the button stays pressed.
+ await page.waitForFunction(()=>document.getElementById('lightLabel').textContent==='RED LIGHT',{timeout:8500});
+ const atRed=await page.locator('#progress').evaluate(el=>parseFloat(el.style.width)||0);
+ await page.waitForTimeout(240);
+ const afterRed=await page.locator('#progress').evaluate(el=>parseFloat(el.style.width)||0);
+ assert.equal(afterRed,atRed,'contestant may not drift forward during red light');
  // Reload for a fresh round before touch, elimination, restart and keyboard tests.
  await page.reload({waitUntil:'domcontentloaded'});
  await page.locator('#start').click();
