@@ -77,6 +77,16 @@ const withFallback=await prepareChannelContent({
 });
 assert.equal(withFallback.mediaBuffer.toString(),'COMPOSITED_FALLBACK');
 assert.equal(withFallback.watermarked,true);
+const pairedAssets={light:fallback,dark:Buffer.from('DARK_INK_APPROVED_PNG')};
+const paired=await prepareChannelContent({
+  mediaBuffer:media,channelId,verifiedDisplayName,
+  branding:{watermarkEnabled:true},approvedFallbackPng:pairedAssets,
+  transform:async options=>{
+    assert.strictEqual(options.approvedFallbackPng,pairedAssets,'Do not lose approved contrast pair');
+    return {buffer:Buffer.from('PAIR_COMPOSITED'),assetKey:'pair-hash'};
+  }
+});
+assert.equal(paired.mediaBuffer.toString(),'PAIR_COMPOSITED');
 await assert.rejects(()=>prepareChannelContent({
   branding:{watermarkEnabled:false},approvedFallbackPng:'data:image/png;base64,...'
 }),/server-verified PNG Buffer/,'Never accept client-supplied fallback string');
