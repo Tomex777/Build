@@ -95,6 +95,17 @@ for suite, expected in required.items():
             ))
     print(f"{suite}: {len(got)}/{len(expected)} required native cases located")
 
+# Do not equate a green Gradle build with the visual evidence gate.
+for screenshot in (
+    "annie-ci-annie-agent4-two-canvases-paused.png",
+    "annie-ci-annie-agent4-canvas-closed-card.png",
+    "annie-ci-annie-agent4-canvas-reopened.png",
+    "annie-ci-annie-agent4-fullscreen-paused.png",
+):
+    matches = list((base / "screenshots").rglob(screenshot))
+    if not matches or not any(path.stat().st_size >= 2048 for path in matches):
+        errors.append(f"Missing/empty emulator screenshot: {screenshot}")
+
 summary = base / "results-summary.txt"
 summary.write_text(
     "PASS API-specific Canvas acceptance\n" if not errors
