@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { DatabaseSync } from 'node:sqlite'
-import { randomBytes } from 'node:crypto'
+import { randomBytes, createHash } from 'node:crypto'
 import { NightPlay } from '../night-play.js'
 
 const db=new DatabaseSync(':memory:')
@@ -41,7 +41,7 @@ role='SUBSCRIBER'
 await assert.rejects(svc.update(alice,channelId,1,{modules:{memes:false}},accounts),e=>e.status===403)
 role='ADMIN'
 const image=Buffer.from([137,80,78,71,13,10,26,10,1,2,3,4,5,6,7,8])
-const meme=i=>({image,mime:'image/png',caption:'Caption '+i,title:'Meme '+i,category:'anime',sourceName:'Approved source',sourceUrl:'https://example.org/licensed/'+i,rightsEvidence:i===0?null:{verifiedByServer:true,status:'cleared',licenseId:'license-'+i}})
+const meme=i=>({image,mime:'image/png',caption:'Caption '+i,title:'Meme '+i,category:'anime',sourceName:'Approved source',sourceUrl:'https://example.org/licensed/'+i,rightsEvidence:i===0?null:{verifiedByServer:true,status:'cleared',licenseId:'license-'+i,sha256:createHash('sha256').update(image).digest('hex'),sourceUrl:'https://example.org/licensed/'+i}})
 assert.throws(()=>svc.registerBatch(bob,channelId,[meme(0),meme(1),meme(2),meme(3)]),e=>e.status===404)
 const batch=svc.registerBatch(alice,channelId,[meme(0),meme(1),meme(2),meme(3)])
 const got=svc.batch(alice,channelId,batch)
