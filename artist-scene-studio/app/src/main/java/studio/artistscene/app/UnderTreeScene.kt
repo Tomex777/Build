@@ -43,7 +43,7 @@ object UnderTreeScene {
             name = "Classmate A",
             transform = Transform(
                 position = Vec3(-0.73f, 0f, -0.13f),
-                rotationEulerDegrees = Vec3(y = 164f),
+                rotationEulerDegrees = Vec3(y = 197f),
             ),
             appearance = CharacterAppearanceSettings(
                 hairStyle = HairStyle.NONE,
@@ -52,10 +52,13 @@ object UnderTreeScene {
                 hairGravityStrength = 1f,
                 hairWindStrength = .10f,
             ),
-            // Shoulders lowered from the imported T-pose; one elbow loosely bent while chatting.
+            // Imported VRoid faces -Z. Turning the body just past 180° brings the face
+            // toward the +Z camera AND slightly toward the other student (+X).
+            // Keep head yaw modest: both eyes remain legible in three-quarter view.
+            // Arms lower naturally from the original T-pose.
             rig = RigPose(joints = mapOf(
                 "figure/spine" to Vec3(z = -3f),
-                "figure/head" to Vec3(y = -18f, z = 4f),
+                "figure/head" to Vec3(y = 9f, z = 4f),
                 "figure/upperarm-l" to Vec3(x = -7f, z = 79f),
                 "figure/lowerarm-l" to Vec3(x = -8f, z = 10f),
                 "figure/upperarm-r" to Vec3(x = 10f, z = -58f),
@@ -76,7 +79,7 @@ object UnderTreeScene {
             name = "Classmate B",
             transform = Transform(
                 position = Vec3(0.70f, 0f, -0.09f),
-                rotationEulerDegrees = Vec3(y = 198f),
+                rotationEulerDegrees = Vec3(y = 163f),
             ),
             appearance = CharacterAppearanceSettings(
                 hairStyle = HairStyle.NONE,
@@ -85,10 +88,12 @@ object UnderTreeScene {
                 hairGravityStrength = 1f,
                 hairWindStrength = .05f,
             ),
-            // Natural listening posture: head turned, lowered arms and mild hip counterbalance.
+            // Mirrored inward-facing posture: the original male VRoid also faces -Z;
+            // turning to 163° exposes his face to +Z while his gaze points -X.
+            // Keep his independently editable arm/hip pose and bone rig.
             rig = RigPose(joints = mapOf(
                 "figure/spine" to Vec3(x = 3f, z = 2f),
-                "figure/head" to Vec3(y = 18f, z = -3f),
+                "figure/head" to Vec3(y = -9f, z = -3f),
                 "figure/upperarm-l" to Vec3(x = 12f, z = 73f),
                 "figure/lowerarm-l" to Vec3(x = 6f, z = 14f),
                 "figure/upperarm-r" to Vec3(x = 10f, z = -79f),
@@ -145,9 +150,11 @@ object UnderTreeScene {
                 SceneCamera(
                     id = "camera-main",
                     name = "Under the tree",
-                    position = Vec3(0.14f, 1.82f, 6.0f),
-                    target = Vec3(0f, 1.60f, -0.35f),
-                    verticalFovDegrees = 55f,
+                    // Move 0.9 m closer and lower the aim: enlarged student faces and less
+                    // empty upper sky while still showing both figures on narrow phones.
+                    position = Vec3(0.14f, 1.66f, 5.10f),
+                    target = Vec3(0f, 1.22f, -0.28f),
+                    verticalFovDegrees = 52f,
                 ),
             ),
             world = WorldSettings(
