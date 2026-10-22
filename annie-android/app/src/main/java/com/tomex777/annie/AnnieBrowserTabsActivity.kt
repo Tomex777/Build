@@ -3,6 +3,7 @@ package com.tomex777.annie
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import com.tomex777.annie.browser.engine.intents.IntentUrlParser
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -50,18 +51,32 @@ import java.util.UUID
  */
 internal class AnnieBrowserTabsActivity : ComponentActivity() {
     private val ownedInstances = mutableSetOf<String>()
+    // A new share/deep link opens inside the *same* Annie Gecko instance.
+    // Do not manufacture a second browser Activity or an unisolated WebView.
+    private var pendingExternalNavigation by mutableStateOf<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (savedInstanceState == null) {
+            pendingExternalNavigation = IntentUrlParser.parseIntent(intent, this)
+        }
         setContent {
             AnnieTheme {
                 AnnieGeckoStandaloneBrowser(
+                    incomingNavigation = pendingExternalNavigation,
+                    onNavigationConsumed = { pendingExternalNavigation = null },
                     onExit = ::finish,
                     onOwn = { ownedInstances.add(it) },
                     onRelease = { ownedInstances.remove(it) },
                 )
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        pendingExternalNavigation = IntentUrlParser.parseIntent(intent, this)
     }
 
     override fun onDestroy() {
@@ -73,8 +88,14 @@ internal class AnnieBrowserTabsActivity : ComponentActivity() {
     }
 
     companion object {
-        fun intent(context: Context): Intent =
-            Intent(context, AnnieBrowserTabsActivity::class.java)
+        fun intent(context: Context, sharedTextOrUrl: String? = null): Intent =
+            Intent(context, AnnieBrowserTabsActivity::class.java).apply {
+                if (!sharedTextOrUrl.isNullOrBlank()) {
+                    action = Intent.ACTION_SEND
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_TEXT, sharedTextOrUrl)
+                }
+            }
     }
 }
 

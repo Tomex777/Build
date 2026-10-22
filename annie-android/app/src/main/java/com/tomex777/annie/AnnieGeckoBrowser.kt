@@ -826,6 +826,8 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
 /** Gecko browser surface is isolated from script-automation WebView sessions. */
 @Composable
 internal fun AnnieGeckoStandaloneBrowser(
+    incomingNavigation: String? = null,
+    onNavigationConsumed: () -> Unit = {},
     onExit: () -> Unit,
     onOwn: (String) -> Unit,
     onRelease: (String) -> Unit,
@@ -833,6 +835,13 @@ internal fun AnnieGeckoStandaloneBrowser(
     val context = LocalContext.current
     val state = remember(context) { runCatching { AnnieGeckoBrowserModel(context) } }
     val model = state.getOrNull()
+    LaunchedEffect(model, incomingNavigation) {
+        if (model != null && incomingNavigation != null) {
+            val valid = AnnieBrowserAddress.resolve(incomingNavigation)
+            if (valid != null) model.newTab(address = valid)
+            onNavigationConsumed()
+        }
+    }
     if (model == null) {
         // Gecko can't initialize on this device: keep existing WebView browser usable.
         AnnieStandaloneTabs(onExit = onExit, onOwn = onOwn, onRelease = onRelease)
