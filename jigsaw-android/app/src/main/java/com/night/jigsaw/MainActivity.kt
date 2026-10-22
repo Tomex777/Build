@@ -361,8 +361,11 @@ class MainActivity : ComponentActivity() {
                                         modifier=Modifier.size(54.dp))
                                     Spacer(Modifier.width(8.dp))
                                 }
-                                Text(entry.title,maxLines=2,
-                                    overflow=TextOverflow.Ellipsis)
+                                Column {
+                                    Text(entry.title,maxLines=1,
+                                        overflow=TextOverflow.Ellipsis)
+                                    Text(entry.source,fontSize=11.sp,color=muted)
+                                }
                             }
                         }
                     }
