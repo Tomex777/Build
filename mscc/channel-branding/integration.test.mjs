@@ -20,7 +20,7 @@ const branding={
 };
 const first=await prepareChannelContent({
   text:'Not bullshit.',mediaBuffer:jpg,channelId:'120363456789012345@newsletter',
-  verifiedDisplayName:'NIGHT 👩🏽‍💻',branding,rendererVerifiedEmoji:true,
+  verifiedDisplayName:'NIGHT 👩🏽‍💻',branding,sourceKind:'automation',rendererVerifiedEmoji:true,
   watermarkCache:new WatermarkCache(),sharpLibrary:sharp,transform:render
 });
 assert.equal(first.caption,'Not BS.\n\n> TOMEX');
@@ -29,7 +29,7 @@ assert.notDeepEqual(first.mediaBuffer,jpg,'Real image pixels changed');
 assert.equal((await sharp(first.mediaBuffer).metadata()).format,'jpeg');
 const other=await prepareChannelContent({
   text:'Not bullshit.',mediaBuffer:jpg,channelId:'120363456789012346@newsletter',
-  verifiedDisplayName:'NIGHT 👩🏽‍💻',branding,rendererVerifiedEmoji:true,
+  verifiedDisplayName:'NIGHT 👩🏽‍💻',branding,sourceKind:'automation',rendererVerifiedEmoji:true,
   sharpLibrary:sharp,transform:render
 });
 assert.notEqual(first.watermarkAssetKey,other.watermarkAssetKey,'Different channel claims never share cached watermark identity');
