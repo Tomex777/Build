@@ -42,6 +42,8 @@ class WebDownloadConsent(private val downloads: DownloadLibrary) {
         private set
     var isRepeatDownload by mutableStateOf(false)
         private set
+    var isSimultaneousDownload by mutableStateOf(false)
+        private set
 
     fun offer(response: WebResponse, privateMode: Boolean = false) {
         // The SAF picker belongs to the pending original stream. Never swap a second
@@ -65,8 +67,11 @@ class WebDownloadConsent(private val downloads: DownloadLibrary) {
             GeckoDownloadNames.fromDisposition(disposition)
                 ?: Uri.parse(response.uri).lastPathSegment, mime
         )
-        isRepeatDownload = !privateMode &&
+        val wasDownloaded = !privateMode &&
             downloads.existingCompletedDuplicate(response.uri, filename) != null
+        isSimultaneousDownload = !privateMode && !wasDownloaded &&
+            downloads.existingInProgressDuplicate(response.uri, filename) != null
+        isRepeatDownload = wasDownloaded || isSimultaneousDownload
         pending = response
     }
 
@@ -106,6 +111,7 @@ class WebDownloadConsent(private val downloads: DownloadLibrary) {
         privateMode = false
         selectingDestination = false
         isRepeatDownload = false
+        isSimultaneousDownload = false
     }
 
     fun consumeMessage(): String? = eventMessage.also { eventMessage = null }
@@ -157,6 +163,8 @@ fun NightDownloadPrompt(state: WebDownloadConsent) {
                     when {
                         state.privateMode ->
                             "Choose a location. This file will not appear in Library or history."
+                        state.isSimultaneousDownload ->
+                            "A file with this name is already downloading from this website. Start another copy?"
                         state.isRepeatDownload ->
                             "This file was downloaded before. Download another copy?"
                         else -> "Saved locally and listed in Library downloads."
