@@ -275,4 +275,20 @@ class AnnieCanvasLifecycleTest {
         opened.destroy()
     }
 
+    @Test fun manuallyPausedCanvasRemainsPausedAfterLazyItemEviction() {
+        val id = "canvas-lazy-pause-regression-" + SystemClock.uptimeMillis()
+        val first = AnnieCanvasSessions.get(id)
+        first.togglePause()
+        first.destroy()
+        val restored = AnnieCanvasSessions.get(id)
+        assertTrue("Host pause must survive Compose's offscreen item disposal",
+            restored.pausedByUser)
+        restored.togglePause()
+        restored.destroy()
+        val resumed = AnnieCanvasSessions.get(id)
+        assertTrue("Explicit Resume must clear the retained pause preference",
+            !resumed.pausedByUser)
+        resumed.destroy()
+    }
+
 }
