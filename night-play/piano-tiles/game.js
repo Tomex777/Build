@@ -223,7 +223,9 @@ function noteGeometry(n){
  const bottom=n.state==="holding"&&Number.isFinite(n.hitBottom)?
   n.hitBottom:HIT+trackTravel(elapsed)-trackTravel(n.at);
  const length=n.hold?(n.duration*(n.holdSpeed||speed)+138):166;
- return {bottom,top:bottom-length,left:n.lane*100+4,right:n.lane*100+96,speed,length};
+ const tailLength=n.state==="holding"?
+  138+Math.max(0,n.duration-(elapsed-n.start))*(n.holdSpeed||speed):length;
+ return {bottom,top:bottom-length,left:n.lane*100+4,right:n.lane*100+96,speed,length,tailLength};
 }
 function finishNote(n,holdBonus){
  if(n.state==="done")return;
@@ -360,8 +362,7 @@ function render(){
   if(g.bottom<0||g.top>H)continue;
   const progress=n.state==="holding"?Math.min(1,Math.max(0,(elapsed-n.start)/n.duration)):0;
   // The held head stays beneath the finger while the blue tail scrolls into it.
-  const remaining=n.state==="holding"?Math.max(0,n.duration-(elapsed-n.start)):n.duration;
-  const tail=n.state==="holding"?138+remaining*(n.holdSpeed||g.speed):g.length;
+  const tail=g.tailLength;
   const tileTop=g.bottom-tail;
   const top=Math.max(-4,tileTop),bottom=Math.min(H+4,g.bottom);
   x.save();x.beginPath();x.rect(g.left,top,g.right-g.left,bottom-top);x.clip();
