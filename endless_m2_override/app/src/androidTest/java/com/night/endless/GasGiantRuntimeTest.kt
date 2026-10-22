@@ -14,6 +14,7 @@ import java.io.File
 import java.io.FileOutputStream
 import java.util.concurrent.atomic.AtomicReference
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -59,6 +60,10 @@ class GasGiantRuntimeTest {
                         }
                 }
                 assertEquals(null, renderer.surfaceBodyId())
+                // Jupiter and Saturn are cloud atmospheres, not rocky worlds.
+                // Never allow them through a generic surface-landing path.
+                assertFalse("$planet must not permit a solid-surface landing",
+                    renderer.landOnExtendedBody(planet))
                 val projected = checkNotNull(renderer.labelSnapshots()
                     .firstOrNull { it.id == planet && it.visible })
                 capture(instrumentation, "orbital-$planet-oblate")
