@@ -15,7 +15,7 @@ const render=opts=>watermarkStaticImage({...opts,renderText});
 const branding={
   captionReplacementsEnabled:true,
   captionReplacements:[{from:'bullshit',to:'BS'}],
-  signatureEnabled:true,signaturePosterName:'TOMEX',
+  signatureEnabled:true,posterName:'TOMEX',
   watermarkEnabled:true,watermarkOpacity:.25,watermarkPosition:'bottom-left'
 };
 const first=await prepareChannelContent({
