@@ -115,7 +115,7 @@ adb -s emulator-5554 logcat -c || true
 # the shell step alive indefinitely. timeout -k also kills a hung adb.
 set +e
 timeout -k 10s 13m adb -s emulator-5554 shell am instrument -w -r \
-    -e class com.night.endless.MarsSurfaceRuntimeTest,com.night.endless.MoonSurfaceRuntimeTest,com.night.endless.ExtendedSurfaceRuntimeTest,com.night.endless.OrbitalNavigationRuntimeTest,com.night.endless.DeepTimeRuntimeTest,com.night.endless.CosmicScaleRuntimeTest,com.night.endless.GasGiantRuntimeTest \
+    -e class com.night.endless.MarsSurfaceRuntimeTest,com.night.endless.MoonSurfaceRuntimeTest,com.night.endless.ExtendedSurfaceRuntimeTest,com.night.endless.OrbitalNavigationRuntimeTest,com.night.endless.DeepTimeRuntimeTest,com.night.endless.CosmicScaleRuntimeTest,com.night.endless.GasGiantRuntimeTest,com.night.endless.SurfaceControlRuntimeTest \
     "$RUNNER" > "$ARTIFACT_DIR/instrumentation.txt" 2>&1
 instrument_status=$?
 set -e

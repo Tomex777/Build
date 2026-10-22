@@ -39,7 +39,7 @@ class ExtendedSurfaceMeshTest {
     }
 
     @Test fun duneAndFractureDetailIsFineRatherThanChunky() {
-        for (id in listOf("europa", "titan")) {
+        for (id in listOf("mercury", "ceres", "europa", "titan")) {
             for (i in 0..100) {
                 val x = i * 0.00013
                 val z = i * 0.00009
@@ -50,6 +50,17 @@ class ExtendedSurfaceMeshTest {
                 assertTrue("Excessive micro relief $id: $relief", abs(relief) < .001)
             }
         }
+    }
+
+    @Test fun fineRockyReliefUsesDifferentPhysicsForMercuryAndCeres() {
+        val mercury = (-24..24).map { i ->
+            ExtendedSurfaceMesh.nearReliefAt("mercury", i * .00043, i * .00023)
+        }
+        val ceres = (-24..24).map { i ->
+            ExtendedSurfaceMesh.nearReliefAt("ceres", i * .00043, i * .00023)
+        }
+        assertTrue("Mercury and Ceres still render identical near-field geology",
+            mercury.zip(ceres).any { (a, b) -> abs(a - b) > .000001 })
     }
 
     @Test fun landingCollisionHasContinuousFiniteHeight() {
