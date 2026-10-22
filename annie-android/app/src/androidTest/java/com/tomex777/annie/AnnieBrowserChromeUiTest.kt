@@ -3,6 +3,12 @@ package com.tomex777.annie
 import androidx.compose.foundation.layout.Box
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.assertExists
+import androidx.compose.ui.test.assertDoesNotExist
+import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.test.platform.app.InstrumentationRegistry
+import android.graphics.Bitmap
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
@@ -97,6 +103,29 @@ class AnnieBrowserChromeUiTest {
         }
         rule.onNodeWithTag("annie_browser_tab_private").performClick()
         rule.runOnIdle { assertEquals("private", selected) }
+    }
+
+    @Test
+    fun realAndroidScreenshotEvidenceForHomeAndTabs() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val context = instrumentation.targetContext
+        rule.setContent {
+            AnnieBrowserChrome(state(), actions(), webContent = { Box(it) },
+                downloadsContent = { Box(it) })
+        }
+        rule.waitForIdle()
+        context.openFileOutput("annie-agent2-home.png", 0).use { stream ->
+            rule.onRoot().captureToImage().asAndroidBitmap().compress(
+                Bitmap.CompressFormat.PNG, 100, stream
+            )
+        }
+        rule.onNodeWithTag("annie_browser_tab_switcher").performClick()
+        rule.waitForIdle()
+        context.openFileOutput("annie-agent2-tabs.png", 0).use { stream ->
+            rule.onRoot().captureToImage().asAndroidBitmap().compress(
+                Bitmap.CompressFormat.PNG, 100, stream
+            )
+        }
     }
 
     @Test
