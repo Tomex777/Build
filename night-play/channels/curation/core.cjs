@@ -48,7 +48,9 @@ function memeScore(item,options={}){
  const quality=resolution*.45+item.metrics.legibility*.45+shape*.1;
  const votes=clamp(Math.log10(1+item.metrics.upvotes)/4.2);
  const engagement=votes*.65+item.metrics.ratio*.35;
- const feedback=clamp((options.feedback&&typeof options.feedback==='object'?options.feedback[item.category]:undefined)??.5);
+ const feedbackByCategory=clamp((options.feedback&&typeof options.feedback==='object'?options.feedback[item.category]:undefined)??.5);
+ const sourcePreference=clamp(options.feedback?.sources?.[item.source.id]??feedbackByCategory);
+ const feedback=feedbackByCategory*.7+sourcePreference*.3;
  const hours=Math.max(0,((options.now||Date.now())-Date.parse(item.createdAt))/3600000);
  const freshness=clamp(1-Math.log1p(hours/24)/Math.log1p(365*6));
  return Math.round(100*(WEIGHTS.interest*categoryMatch+WEIGHTS.quality*quality+WEIGHTS.engagement*engagement+WEIGHTS.feedback*feedback+WEIGHTS.originality*item.metrics.originality+WEIGHTS.freshness*freshness)/Object.values(WEIGHTS).reduce((a,b)=>a+b,0))/100;
@@ -156,18 +158,32 @@ function chooseNews(items,{enabled=false,interests=[],shows=[],genres=[],platfor
 }
 
 function deriveHumanFeedback(reviewHistory){
- const counters=Object.create(null),feedback=Object.create(null);
+ const counters=Object.create(null),sourceCounters=Object.create(null),feedback=Object.create(null),sources=Object.create(null);
+ // Caller MUST pass authenticated, per-owner/per-channel review events, never
+ // crowd or global browsing data. Bound memory, record volume and source variety.
  for(const record of (Array.isArray(reviewHistory)?reviewHistory:[]).slice(-5000)){
   const category=record?.category,decision=record?.decision;
   if(!CATEGORIES.includes(category)||!['approved','declined'].includes(decision))continue;
   if(!counters[category])counters[category]={approved:0,declined:0};
   counters[category][decision]++;
+  const sourceId=record?.sourceId;
+  if(typeof sourceId==='string'&&/^[A-Za-z0-9:._/\\-]{2,120}$/.test(sourceId)&&
+    (Object.hasOwn(sourceCounters,sourceId)||Object.keys(sourceCounters).length<256)){
+   if(!sourceCounters[sourceId])sourceCounters[sourceId]={approved:0,declined:0};
+   sourceCounters[sourceId][decision]++;
+  }
  }
  for(const category of Object.keys(counters)){
   const {approved,declined}=counters[category];
-  // Neutral Bayesian prior: a few clicks should not erase good but unexplored categories.
+  // Neutral Bayesian prior: a few clicks should not erase unexplored categories.
   feedback[category]=(approved+3)/(approved+declined+6);
  }
+ for(const source of Object.keys(sourceCounters)){
+  const {approved,declined}=sourceCounters[source];
+  sources[source]=(approved+3)/(approved+declined+6);
+ }
+ Object.defineProperty(feedback,'sources',{value:Object.freeze(sources),enumerable:true});
  return Object.freeze(feedback);
 }
+
 module.exports={deriveHumanFeedback,CATEGORIES,SIMPLE_TAGS,safeUrl,normalizeMeme,normalizeNews,memeScore,chooseFourMemes,chooseNews,isDuplicate,hashNear};
