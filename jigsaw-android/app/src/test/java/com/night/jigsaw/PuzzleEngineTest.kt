@@ -87,6 +87,50 @@ class PuzzleEngineTest {
         }
     }
 
+    @Test fun piecesJoinMoveAndSnapAsOneAssembly() {
+        val g=PuzzleGame.fresh(6,4,seed=404)
+        val first=g.pieces[0]
+        val second=g.pieces[1]
+        val width=g.pieceWidth
+        g.movePiece(0,430f,150f)
+        g.movePiece(1,430f+width+1f,150f)
+        assertFalse(g.release(1))
+        assertEquals(first.groupId,second.groupId)
+        assertEquals(2,g.groupMembers(0).size)
+        val beforeX=second.x
+        g.movePiece(0,first.x+25f,first.y+14f)
+        assertEquals(beforeX+25f,second.x,0.01f)
+        g.movePiece(0,g.targetX(first)+1f,g.targetY(first)-1f)
+        assertTrue(g.release(0))
+        assertTrue(first.placed)
+        assertTrue(second.placed)
+        assertEquals(2,g.completed)
+        assertEquals(g.targetX(second),second.x,0.01f)
+        assertEquals(g.targetY(second),second.y,0.01f)
+    }
+
+    @Test fun joinedAssemblySurvivesSavedStateAndRotation() {
+        val g=PuzzleGame.fresh(8,6,seed=8765)
+        val a=g.pieces[0]
+        val b=g.pieces[1]
+        g.movePiece(0,400f,140f)
+        g.movePiece(1,400f+g.pieceWidth,140f)
+        assertFalse(g.release(1))
+        val groups=g.pieces.map{it.groupId}
+        val locations=g.pieces.map{Triple(it.x,it.y,it.placed)}
+        val restored=PuzzleGame.restore(g.cols,g.rows,g.seed,g.imageKey,
+            locations,g.hintsRemaining,g.moves,g.preview,g.landscapeMode,g.activeZone,groups)!!
+        assertEquals(2,restored.groupMembers(0).size)
+        restored.setLandscape(true)
+        val xDelta=restored.pieces[1].x-restored.pieces[0].x
+        val yDelta=restored.pieces[1].y-restored.pieces[0].y
+        assertEquals(restored.pieceWidth,xDelta,0.001f)
+        assertEquals(0f,yDelta,0.001f)
+        val badGroups=groups.toMutableList().apply{set(2,9999)}
+        assertNull(PuzzleGame.restore(g.cols,g.rows,g.seed,g.imageKey,
+            locations,g.hintsRemaining,g.moves,g.preview,g.landscapeMode,g.activeZone,badGroups))
+    }
+
     @Test fun neighborTabsAreComplementaryAndEdgesFlat() {
         val g = PuzzleGame.fresh(12, 12, seed = 782)
         for (r in 0 until 12) for (c in 0 until 12) {
