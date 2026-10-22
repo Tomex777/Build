@@ -3588,7 +3588,11 @@ internal fun Composer(
             }
             if (value.text.isBlank()) {
                 if (voiceNotes.locked) androidx.compose.foundation.layout.Spacer(Modifier.size(48.dp))
-                else VoiceHoldButton(voiceNotes, onNeedPermission = { voicePermission.launch(Manifest.permission.RECORD_AUDIO) })
+                else VoiceHoldButton(
+                    voiceNotes,
+                    onNeedPermission = { voicePermission.launch(Manifest.permission.RECORD_AUDIO) },
+                    onBeforeRecord = { dictation.release() },
+                )
             } else Surface(
                 color = Blue,
                 shape = CircleShape,
