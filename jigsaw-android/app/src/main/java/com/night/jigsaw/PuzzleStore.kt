@@ -129,6 +129,35 @@ class PuzzleStore(private val context: Context) {
             BitmapFactory.Options().apply{inSampleSize=8})
     }
 
+    /** User-controlled removal only. Never delete the photo used by the active
+     * saved game: doing so would make its incomplete puzzle impossible to resume. */
+    fun deletePhoto(key: String, currentImageKey: String): Boolean {
+        if(key=="starter" || key==currentImageKey)return false
+        val file=imageFile(key) ?: return false
+        if(!file.exists())return false
+        if(key!="custom") {
+            val old=if(photoIndex.exists())runCatching{
+                JSONArray(photoIndex.readText())
+            }.getOrElse{JSONArray()} else JSONArray()
+            val next=JSONArray()
+            for(i in 0 until old.length()) {
+                val item=old.optJSONObject(i) ?: continue
+                if(item.optString("key")!=key)next.put(item)
+            }
+            val tmp=File(context.filesDir,"saved-photos.json.tmp")
+            tmp.writeText(next.toString())
+            if(!tmp.renameTo(photoIndex)) {
+                tmp.copyTo(photoIndex,overwrite=true)
+                tmp.delete()
+            }
+        }
+        return file.delete()
+    }
+
+    fun savedPhotoBytes(): Long = listPhotos().sumOf { photo ->
+        imageFile(photo.key)?.length() ?: 0L
+    }
+
     /** Resize/crop the selected local photo before storing it; do not retain a fragile gallery URI. */
     fun importPhoto(uri: Uri, titleOverride: String?=null,
                     source: String="Personal"): ImportedPuzzlePhoto {
