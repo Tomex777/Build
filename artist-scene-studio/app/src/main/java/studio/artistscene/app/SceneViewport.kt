@@ -500,6 +500,10 @@ private fun SceneScope.ActorModelNode(
     onActorPivotUpdated: (String, Vec3) -> Unit,
 ) {
     val asset = actor.asset ?: return
+    // SceneView retains onFrame on its native Node. Never capture the actor
+    // snapshot from when the node was first mounted: Compose Inspector sliders
+    // update immutable Actor values but must affect the VERY NEXT GPU frame.
+    val latestActor = rememberUpdatedState(actor)
     val model by produceState<ModelInstance?>(
         initialValue = null,
         key1 = actor.id,
@@ -605,7 +609,7 @@ private fun SceneScope.ActorModelNode(
             onFrame = {
                 // Real gravitational hair and cloth deformation updates skinned
                 // joint transforms on the renderer's frame, never via UI bitmaps.
-                springRuntime?.advance(actor, System.nanoTime())
+                springRuntime?.advance(latestActor.value, System.nanoTime())
                 val manager = engine.transformManager
                 val world = manager.getWorldTransform(manager.getInstance(entity), rootMatrix)
                 val pivot = Vec3(world[12], world[13], world[14])
