@@ -8,7 +8,7 @@ const $=id=>document.getElementById(id),board=$("board"),ctx=board.getContext("2
 // coloured arcade bars. Held notes use a soft turquoise completion accent.
 const colors=["#263948","#263948","#263948","#263948"],deepColors=["#101e2b","#101e2b","#101e2b","#101e2b"];
 let preparing=false,running=false,paused=false,ended=false,elapsed=0,previous=0,raf=0;
-let notes=[],score=0,streak=0,complete=0,held=new Map(),keyHeld=new Set();
+let notes=[],score=0,streak=0,complete=0,held=new Map(),keyHeld=new Set(),lastTap=null;
 const SONGS=window.NightPianoSongLibrary.songs;
 let selectedSong=SONGS[0],endlessNextAt=0,endlessIndex=0;
 let songFilter="All",songQuery="";
@@ -183,6 +183,7 @@ function buildFilters(){
 }
 function showLibrary(){
  if(preparing)return;
+ if(score>0)saveBest();
  clearRun();$("playPage").hidden=true;$("songLibrary").hidden=false;
  $("pause").hidden=true;renderSongLibrary();
  window.scrollTo({top:0,behavior:"instant"});
@@ -200,7 +201,7 @@ function openSong(song){
 function chooseSong(id){openSong(SONGS.find(song=>song.id===id))}
 function clearRun(){
  if(raf)cancelAnimationFrame(raf);raf=0;closeSounds();notes=chart();
- held.clear();keyHeld.clear();score=0;streak=0;complete=0;
+ held.clear();keyHeld.clear();lastTap=null;score=0;streak=0;complete=0;
  elapsed=0;previous=0;running=false;paused=false;ended=false;
  document.body.classList.remove("is-playing");
  updateHud();setPauseButton();setSongControls();$("restart").hidden=true;$("status").textContent="";render();
@@ -258,6 +259,9 @@ function pause(){
   $("status").textContent="";
  }else{
   $("cover").hidden=true;previous=0;
+  for(const n of notes){
+   if(n.state==="holding"&&n.pointer!==null&&!n.voice)n.voice=sound(n.freq,true);
+  }
   $("status").textContent="";
   raf=requestAnimationFrame(tick);
  }
@@ -348,9 +352,15 @@ function play(x,y,id){
   return g.bottom>=0&&g.top<=H&&
    y>=Math.max(0,g.top)-9&&y<=Math.min(H,g.bottom)+9;
  });
- if(!n){lose("Wrong tile");return;}
+ if(!n){
+  // Double-registration from the same thumb or Android pointer event must not
+  // kill a good run if the tile has disappeared only a few milliseconds ago.
+  if(lastTap && lastTap.lane===lane && Math.abs(lastTap.y-y)<55 &&
+     elapsed-lastTap.elapsed<.12)return;
+  lose("Wrong tile");return;
+ }
  const hit=noteGeometry(n);
- n.start=elapsed;n.flash=.24;
+ n.start=elapsed;n.flash=.24;lastTap={lane,y,elapsed};
  // The full tile is tappable; the lower playable third earns 'Perfect'.
  const accurate=hit.bottom>=HIT-45&&hit.bottom<=H+18;
  score+=accurate?125:100;
