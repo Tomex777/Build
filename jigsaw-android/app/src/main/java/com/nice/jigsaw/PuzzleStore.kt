@@ -4,15 +4,18 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
+import android.graphics.Matrix
 import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.RectF
 import android.net.Uri
+import androidx.exifinterface.media.ExifInterface
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.roundToInt
 
 /** Atomic app-private progress and photo storage. No permissions/network required. */
 class PuzzleStore(private val context: Context) {
@@ -67,13 +70,29 @@ class PuzzleStore(private val context: Context) {
         val decoded=resolver.openInputStream(uri)?.use {
             BitmapFactory.decodeStream(it,null,opts)
         } ?: error("The photo could not be opened.")
+        val orientation=resolver.openInputStream(uri)?.use { stream ->
+            ExifInterface(stream).getAttributeInt(
+                ExifInterface.TAG_ORIENTATION,ExifInterface.ORIENTATION_NORMAL)
+        } ?: ExifInterface.ORIENTATION_NORMAL
+        val rotation=when(orientation) {
+            ExifInterface.ORIENTATION_ROTATE_90 -> 90f
+            ExifInterface.ORIENTATION_ROTATE_180 -> 180f
+            ExifInterface.ORIENTATION_ROTATE_270 -> 270f
+            else -> 0f
+        }
+        val upright=if(rotation!=0f) Bitmap.createBitmap(decoded,0,0,
+            decoded.width,decoded.height,Matrix().apply { postRotate(rotation) },true)
+            else decoded
+        if (upright !== decoded) decoded.recycle()
         val result=Bitmap.createBitmap(960,720,Bitmap.Config.ARGB_8888)
-        val sw=decoded.width;val sh=decoded.height
-        val cropW=min(sw,sh*4/3);val cropH=min(sh,sw*3/4)
+        val sw=upright.width;val sh=upright.height
+        val ratio=4f/3f
+        val cropW=if(sw.toFloat()/sh>ratio) (sh*ratio).roundToInt().coerceIn(1,sw) else sw
+        val cropH=if(sw.toFloat()/sh>ratio) sh else (sw/ratio).roundToInt().coerceIn(1,sh)
         val left=(sw-cropW)/2;val top=(sh-cropH)/2
-        Canvas(result).drawBitmap(decoded,Rect(left,top,left+cropW,top+cropH),
+        Canvas(result).drawBitmap(upright,Rect(left,top,left+cropW,top+cropH),
             RectF(0f,0f,960f,720f),Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG))
-        decoded.recycle()
+        upright.recycle()
         val tmp=File(context.filesDir,"jigsaw-photo.jpg.tmp")
         tmp.outputStream().use { stream ->
             check(result.compress(Bitmap.CompressFormat.JPEG,90,stream))
