@@ -264,6 +264,11 @@ class EndlessRenderer(
         ringProgram = createProgram(RING_VERTEX_SHADER, RING_FRAGMENT_SHADER)
         marsSkyProgram = createProgram(MARS_SKY_VERTEX_SHADER, MARS_SKY_FRAGMENT_SHADER)
 
+        // GLES handles from the previous EGL context are invalid even if an
+        // integer ID happens to be reused. Failed decoding on a restored,
+        // memory-constrained device must not leave a stale giant-planet
+        // texture in this map and paint a blank black globe.
+        textures.clear()
         loadPlanetTextures()
         buildStars()
         asteroidBeltBuffer = floatBuffer(AsteroidBeltModel.positions(asteroidBeltOrbits, 0.0))
