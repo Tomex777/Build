@@ -439,7 +439,8 @@ test('cached story arrays are immutable across feed refreshes and consumers',asy
   fetchImpl:async()=>{calls++;return new Response(xml)},
   interpreter:()=>({show:'Aurora',event:'renewals',tags:['renewals'],confirmed:true})});
  const one=await feed.discover();
- assert(Object.isFrozen(one));assert(Object.isFrozen(one.items));assert(Object.isFrozen(one.source));
+ assert(Object.isFrozen(one));assert(Object.isFrozen(one.items));assert(Object.isFrozen(one.source));assert(Object.isFrozen(one.items[0].tags));
+ assert.throws(()=>one.items[0].tags.push('casting'),TypeError);
  assert.throws(()=>one.items.push({kind:'news',autoEligible:true}),TypeError);
  assert.throws(()=>{one.source.official=false},TypeError);
  assert.equal((await feed.discover()).items.length,1);assert.equal(calls,1);
