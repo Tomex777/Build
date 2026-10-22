@@ -108,7 +108,7 @@ function storyWords(item){
     .replace(/^(confirmed|confirms|confirmation)$/,'confirm')
     .replace(/^(premieres|premiered|premiering)$/,'premiere')
     .replace(/^(releases|released)$/,'release');
-  if(word.length>1||/^\\d+$/.test(word))out.add(word);
+  if(word.length>1||/^\d+$/.test(word))out.add(word);
  }
  return out;
 }
