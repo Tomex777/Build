@@ -1,6 +1,7 @@
 package com.nice.juicewrld
 
 import android.graphics.Bitmap
+import androidx.test.platform.app.InstrumentationRegistry
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performScrollToNode
