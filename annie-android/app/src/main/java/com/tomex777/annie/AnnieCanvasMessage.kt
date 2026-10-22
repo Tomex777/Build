@@ -35,6 +35,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -418,8 +420,8 @@ internal object AnnieCanvasSessions {
     private val closedIds = LinkedHashSet<String>()
     private const val MAX_CLOSED_IDS = 384
 
-    fun get(id: String): AnnieCanvasController = sessions.getOrPut(id) {
-        AnnieCanvasController(id, synchronized(closedIds) { id in closedIds })
+    fun get(id: String, restoredClosed: Boolean = false): AnnieCanvasController = sessions.getOrPut(id) {
+        AnnieCanvasController(id, restoredClosed || synchronized(closedIds) { id in closedIds })
     }
     fun find(id: String): AnnieCanvasController? = sessions[id]
     fun remove(id: String, controller: AnnieCanvasController) {
@@ -448,7 +450,13 @@ internal fun AnnieCanvasMessage(payload: JSONObject) {
     val context = androidx.compose.ui.platform.LocalContext.current
     val owner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     val id = rememberAnnieBrowserInstanceId()
-    val controller = remember(id) { AnnieCanvasSessions.get(id) }
+    // Compose saves this boolean with the chat item's stable LazyColumn key.
+    // Restoring a closed message must not allocate/render its WebView first.
+    var closedAcrossRestore by rememberSaveable(id) { mutableStateOf(false) }
+    val controller = remember(id) { AnnieCanvasSessions.get(id, closedAcrossRestore) }
+    LaunchedEffect(controller.isClosed) {
+        closedAcrossRestore = controller.isClosed
+    }
     DisposableEffect(controller, owner) {
         controller.setInlineForeground(owner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED))
         val observer = LifecycleEventObserver { _, event ->
