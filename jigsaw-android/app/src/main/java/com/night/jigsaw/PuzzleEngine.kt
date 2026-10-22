@@ -296,20 +296,31 @@ class PuzzleGame private constructor(
         }
         // Exact row/column neighbor matches, regardless of group size.
         // This lets a 600-piece jigsaw be assembled a section at a time.
-        for(member in members) for(other in pieces) {
-            if(other.placed || other.groupId==p.groupId ||
-                !visible(other))continue
-            if(abs(member.row-other.row)+abs(member.col-other.col)!=1)continue
-            val offsetX=other.x-member.x-(other.col-member.col)*pieceWidth
-            val offsetY=other.y-member.y-(other.row-member.row)*pieceHeight
-            if(hypot(offsetX.toDouble(),offsetY.toDouble())>tolerance)continue
-            val targetGroup=other.groupId
-            for(piece in members){
-                piece.x+=offsetX
-                piece.y+=offsetY
-                piece.groupId=targetGroup
+        for(member in members) {
+            // Check only the four true photo-neighbors, not the entire
+            // 600-piece collection for each member in a dragged assembly.
+            val neighbors=intArrayOf(
+                if(member.row>0)member.id-cols else -1,
+                if(member.col>0)member.id-1 else -1,
+                if(member.col+1<cols)member.id+1 else -1,
+                if(member.row+1<rows)member.id+cols else -1
+            )
+            for(otherId in neighbors) {
+                if(otherId<0)continue
+                val other=pieces[otherId]
+                if(other.placed || other.groupId==p.groupId ||
+                    !visible(other))continue
+                val offsetX=other.x-member.x-(other.col-member.col)*pieceWidth
+                val offsetY=other.y-member.y-(other.row-member.row)*pieceHeight
+                if(hypot(offsetX.toDouble(),offsetY.toDouble())>tolerance)continue
+                val targetGroup=other.groupId
+                for(piece in members){
+                    piece.x+=offsetX
+                    piece.y+=offsetY
+                    piece.groupId=targetGroup
+                }
+                return false
             }
-            return false
         }
         return false
     }
