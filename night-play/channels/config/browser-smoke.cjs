@@ -25,7 +25,7 @@ function png(seed){
  return 'data:image/png;base64,'+Buffer.concat([Buffer.from('89504e470d0a1a0a','hex'),chunk('IHDR',hdr),chunk('IDAT',zlib.deflateSync(raw)),chunk('IEND',Buffer.alloc(0))]).toString('base64');
 }
 const fixtures=[png(1),png(2),png(3),png(4)];
-let current=null;
+let current=null,selection={id:'selection_000001',revision:0,items:[]};
 function send(res,status,body){
  res.statusCode=status;res.setHeader('Cache-Control','no-store');
  res.setHeader('Content-Type','application/json');res.end(JSON.stringify(body));
@@ -58,7 +58,7 @@ const server=http.createServer(async(req,res)=>{
      }
      settings={...settings,revision:settings.revision+1};return send(res,200,settings);
    }
-   if(action==='channel:memes:current')return current?send(res,200,current):send(res,404,{error:'No active review'});
+   if(action==='channel:memes:current')return send(res,200,{...(current||{}),selection});
    if(action==='channel:memes:find'){
      const base=++batchNumber;
      decisions={};
@@ -67,7 +67,7 @@ const server=http.createServer(async(req,res)=>{
        sourceName:'QA licensed fixtures',sourceUrl:'https://example.org/qa-fixture-'+n,rightsStatus:n===4?'unknown':'verified',publishable:n!==4,reviewOnly:n===4,
        previewData:fixtures[i],caption:'Caption for '+n
      })),decisions:[]};
-     return send(res,200,current);
+     return send(res,200,{...current,selection});
    }
    if(action==='channel:post:preview'){
      const candidate=current?.batchId===q.batchId?current.candidates.find(c=>c.id===q.candidateId):null;
@@ -76,22 +76,32 @@ const server=http.createServer(async(req,res)=>{
      return send(res,200,{previewData:candidate.previewData,formattedCaption:q.caption+(name?'\n> '+name:'')});
    }
    if(action==='channel:memes:review'){
-     const matching=current?.batchId===q.batchId&&current.candidates.some(c=>c.id===q.candidateId);
-     if(!matching)return send(res,404,{error:'Candidate not found'});
+     if(q.expectedSelectionRevision!==selection.revision)return send(res,409,{error:'Selection changed elsewhere'});
+     const candidate=(current?.batchId===q.batchId?current.candidates.find(c=>c.id===q.candidateId):null)
+       ||selection.items.find(c=>c.batchId===q.batchId&&c.candidateId===q.candidateId);
+     if(!candidate)return send(res,404,{error:'Candidate not found'});
      if(!['approved','declined','skipped'].includes(q.decision))return send(res,400,{error:'Invalid decision'});
-     decisions[q.candidateId]={candidateId:q.candidateId,decision:q.decision,caption:q.caption};
-     current.decisions=Object.values(decisions);
-     return send(res,200,decisions[q.candidateId]);
+     if(q.decision==='approved'&&(candidate.publishable!==true||candidate.rightsStatus!=='verified'))return send(res,403,{error:'Rights not verified'});
+     const others=selection.items.filter(item=>!(item.batchId===q.batchId&&item.candidateId===q.candidateId));
+     if(q.decision==='approved')others.push({batchId:q.batchId,candidateId:q.candidateId,title:candidate.title,caption:q.caption,
+       rightsStatus:'verified',publishable:true,reviewOnly:false,previewData:candidate.previewData});
+     selection={...selection,revision:selection.revision+1,items:others};
+     const decision={candidateId:q.candidateId,decision:q.decision,caption:q.caption};
+     if(current?.batchId===q.batchId){
+       decisions[q.candidateId]=decision;current.decisions=Object.values(decisions);
+     }
+     return send(res,200,{...decision,selection});
    }
    if(action==='channel:memes:publish'){
      publishAttempts++;
      if(!settings.modules.memes)return send(res,403,{error:'Memes disabled'});
-     if(current?.batchId!==q.batchId)return send(res,409,{error:'Stale batch'});
-     const ok=Object.values(decisions).filter(d=>d.decision==='approved');
+     if(selection.id!==q.selectionId||q.expectedSelectionRevision!==selection.revision)return send(res,409,{error:'Stale selection'});
+     const ok=selection.items;
      if(!ok.length)return send(res,403,{error:'No approvals'});
      if(q.mode==='schedule'&&!q.scheduledAt)return send(res,400,{error:'Missing schedule'});
-     const written=ok.map((d,i)=>({id:'queued_'+batchNumber+'_'+i,title:d.caption,status:q.mode==='schedule'?'scheduled':'queued',scheduledAt:q.scheduledAt||null}));
-     jobs.push(...written);current=null;return send(res,200,{jobs:written});
+     const written=ok.map((item,i)=>({id:'queued_'+batchNumber+'_'+i,title:item.caption,status:q.mode==='schedule'?'scheduled':'queued',scheduledAt:q.scheduledAt||null}));
+     jobs.push(...written);selection={...selection,revision:selection.revision+1,items:[]};current=null;
+     return send(res,200,{jobs:written,selection});
    }
    if(action==='channel:jobs:list')return send(res,200,{jobs});
    if(action==='channel:jobs:cancel'){
@@ -160,20 +170,38 @@ async function main(){
    assert.equal(await page.locator('.review-card').count(),4,'Real batch has four sourced images');
    assert.equal(await page.locator('.review-art img').count(),4);
    assert.equal(await page.locator('.review-card').nth(3).getByRole('button',{name:'Approve'}).isDisabled(),true,'No approval for unknown media reuse rights');
-   const cards=page.locator('.review-card');
-   await cards.nth(0).locator('textarea').fill('Caption edited by owner');
-   await cards.nth(0).getByRole('button',{name:'Preview post'}).click();
+   const firstCards=page.locator('.review-card');
+   await firstCards.nth(0).locator('textarea').fill('Caption edited by owner');
+   await firstCards.nth(0).getByRole('button',{name:'Preview post'}).click();
    await page.locator('#postPreview[open]').waitFor();
    await page.getByText('Caption as it will be sent').waitFor();
    assert.match(await page.locator('#postPreviewContent').textContent(),/> QA Owner/,'Human caption attribution is separate from channel watermark');
    await page.screenshot({path:path.join(output,'channels-A-preview-dialog.jpg'),fullPage:false});
    await page.getByRole('button',{name:'Close preview'}).click();
-   await cards.nth(0).getByRole('button',{name:'Approve'}).click();
-   await cards.nth(0).getByText('Approved', {exact:true}).waitFor();
-   await cards.nth(1).getByRole('button',{name:'Decline'}).click();
-   await cards.nth(1).getByText('Declined', {exact:true}).waitFor();
+   await firstCards.nth(0).getByRole('button',{name:'Approve'}).click();
+   await firstCards.nth(0).getByText('Approved', {exact:true}).waitFor();
+   await firstCards.nth(1).getByRole('button',{name:'Decline'}).click();
+   await firstCards.nth(1).getByText('Declined', {exact:true}).waitFor();
    assert.match(await page.locator('#approvedCount').textContent(),/^1 approved/);
    assert.equal(Object.values(decisions).filter(x=>x.decision==='approved').length,1);
+   await page.reload();
+   await page.locator('#configUI').waitFor({state:'visible'});
+   assert.match(await page.locator('#approvedCount').textContent(),/^1 approved/,'Server restores first approval on reload');
+   await page.getByRole('button',{name:'Next four'}).click();
+   await page.locator('.review-card').first().getByText('Test candidate 1').waitFor();
+   assert.match(await page.locator('#approvedCount').textContent(),/^1 approved/,'Selection survives a new batch');
+   assert.equal(await page.locator('.selected-item').count(),1,'Prior image stays in approved tray');
+   await page.locator('.review-card').nth(1).getByRole('button',{name:'Skip'}).click();
+   await page.locator('.review-card').nth(1).getByText('Skipped',{exact:true}).waitFor();
+   await page.locator('.review-card').first().getByRole('button',{name:'Approve'}).click();
+   await page.getByText('2 approved',{exact:true}).waitFor();
+   await page.reload();
+   await page.locator('#configUI').waitFor({state:'visible'});
+   assert.equal(await page.locator('.selected-item').count(),2,'Two server-confirmed approvals survive reload and Next four');
+   await page.getByRole('button',{name:'Remove Test candidate 1 from approved selection'}).last().click();
+   await page.getByText('1 approved',{exact:true}).waitFor();
+   assert.equal(selection.items[0].caption,'Caption edited by owner','Remove updates backend selection, retains older approved batch');
+   const cards=page.locator('.review-card');
    for(const width of [320,360,390,412,1280]){
      await page.setViewportSize({width,height:width===1280?900:780});
      assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),true,'No horizontal overflow at '+width);
