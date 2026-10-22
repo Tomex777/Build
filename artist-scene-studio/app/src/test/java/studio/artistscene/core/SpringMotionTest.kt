@@ -34,6 +34,28 @@ class SpringMotionTest {
         assertTrue(abs(withWind.x) + abs(withWind.z) > .05f)
     }
 
+    @Test fun breezeDeflectsHangingHairEvenWhenGravityIsDisabled() {
+        val spring = SpringMotion(Vec3(0f, -1f, 0f), stiffness = .4f, drag = .4f)
+        var maxTilt = 0f
+        repeat(180) {
+            val sample = spring.advance(
+                dtSeconds = 1f / 30f,
+                gravityLocal = Vec3(0f, -1f, 0f),
+                pivotWorld = Vec3(),
+                gravityPower = 0f,
+                wind = 2f,
+            )
+            maxTilt = maxOf(maxTilt, abs(sample.x) + abs(sample.z))
+        }
+        assertTrue(
+            "Disabling Gravity must not also disable the independent Breeze slider",
+            maxTilt > .5f,
+        )
+        // With both sliders off and a stationary head, no phantom force.
+        val settled = SpringMotion(Vec3(0f, -1f, 0f))
+        assertEquals(Vec3(), integrate(settled, Vec3(0f, -1f, 0f), wind = 0f))
+    }
+
     @Test fun realFemaleVrmSpringTipsDeformAtBudgetPhoneFrameRates() {
         // Authored directions from the BUNDLED HairSample_Female spring manifest,
         // rather than a synthetic sideways test strand. These exact joints bind
