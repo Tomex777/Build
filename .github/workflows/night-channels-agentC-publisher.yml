@@ -1,0 +1,41 @@
+name: NIGHT Channels Agent C publisher tests
+on:
+  push:
+    branches:
+      - 'agentC/channels-publisher-security-20261022'
+    paths:
+      - 'mscc/channel-publisher/**'
+      - 'mscc/night-play.js'
+      - 'mscc/night-play-channels.js'
+      - '.github/workflows/night-channels-agentC-publisher.yml'
+  pull_request:
+    branches: [mscc-azure]
+    paths:
+      - 'mscc/channel-publisher/**'
+      - 'mscc/night-play.js'
+      - 'mscc/night-play-channels.js'
+      - '.github/workflows/night-channels-agentC-publisher.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+jobs:
+  durable-security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Publisher syntax check
+        run: |
+          node --check mscc/channel-publisher/service.js
+          node --check mscc/channel-publisher/selftest.js
+          node --check mscc/night-play-channels.js
+          node --check mscc/night-play.js
+      - name: Channel owner and queue regression tests
+        run: |
+          node mscc/channel-publisher/selftest.js
+          node mscc/night-play-channels-selftest.js
+          node mscc/night-play-selftest.js

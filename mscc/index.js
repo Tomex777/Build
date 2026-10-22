@@ -434,6 +434,7 @@ let releaseWatcher = null
 let releaseWatchTimer = null
 let releaseWatchRunning = false
 let scheduledTaskTimer = null
+let channelPublisherTimer = null
 let scheduledTaskRunning = false
 let persistedMessageWrites = 0
 let settingsMtimeMs = 0
@@ -3567,6 +3568,31 @@ async function requestRestart() {
   return { ok:true }
 }
 
+// Feature is inert unless explicitly approved on an authorized beta channel.
+// No production channel posting is implicitly enabled by merging the code.
+function startChannelPublisherRunner() {
+  if(process.env.NIGHT_CHANNEL_PUBLISHER_ENABLED!=='1') return
+  const allowedChannelIds=(process.env.NIGHT_CHANNEL_ALLOWED_JIDS||'').split(',')
+    .map(s=>s.trim()).filter(s=>/^\d{8,25}@newsletter$/.test(s)).slice(0,20)
+  if(!allowedChannelIds.length){
+    console.warn('Channel publishing disabled: no approved JID allowlist configured.')
+    return
+  }
+  let running=false
+  const run=async()=>{
+    if(running||shuttingDown||!nightPlay)return
+    running=true
+    try{
+      const result=await nightPlay.channels.publisher.drain(accounts,{limit:1,allowedChannelIds})
+      if(result.sent)console.log('NIGHT authorized channel publishing: '+result.sent+' confirmed post(s).')
+    }catch(error){console.error('NIGHT channel publishing worker:',error?.message||error)}
+    finally{running=false}
+  }
+  channelPublisherTimer=setInterval(()=>{void run()},30000)
+  channelPublisherTimer.unref?.()
+  void run()
+}
+
 async function init() {
   await loadAccounts()
   sharedStorage = await openSharedStorage({
@@ -3658,6 +3684,7 @@ async function init() {
   })
   startLibraryReleaseWatcher()
   startScheduledTaskRunner()
+  startChannelPublisherRunner()
   squidGameTimer = setInterval(() => {
     squidGame.tick().catch(error => console.error('Squid Game:', error?.message || error))
   }, 1000)
@@ -3677,6 +3704,8 @@ async function shutdown(signal, exitCode = 0) {
     releaseWatchTimer = null
     if (scheduledTaskTimer) clearInterval(scheduledTaskTimer)
     scheduledTaskTimer = null
+    if (channelPublisherTimer) clearInterval(channelPublisherTimer)
+    channelPublisherTimer = null
     if (squidGameTimer) clearInterval(squidGameTimer)
     squidGameTimer = null
     await Promise.allSettled([...accounts.values()].map(account => closeAccount(account)))

@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto'
+import { ChannelPublisher } from './channel-publisher/service.js'
 
 // Only an already verified NIGHT Play identity can request a channel claim.
 // Following a channel or knowing its public URL never confers admin access.
@@ -9,13 +10,19 @@ export class ChannelError extends Error {
 }
 const fail=(status, message)=>{ throw new ChannelError(status,message) }
 const str=x=>String(x||'').trim()
-const clean=x=>str(x).replace(/[\p{Cc}\p{Cf}<>]/gu,'').slice(0,100)
+const exactChannelName=x=>{
+  // This is authoritative WhatsApp metadata, not a user-entered HTML fragment.
+  // Never strip ZWJ/RTL controls or slice UTF-16 code units: watermark must be exact.
+  if(typeof x!=='string'||!x.trim()||Buffer.byteLength(x,'utf8')>512||/\p{Cc}/u.test(x))
+    fail(502,'WhatsApp returned an invalid channel name.')
+  return x
+}
 const roleOf=meta=>str((meta?.viewer_metadata||meta?.viewerMetadata||{}).role).toUpperCase()
 const isAdmin=role=>['ADMIN','OWNER','SUPERADMIN','SUPER_ADMIN','CREATOR'].includes(role)
 function infoOf(meta) {
   const id=str(meta?.id||meta?.jid)
   if(!JID.test(id)) fail(502,'WhatsApp could not identify this channel.')
-  return {id,name:clean((typeof meta?.name==='string'?meta.name:meta?.name?.text)||meta?.thread_metadata?.name?.text||meta?.subject||'WhatsApp Channel'),role:roleOf(meta)}
+  return {id,name:exactChannelName((typeof meta?.name==='string'?meta.name:meta?.name?.text)||meta?.thread_metadata?.name?.text||meta?.subject),role:roleOf(meta)}
 }
 const view=r=>({id:r.channel_id,name:r.name,status:r.state,verifiedAt:r.verified_at||null,
   ...(r.state!=='connected'?{proof:r.proof,expiresAt:r.expires_at}:{} )})
@@ -25,6 +32,7 @@ export class NightPlayChannels {
     this.db.exec('CREATE TABLE IF NOT EXISTS play_channel_consent(user_id TEXT PRIMARY KEY REFERENCES play_users(id) ON DELETE CASCADE,account_id TEXT NOT NULL,channel_id TEXT NOT NULL,channel_name TEXT NOT NULL,expires_at INTEGER NOT NULL);'
       +'CREATE TABLE IF NOT EXISTS play_channel_claims(user_id TEXT NOT NULL REFERENCES play_users(id) ON DELETE CASCADE,channel_id TEXT NOT NULL,account_id TEXT NOT NULL,name TEXT NOT NULL,state TEXT NOT NULL CHECK(state IN (\'awaiting_admin\',\'awaiting_proof\',\'connected\')),proof TEXT NOT NULL,created_at INTEGER NOT NULL,expires_at INTEGER NOT NULL,verified_at INTEGER,PRIMARY KEY(user_id,channel_id));'
       +'CREATE INDEX IF NOT EXISTS play_channel_claim_by_channel ON play_channel_claims(channel_id);')
+    this.publisher = new ChannelPublisher(this,{now})
   }
   owner(identity) {
     const p=this.play.linkedProfile(identity)
@@ -124,10 +132,14 @@ export class NightPlayChannels {
     if(!JID.test(str(id)))fail(400,'Invalid channel.')
     const result=this.db.prepare('DELETE FROM play_channel_claims WHERE user_id=? AND channel_id=?').run(userId,id)
     if(!result.changes)fail(404,'This channel is not connected to your account.')
+    this.publisher.invalidateChannel(id)
     return {ok:true}
   }
   removeUser(userId) {
+    // Cache eviction must occur after revoking all connected claims.
+    const names=this.db.prepare('SELECT channel_id FROM play_channel_claims WHERE user_id=?').all(userId)
     this.db.prepare('DELETE FROM play_channel_consent WHERE user_id=?').run(userId)
     this.db.prepare('DELETE FROM play_channel_claims WHERE user_id=?').run(userId)
+    for(const {channel_id} of names) this.publisher.invalidateChannel(channel_id)
   }
 }
