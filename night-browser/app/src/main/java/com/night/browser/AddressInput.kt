@@ -3,22 +3,46 @@ package com.night.browser
 import java.net.URI
 import java.net.URLEncoder
 
-/** Separates address navigation from web queries, without executing arbitrary URI schemes. */
+/**
+ * A strict web address or an ordinary search query. Never send a pasted, explicit
+ * non-web URI to Gecko, and never send credentials embedded in a URL.
+ *
+ * This is *not* AI Universal Search: it simply constructs a normal web search.
+ */
 object AddressInput {
+    private val blockedScheme = Regex(
+        "^(javascript|data|file|content|intent|about|chrome|blob|view-source):",
+        RegexOption.IGNORE_CASE
+    )
+
     fun resolve(raw: String): String? {
         val input = raw.trim()
-        if (input.isBlank()) return null
+        if (input.isEmpty() || input.length > 8192 || input.any(Char::isISOControl)) return null
+        if (blockedScheme.containsMatchIn(input)) return null
+        // A user:pass@host paste must never become a search request either.
+        if (Regex("^[^@\\s/:]+:[^@\\s]*@.+").matches(input)) return null
+
         if (input.contains("://")) {
             val uri = runCatching { URI(input) }.getOrNull() ?: return null
-            return if ((uri.scheme == "https" || uri.scheme == "http") && !uri.host.isNullOrBlank()) input else null
+            return if ((uri.scheme.equals("https", true) || uri.scheme.equals("http", true)) &&
+                !uri.host.isNullOrBlank() && uri.rawUserInfo == null &&
+                !input.any(Char::isWhitespace) && uri.port != 0 &&
+                uri.port <= 65535
+            ) input else null
         }
-        if (!input.contains(' ') &&
-            (input.equals("localhost", true) || input.contains('.')) &&
-            !input.startsWith("javascript:", true) &&
-            !input.startsWith("data:", true)) {
+
+        // Unqualified domains, localhost and common development ports are URLs.
+        // Avoid misreading email addresses as URL hostnames.
+        if (!input.any(Char::isWhitespace) && !input.contains('@') &&
+            (input.equals("localhost", true) || input.startsWith("localhost:", true) ||
+                input.startsWith("localhost/", true) || input.contains('.'))) {
             val uri = runCatching { URI("https://$input") }.getOrNull()
-            if (uri?.host != null) return uri.toString()
+            if (!uri?.host.isNullOrBlank() && uri?.rawUserInfo == null &&
+                uri?.port != 0 && uri?.port != null && uri.port <= 65535) {
+                return uri.toASCIIString()
+            }
         }
+
         return "https://www.google.com/search?q=" + URLEncoder.encode(input, "UTF-8")
     }
 }

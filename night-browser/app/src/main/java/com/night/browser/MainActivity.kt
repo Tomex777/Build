@@ -2,6 +2,7 @@ package com.night.browser
 
 import android.content.Intent
 import android.os.Bundle
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -39,6 +40,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -47,11 +49,13 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.FileProvider
 import org.mozilla.geckoview.GeckoSession
+import com.night.browser.search.UniversalSearchPanel
 import org.mozilla.geckoview.GeckoView
 import java.io.File
 import java.text.DateFormat
 import java.util.Date
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 private val Ink = Color(0xFF0C1017)
 private val Raised = Color(0xFF171D27)
@@ -60,58 +64,137 @@ private val Bright = Color(0xFFF3F5F9)
 private val Muted = Color(0xFF8F9BAC)
 private val Accent = Color(0xFFB9BEFF)
 
-private enum class Page { HOME, WEB, TABS, JOURNEYS, LIBRARY, TIME_MACHINE }
+private enum class Page { HOME, WEB, TABS, JOURNEYS, LIBRARY, TIME_MACHINE, AI_SEARCH }
 
 class MainActivity : ComponentActivity() {
     private lateinit var browser: BrowserController
+    private lateinit var downloadPrompt: WebDownloadConsent
+    private lateinit var memoryPolicy: AdaptiveBrowserMemory
+    private lateinit var platformHost: BrowserPlatformHost
+    private var incomingWebUrl by mutableStateOf<String?>(null)
+
+    private fun safeExternalWebUrl(source: Intent?): String? {
+        if (source?.action != Intent.ACTION_VIEW) return null
+        val scheme = source.data?.scheme ?: return null
+        if (!scheme.equals("http", true) && !scheme.equals("https", true)) return null
+        // Only accept validated explicit web URLs; never turn hostile intent
+        // URIs, embedded credentials, or unsafe schemes into search requests.
+        val raw = source.dataString ?: return null
+        return AddressInput.resolve(raw)?.takeIf { it.startsWith("http", true) }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        incomingWebUrl = safeExternalWebUrl(intent)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        browser = BrowserController(applicationContext)
+        // Browser launch must show the start page, not auto-open the IME.
+        // Explicit taps on either native omnibar still raise the keyboard.
+        window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN)
+        platformHost = BrowserPlatformHost(this)
+        browser = BrowserController(applicationContext, platformHost)
+        incomingWebUrl = safeExternalWebUrl(intent)
+        memoryPolicy = AdaptiveBrowserMemory(
+            tabs = { browser.tabs.toList() },
+            activeId = { browser.activeId }
+        )
+        // All Gecko response downloads require affirmative user consent.
+        // The prompt owns the original response stream and closes it on cancellation.
+        downloadPrompt = WebDownloadConsent(DownloadLibrary.shared(applicationContext))
+        browser.downloadHandler = { tab, response ->
+            downloadPrompt.offer(response, tab.isPrivate)
+        }
         setContent {
             MaterialTheme(colorScheme = darkColorScheme(
                 background = Ink, surface = Raised, primary = Accent,
                 onSurface = Bright, onBackground = Bright
             )) {
-                NightBrowser(browser) { saved ->
-                    val file = File(File(filesDir, "saved-pages"), saved.fileName)
-                    if (!file.exists()) {
-                        browser.notice = "The saved copy is missing."
-                    } else {
-                        val uri = FileProvider.getUriForFile(
-                            this, "com.night.browser.files", file)
-                        val intent = Intent(Intent.ACTION_VIEW)
-                            .setDataAndType(uri, "application/pdf")
-                            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                        try { startActivity(intent) }
-                        catch (e: Exception) { browser.notice = "Install a PDF viewer to open this copy." }
+                NightDownloadPrompt(downloadPrompt)
+                NightBrowser(browser, incomingWebUrl,
+                    onExternalLinkConsumed = { incomingWebUrl = null }) { file ->
+                    val uri = FileProvider.getUriForFile(
+                        this, "com.night.browser.files", file)
+                    // Built-in offline PDF reader: don't require a third-party
+                    // app (or expose a local archive copy to an external viewer).
+                    val intent = Intent(this, SavedPdfActivity::class.java)
+                        .setDataAndType(uri, "application/pdf")
+                        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    try { startActivity(intent) }
+                    catch (e: Exception) {
+                        browser.notice = "Couldn't open this saved PDF."
                     }
                 }
             }
         }
     }
 
+    override fun onStop() {
+        // A queued 950ms debounce is too late for immediate force-stop/relaunch.
+        // The bounded barrier here commits the encrypted normal-tab snapshot.
+        browser.flushTabsForLifecycle()
+        super.onStop()
+    }
+
+    override fun onLowMemory() {
+        super.onLowMemory()
+        if (::memoryPolicy.isInitialized) memoryPolicy.onLowMemory()
+    }
+
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        if (::memoryPolicy.isInitialized) memoryPolicy.onTrimMemory(level)
+    }
+
     override fun onDestroy() {
-        if (isFinishing) browser.tabs.forEach { if (it.session.isOpen) it.session.close() }
+        platformHost.cancelPending()
+        downloadPrompt.dismiss()
+        browser.close()
         super.onDestroy()
     }
 }
 
 @Composable
-private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> Unit) {
-    var page by remember { mutableStateOf(Page.HOME) }
+private fun NightBrowser(
+    browser: BrowserController,
+    incomingWebUrl: String?,
+    onExternalLinkConsumed: () -> Unit,
+    openSaved: (File) -> Unit
+) {
+    var page by remember {
+        mutableStateOf(if (browser.active.url.isBlank()) Page.HOME else Page.WEB)
+    }
     var address by remember { mutableStateOf("") }
     var addressFocused by remember { mutableStateOf(false) }
     var menuExpanded by remember { mutableStateOf(false) }
     var peekUrl by remember { mutableStateOf<String?>(null) }
     var newJourneyDialog by remember { mutableStateOf(false) }
+    var studioTabId by remember { mutableStateOf<String?>(null) }
+    var findVisible by remember { mutableStateOf(false) }
     val current = browser.active
+    val context = LocalContext.current
+    val archive = remember(browser) { TimeMachineArchive(context.applicationContext) }
     val keyboard = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
     val snack = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(incomingWebUrl) {
+        incomingWebUrl?.let { url ->
+            // External intents always create a fresh REGULAR tab. A browser
+            // must not surprise the user by opening third-party app links in
+            // an unrelated private tab, or by persisting private metadata.
+            browser.newTab(url = url, privateMode = false)
+            page = Page.WEB
+            onExternalLinkConsumed()
+        }
+    }
 
     LaunchedEffect(current.url, current.id) {
         if (!addressFocused) address = current.url
+        findVisible = false // A match selection never survives a new document or tab.
     }
     LaunchedEffect(browser.notice) {
         val message = browser.notice
@@ -131,9 +214,10 @@ private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> U
         browser.select(tab.id)
         page = if (tab.url.isBlank()) Page.HOME else Page.WEB
     }
-    BackHandler(enabled = page != Page.HOME || peekUrl != null) {
+    BackHandler(enabled = page != Page.HOME || peekUrl != null || findVisible) {
         when {
             peekUrl != null -> peekUrl = null
+            findVisible -> findVisible = false
             page == Page.WEB && current.canGoBack -> browser.goBack()
             page != Page.HOME -> page = Page.HOME
             else -> Unit
@@ -148,27 +232,77 @@ private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> U
         Column(Modifier.fillMaxSize().padding(padding)) {
             Box(Modifier.weight(1f).fillMaxWidth()) {
                 when (page) {
-                    Page.HOME -> NightStartPage(browser,
+                    Page.HOME -> if (current.isPrivate) PrivateStartPage() else NightStartPage(browser,
                         onOpen = { raw -> browser.navigate(raw); page = Page.WEB },
                         onJourneys = { page = Page.JOURNEYS })
                     Page.WEB -> WebSurface(current)
                     Page.TABS -> TabPanel(browser,
                         onOpen = { openTab(it) },
-                        onClose = { browser.closeTab(it.id) },
-                        onNew = { browser.newTab(); page = Page.HOME })
-                    Page.JOURNEYS -> JourneyPanel(browser,
-                        onNew = { newJourneyDialog = true },
-                        onOpen = { j, url ->
-                            browser.newTab(url, j.id)
-                            page = Page.WEB
+                        onClose = { tab ->
+                            browser.closeTab(tab.id)
+                            if (!tab.isPrivate) {
+                                scope.launch {
+                                    val response = snack.showSnackbar(
+                                        message = "Tab closed", actionLabel = "Undo",
+                                        duration = SnackbarDuration.Short
+                                    )
+                                    if (response == SnackbarResult.ActionPerformed &&
+                                        browser.undoCloseTab(tab.id)) page = Page.WEB
+                                }
+                            }
                         },
-                        onSelect = { j ->
-                            browser.newTab(journeyId = j.id)
+                        onNew = { privateMode ->
+                            browser.newTab(privateMode = privateMode)
                             page = Page.HOME
                         })
-                    Page.LIBRARY -> LibraryPanel(browser,
-                        onOpen = { browser.newTab(it); page = Page.WEB })
-                    Page.TIME_MACHINE -> TimeMachinePanel(browser, openSaved)
+                    Page.JOURNEYS -> JourneyScreen(
+                        store = browser.store,
+                        onNew = { if (!current.isPrivate) newJourneyDialog = true },
+                        onResume = { journey, node ->
+                            // A private tab must not silently turn a Journey resume
+                            // into a recorded normal-profile navigation.
+                            browser.newTab(
+                                node?.url, journey.id,
+                                privateMode = browser.active.isPrivate,
+                                seedNodeId = node?.id
+                            )
+                            page = if (node == null) Page.HOME else Page.WEB
+                        }
+                    )
+                    Page.LIBRARY -> NightLibraryScreen(browser,
+                        onOpen = {
+                            // Library remains accessible in private browsing,
+                            // but opening its links must retain private mode.
+                            browser.newTab(it, privateMode = browser.active.isPrivate)
+                            page = Page.WEB
+                        })
+                    Page.TIME_MACHINE -> TimeMachineArchivePanel(
+                        archive = archive,
+                        openSaved = { item ->
+                            archive.fileForPreview(item)?.let(openSaved)
+                                ?: run {
+                                    browser.notice = "This PDF is missing or damaged."
+                                }
+                        },
+                        onNotice = { browser.notice = it }
+                    )
+                    Page.AI_SEARCH -> UniversalSearchPanel(
+                        bookmarks = browser.store.bookmarks,
+                        journeys = browser.store.journeys,
+                        privateTab = current.isPrivate,
+                        onBack = { page = if (current.url.isBlank()) Page.HOME else Page.WEB },
+                        onOpenSource = { url ->
+                            if (!current.isPrivate) {
+                                browser.navigate(url)
+                                page = Page.WEB
+                            }
+                        }
+                    )
+                }
+                if (page == Page.WEB && findVisible) {
+                    Box(Modifier.align(Alignment.TopCenter)) {
+                        FindInPageBar(tab = current, onClose = { findVisible = false })
+                    }
                 }
             }
 
@@ -182,7 +316,7 @@ private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> U
 
             // The custom start page owns the sole omnibar on Home.
             // Website address entry belongs to real web browsing only.
-            if (page == Page.WEB) {
+            if (page == Page.WEB || (page == Page.HOME && current.isPrivate)) {
             Row(
                 Modifier.fillMaxWidth().background(Ink)
                     .padding(horizontal = 14.dp, vertical = 8.dp),
@@ -194,15 +328,24 @@ private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> U
                         .padding(horizontal = 15.dp),
                     contentAlignment = Alignment.CenterStart
                 ) {
+                    if (current.isPrivate) {
+                        Icon(Icons.Rounded.Lock, contentDescription = "Private browsing",
+                            tint = Accent, modifier = Modifier.size(16.dp))
+                    }
                     BasicTextField(
                         value = address,
                         onValueChange = { address = it },
                         modifier = Modifier.fillMaxWidth()
+                            .padding(start = if (current.isPrivate) 12.dp else 0.dp)
                             .onFocusChanged { addressFocused = it.isFocused },
                         singleLine = true,
                         textStyle = TextStyle(color = Bright, fontSize = 15.sp),
                         cursorBrush = SolidColor(Accent),
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
+                        keyboardOptions = KeyboardOptions(
+                            autoCorrect = false,
+                            keyboardType = KeyboardType.Uri,
+                            imeAction = ImeAction.Go
+                        ),
                         keyboardActions = KeyboardActions(onGo = { openAddress() }),
                         decorationBox = { inner ->
                             if (address.isBlank()) {
@@ -230,8 +373,16 @@ private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> U
                 ChromeIcon(Icons.AutoMirrored.Filled.ArrowForward, "Forward", current.canGoForward) {
                     browser.goForward(); page = Page.WEB
                 }
-                ChromeIcon(Icons.Rounded.Home, "Home") { page = Page.HOME }
-                ChromeIcon(Icons.Rounded.Tab, "Tabs") { page = Page.TABS }
+                ChromeIcon(Icons.Rounded.Home, "Home", selected = page == Page.HOME) {
+                    keyboard?.hide()
+                    focusManager.clearFocus(force = true)
+                    page = Page.HOME
+                }
+                ChromeIcon(Icons.Rounded.Tab, "Tabs", selected = page == Page.TABS) {
+                    keyboard?.hide()
+                    focusManager.clearFocus(force = true)
+                    page = Page.TABS
+                }
                 Box {
                     ChromeIcon(Icons.Rounded.MoreHoriz, "More") { menuExpanded = true }
                     DropdownMenu(
@@ -241,13 +392,22 @@ private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> U
                     ) {
                         fun dismiss(action: () -> Unit) { menuExpanded = false; action() }
                         DropdownMenuItem(
-                            text = { Text("New tab") },
+                            text = { Text(if (current.isPrivate) "New private tab" else "New tab") },
                             leadingIcon = { Icon(Icons.Rounded.Add, null) },
-                            onClick = { dismiss { browser.newTab(); page = Page.HOME } })
+                            onClick = { dismiss {
+                                browser.newTab(privateMode = current.isPrivate)
+                                page = Page.HOME
+                            } })
                         DropdownMenuItem(
                             text = { Text("Journeys") },
                             leadingIcon = { Icon(Icons.Rounded.AccountTree, null) },
-                            onClick = { dismiss { page = Page.JOURNEYS } })
+                            enabled = !current.isPrivate,
+                            onClick = { dismiss { if (!current.isPrivate) page = Page.JOURNEYS } })
+                        DropdownMenuItem(
+                            text = { Text("Find in page") },
+                            leadingIcon = { Icon(Icons.Rounded.FindInPage, null) },
+                            enabled = page == Page.WEB && current.url.startsWith("http"),
+                            onClick = { dismiss { findVisible = true } })
                         DropdownMenuItem(
                             text = { Text("Library") },
                             leadingIcon = { Icon(Icons.Rounded.Bookmarks, null) },
@@ -257,15 +417,33 @@ private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> U
                             leadingIcon = { Icon(Icons.Rounded.History, null) },
                             onClick = { dismiss { page = Page.TIME_MACHINE } })
                         DropdownMenuItem(
+                            text = { Text("AI Search") },
+                            leadingIcon = { Icon(Icons.Rounded.Search, null) },
+                            enabled = !current.isPrivate,
+                            onClick = { dismiss { page = Page.AI_SEARCH } })
+                        DropdownMenuItem(
+                            text = { Text("Site Studio") },
+                            leadingIcon = { Icon(Icons.Rounded.Tune, null) },
+                            enabled = !current.isPrivate &&
+                                (current.url.startsWith("https://") ||
+                                 current.url.startsWith("http://")),
+                            onClick = { dismiss { studioTabId = current.id } })
+                        DropdownMenuItem(
                             text = { Text("Bookmark page") },
                             leadingIcon = { Icon(Icons.Rounded.BookmarkAdd, null) },
-                            enabled = current.url.startsWith("http"),
+                            enabled = current.url.startsWith("http") && !current.isPrivate,
                             onClick = { dismiss { browser.bookmark() } })
                         DropdownMenuItem(
                             text = { Text("Save PDF copy") },
                             leadingIcon = { Icon(Icons.Rounded.SaveAlt, null) },
-                            enabled = current.url.startsWith("http"),
-                            onClick = { dismiss { browser.savePdfSnapshot() } })
+                            enabled = current.url.startsWith("http") && !current.isPrivate,
+                            onClick = { dismiss {
+                                archive.savePdf(
+                                    current.session, current.url, current.title,
+                                    isPrivate = current.isPrivate,
+                                    onNotice = { browser.notice = it }
+                                )
+                            } })
                         DropdownMenuItem(
                             text = { Text("Reload") },
                             leadingIcon = { Icon(Icons.Rounded.Refresh, null) },
@@ -290,7 +468,7 @@ private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> U
             dismissButton = {
                 TextButton(onClick = {
                     browser.contextLink = null
-                    browser.newTab(link)
+                    browser.newChildTab(link)
                     page = Page.WEB
                 }) { Text("New tab") }
             },
@@ -299,13 +477,31 @@ private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> U
     }
 
     peekUrl?.let { url ->
-        PeekDialog(browser, url,
+        PeekOverlay(browser, url,
             onDismiss = { peekUrl = null },
-            onOpen = {
-                browser.newTab(url)
+            onOpen = { previewUrl ->
+                browser.newChildTab(previewUrl)
                 peekUrl = null
                 page = Page.WEB
             })
+    }
+
+    studioTabId?.let { tabId ->
+        val editorTab = browser.tabs.firstOrNull { it.id == tabId }
+        if (editorTab == null || editorTab.isPrivate ||
+            (!editorTab.url.startsWith("http://") &&
+             !editorTab.url.startsWith("https://"))) {
+            LaunchedEffect(tabId) { studioTabId = null }
+        } else {
+            SiteStudioRoute(
+                session = editorTab.session,
+                pageUrl = editorTab.url,
+                store = browser.siteStudioStore,
+                bridge = browser.siteStudio,
+                onClose = { studioTabId = null },
+                onNotice = { browser.notice = it }
+            )
+        }
     }
 
     if (newJourneyDialog) {
@@ -331,10 +527,13 @@ private fun NightBrowser(browser: BrowserController, openSaved: (SavedPage) -> U
             },
             confirmButton = {
                 TextButton(onClick = {
-                    val journey = browser.store.newJourney(label)
-                    browser.newTab(journeyId = journey.id)
+                    // Do not create persistent Journey metadata from a private tab.
+                    if (!browser.active.isPrivate) {
+                        val journey = browser.store.newJourney(label)
+                        browser.newTab(journeyId = journey.id)
+                        page = Page.HOME
+                    }
                     newJourneyDialog = false
-                    page = Page.HOME
                 }) { Text("Create") }
             },
             dismissButton = {
@@ -382,225 +581,6 @@ private fun WebSurface(tab: BrowserTab) {
                             }
                         }
                     }, { _ -> /* no preview yet if the compositor isn't ready */ })
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun PeekDialog(
-    browser: BrowserController, url: String, onDismiss: () -> Unit, onOpen: () -> Unit
-) {
-    val context = LocalContext.current
-    val peek = remember(url) { browser.newPeekSession(url) }
-    val view = remember(url) { GeckoView(context) }
-    DisposableEffect(peek) {
-        onDispose {
-            view.releaseSession()
-            if (peek.isOpen) peek.close()
-        }
-    }
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
-    ) {
-        Column(
-            Modifier.fillMaxWidth(.94f).fillMaxHeight(.84f)
-                .background(Raised, RoundedCornerShape(20.dp))
-        ) {
-            Row(
-                Modifier.fillMaxWidth().height(60.dp).padding(horizontal = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("PEEK", color = Accent, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.width(12.dp))
-                Text(url, color = Bright, fontSize = 13.sp,
-                    maxLines = 1, overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f))
-                ChromeIcon(Icons.Rounded.OpenInNew, "Open as tab") { onOpen() }
-                ChromeIcon(Icons.Rounded.Close, "Close preview") { onDismiss() }
-            }
-            HorizontalDivider(color = Border)
-            AndroidView(
-                factory = { view.apply { setSession(peek) } },
-                modifier = Modifier.fillMaxSize().background(Color.White)
-            )
-        }
-    }
-}
-
-private data class StartShortcut(val title: String, val url: String)
-
-@Composable
-private fun HomePanel(
-    browser: BrowserController, onJourney: () -> Unit, onOpen: (String) -> Unit
-) {
-    val bookmarks = browser.store.bookmarks
-    val quickSites = if (bookmarks.isNotEmpty()) {
-        bookmarks.take(8).map { StartShortcut(it.title, it.url) }
-    } else listOf(
-        StartShortcut("Google", "https://www.google.com"),
-        StartShortcut("YouTube", "https://www.youtube.com"),
-        StartShortcut("Wikipedia", "https://www.wikipedia.org"),
-        StartShortcut("GitHub", "https://github.com")
-    )
-    val recent = browser.store.journeys.asSequence()
-        .flatMap { it.nodes.asSequence() }.sortedByDescending { it.timestamp }
-        .distinctBy { it.url }.take(4).toList()
-
-    Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState())
-            .padding(horizontal = 22.dp)
-    ) {
-        Spacer(Modifier.height(30.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("NIGHT", fontSize = 22.sp, fontWeight = FontWeight.Bold,
-                letterSpacing = 3.sp, color = Bright)
-            Spacer(Modifier.width(9.dp))
-            Box(Modifier.width(3.dp).height(18.dp)
-                .background(Accent, RoundedCornerShape(2.dp)))
-            Spacer(Modifier.width(9.dp))
-            Text("Browser", fontSize = 14.sp, color = Muted)
-        }
-        Spacer(Modifier.height(36.dp))
-        Text("Quick access", fontSize = 21.sp, fontWeight = FontWeight.SemiBold,
-            color = Bright)
-        Spacer(Modifier.height(16.dp))
-        quickSites.chunked(4).forEach { row ->
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                row.forEach { site ->
-                    Column(
-                        Modifier.weight(1f).clickable { onOpen(site.url) },
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Box(
-                            Modifier.fillMaxWidth().aspectRatio(1f)
-                                .background(Raised, RoundedCornerShape(20.dp)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(site.title.take(1).uppercase(), color = Bright,
-                                fontSize = 26.sp, fontWeight = FontWeight.Medium)
-                        }
-                        Spacer(Modifier.height(9.dp))
-                        Text(site.title, color = Muted, fontSize = 11.sp,
-                            maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    }
-                }
-                repeat(4 - row.size) { Spacer(Modifier.weight(1f)) }
-            }
-            Spacer(Modifier.height(20.dp))
-        }
-
-        Spacer(Modifier.height(18.dp))
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text("Journeys", fontSize = 20.sp, fontWeight = FontWeight.SemiBold,
-                color = Bright, modifier = Modifier.weight(1f))
-            TextButton(onClick = onJourney) { Text("See all") }
-        }
-        browser.store.journeys.firstOrNull { it.nodes.isNotEmpty() }?.let { journey ->
-            RowCard(
-                title = journey.name,
-                subtitle = journey.nodes.last().title.ifBlank { journey.nodes.last().url },
-                icon = { Icon(Icons.Rounded.AccountTree, null, tint = Accent) },
-                onClick = { onOpen(journey.nodes.last().url) }
-            )
-        }
-        if (recent.isNotEmpty()) {
-            Spacer(Modifier.height(24.dp))
-            Text("Recently visited", fontSize = 20.sp, fontWeight = FontWeight.SemiBold,
-                color = Bright)
-            Spacer(Modifier.height(14.dp))
-            recent.forEach { node ->
-                RowCard(
-                    title = node.title.ifBlank { node.url },
-                    subtitle = node.url,
-                    icon = { Icon(Icons.Rounded.History, null, tint = Accent) },
-                    onClick = { onOpen(node.url) }
-                )
-            }
-        }
-        Spacer(Modifier.height(35.dp))
-    }
-}
-
-@Composable
-private fun TabPanel(
-    browser: BrowserController,
-    onOpen: (BrowserTab) -> Unit,
-    onClose: (BrowserTab) -> Unit,
-    onNew: () -> Unit
-) {
-    Column(Modifier.fillMaxSize()) {
-        Row(
-            Modifier.fillMaxWidth().padding(start = 20.dp, end = 10.dp, top = 15.dp, bottom = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text("Tabs", fontSize = 25.sp, fontWeight = FontWeight.SemiBold,
-                color = Bright)
-            Text("  ${browser.tabs.size}", color = Muted, fontSize = 15.sp)
-            Spacer(Modifier.weight(1f))
-            ChromeIcon(Icons.Rounded.Add, "New tab", onClick = onNew)
-        }
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(start = 14.dp, end = 14.dp, bottom = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            items(browser.tabs.size, key = { browser.tabs[it].id }) { index ->
-                val tab = browser.tabs[index]
-                val selected = tab.id == browser.activeId
-                Surface(
-                    modifier = Modifier.fillMaxWidth().height(248.dp)
-                        .clickable { onOpen(tab) },
-                    shape = RoundedCornerShape(16.dp),
-                    color = Raised,
-                    border = BorderStroke(if (selected) 2.dp else 1.dp,
-                        if (selected) Accent else Border)
-                ) {
-                    Column {
-                        Row(
-                            Modifier.fillMaxWidth().height(51.dp)
-                                .padding(start = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(tab.title, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                                color = Bright, fontSize = 12.sp,
-                                fontWeight = FontWeight.Medium,
-                                modifier = Modifier.weight(1f))
-                            ChromeIcon(Icons.Rounded.Close, "Close ${tab.title}") {
-                                onClose(tab)
-                            }
-                        }
-                        Box(
-                            Modifier.fillMaxWidth().weight(1f).background(Ink),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            val preview = tab.thumbnail
-                            if (preview != null) {
-                                Image(
-                                    bitmap = preview.asImageBitmap(),
-                                    contentDescription = "Preview of ${tab.title}",
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentScale = ContentScale.Crop
-                                )
-                            } else {
-                                Icon(Icons.Rounded.Public, null, tint = Muted,
-                                    modifier = Modifier.size(36.dp))
-                            }
-                        }
-                        Text(
-                            tab.url.ifBlank { "New tab" },
-                            modifier = Modifier.fillMaxWidth().padding(9.dp),
-                            color = Muted, fontSize = 10.sp,
-                            maxLines = 1, overflow = TextOverflow.Ellipsis
-                        )
-                    }
                 }
             }
         }
@@ -692,31 +672,6 @@ private fun LibraryPanel(browser: BrowserController, onOpen: (String) -> Unit) {
 }
 
 @Composable
-private fun TimeMachinePanel(browser: BrowserController, openSaved: (SavedPage) -> Unit) {
-    Column(Modifier.fillMaxSize()) {
-        PanelHeader("Time Machine")
-        Text("Saved PDF copies · not interactive webpage archives",
-            modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
-            fontSize = 12.sp, color = Muted)
-        if (browser.store.savedPages.isEmpty()) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text("Save a PDF copy from the page menu.", color = Muted)
-            }
-        } else {
-            LazyColumn(contentPadding = PaddingValues(16.dp)) {
-                items(browser.store.savedPages, key = { it.fileName }) { item ->
-                    RowCard(
-                        item.title, DateFormat.getDateTimeInstance().format(Date(item.timestamp)),
-                        { Icon(Icons.Rounded.PictureAsPdf, null, tint = Accent) },
-                        { openSaved(item) }
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
 private fun PanelHeader(title: String, action: @Composable (() -> Unit)? = null) {
     Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 12.dp, top = 24.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically) {
@@ -762,11 +717,26 @@ private fun ChromeIcon(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
     enabled: Boolean = true,
+    selected: Boolean = false,
     onClick: () -> Unit
 ) {
-    IconButton(onClick = onClick, enabled = enabled, modifier = Modifier.size(48.dp)) {
-        Icon(icon, contentDescription = label,
-            tint = if (enabled) Bright else Color(0xFF4A5360),
-            modifier = Modifier.size(21.dp))
+    IconButton(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = Modifier.size(48.dp)
+            .background(
+                if (selected) Accent.copy(alpha = 0.16f) else Color.Transparent,
+                RoundedCornerShape(16.dp)
+            )
+    ) {
+        Icon(
+            icon, contentDescription = label,
+            tint = when {
+                !enabled -> Color(0xFF4A5360)
+                selected -> Accent
+                else -> Bright
+            },
+            modifier = Modifier.size(21.dp)
+        )
     }
 }

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Debug-only exception: release manifest continues to deny cleartext. -->
+    <application android:networkSecurityConfig="@xml/night_browser_debug_network_security" />
+</manifest>
