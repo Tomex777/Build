@@ -5,7 +5,7 @@ import org.junit.Test
 
 class FanSongsTest {
     @Test fun catalogContainsRealCuratedSongsWithoutDuplicates() {
-        assertTrue(FanSongs.all.size >= 50)
+        assertTrue(FanSongs.all.size >= 110)
         assertEquals(FanSongs.all.size, FanSongs.all.map { it.id }.distinct().size)
         assertTrue(FanSongs.all.none { it.title.isBlank() || it.album.isBlank() })
     }
@@ -43,6 +43,15 @@ class FanSongsTest {
         assertNull(SongFileMatcher.matchFilename("Lucid Dreams (slowed).mp3"))
         assertNull(SongFileMatcher.matchFilename("Somebody Else.mp3"))
         assertNull(SongFileMatcher.matchFilename("Lucid Dreams.exe"))
+        assertEquals("im-still", SongFileMatcher.matchFilename("Juice WRLD - Im Still.mp3")?.id)
+        assertEquals("go-hard-20", SongFileMatcher.matchFilename("Juice WRLD - Go Hard 2.0.mp3")?.id)
+    }
+
+    @Test fun newProjectsAppearAcrossYearsWithoutLeakingDuplicates() {
+        assertEquals(110, FanSongs.all.size)
+        assertTrue(FanSongs.all.any { it.album == "WRLD ON DRUGS" && it.title == "Jet Lag" })
+        assertTrue(FanSongs.all.any { it.album == "The Party Never Ends" && it.title == "KTM Drip" })
+        assertTrue(FanSongs.all.any { it.album == "Fighting Demons" && it.title == "Feel Alone" })
     }
 
     @Test fun everyMoodHasListeningOptionsAndFavoritesOnlyContainsFavorites() {
