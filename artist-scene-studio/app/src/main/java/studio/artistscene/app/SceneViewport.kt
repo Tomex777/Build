@@ -546,6 +546,10 @@ private fun SceneScope.ActorModelNode(
     // SceneView retains that lambda even after async GLB loading/recomposition:
     // keep the *runtime* live too, not only the current immutable Actor settings.
     val latestSpringRuntime = rememberUpdatedState(springRuntime)
+    val latestRigRuntime = rememberUpdatedState(rigRuntime)
+    // A model parsed in produceState is not necessarily attached to Filament yet.
+    // A distinct actor can mount one or more native frames later than its sibling.
+    val nativeModelMounted = remember(actor.id, asset) { AtomicBoolean(false) }
     val hasBoundRestPose = remember(rigRuntime) { AtomicBoolean(false) }
     val animationClips = remember(loaded) {
         loaded?.animator?.let { animator ->
@@ -610,10 +614,36 @@ private fun SceneScope.ActorModelNode(
         apply = {
             var lastPivot: Vec3? = null
             val rootMatrix = FloatArray(16)
+            var lastAppliedPose: studio.artistscene.core.RigPose? = null
+            var lastAppliedRig: FilamentRigRuntime? = null
             onFrame = {
-                // Real gravitational hair and cloth deformation updates skinned
-                // joint transforms on the renderer's frame, never via UI bitmaps.
-                latestSpringRuntime.value?.advance(latestActor.value, System.nanoTime())
+                val current = latestActor.value
+                // The coroutine can upload the pose before the asynchronously
+                // constructed child ModelNode is natively mounted. Recover ONLY
+                // after this actor's own ModelNode.apply confirms attachment.
+                // Do not overwrite spring motion every frame: rebind on actual
+                // authored-pose / model changes, or after a clip finishes.
+                if (current.animation.playing) {
+                    lastAppliedRig = null
+                    lastAppliedPose = null
+                } else if (nativeModelMounted.get()) {
+                    val rig = latestRigRuntime.value
+                    if (rig != null && (lastAppliedRig !== rig || lastAppliedPose != current.rig)) {
+                        rig.apply(current.rig)
+                        lastAppliedRig = rig
+                        lastAppliedPose = current.rig
+                        val boneIds = rig.definition.bones.mapTo(mutableSetOf()) { it.id }
+                        val boundCount = current.rig?.joints?.keys?.count { it in boneIds } ?: 0
+                        Log.i(VIEWPORT_LOG_TAG,
+                            "rig-native-frame-bind actor=${current.id} bound=$boundCount/" +
+                                "${current.rig?.joints?.size ?: 0} bones=${boneIds.size}")
+                    }
+                }
+                // Apply physical hair/fabric only after authored pose and native
+                // mesh registration, preserving the actual skinned geometry.
+                if (nativeModelMounted.get()) {
+                    latestSpringRuntime.value?.advance(current, System.nanoTime())
+                }
                 val manager = engine.transformManager
                 val world = manager.getWorldTransform(manager.getInstance(entity), rootMatrix)
                 val pivot = Vec3(world[12], world[13], world[14])
@@ -660,6 +690,7 @@ private fun SceneScope.ActorModelNode(
                     isVisible = actor.visible,
                     isEditable = false,
                     apply = {
+                        nativeModelMounted.set(true)
                         modelReadyForFrame.set(true)
                         setScreenSpaceContactShadows(true)
                         onSingleTapConfirmed = {
