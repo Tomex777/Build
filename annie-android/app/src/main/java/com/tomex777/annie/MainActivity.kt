@@ -100,6 +100,9 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -149,6 +152,19 @@ private val Blue = Color(0xFF168EEA)
 private val SoftText = Color(0xFF9CB2CC)
 private val BrightText = Color(0xFFEEF5FF)
 private val Teal = Color(0xFF54D6AE)
+
+// Only unsent text is stored in saved instance state. The actual chat history
+// remains in ChatHistoryStore; never save a MediaRecorder or speech session.
+private val chatDraftSaver = listSaver<SnapshotStateMap<String, TextFieldValue>, String>(
+    save = { drafts -> drafts.entries.flatMap { (id, value) -> listOf(id, value.text) } },
+    restore = { values ->
+        mutableStateMapOf<String, TextFieldValue>().apply {
+            values.chunked(2).forEach { pair ->
+                if (pair.size == 2) put(pair[0], TextFieldValue(pair[1], selection = TextRange(pair[1].length)))
+            }
+        }
+    },
+)
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -225,6 +241,19 @@ internal fun AnnieChat() {
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val chatView = androidx.compose.ui.platform.LocalView.current
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    // Voice notes are short inline messages, not a persistent background music service.
+    // Release playback when the chat host disappears so audio is never orphaned.
+    androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_STOP) AnnieVoicePlayer.stop()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            AnnieVoicePlayer.stop()
+        }
+    }
     val scriptWorkspace = remember(context) { ScriptWorkspace(context) }
     var scriptCommands by remember { mutableStateOf<List<ScriptCommand>>(emptyList()) }
     var commandUsage by remember(context) { mutableStateOf(CommandUsageStore.read(context)) }
@@ -238,7 +267,7 @@ internal fun AnnieChat() {
             if (isEmpty()) add(newWelcomeChat())
         }
     }
-    var activeChatId by remember { mutableStateOf(chats.first().id) }
+    var activeChatId by rememberSaveable { mutableStateOf(chats.first().id) }
     val activeChat = chats.firstOrNull { it.id == activeChatId } ?: chats.first()
     val character = AnnieCharacters.byId(activeChat.characterId)
     val messages = activeChat.messages
@@ -254,7 +283,10 @@ internal fun AnnieChat() {
         capabilities = activeScriptCommand?.capabilities?.toSet().orEmpty(),
         suggestedActions = activeScriptCommand?.suggestedActions.orEmpty(),
     )
-    var draft by remember { mutableStateOf(TextFieldValue("")) }
+    // Keep unsent text isolated per conversation. Switching personas or reopening an
+    // existing chat must not erase the draft or show another chat's private text.
+    val chatDrafts = rememberSaveable(saver = chatDraftSaver) { mutableStateMapOf<String, TextFieldValue>() }
+    val draft = chatDrafts[activeChatId] ?: TextFieldValue("")
     var lastSentMessageId by remember { mutableStateOf<Long?>(null) }
     val animatedMessageIds = remember { mutableStateMapOf<Long, Boolean>() }
     var activeSheet by remember { mutableStateOf<String?>(null) }
@@ -293,6 +325,7 @@ internal fun AnnieChat() {
     var activeMangaReader by remember { mutableStateOf<Pair<CatalogItem, File>?>(null) }
     LaunchedEffect(Unit) { ChatHistoryStore.write(context, chats) }
     LaunchedEffect(activeChatId) {
+        AnnieVoicePlayer.stop() // Switching chats never carries another conversation's voice playback.
         if (messages.isNotEmpty()) listState.scrollToItem(messages.lastIndex)
     }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -558,7 +591,7 @@ internal fun AnnieChat() {
         messages.add(sentMessage)
         persistHistory()
         scope.launch { listState.animateScrollToItem(messages.lastIndex) }
-        draft = TextFieldValue("")
+        chatDrafts[activeChatId] = TextFieldValue("")
         val parts = value.split(Regex("\\s+"), limit = 2)
         val command = parts.firstOrNull()?.lowercase().orEmpty()
         val commandName = command.removePrefix("/")
@@ -630,8 +663,8 @@ internal fun AnnieChat() {
             LazyColumn(
                 modifier = Modifier.weight(1f).fillMaxWidth().testTag("conversation"),
                 state = listState,
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 18.dp),
-                verticalArrangement = Arrangement.spacedBy(18.dp, Alignment.Top)
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp, Alignment.Top)
             ) {
                 items(messages, key = { it.id }) { entry ->
                     val bubbleContent: @Composable () -> Unit = {
@@ -723,16 +756,17 @@ internal fun AnnieChat() {
                 }
             }
             Composer(
+                chatId = activeChatId,
                 value = draft,
                 onValueChange = {
-                    draft = it
+                    chatDrafts[activeChatId] = it
                 },
                 onSuggestionSelected = {
                     val selected = "$it "
-                    draft = TextFieldValue(selected, selection = TextRange(selected.length))
+                    chatDrafts[activeChatId] = TextFieldValue(selected, selection = TextRange(selected.length))
                 },
                 onContextActionSelected = { input ->
-                    draft = TextFieldValue(input, selection = TextRange(input.length))
+                    chatDrafts[activeChatId] = TextFieldValue(input, selection = TextRange(input.length))
                 },
                 onSend = { submit() },
                 onVoiceNote = { path, durationMs ->
@@ -763,13 +797,12 @@ internal fun AnnieChat() {
                       val newChat = newWelcomeChat(excludeCharacterId = activeChat.characterId)
                       chats.add(0, newChat)
                       activeChatId = newChat.id
-                      draft = TextFieldValue("")
                       persistHistory()
                       navigationDrawerOpen = false
                   },
                   onSelectChat = { id ->
                       activeChatId = id
-                      draft = TextFieldValue("")
+                      persistHistory() // Keep last-opened chat first after a real process restart.
                       navigationDrawerOpen = false
                   },
                   onOpen = { destination ->
@@ -817,13 +850,12 @@ internal fun AnnieChat() {
                         val newChat = newWelcomeChat(excludeCharacterId = activeChat.characterId)
                         chats.add(0, newChat)
                         activeChatId = newChat.id
-                        draft = TextFieldValue("")
                         persistHistory()
                         activeSheet = null
                     },
                     onSelectChat = { id ->
                         activeChatId = id
-                        draft = TextFieldValue("")
+                        persistHistory()
                         activeSheet = null
                     },
                     onExtensions = {
@@ -837,11 +869,11 @@ internal fun AnnieChat() {
                         }
                     },
                     onDeleteChat = { id ->
+                        chatDrafts.remove(id)
                         chats.removeAll { it.id == id }
                         if (chats.isEmpty()) chats.add(newWelcomeChat())
                         if (activeChatId == id) {
                             activeChatId = chats.first().id
-                            draft = TextFieldValue("")
                         }
                         persistHistory()
                     },
@@ -1442,7 +1474,7 @@ private fun AnnieTopBar(
     onScriptStudio: () -> Unit,
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth().height(68.dp).background(Panel).padding(horizontal = 16.dp).testTag("top_bar"),
+        modifier = Modifier.fillMaxWidth().height(60.dp).background(Panel).padding(horizontal = 12.dp).testTag("top_bar"),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
@@ -1452,14 +1484,14 @@ private fun AnnieTopBar(
             contentAlignment = Alignment.Center,
         ) {
             // Shows the ACTIVE character, so avatar and name switch together with the chat.
-            AnnieCharacterAvatar(character = character, size = 42.dp)
+            AnnieCharacterAvatar(character = character, size = 40.dp)
         }
         Text(
             character.name,
             color = BrightText,
             fontWeight = FontWeight.Bold,
-            fontSize = 19.sp,
-            modifier = Modifier.padding(start = 12.dp).weight(1f),
+            fontSize = 18.sp,
+            modifier = Modifier.padding(start = 8.dp).weight(1f),
         )
         IconButton(onClick = onScriptStudio, modifier = Modifier.testTag("topbar_script_studio")) {
             Icon(AnnieIcons.Package, contentDescription = "Open Script Studio", tint = Color(0xFF82C9FF))
@@ -1498,7 +1530,7 @@ internal fun ChatBubble(
             horizontalAlignment = if (entry.fromUser) Alignment.End else Alignment.Start
         ) {
             if (!entry.fromUser) {
-                Text(character.name, color = SoftText, fontSize = 11.sp, modifier = Modifier.padding(start = 4.dp, bottom = 5.dp))
+                Text(character.name, color = Color(0xFFAEC7DD), fontSize = 12.sp, modifier = Modifier.padding(start = 4.dp, bottom = 5.dp))
             }
             if (entry.voiceNotePath != null) {
                 VoiceNoteBubble(entry.voiceNotePath, entry.voiceNoteDurationMs, entry.fromUser)
@@ -3376,6 +3408,7 @@ private fun ContextSuggestedActions(
 @Composable
 internal fun Composer(
     value: TextFieldValue,
+    chatId: String = "",
     onValueChange: (TextFieldValue) -> Unit,
     onSuggestionSelected: (String) -> Unit = {},
     onContextActionSelected: (String) -> Unit = {},
@@ -3388,20 +3421,30 @@ internal fun Composer(
     inputEnabled: Boolean = true,
 ) {
     val context = LocalContext.current
+    val latestDraft = androidx.compose.runtime.rememberUpdatedState(value.text)
+    var speechDialogChatId by remember { mutableStateOf<String?>(null) }
+    var speechPermissionChatId by remember { mutableStateOf<String?>(null) }
     val speechLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        if (result.resultCode == android.app.Activity.RESULT_OK) {
+        val origin = speechDialogChatId
+        speechDialogChatId = null
+        if (origin == chatId && result.resultCode == android.app.Activity.RESULT_OK) {
             val spoken = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull().orEmpty()
-            if (spoken.isNotBlank()) onValueChange(TextFieldValue(spoken))
+            if (spoken.isNotBlank()) {
+                val combined = appendRecognizedText(latestDraft.value, spoken)
+                onValueChange(TextFieldValue(combined, selection = TextRange(combined.length)))
+            }
         }
     }
     val latestOnValueChange = androidx.compose.runtime.rememberUpdatedState(onValueChange)
-    val voiceNotes = rememberVoiceNoteController(onVoiceNote)
-    val dictation = remember(context) {
+    val voiceNotes = rememberVoiceNoteController(onVoiceNote, sessionKey = chatId)
+    val dictation = remember(context, chatId) {
         AnnieDictation(
             context = context,
             onText = { text -> latestOnValueChange.value(TextFieldValue(text, selection = TextRange(text.length))) },
             onUnavailable = {
-                // No in-app recognizer on this device: fall back to the system speech dialog.
+                // Don't append speech from chat A into chat B if the system dialog
+                // returns after a conversation switch.
+                speechDialogChatId = chatId
                 runCatching {
                     speechLauncher.launch(
                         Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
@@ -3413,15 +3456,33 @@ internal fun Composer(
         )
     }
     androidx.compose.runtime.DisposableEffect(dictation) { onDispose { dictation.release() } }
-    val speechPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted) dictation.start(value.text)
+    // Recording notes already pause/cancel on background. Dictation must also release
+    // the recognizer on STOP, not wait for the whole Composer to be disposed.
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    androidx.compose.runtime.DisposableEffect(dictation, lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_STOP) dictation.release()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
-    val voicePermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { _ -> }
+    val speechPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        val origin = speechPermissionChatId
+        speechPermissionChatId = null
+        if (origin == chatId) {
+            if (granted) dictation.start(latestDraft.value)
+            else android.widget.Toast.makeText(context, "Allow microphone access to dictate.", android.widget.Toast.LENGTH_SHORT).show()
+        }
+    }
+    val voicePermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (!granted) android.widget.Toast.makeText(context, "Allow microphone access to record a voice note.", android.widget.Toast.LENGTH_SHORT).show()
+    }
     fun startSpeechRecognition() {
         if (dictation.listening) { dictation.stop(); return }
         if (context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
             dictation.start(value.text)
         } else {
+            speechPermissionChatId = chatId
             speechPermission.launch(Manifest.permission.RECORD_AUDIO)
         }
     }
@@ -3465,7 +3526,7 @@ internal fun Composer(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            if (!voiceNotes.recording) Surface(color = Bubble, shape = CircleShape, modifier = Modifier.size(44.dp).clickable(onClick = onMenu).testTag("composer_tools")) {
+            if (!voiceNotes.recording) Surface(color = Bubble, shape = CircleShape, modifier = Modifier.size(48.dp).clickable(onClick = onMenu).testTag("composer_tools")) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = AnnieIcons.Add,
@@ -3475,7 +3536,7 @@ internal fun Composer(
                     )
                 }
             }
-            if (!voiceNotes.recording) Surface(color = if (dictation.listening) Color(0xFFFF4D4D) else Bubble, shape = CircleShape, modifier = Modifier.size(44.dp).clickable(onClick = ::startSpeechRecognition).testTag("composer_speech")) {
+            if (!voiceNotes.recording) Surface(color = if (dictation.listening) Color(0xFFFF4D4D) else Bubble, shape = CircleShape, modifier = Modifier.size(48.dp).clickable(onClick = ::startSpeechRecognition).testTag("composer_speech")) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = AnnieIcons.Dictation,
@@ -3526,12 +3587,16 @@ internal fun Composer(
                 )
             }
             if (value.text.isBlank()) {
-                if (voiceNotes.locked) androidx.compose.foundation.layout.Spacer(Modifier.size(46.dp))
-                else VoiceHoldButton(voiceNotes, onNeedPermission = { voicePermission.launch(Manifest.permission.RECORD_AUDIO) })
+                if (voiceNotes.locked) androidx.compose.foundation.layout.Spacer(Modifier.size(48.dp))
+                else VoiceHoldButton(
+                    voiceNotes,
+                    onNeedPermission = { voicePermission.launch(Manifest.permission.RECORD_AUDIO) },
+                    onBeforeRecord = { dictation.release() },
+                )
             } else Surface(
                 color = Blue,
                 shape = CircleShape,
-                modifier = Modifier.size(46.dp).clickable(onClick = onSend).testTag("send_message"),
+                modifier = Modifier.size(48.dp).clickable(onClick = onSend).testTag("send_message"),
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(

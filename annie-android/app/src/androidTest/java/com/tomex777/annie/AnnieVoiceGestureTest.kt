@@ -9,6 +9,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.Modifier
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performTouchInput
@@ -134,6 +135,13 @@ class AnnieVoiceGestureTest {
                 assertTrue(controller.locked)
                 assertEquals(0, sends)
             }
+            val density = compose.activity.resources.displayMetrics.density
+            listOf("voice_delete", "voice_pause_resume", "voice_send").forEach { tag ->
+                val target = compose.onNodeWithTag(tag).fetchSemanticsNode().boundsInRoot
+                assertTrue("$tag is too narrow for a reliable tap", target.width >= 48f * density - 1f)
+                assertTrue("$tag is too short for a reliable tap", target.height >= 48f * density - 1f)
+            }
+            saveEmulatorScreenshot("annie-agent5-voice-locked-controls")
             compose.onNodeWithTag("voice_pause_resume").performClick()
             var pausedDuration = 0L
             compose.runOnIdle { assertTrue(controller.paused); pausedDuration = controller.elapsedMs }
@@ -150,6 +158,68 @@ class AnnieVoiceGestureTest {
             compose.runOnIdle { controller.cancel() }
             sent.get()?.first?.let { File("$it.wave").delete(); File(it).delete() }
         }
+    }
+
+
+    @Test fun accessibilityClickStartsLockedRecordingWithVisibleCancel() {
+        var sends = 0
+        val controller = showMicrophone { _, _ -> sends++ }
+        try {
+            // A semantics click is what a switch-control or TalkBack user activates.
+            // It must NOT require the physical hold-and-swipe gesture.
+            compose.onNodeWithTag("composer_voice_hold").performClick()
+            compose.runOnIdle {
+                assertTrue("Accessibility click failed to begin recording", controller.recording)
+                assertTrue("Accessible microphone cannot reach locked controls", controller.locked)
+            }
+            compose.onNodeWithTag("voice_pause_resume").assertExists()
+            compose.onNodeWithTag("voice_send").assertExists()
+            compose.onNodeWithTag("voice_delete").performClick()
+            compose.runOnIdle {
+                assertTrue("Cancel left accessibility microphone active", !controller.recording)
+                assertEquals("Cancelled accessibility recording sent audio", 0, sends)
+            }
+        } finally {
+            compose.runOnIdle { controller.cancel() }
+        }
+    }
+
+    @Test fun switchingChatsDisposesLockedRecordingWithoutSendingOrLeavingAudio() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val context = instrumentation.targetContext
+        instrumentation.uiAutomation.executeShellCommand(
+            "pm grant ${context.packageName} ${Manifest.permission.RECORD_AUDIO}"
+        ).use { descriptor ->
+            android.os.ParcelFileDescriptor.AutoCloseInputStream(descriptor).use { it.readBytes() }
+        }
+        val dir = File(context.filesDir, AnnieVoiceRecorder.VOICE_DIR)
+        val originalFiles = dir.list()?.toSet().orEmpty()
+        val key = mutableStateOf("chat-first")
+        var sends = 0
+        lateinit var current: VoiceNoteController
+        compose.setContent {
+            AnnieTheme {
+                current = rememberVoiceNoteController({ _, _ -> sends++ }, sessionKey = key.value)
+                Box(Modifier.fillMaxSize()) {
+                    VoiceHoldButton(current, onNeedPermission = { error("Microphone permission was granted") })
+                }
+            }
+        }
+        lateinit var previous: VoiceNoteController
+        compose.runOnIdle {
+            previous = current
+            assertTrue(previous.begin())
+            previous.locked = true
+            key.value = "chat-second"
+        }
+        compose.waitForIdle()
+        compose.runOnIdle {
+            assertTrue("Previous chat microphone was not released", !previous.recording)
+            assertTrue("New chat inherited an active microphone", !current.recording)
+            assertTrue("Chat switch must replace the active controller", current !== previous)
+            assertEquals("A cancelled recording leaked into a different chat", 0, sends)
+        }
+        assertEquals("Switching chats left a partial audio file", originalFiles, dir.list()?.toSet().orEmpty())
     }
 
 }

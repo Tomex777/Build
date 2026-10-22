@@ -13,6 +13,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -41,6 +42,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.semantics.Role
 import java.io.File
 import kotlin.math.sqrt
 import kotlinx.coroutines.delay
@@ -271,13 +273,15 @@ internal fun VoiceWaveform(
     width: Dp = 162.dp,
 ) {
     val peaks = remember(samples) { AnnieVoiceWaveform.reduce(samples) }
-    Canvas(
-        modifier = modifier.width(width).height(29.dp)
+    Box(
+        modifier = modifier.width(width).height(if (onSeek == null) 29.dp else 48.dp)
             .then(if (onSeek != null) Modifier.pointerInput(onSeek) {
                 detectTapGestures { onSeek((it.x / size.width).coerceIn(0f, 1f)) }
             } else Modifier)
-            .testTag("voice_waveform")
+            .testTag("voice_waveform"),
+        contentAlignment = Alignment.Center,
     ) {
+        Canvas(Modifier.fillMaxWidth().height(29.dp)) {
         val step = size.width / peaks.size
         val width = (step * 0.56f).coerceAtLeast(1f)
         peaks.forEachIndexed { i, peak ->
@@ -288,6 +292,7 @@ internal fun VoiceWaveform(
                 size = Size(width, barHeight),
                 cornerRadius = CornerRadius(width / 2f, width / 2f),
             )
+        }
         }
     }
 }
@@ -315,17 +320,27 @@ internal fun VoiceNoteBubble(path: String, durationMs: Long, fromUser: Boolean) 
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Icon(
-            if (playing) AnnieIcons.Pause else AnnieIcons.Play,
-            contentDescription = when {
-                playing -> "Pause voice note"
-                active -> "Resume voice note"
-                else -> "Play voice note"
-            },
-            tint = Color.White,
-            modifier = Modifier.size(26.dp).clip(CircleShape)
-                .clickable(enabled = !missing) { AnnieVoicePlayer.toggle(path) },
-        )
+        Box(
+            Modifier.size(48.dp).clip(CircleShape)
+                .clickable(
+                    enabled = !missing,
+                    role = Role.Button,
+                    onClickLabel = if (playing) "Pause voice note" else "Play voice note",
+                ) { AnnieVoicePlayer.toggle(path) }
+                .testTag("voice_play_pause"),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                if (playing) AnnieIcons.Pause else AnnieIcons.Play,
+                contentDescription = when {
+                    playing -> "Pause voice note"
+                    active -> "Resume voice note"
+                    else -> "Play voice note"
+                },
+                tint = Color.White,
+                modifier = Modifier.size(24.dp),
+            )
+        }
         androidx.compose.foundation.layout.Column {
             if (!missing) VoiceWaveform(
                 samples = samples, progress = fraction,

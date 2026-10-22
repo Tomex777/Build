@@ -13,6 +13,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -38,6 +39,11 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.contentDescription
 import kotlinx.coroutines.delay
 
 /**
@@ -138,10 +144,14 @@ internal class VoiceNoteController(
 }
 
 @Composable
-internal fun rememberVoiceNoteController(onVoiceNote: (String, Long) -> Unit): VoiceNoteController {
+internal fun rememberVoiceNoteController(
+    onVoiceNote: (String, Long) -> Unit,
+    sessionKey: String = "",
+): VoiceNoteController {
     val context = androidx.compose.ui.platform.LocalContext.current
     val latest = androidx.compose.runtime.rememberUpdatedState(onVoiceNote)
-    val controller = remember(context) { VoiceNoteController(context) { path, ms -> latest.value(path, ms) } }
+    // Chat switching disposes the old recorder instead of letting a recording cross conversations.
+    val controller = remember(context, sessionKey) { VoiceNoteController(context) { path, ms -> latest.value(path, ms) } }
     DisposableEffect(controller) { onDispose { controller.cancel() } }
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     DisposableEffect(controller, lifecycleOwner) {
@@ -164,6 +174,7 @@ internal fun VoiceHoldButton(
     controller: VoiceNoteController,
     onNeedPermission: () -> Unit,
     modifier: Modifier = Modifier,
+    onBeforeRecord: () -> Unit = {},
 ) {
     val density = LocalDensity.current
     val cancelPx = with(density) { 110.dp.toPx() }
@@ -175,7 +186,23 @@ internal fun VoiceHoldButton(
     Surface(
         color = if (controller.recording) Color(0xFFFF4D4D) else Color(0xFF168EEA),
         shape = CircleShape,
-        modifier = modifier.size(46.dp).testTag("composer_voice_hold").pointerInteropFilter { event ->
+        modifier = modifier.size(48.dp).testTag("composer_voice_hold")
+            // TalkBack cannot perform drag-and-hold gestures. An accessibility click
+            // starts a locked recording with visible Pause, Delete and Send actions.
+            .semantics {
+                role = Role.Button
+                contentDescription = "Record voice note"
+                onClick(label = "Start voice note") {
+                    if (controller.recording) return@onClick true
+                    if (!controller.hasPermission()) onNeedPermission()
+                    else {
+                        onBeforeRecord()
+                        if (controller.begin()) controller.locked = true
+                    }
+                    true
+                }
+            }
+            .pointerInteropFilter { event ->
             // Compose represents ACTION_CANCEL as unpressed pointers. Keep the
             // native distinction: only ACTION_UP may send an unlocked draft.
             when (event.actionMasked) {
@@ -185,7 +212,10 @@ internal fun VoiceHoldButton(
                     gesture.startY = event.y
                     if (!controller.recording) {
                         if (!controller.hasPermission()) onNeedPermission()
-                        else gesture.started = controller.begin()
+                        else {
+                            onBeforeRecord()
+                            gesture.started = controller.begin()
+                        }
                     }
                 }
                 MotionEvent.ACTION_MOVE -> if (gesture.started && controller.recording) {
@@ -216,7 +246,7 @@ internal fun VoiceHoldButton(
         Box(contentAlignment = Alignment.Center) {
             Icon(
                 AnnieIcons.Microphone,
-                contentDescription = "Hold to record a voice note",
+                contentDescription = null,
                 tint = Color.White,
                 modifier = Modifier.size(22.dp),
             )
@@ -235,16 +265,22 @@ private class VoiceHoldGesture {
 internal fun VoiceRecordingBar(controller: VoiceNoteController, modifier: Modifier = Modifier) {
     Row(
         modifier.clip(RoundedCornerShape(28.dp)).background(Color(0xFF102139))
-            .padding(horizontal = 10.dp, vertical = 10.dp).testTag("voice_recording_bar"),
+            .padding(horizontal = 6.dp, vertical = 2.dp).testTag("voice_recording_bar"),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(7.dp),
     ) {
         if (controller.locked) {
-            Icon(
-                AnnieIcons.Close, contentDescription = "Delete recording", tint = Color(0xFFFF8A80),
-                modifier = Modifier.size(23.dp).clip(CircleShape).clickable { controller.cancel() }
+            Box(
+                Modifier.size(48.dp).clip(CircleShape)
+                    .clickable(role = Role.Button, onClickLabel = "Delete recording") { controller.cancel() }
                     .testTag("voice_delete"),
-            )
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    AnnieIcons.Close, contentDescription = null,
+                    tint = Color(0xFFFF8A80), modifier = Modifier.size(23.dp),
+                )
+            }
         } else {
             VoiceRecordingDot()
         }
@@ -252,21 +288,29 @@ internal fun VoiceRecordingBar(controller: VoiceNoteController, modifier: Modifi
         VoiceWaveform(
             samples = controller.waveformPeaks.toList().takeLast(40),
             progress = 1f,
-            width = if (controller.locked) 60.dp else 139.dp,
+            width = if (controller.locked) 32.dp else 139.dp,
         )
         if (controller.locked) {
-            Text(
-                if (controller.paused) "Resume" else "Pause", color = Color.White, fontSize = 13.sp,
-                modifier = Modifier.clip(RoundedCornerShape(14.dp))
-                    .clickable { controller.togglePause() }.padding(horizontal = 5.dp, vertical = 6.dp)
+            Box(
+                Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .clickable(role = Role.Button, onClickLabel = if (controller.paused) "Resume recording" else "Pause recording") {
+                        controller.togglePause()
+                    }
                     .testTag("voice_pause_resume"),
-            )
-            Text(
-                "Send", color = Color.White, fontSize = 13.sp,
-                modifier = Modifier.clip(RoundedCornerShape(14.dp)).background(Color(0xFF168EEA))
-                    .clickable { controller.finish() }.padding(horizontal = 9.dp, vertical = 6.dp)
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(if (controller.paused) "Resume" else "Pause", color = Color.White, fontSize = 13.sp)
+            }
+            Box(
+                Modifier.size(48.dp).clip(RoundedCornerShape(14.dp))
+                    .background(Color(0xFF168EEA))
+                    .clickable(role = Role.Button, onClickLabel = "Send recording") { controller.finish() }
                     .testTag("voice_send"),
-            )
+                contentAlignment = Alignment.Center,
+            ) {
+                Text("Send", color = Color.White, fontSize = 13.sp)
+            }
         } else if (controller.cancelling) {
             Text("Cancel", color = Color(0xFFFF8A80), fontSize = 11.sp)
         }
@@ -284,6 +328,8 @@ internal class AnnieDictation(
 ) {
     private var recognizer: SpeechRecognizer? = null
     private var prefix = ""
+    // Ignore speech callbacks that arrive after leaving the chat or backgrounding the app.
+    private var generation = 0
     var listening by mutableStateOf(false)
         private set
 
@@ -292,43 +338,78 @@ internal class AnnieDictation(
     fun start(existingText: String) {
         if (listening) return
         if (!isAvailable()) { onUnavailable(); return }
-        prefix = existingText.trimEnd().let { if (it.isEmpty()) "" else "$it " }
-        val engine = SpeechRecognizer.createSpeechRecognizer(context)
+        val session = ++generation
+        prefix = existingText
+        val engine = try {
+            SpeechRecognizer.createSpeechRecognizer(context)
+        } catch (_: RuntimeException) {
+            release()
+            onUnavailable()
+            return
+        }
         recognizer = engine
         engine.setRecognitionListener(object : RecognitionListener {
-            override fun onReadyForSpeech(params: Bundle?) { listening = true }
+            override fun onReadyForSpeech(params: Bundle?) {
+                if (session == generation) listening = true
+            }
             override fun onBeginningOfSpeech() {}
             override fun onRmsChanged(rmsdB: Float) {}
             override fun onBufferReceived(buffer: ByteArray?) {}
             override fun onEndOfSpeech() {}
             override fun onEvent(eventType: Int, params: Bundle?) {}
-            override fun onPartialResults(partialResults: Bundle?) = deliver(partialResults)
-            override fun onResults(results: Bundle?) { deliver(results); release() }
-            override fun onError(error: Int) { release() }
+            override fun onPartialResults(partialResults: Bundle?) = deliver(partialResults, session)
+            override fun onResults(results: Bundle?) {
+                if (session == generation) {
+                    deliver(results, session)
+                    release()
+                }
+            }
+            override fun onError(error: Int) {
+                if (session == generation) release()
+            }
         })
-        engine.startListening(
-            Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
-                .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                .putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
-                .putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
-                .putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, context.packageName)
-                .putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 2200L)
-                .putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 1800L)
-        )
         listening = true
+        try {
+            engine.startListening(
+                Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+                    .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                    .putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+                    .putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+                    .putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, context.packageName)
+                    .putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 2200L)
+                    .putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 1800L)
+            )
+        } catch (_: RuntimeException) {
+            release()
+            onUnavailable()
+        }
     }
 
-    /** Stops listening and keeps whatever has been recognised so far. */
-    fun stop() { recognizer?.stopListening() }
+    /** End active dictation and allow Android to return its final recognised words. */
+    fun stop() {
+        val active = recognizer ?: return
+        runCatching { active.stopListening() }.onFailure { release() }
+    }
 
     fun release() {
+        generation++
         listening = false
-        recognizer?.let { runCatching { it.cancel() }; runCatching { it.destroy() } }
+        val active = recognizer
         recognizer = null
+        active?.let { runCatching { it.cancel() }; runCatching { it.destroy() } }
     }
 
-    private fun deliver(bundle: Bundle?) {
+    private fun deliver(bundle: Bundle?, session: Int) {
+        if (session != generation || !listening) return
         val text = bundle?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull().orEmpty()
-        if (text.isNotBlank()) onText(prefix + text)
+        if (text.isNotBlank()) onText(appendRecognizedText(prefix, text))
     }
+}
+
+/** Insert dictated speech without discarding a message the user already typed. */
+internal fun appendRecognizedText(existing: String, recognized: String): String {
+    val spoken = recognized.trim()
+    if (spoken.isEmpty()) return existing
+    val spacer = if (existing.isEmpty() || existing.last().isWhitespace()) "" else " "
+    return existing + spacer + spoken
 }

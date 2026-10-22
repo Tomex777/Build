@@ -77,4 +77,54 @@ class ChatInsetTest {
         compose.onNodeWithTag("composer_input").assertTextEquals("Drawer keyboard proof restored")
         saveEmulatorScreenshot("annie-composer-after-drawer")
     }
+    @Test fun composerActionsHaveReachable48DpTouchTargets() {
+        compose.onNodeWithTag("chat_history_button").performClick()
+        compose.onNodeWithTag("drawer_new_chat").performClick()
+        val density = compose.activity.resources.displayMetrics.density
+        val screenWidth = compose.activity.resources.displayMetrics.widthPixels.toFloat()
+        listOf("composer_tools", "composer_speech", "composer_voice_hold").forEach { tag ->
+            val bounds = compose.onNodeWithTag(tag).assertIsDisplayed().fetchSemanticsNode().boundsInRoot
+            assertTrue("$tag touch width is less than 48dp: ${bounds.width / density}", bounds.width >= 48f * density - 1f)
+            assertTrue("$tag touch height is less than 48dp: ${bounds.height / density}", bounds.height >= 48f * density - 1f)
+            assertTrue("$tag clips outside the phone: $bounds", bounds.left >= 0f && bounds.right <= screenWidth + 1f)
+        }
+        saveEmulatorScreenshot("annie-agent5-composer-targets")
+    }
+
+    @Test fun unsentDraftsStayWithinTheirChatsWhenSwitchingPersonas() {
+        val context = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext
+        compose.onNodeWithTag("chat_history_button").performClick()
+        compose.onNodeWithTag("drawer_new_chat").performClick()
+        val firstId = compose.run {
+            waitForIdle()
+            ChatHistoryStore.read(context).first().id
+        }
+        compose.onNodeWithTag("composer_input").performTextInput("first unsent draft")
+        compose.onNodeWithTag("chat_history_button").performClick()
+        compose.onNodeWithTag("drawer_new_chat").performClick()
+        val secondId = compose.run {
+            waitForIdle()
+            ChatHistoryStore.read(context).first().id
+        }
+        assertTrue("New chat reused the original identity", firstId != secondId)
+        compose.onNodeWithTag("composer_input").assertTextEquals("")
+        compose.onNodeWithTag("composer_input").performTextInput("second unsent draft")
+        compose.onNodeWithTag("chat_history_button").performClick()
+        compose.onNodeWithTag("drawer_chat_$firstId").performClick()
+        assertEquals("Selected conversation was not persisted", firstId, ChatHistoryStore.read(context).first().id)
+        compose.onNodeWithTag("composer_input").assertTextEquals("first unsent draft")
+        compose.onNodeWithTag("chat_history_button").performClick()
+        compose.onNodeWithTag("drawer_chat_$secondId").performClick()
+        assertEquals(secondId, ChatHistoryStore.read(context).first().id)
+        compose.onNodeWithTag("composer_input").assertTextEquals("second unsent draft")
+        saveEmulatorScreenshot("annie-agent5-per-chat-drafts")
+        compose.activityRule.scenario.recreate()
+        compose.waitForIdle()
+        compose.onNodeWithTag("composer_input").assertTextEquals("second unsent draft")
+        compose.onNodeWithTag("chat_history_button").performClick()
+        compose.onNodeWithTag("drawer_chat_$firstId").performClick()
+        assertEquals("Selected conversation was not persisted", firstId, ChatHistoryStore.read(context).first().id)
+        compose.onNodeWithTag("composer_input").assertTextEquals("first unsent draft")
+    }
+
 }
