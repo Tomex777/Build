@@ -31,7 +31,7 @@ function arrangement(song){
   if(lane===prev)lane=(lane+1)%4;
   prev=lane;
   const hold=i>3 && (i+song.id.length)%17===16;
-  return {lane,freq,at:0,duration:hold?.58:0,hold,state:"waiting",pointer:null,start:0,scoreGiven:false,voice:null,flash:0};
+  return {lane,freq,at:1.35+i*.59,duration:hold?.58:0,hold,state:"waiting",pointer:null,start:0,scoreGiven:false,voice:null,flash:0};
  });
 }
 window.NightPianoSongLibrary=Object.freeze({songs:Object.freeze(songs),arrangement});
