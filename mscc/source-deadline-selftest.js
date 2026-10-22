@@ -92,6 +92,64 @@ try {
   assert.ok(performance.now() - musicStart < 1800)
   console.log('PASS music source deadline and bounded fallback')
 
+  // TV search/season metadata lookups were previously unbounded, so a
+  // stalled catalog provider could leave .tv/.series without a reply.
+  let tvSignal = null
+  registry.sources.set('tv:stalled', {
+    id:'stalled', capability:'tv', name:'Stalled TV', fallbackOrder:10,
+    async run({ context }) {
+      tvSignal = context.signal
+      return new Promise(() => {})
+    },
+  })
+  const tvStart = performance.now()
+  const tv = await registry.execute({
+    capability:'tv',
+    userKey:'user',
+    explicitSource:'stalled',
+    payload:{ action:'seasons', item:{ id:'show', title:'Example Show' } },
+  })
+  assert.equal(tv.status, 'source-error')
+  assert.equal(tv.error.code, 'source-lookup-timeout')
+  assert.ok(tvSignal?.aborted, 'TV season lookup receives an abort signal')
+  assert.ok(performance.now() - tvStart < 1800, 'TV metadata lookup must complete promptly')
+
+  // Movie catalog lookups use the same guard, without applying it to downloads.
+  let movieSignal = null
+  registry.sources.set('movies:stalled', {
+    id:'stalled', capability:'movies', name:'Stalled Movies', fallbackOrder:10,
+    async run({ context }) {
+      movieSignal = context.signal
+      return new Promise(() => {})
+    },
+  })
+  const movie = await registry.execute({
+    capability:'movies',
+    userKey:'user',
+    explicitSource:'stalled',
+    payload:{ action:'search', query:'Hope' },
+  })
+  assert.equal(movie.status, 'source-error')
+  assert.equal(movie.error.code, 'source-lookup-timeout')
+  assert.ok(movieSignal?.aborted, 'movie search receives an abort signal')
+
+  let tvTransferSignal = false
+  registry.sources.set('tv:transfer', {
+    id:'transfer', capability:'tv', name:'TV transfer',
+    async run({ context }) {
+      tvTransferSignal = Boolean(context.signal)
+      return { delivered:true }
+    },
+  })
+  const tvTransfer = await registry.execute({
+    capability:'tv',
+    explicitSource:'transfer',
+    payload:{ action:'download', item:{ id:'show' }, episode:{ number:1 } },
+  })
+  assert.equal(tvTransfer.status, 'ok')
+  assert.equal(tvTransferSignal, false, 'TV media transfers must not inherit catalog lookup deadlines')
+
+  console.log('PASS TV/movie lookup deadlines and unbounded media transfer')
   console.log('PASS anime source deadline and cancellation (no WhatsApp session touched)')
 } finally {
   if (before === undefined) delete process.env.MSCC_SOURCE_LOOKUP_TIMEOUT_MS
