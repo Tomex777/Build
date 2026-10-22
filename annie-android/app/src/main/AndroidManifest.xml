@@ -68,7 +68,7 @@
             android:exported="false" />
         <activity
             android:name=".AnnieCanvasActivity"
-            android:screenOrientation="portrait"
+            android:screenOrientation="unspecified"
             android:windowSoftInputMode="adjustResize"
             android:exported="false" />
         <activity
