@@ -51,6 +51,7 @@ class FanSmokeTest {
         rule.onNodeWithText("Your favorites").assertExists()
         rule.onNodeWithText("No favorites yet").assertExists()
         screenshot("favorites")
+        rule.onNodeWithTag("songs").performScrollToNode(hasText("Pick a feeling"))
         rule.onNodeWithText("Favorites").performClick()
         rule.onNodeWithTag("songs").performScrollToNode(hasText("Every song, every mood"))
         rule.onNodeWithText("Every song, every mood").assertExists()
