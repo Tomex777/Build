@@ -4,9 +4,9 @@ mkdir -p jigsaw-android/qa-screenshots
 adb install -r apk/app-debug.apk
 adb shell wm size 390x844
 adb shell wm density 420
-adb shell am start -W -n com.nice.jigsaw/.MainActivity
+adb shell am start -W -n com.night.jigsaw/.MainActivity
 sleep 5
-adb shell pidof com.nice.jigsaw >/dev/null
+adb shell pidof com.night.jigsaw >/dev/null
 adb exec-out screencap -p > jigsaw-android/qa-screenshots/01-starter-390.png
 
 # Read actual Compose accessibility node bounds: don't guess tap coordinates.
@@ -39,7 +39,7 @@ adb exec-out screencap -p > jigsaw-android/qa-screenshots/02-difficulty-390.png
 tap_label "48"
 adb exec-out screencap -p > jigsaw-android/qa-screenshots/03-pieces-48-390.png
 tap_label "Hint"
-adb shell run-as com.nice.jigsaw cat files/active-jigsaw.json > /tmp/jigsaw-progress.json
+adb shell run-as com.night.jigsaw cat files/active-jigsaw.json > /tmp/jigsaw-progress.json
 python3 - <<'PY'
 import json
 saved=json.load(open("/tmp/jigsaw-progress.json"))
@@ -52,9 +52,9 @@ tap_label "New puzzle"
 tap_label "144"
 adb exec-out screencap -p > jigsaw-android/qa-screenshots/04-pieces-144-390.png
 adb shell input keyevent KEYCODE_HOME
-adb shell am start -W -n com.nice.jigsaw/.MainActivity
+adb shell am start -W -n com.night.jigsaw/.MainActivity
 sleep 3
-adb shell run-as com.nice.jigsaw cat files/active-jigsaw.json > /tmp/jigsaw-restored.json
+adb shell run-as com.night.jigsaw cat files/active-jigsaw.json > /tmp/jigsaw-restored.json
 python3 - <<'PY'
 import json
 saved=json.load(open("/tmp/jigsaw-restored.json"))

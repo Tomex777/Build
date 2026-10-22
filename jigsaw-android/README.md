@@ -1,6 +1,6 @@
 # Jigsaw — standalone Android game
 
-A separate **native Kotlin/Android** application: `com.nice.jigsaw`, `minSdk 26`. No WebView, JavaScript game code, Internet permission, accounts or ads. The 105+ offline-games hub remains separate.
+A separate **native Kotlin/Android** application: `com.night.jigsaw`, `minSdk 26`. No WebView, JavaScript game code, Internet permission, accounts or ads. The 105+ offline-games hub remains separate.
 
 ## Play
 - Interlocking, deterministic, complementary tabs; 24 (6x4), 48 (8x6) and 144 (12x12) *real pieces*.

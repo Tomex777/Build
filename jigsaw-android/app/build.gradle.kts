@@ -4,10 +4,10 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 android {
-    namespace = "com.nice.jigsaw"
+    namespace = "com.night.jigsaw"
     compileSdk = 36
     defaultConfig {
-        applicationId = "com.nice.jigsaw"
+        applicationId = "com.night.jigsaw"
         minSdk = 26
         targetSdk = 36
         versionCode = 1

@@ -1,4 +1,4 @@
-package com.nice.jigsaw
+package com.night.jigsaw
 
 import org.junit.Assert.*
 import org.junit.Test
