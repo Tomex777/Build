@@ -15,7 +15,7 @@ function classifyHeadline(title){
  return Object.freeze({rumor:RUMOR.test(text),spoiler:SPOILER.test(text)});
 }
 function quoteShow(title){
- const match=/(?:“([^”]{2,90})”|"([^"]{2,90})"|(?:^|[\s(])'([^']{2,90})'(?![\p{L}\p{N}]))/u.exec(title);
+ const match=/(?:“([^”]{2,90})”|"([^"]{2,90})"|(?:^|[\s(])'(.{2,90}?)'(?=\s|[.,:;!?)]|$))/u.exec(title);
  return (match?.[1]||match?.[2]||match?.[3]||'').trim();
 }
 function findShow(title,aliases){
