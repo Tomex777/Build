@@ -45,7 +45,7 @@ body.is-playing .night-hud-value strong{font-size:20px}
 body.is-playing .board-area{width:100%}
 body.is-playing .board-shell{
   width:min(100%,510px);min-width:0;
-  height:clamp(250px,calc(100dvh - 174px),840px);
+  height:min(calc(100dvh - 232px),calc((100vw - 8px)*1.55),710px);min-height:260px;
   aspect-ratio:auto;border-radius:8px;
 }
 body.is-playing .game-tools{width:min(100%,510px);padding-top:4px}
@@ -53,7 +53,7 @@ body.is-playing .game-tools{width:min(100%,510px);padding-top:4px}
   body.is-playing .night-hud-value{padding:3px 8px 2px}
   body.is-playing .night-hud-value strong{font-size:18px}
 }
-@media(min-width:700px){body.is-playing .board-shell{height:clamp(250px,calc(100dvh - 184px),840px)}}
+@media(min-width:700px){body.is-playing .board-shell{height:min(calc(100dvh - 232px),680px);min-height:260px}}
 
 /* A genuine recording attribution without another persistent game control. */
 .piano-attribution{margin:9px auto 0;max-width:520px;color:#87948e;font-size:10px;line-height:1.5;text-align:center}
