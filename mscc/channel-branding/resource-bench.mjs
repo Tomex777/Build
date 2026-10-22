@@ -5,7 +5,7 @@ import {createRequire} from 'node:module';
 import {performance} from 'node:perf_hooks';
 import {watermarkStaticImage,WatermarkCache} from './watermark.mjs';
 const require=createRequire(import.meta.url),sharp=require('sharp');
-const width=3000,height=2000;
+const width=2400,height=1600;
 const pixels=Buffer.allocUnsafe(width*height*3);
 let state=0x1234abcd;
 for(let i=0;i<pixels.length;i++){
