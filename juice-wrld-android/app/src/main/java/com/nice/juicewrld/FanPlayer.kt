@@ -8,6 +8,10 @@ import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.media.MediaPlayer
 import android.net.Uri
+import android.provider.DocumentsContract
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.util.ArrayDeque
 import android.os.SystemClock
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -22,6 +26,8 @@ data class FanPlayerState(
     val favorites: Set<String> = emptySet(),
     val attached: Set<String> = emptySet(),
     val memories: Map<String, String> = emptyMap(),
+    val importing: Boolean = false,
+    val importMessage: String? = null,
     val activeSongId: String? = null,
     val isPlaying: Boolean = false,
     val isPreparing: Boolean = false,
@@ -90,6 +96,91 @@ class FanPlayer(app: Application) : AndroidViewModel(app) {
         if (!ids.add(id)) ids.remove(id)
         prefs.edit().putStringSet("favorites", ids).apply()
         _state.update { it.copy(favorites = ids.toSet()) }
+    }
+
+    fun importMusicFolder(treeUri: Uri) {
+        if (_state.value.importing) return
+        try {
+            getApplication<Application>().contentResolver.takePersistableUriPermission(
+                treeUri, Intent.FLAG_GRANT_READ_URI_PERMISSION
+            )
+        } catch (_: Exception) {
+            _state.update { it.copy(importMessage = "Couldn't access that folder. Try another.") }
+            return
+        }
+        _state.update { it.copy(importing = true, importMessage = null) }
+        viewModelScope.launch {
+            val matches = try {
+                withContext(Dispatchers.IO) { scanMusicTree(treeUri) }
+            } catch (_: Exception) {
+                _state.update { it.copy(importing = false,
+                    importMessage = "Couldn't read the selected folder.") }
+                return@launch
+            }
+            val unassigned = matches.filterKeys { it !in files }
+            if (unassigned.isNotEmpty()) {
+                val edit = prefs.edit()
+                unassigned.forEach { (id, uri) ->
+                    files[id] = uri
+                    edit.putString("file:" + id, uri)
+                }
+                edit.apply()
+            }
+            _state.update { it.copy(
+                attached = files.keys.toSet(),
+                importing = false,
+                importMessage = when {
+                    unassigned.isNotEmpty() ->
+                        "Found " + unassigned.size + " songs you can play."
+                    matches.isNotEmpty() -> "These songs are already in your library."
+                    else -> "No matching tracks found in that folder."
+                }
+            ) }
+        }
+    }
+
+    private fun scanMusicTree(tree: Uri): Map<String, String> {
+        val resolver = getApplication<Application>().contentResolver
+        val rootId = DocumentsContract.getTreeDocumentId(tree)
+        val queue = ArrayDeque<Pair<String, Int>>()
+        queue.add(rootId to 0)
+        val results = linkedMapOf<String, String>()
+        var scanned = 0
+        val columns = arrayOf(
+            DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+            DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+            DocumentsContract.Document.COLUMN_MIME_TYPE
+        )
+        while (queue.isNotEmpty() && scanned < 1200) {
+            val (parentId, depth) = queue.removeFirst()
+            val children = DocumentsContract.buildChildDocumentsUriUsingTree(tree, parentId)
+            resolver.query(children, columns, null, null, null)?.use { cursor ->
+                val idCol = cursor.getColumnIndexOrThrow(columns[0])
+                val nameCol = cursor.getColumnIndexOrThrow(columns[1])
+                val mimeCol = cursor.getColumnIndexOrThrow(columns[2])
+                while (cursor.moveToNext() && scanned < 1200) {
+                    scanned++
+                    val id = cursor.getString(idCol) ?: continue
+                    val name = cursor.getString(nameCol) ?: continue
+                    val mime = cursor.getString(mimeCol).orEmpty()
+                    if (mime == DocumentsContract.Document.MIME_TYPE_DIR) {
+                        if (depth < 3) queue.add(id to depth + 1)
+                        continue
+                    }
+                    val song = SongFileMatcher.matchFilename(name) ?: continue
+                    if (!mime.startsWith("audio/") &&
+                        mime != "application/octet-stream") continue
+                    results.putIfAbsent(
+                        song.id, DocumentsContract.buildDocumentUriUsingTree(tree, id).toString()
+                    )
+                }
+            }
+        }
+        return results
+    }
+
+    fun dismissImportMessage() {
+        _state.update { it.copy(importMessage = null) }
     }
 
     fun saveMemory(songId: String, note: String) {

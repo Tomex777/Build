@@ -109,3 +109,25 @@ object FanSongs {
 
     fun count(mood: Mood, favorites: Set<String>): Int = filter(mood, "", favorites).size
 }
+
+
+/** Matches real local audio by whole contiguous song-title tokens, not fuzzy/random filename guesses. */
+object SongFileMatcher {
+    private val separator = Regex("[^a-z0-9]+")
+    private val rejected = setOf(
+        "remix", "instrumental", "cover", "karaoke", "nightcore", "slowed", "spedup"
+    )
+    private fun tokens(text: String): List<String> =
+        text.lowercase().split(separator).filter { it.isNotBlank() }
+
+    fun matchFilename(filename: String): FanSong? {
+        val ext = filename.substringAfterLast('.', "").lowercase()
+        if (ext !in setOf("mp3", "m4a", "flac", "ogg", "wav", "aac", "opus")) return null
+        val parts = tokens(filename.substringBeforeLast('.', filename))
+        if (parts.isEmpty() || parts.any { it in rejected }) return null
+        return FanSongs.all.filter { song ->
+            val title = tokens(song.title)
+            title.isNotEmpty() && parts.windowed(title.size).any { it == title }
+        }.maxByOrNull { it.title.length }
+    }
+}

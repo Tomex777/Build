@@ -35,6 +35,16 @@ class FanSongsTest {
         assertTrue(FanSongs.filter(Mood.ALL, "2024", emptySet()).isNotEmpty())
     }
 
+    @Test fun folderMatcherFindsRealFileNamesWithoutGuessingWrongVersion() {
+        assertEquals("lucid-dreams",
+            SongFileMatcher.matchFilename("01 - Juice WRLD - Lucid Dreams.mp3")?.id)
+        assertEquals("flaws-and-sins",
+            SongFileMatcher.matchFilename("Flaws & Sins - Juice WRLD.flac")?.id)
+        assertNull(SongFileMatcher.matchFilename("Lucid Dreams (slowed).mp3"))
+        assertNull(SongFileMatcher.matchFilename("Somebody Else.mp3"))
+        assertNull(SongFileMatcher.matchFilename("Lucid Dreams.exe"))
+    }
+
     @Test fun everyMoodHasListeningOptionsAndFavoritesOnlyContainsFavorites() {
         for (mood in listOf(Mood.LOVE, Mood.SAD, Mood.HEARTBREAK, Mood.CHILL, Mood.HYPE)) {
             assertTrue("Missing " + mood.name, FanSongs.count(mood, emptySet()) >= 5)

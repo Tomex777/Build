@@ -105,6 +105,9 @@ fun FanHome(player: FanPlayer = viewModel()) {
     val songs = remember(mood, search, state.favorites) {
         FanSongs.filter(mood, search, state.favorites)
     }
+    val folderPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocumentTree()
+    ) { uri -> if (uri != null) player.importMusicFolder(uri) }
     val filePicker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
     ) { uri ->
@@ -184,6 +187,37 @@ fun FanHome(player: FanPlayer = viewModel()) {
                         text = search,
                         onTextChange = { search = it }
                     )
+                    Spacer(Modifier.height(10.dp))
+                    OutlinedButton(
+                        onClick = { folderPicker.launch(null) },
+                        enabled = !state.importing,
+                        modifier = Modifier.fillMaxWidth().height(46.dp),
+                        shape = RoundedCornerShape(13.dp),
+                        border = BorderStroke(1.dp, Hairline)
+                    ) {
+                        if (state.importing) {
+                            CircularProgressIndicator(modifier = Modifier.size(18.dp),
+                                strokeWidth = 2.dp, color = Lavender)
+                        } else {
+                            Icon(Icons.Filled.LibraryMusic, contentDescription = null,
+                                tint = Lavender, modifier = Modifier.size(17.dp))
+                            Spacer(Modifier.width(9.dp))
+                            Text("Find songs on my phone", color = White,
+                                fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                    if (state.importMessage != null) {
+                        Spacer(Modifier.height(8.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(state.importMessage.orEmpty(), modifier = Modifier.weight(1f),
+                                color = Gray, fontSize = 12.sp)
+                            IconButton(onClick = player::dismissImportMessage,
+                                modifier = Modifier.size(36.dp)) {
+                                Icon(Icons.Filled.Close, contentDescription = "Dismiss import message",
+                                    tint = Gray, modifier = Modifier.size(17.dp))
+                            }
+                        }
+                    }
                 }
             }
             item {
