@@ -2337,6 +2337,11 @@ async function shouldExecutePublicCommand(account, msg, command) {
   const capability = String(command?.capability || 'general').trim().toLowerCase() || 'general'
   const chat = normalizeJid(msg?.key?.remoteJid)
 
+  // The emergency channel safety control must work from *any* bot DM,
+  // including specialist profiles with no generic owner-command capability.
+  // Permission to change it is still checked strictly by the command itself.
+  if (command?.name === 'channelai') return !isGroup(chat) && !isChannelJid(chat)
+
   if (!isGroup(chat)) {
     return canExecuteDirect({
       accountId: account.id,
