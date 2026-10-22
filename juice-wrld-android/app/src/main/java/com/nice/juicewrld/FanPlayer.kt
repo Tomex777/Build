@@ -30,6 +30,7 @@ data class FanPlayerState(
     val attached: Set<String> = emptySet(),
     val memories: Map<String, String> = emptyMap(),
     val importing: Boolean = false,
+    val downloadingSongId: String? = null,
     val importMessage: String? = null,
     val queueIds: List<String> = emptyList(),
     val shuffle: Boolean = false,
@@ -239,6 +240,36 @@ class FanPlayer(app: Application) : AndroidViewModel(app) {
             play(songId)
         } catch (_: Exception) {
             _state.update { it.copy(error = "Couldn't read that audio file. Choose another.") }
+        }
+    }
+
+    /**
+     * Offline downloads are enabled only for tracks explicitly licensed in the
+     * bundled, SHA-256-pinned catalog. No URL scraping or stream ripping.
+     */
+    fun downloadLicensedSong(songId: String) {
+        if (FanSongs.find(songId) == null || _state.value.downloadingSongId != null) return
+        val entry = LicensedAudioCatalog.find(getApplication(), songId)
+        if (entry == null) {
+            _state.update { it.copy(error = "No authorized download is available for this song.") }
+            return
+        }
+        _state.update { it.copy(downloadingSongId = songId, error = null) }
+        viewModelScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                LicensedAudioCatalog.download(getApplication(), entry)
+            }
+            result.onSuccess { location ->
+                files[songId] = Uri.fromFile(location).toString()
+                prefs.edit().putString("file:" + songId, files.getValue(songId)).apply()
+                _state.update { it.copy(attached = files.keys.toSet(), downloadingSongId = null) }
+                play(songId)
+            }.onFailure {
+                _state.update { it.copy(
+                    downloadingSongId = null,
+                    error = "Download failed. Please try again when this recording is available."
+                ) }
+            }
         }
     }
 

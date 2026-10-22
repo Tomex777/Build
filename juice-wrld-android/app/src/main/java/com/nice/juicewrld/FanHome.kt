@@ -26,6 +26,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -45,7 +46,6 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -116,20 +116,10 @@ fun FanHome(player: FanPlayer = viewModel()) {
     var moodName by rememberSaveable { mutableStateOf(Mood.ALL.name) }
     var search by rememberSaveable { mutableStateOf("") }
     var openedId by rememberSaveable { mutableStateOf<String?>(null) }
-    var pickingId by rememberSaveable { mutableStateOf<String?>(null) }
+    var nowPlayingVisible by rememberSaveable { mutableStateOf(false) }
     val mood = Mood.entries.firstOrNull { it.name == moodName } ?: Mood.ALL
     val songs = remember(mood, search, state.favorites) {
         FanSongs.filter(mood, search, state.favorites)
-    }
-    val folderPicker = rememberLauncherForActivityResult(
-        ActivityResultContracts.OpenDocumentTree()
-    ) { uri -> if (uri != null) player.importMusicFolder(uri) }
-    val filePicker = rememberLauncherForActivityResult(
-        ActivityResultContracts.OpenDocument()
-    ) { uri ->
-        val id = pickingId
-        if (uri != null && id != null) player.attachFile(id, uri)
-        pickingId = null
     }
 
     Column(
@@ -227,31 +217,6 @@ fun FanHome(player: FanPlayer = viewModel()) {
                             }
                             Spacer(Modifier.width(4.dp))
                         }
-                        OutlinedButton(
-                            onClick = { folderPicker.launch(null) },
-                            enabled = !state.importing,
-                            modifier = Modifier.height(48.dp),
-                            contentPadding = PaddingValues(horizontal = 13.dp),
-                            shape = RoundedCornerShape(13.dp),
-                            border = BorderStroke(1.dp, Hairline),
-                        ) {
-                            if (state.importing) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(18.dp), strokeWidth = 2.dp,
-                                    color = Lavender
-                                )
-                            } else {
-                                Icon(
-                                    Icons.Filled.LibraryMusic, contentDescription = null,
-                                    tint = Lavender, modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(Modifier.width(7.dp))
-                                Text(
-                                    "Import", color = White, fontSize = 12.sp,
-                                    fontWeight = FontWeight.SemiBold
-                                )
-                            }
-                        }
                     }
                     Spacer(Modifier.height(15.dp))
                     FanSearch(
@@ -259,18 +224,6 @@ fun FanHome(player: FanPlayer = viewModel()) {
                         onTextChange = { search = it },
                         modifier = Modifier.fillMaxWidth()
                     )
-                    if (state.importMessage != null) {
-                        Spacer(Modifier.height(8.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(state.importMessage.orEmpty(), modifier = Modifier.weight(1f),
-                                color = Gray, fontSize = 12.sp)
-                            IconButton(onClick = player::dismissImportMessage,
-                                modifier = Modifier.size(36.dp)) {
-                                Icon(Icons.Filled.Close, contentDescription = "Dismiss import message",
-                                    tint = Gray, modifier = Modifier.size(17.dp))
-                            }
-                        }
-                    }
                 }
             }
             if (songs.isEmpty()) {
@@ -312,7 +265,7 @@ fun FanHome(player: FanPlayer = viewModel()) {
                 onToggle = { player.play(state.activeSongId!!) },
                 onSkip = player::skip,
                 onSeek = player::seekTo,
-                onOpen = { openedId = state.activeSongId }
+                onOpen = { nowPlayingVisible = true }
             )
         }
     }
@@ -341,18 +294,41 @@ fun FanHome(player: FanPlayer = viewModel()) {
             memory = state.memories[selected.id].orEmpty(),
             onDismiss = { openedId = null },
             onFavorite = { player.toggleFavorite(selected.id) },
-            onPlay = { player.playInMood(selected.id, mood); openedId = null },
+            onPlay = {
+                player.playInMood(selected.id, mood)
+                openedId = null
+                nowPlayingVisible = true
+            },
             onSaveMemory = { player.saveMemory(selected.id, it) },
             onShare = { shareSong(context, selected) },
-            onPickFile = {
-                pickingId = selected.id
-                filePicker.launch(arrayOf("audio/*"))
-            },
+            downloadAvailable = LicensedAudioCatalog.find(context, selected.id) != null,
+            downloading = state.downloadingSongId == selected.id,
+            onDownload = { player.downloadLicensedSong(selected.id) },
             onOfficial = {
                 openOfficialSong(context, selected)
             }
         )
     }
+    if (nowPlayingVisible) {
+        val playingSong = state.activeSongId?.let(FanSongs::find)
+        if (playingSong != null) {
+            NowPlayingScreen(
+                song = playingSong,
+                state = state,
+                onClose = { nowPlayingVisible = false },
+                onTogglePlay = { player.play(playingSong.id) },
+                onPrevious = { player.skip(-1) },
+                onNext = { player.skip(1) },
+                onSeek = player::seekTo,
+                onFavorite = { player.toggleFavorite(playingSong.id) },
+                onShuffle = player::toggleShuffle,
+                onRepeat = player::toggleRepeat
+            )
+        } else {
+            LaunchedEffect(Unit) { nowPlayingVisible = false }
+        }
+    }
+
 }
 
 @Composable
@@ -597,7 +573,7 @@ private fun albumArt(album: String): String? = when (album) {
 }
 
 @Composable
-private fun AlbumCover(album: String, modifier: Modifier, title: String) {
+internal fun AlbumCover(album: String, modifier: Modifier, title: String) {
     val art = albumArt(album)
     if (art == null) {
         CoverPlaceholder(album, modifier)
@@ -750,7 +726,8 @@ private fun SongSheet(
     playing: Boolean, preparing: Boolean, shuffle: Boolean, repeat: RepeatMode,
     onShuffle: () -> Unit, onRepeat: () -> Unit, memory: String,
     onDismiss: () -> Unit, onFavorite: () -> Unit,
-    onPlay: () -> Unit, onPickFile: () -> Unit, onOfficial: () -> Unit,
+    onPlay: () -> Unit, onDownload: () -> Unit, onOfficial: () -> Unit,
+    downloadAvailable: Boolean, downloading: Boolean,
     onSaveMemory: (String) -> Unit, onShare: () -> Unit
 ) {
     var memoryDraft by rememberSaveable(song.id) { mutableStateOf(memory) }
@@ -791,8 +768,12 @@ private fun SongSheet(
             Spacer(Modifier.height(20.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Button(
-                    onClick = if (attached) onPlay else onPickFile,
-                    enabled = !preparing,
+                    onClick = when {
+                        attached -> onPlay
+                        downloadAvailable -> onDownload
+                        else -> onOfficial
+                    },
+                    enabled = !preparing && !downloading,
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Lavender, contentColor = Night),
                     modifier = Modifier.weight(1f).height(50.dp)
@@ -800,14 +781,17 @@ private fun SongSheet(
                     Icon(
                         if (attached) {
                             if (playing) Icons.Filled.Pause else Icons.Filled.PlayArrow
-                        } else Icons.Filled.UploadFile,
+                        } else if (downloadAvailable) Icons.Filled.Download
+                        else Icons.Filled.OpenInNew,
                         contentDescription = null, modifier = Modifier.size(19.dp)
                     )
                     Spacer(Modifier.width(7.dp))
                     Text(
                         if (attached) {
                             if (playing) "Pause audio" else "Play my audio"
-                        } else "Add audio file",
+                        } else if (downloadAvailable) {
+                            if (downloading) "Downloading…" else "Download"
+                        } else "Listen on YouTube Music",
                         fontWeight = FontWeight.Bold, fontSize = 13.sp
                     )
                 }
@@ -849,18 +833,6 @@ private fun SongSheet(
                     }
                 }
             }
-            Spacer(Modifier.height(11.dp))
-            OutlinedButton(
-                onClick = onOfficial, modifier = Modifier.fillMaxWidth().height(48.dp),
-                border = BorderStroke(1.dp, Hairline),
-                shape = RoundedCornerShape(14.dp)
-            ) {
-                Icon(Icons.Filled.OpenInNew, contentDescription = null, tint = White,
-                    modifier = Modifier.size(16.dp))
-                Spacer(Modifier.width(9.dp))
-                Text("Listen on YouTube Music", color = White,
-                    fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-            }
             Spacer(Modifier.height(22.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -900,19 +872,7 @@ private fun SongSheet(
                     }
                 }
             )
-            Spacer(Modifier.height(8.dp))
-            if (attached) {
-                TextButton(onClick = onPickFile) {
-                    Text("Replace audio file", color = Gray, fontSize = 12.sp)
-                }
-            } else {
-                Text(
-                    "Import audio from your device to play this song.",
-                    color = Gray, fontSize = 11.sp, lineHeight = 16.sp,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(start = 15.dp, end = 15.dp, top = 11.dp)
-                )
-            }
+
         }
     }
 }
