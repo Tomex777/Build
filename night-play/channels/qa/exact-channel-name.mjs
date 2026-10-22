@@ -3,7 +3,10 @@
 // Expected to fail against the October 22 baseline until C fixes identity
 // preservation; never bypass this by comparing the altered output instead.
 import assert from 'node:assert/strict';
-import { NightPlayChannels } from '../../../mscc/night-play-channels.js';
+import path from 'node:path';
+import {pathToFileURL} from 'node:url';
+const root=path.resolve(process.env.NIGHT_MSCC_SOURCE_ROOT || path.resolve(process.cwd(),'mscc'));
+const {NightPlayChannels}=await import(pathToFileURL(path.join(root,'night-play-channels.js')).href);
 
 const original = 'NIGHT 👩🏽‍💻 👨‍👩‍👧‍👦 🇳🇬 العربية हिन्दी 𝙏𝙀𝙎𝙏';
 const jid = '120363282083849178@newsletter';
