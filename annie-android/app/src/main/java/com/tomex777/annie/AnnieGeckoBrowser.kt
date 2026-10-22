@@ -198,7 +198,7 @@ private class AnnieBrowserLibrary(context: Context) {
         buildList {
             // History remains bounded separately; migrated bookmarks must not
             // be silently truncated to 300 when reopened after an HTML import.
-            val limit = if (name == "bookmarks") minOf(array.length(), 5000) else minOf(array.length(), 300)
+            val limit = if (name == "bookmarks") array.length() else minOf(array.length(), 300)
             for (i in 0 until limit) {
                 val entry = array.optJSONObject(i) ?: continue
                 val url = entry.optString("url")
@@ -677,7 +677,10 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
             ): GeckoResult<GeckoSession.PromptDelegate.PromptResponse> {
                 val answer = GeckoResult<GeckoSession.PromptDelegate.PromptResponse>()
                 val picker = requestFilePicker
-                if (picker == null) answer.complete(prompt.dismiss())
+                // Only a foreground, still-open tab may disclose a URI selected
+                // in Android's file chooser. Reject stale/background requests.
+                if (picker == null || tab !in tabs || selectedId != tab.id ||
+                    !session.isOpen) answer.complete(prompt.dismiss())
                 else picker(prompt, answer)
                 return answer
             }
