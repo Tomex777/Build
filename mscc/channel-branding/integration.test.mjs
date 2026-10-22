@@ -1,0 +1,40 @@
+import assert from 'node:assert/strict';
+import {createRequire} from 'node:module';
+import {prepareChannelContent} from './prepare.mjs';
+import {watermarkStaticImage,WatermarkCache} from './watermark.mjs';
+const require=createRequire(import.meta.url),sharp=require('sharp');
+const jpg=await sharp({create:{width:900,height:480,channels:3,background:'#222f40'}})
+  .jpeg({quality:85}).toBuffer();
+const renderText=async({width,height,displayName})=>{
+  assert.equal(displayName,'NIGHT 👩🏽‍💻');
+  const svg='<svg xmlns="http://www.w3.org/2000/svg" width="'+width+'" height="'+height+
+    '"><text x="24" y="'+Math.round(height*.7)+'" fill="white" font-size="27">NIGHT</text></svg>';
+  return sharp(Buffer.from(svg)).png().toBuffer();
+};
+const render=opts=>watermarkStaticImage({...opts,renderText});
+const branding={
+  captionReplacementsEnabled:true,
+  captionReplacements:[{from:'bullshit',to:'BS'}],
+  signatureEnabled:true,signaturePosterName:'TOMEX',
+  watermarkEnabled:true,watermarkOpacity:.25,watermarkPosition:'bottom-left'
+};
+const first=await prepareChannelContent({
+  text:'Not bullshit.',mediaBuffer:jpg,channelId:'120363456789012345@newsletter',
+  verifiedDisplayName:'NIGHT 👩🏽‍💻',branding,rendererVerifiedEmoji:true,
+  watermarkCache:new WatermarkCache(),sharpLibrary:sharp,transform:render
+});
+assert.equal(first.caption,'Not BS.\n\n> TOMEX');
+assert.equal(first.watermarked,true);assert.equal(first.imageFormat,'jpeg');
+assert.notDeepEqual(first.mediaBuffer,jpg,'Real image pixels changed');
+assert.equal((await sharp(first.mediaBuffer).metadata()).format,'jpeg');
+const other=await prepareChannelContent({
+  text:'Not bullshit.',mediaBuffer:jpg,channelId:'120363456789012346@newsletter',
+  verifiedDisplayName:'NIGHT 👩🏽‍💻',branding,rendererVerifiedEmoji:true,
+  sharpLibrary:sharp,transform:render
+});
+assert.notEqual(first.watermarkAssetKey,other.watermarkAssetKey,'Different channel claims never share cached watermark identity');
+const noChanges=await prepareChannelContent({text:'Not bullshit.',mediaBuffer:jpg,
+  branding:{captionReplacementsEnabled:false,signatureEnabled:false,watermarkEnabled:false}});
+assert.strictEqual(noChanges.mediaBuffer,jpg);
+assert.equal(noChanges.caption,'Not bullshit.');
+console.log('Channel branding actual preview/send JPEG transform contract: PASS');
