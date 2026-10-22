@@ -30,6 +30,7 @@ jobs:
           node --check night-play/channels/curation/core.cjs
           node --check night-play/channels/curation/sources.cjs
           node --check night-play/channels/curation/kdrama.cjs
+          node --check night-play/channels/curation/feeds.cjs
           node --check night-play/channels/curation/contracts.cjs
           node --check night-play/channels/curation/curation.test.cjs
       - name: Rights, RSS, ranking and auth source tests
