@@ -47,7 +47,7 @@ function redditAdapter({tokenProvider,fetchImpl,claimQuota,userAgent='NIGHTChann
   let data;try{data=JSON.parse(raw)}catch{throw new SourceError('Source returned invalid JSON.');}
   const children=Array.isArray(data?.data?.children)?data.data.children:[];
   const source={id:'reddit:r/'+String(subreddit).toLowerCase(),provider:'reddit',rightsVerified:false};
-  const items=children.map(({data:d})=>{
+  const items=children.map(child=>{const d=child?.data;
    if(!d||d.over_18||d.is_video||d.is_gallery||d.removed_by_category||d.spoiler)return null;
    const created=Number(d.created_utc);if(!Number.isFinite(created)||created<=0||created>8.64e12)return null;
    const mediaUrl=typeof d.url_overridden_by_dest==='string'?d.url_overridden_by_dest.replace(/&amp;/g,'&'):'';
@@ -69,6 +69,7 @@ function xmlDecode(value){return String(value||'').replace(/<!\[CDATA\[([\s\S]*?
 function extract(xml,field){const m=new RegExp('<'+field+'(?:\\s[^>]*)?>([\\s\\S]*?)<\\/'+field+'>','i').exec(xml);return m?xmlDecode(m[1]):'';}
 function parseFeed(xml){
  if(typeof xml!=='string'||xml.length>HARD_CAP||/<!DOCTYPE|<!ENTITY/i.test(xml))throw new SourceError('Unsupported or unsafe XML feed.');
+ if(!/<(?:rss|feed|rdf:RDF)\b/i.test(xml))throw new SourceError('Source is not an RSS/Atom feed.');
  const entries=[],pattern=/<(item|entry)(?:\s[^>]*)?>([\s\S]*?)<\/\1>/gi;let match;
  while((match=pattern.exec(xml))&&entries.length<60){
   const block=match[2];
@@ -86,11 +87,15 @@ function rssNewsAdapter({id,name,url,official=false,fetchImpl,interpreter,now=()
   const current=now();if(cache&&current<until)return cache;
   const xml=await boundedGet(endpoint,{fetchImpl,allowedHosts:[trustedHost],headers:{accept:'application/rss+xml, application/atom+xml, application/xml, text/xml'}});
   const source={id,name,trustedHost,official,provider:'rss'};
+  let interpreterErrors=0;
   const items=parseFeed(xml).map(row=>{
-   const fields=interpreter(Object.freeze({...row}));if(!fields||typeof fields!=='object')return null;
-   return normalizeNews({...row,...fields},source,{now:current,maxAgeDays});
+   try{
+    const fields=interpreter(Object.freeze({...row}));if(!fields||typeof fields!=='object')return null;
+    return normalizeNews({...row,...fields},source,{now:current,maxAgeDays});
+   }catch{interpreterErrors++;return null;}
   }).filter(Boolean);
-  cache={items,source:{id,name,url:endpoint,official},fetchedAt:new Date(current).toISOString()};
+  if(interpreterErrors&&!items.length)throw new SourceError('News feed metadata interpreter failed.');
+  cache={items,source:{id,name,url:endpoint,official},fetchedAt:new Date(current).toISOString(),interpreterErrors};
   until=current+Math.min(15,Math.max(1,official?5:10))*60000;return cache;
  }});
 }
