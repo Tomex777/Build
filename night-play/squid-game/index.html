@@ -99,7 +99,11 @@ if(phase==='red'){
  continue;
 }
 p.velocity=wants?1:0;
-if(wants){p.dist=Math.min(100,p.dist+dt*(12.3+(p.id%4)*.54));p.stride+=dt*12.5;if(p.dist>=100){p.done=true;p.velocity=0;if(p.id===1){playing=false;finished=true;$('run').disabled=true;stopMove();beep(910,.6);status('Player 001 finished!','You made it across the arena. Switch the visual style or restart for another run.')}}}
+if(wants){
+ const traveled=Math.min(100-p.dist,dt*(12.3+(p.id%4)*.54));
+ p.dist+=traveled;
+ // Foot cadence follows real ground distance, not a separate timer that makes feet slide.
+ p.stride+=traveled*1.65;if(p.dist>=100){p.done=true;p.velocity=0;if(p.id===1){playing=false;finished=true;$('run').disabled=true;stopMove();beep(910,.6);status('Player 001 finished!','You made it across the arena. Switch the visual style or restart for another run.')}}}
 }
 if(!players.some(p=>p.alive&&!p.done)&&!finished){playing=false;finished=true;$('run').disabled=true;status('Round complete','All remaining players crossed the line.')}
 updateHUD();}
