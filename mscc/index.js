@@ -28,6 +28,7 @@ import { activityReport, activitySenderKey } from './group-activity.js'
 import { chooseGroupExecutor, canExecuteDirect } from './bot-routing.js'
 import { SourceRegistry } from './source-registry.js'
 import { createSmartAI } from './smart-ai.js'
+import { isChannelJid, channelAiAllowed, channelAiSetting, setChannelAiSetting } from './channel-ai-policy.js'
 import { createReactionSounds, parseReactionSoundDirective } from './reaction-sounds.js'
 import { createAniListResolver } from './anilist-resolver.js'
 import { createTmdbResolver } from './tmdb-resolver.js'
@@ -1267,6 +1268,12 @@ async function assistantActivation(account, msg, text) {
   }
 
   const chat = normalizeJid(msg?.key?.remoteJid)
+  // Channels must never inherit the direct-message AI switch.
+  if (isChannelJid(chat)) {
+    return channelAiAllowed(sharedStorage, chat, account.id)
+      ? { active:true, reason:'channel-opt-in' }
+      : { active:false, reason:'' }
+  }
   if (!isGroup(chat)) {
     return settings.aiDirectMessages === true
       ? { active:true, reason:'dm' }
@@ -1463,7 +1470,11 @@ async function sendAssistantReply(account, msg, text, {
   const rendered = renderAssistantMentions(text, presence, { allowMentions:allowPersonalityMentions })
   const value = String(rendered.text || '').trim()
   if (!chat || !value || !account?.sock) return null
-  const sent = await sendText(account.sock, chat, value, { quoted:msg, mentions:rendered.mentions })
+  if (isChannelJid(chat) && !channelAiAllowed(sharedStorage, chat, account.id)) return null
+  const sent = await sendText(account.sock, chat, value, {
+    quoted:isChannelJid(chat) ? null : msg,
+    mentions:isChannelJid(chat) ? [] : rendered.mentions,
+  })
 
   if (sharedStorage && sent?.key?.id) {
     const profile = sharedStorage.profileForAccount(account.id)
@@ -1490,6 +1501,9 @@ async function handleProfileAssistant(account, msg, authority, rawText) {
     mediaType:conversationMediaType(msg?.message),
   })
   if (!input.respond) return false
+  // Recheck at the AI entry point: there is no global channel override.
+  const targetChat = normalizeJid(msg?.key?.remoteJid)
+  if (isChannelJid(targetChat) && !channelAiAllowed(sharedStorage, targetChat, account.id)) return false
   // Passive mentions/replies must remain silent when no AI key is configured.
   // Other commands and personality routing continue to work normally.
   if (!smartAI.enabled) return false
@@ -1530,6 +1544,7 @@ async function handleProfileAssistant(account, msg, authority, rawText) {
       // No extra model call: this is a small optional instruction in the existing reply.
       reactionSoundPolicy:isGroup(chat) && !senderPersonality ? await reactionSounds.promptFor(chat) : '',
     })
+    if (isChannelJid(chat) && !channelAiAllowed(sharedStorage, chat, account.id)) return true
     if (!result?.ok || !result.text) {
       // A provider failure is NOT a successful AI response. Cortex can now
       // distinguish rate limits, cooldowns, auth failures and timeouts without
@@ -1550,10 +1565,13 @@ async function handleProfileAssistant(account, msg, authority, rawText) {
     if (!reaction.text) return false
 
     await typing.beforeSend(reaction.text)
-    await sendAssistantReply(account, msg, reaction.text, {
+    // An owner may switch the channel OFF while the model is still working.
+    if (isChannelJid(chat) && !channelAiAllowed(sharedStorage, chat, account.id)) return true
+    const delivered = await sendAssistantReply(account, msg, reaction.text, {
       presence,
       allowPersonalityMentions:!senderPersonality,
     })
+    if (!delivered && isChannelJid(chat)) return true
     typing.stop() // WhatsApp must stop showing "typing..." once the text lands.
     // Only one sound after the normal text, never on AI-to-AI replies.
     if (reaction.id && isGroup(chat) && !senderPersonality) {
@@ -2518,7 +2536,20 @@ async function processInboundMessage(account, msg) {
         return
       }
       // Replayed/duplicated Baileys upserts must not execute a choice twice.
+      const inboundChat = normalizeJid(msg.key.remoteJid)
+      const channelPost = isChannelJid(inboundChat)
+      // Channels must be rejected BEFORE identity resolution, command dispatch,
+      // reactions, moderation and data retention. Missing DB/config = OFF.
+      if (channelPost && !channelAiAllowed(sharedStorage, inboundChat, account.id)) return
       if (!acceptInboundCommand(account.id, msg)) return
+
+      if (channelPost) {
+        const channelText = commandText(msg.message)
+        // Channel AI is conversation-only, never command execution.
+        if (!channelText || channelText.trim().startsWith(settings.publicPrefix || DEFAULT_PUBLIC_PREFIX)) return
+        await handleProfileAssistant(account, msg, { senderNumber:'', senderKey:'' }, channelText)
+        return
+      }
 
       // Handle reaction joins immediately, before any command/identity/network work.
       // Some Baileys forks deliver them as upserts instead of messages.reaction.
@@ -2727,6 +2758,8 @@ async function processInboundMessage(account, msg) {
           channelCancel: () => nightPlay.channels.cancel({ userKey:authority.senderKey, identityKeys:authority.senderIdentityKeys }),
           channelVerify: () => nightPlay.channels.verify({ userKey:authority.senderKey, identityKeys:authority.senderIdentityKeys }, accounts),
           channelList: () => nightPlay.channels.list(nightPlay.channels.owner({ userKey:authority.senderKey, identityKeys:authority.senderIdentityKeys })),
+          channelAiGet: jid => channelAiSetting(sharedStorage, jid),
+          channelAiSet: (jid, enabled, accountId) => setChannelAiSetting(sharedStorage, jid, { enabled, accountId }),
           groupKey: isGroup(chat) ? chat : '',
           activityUserKey:activitySenderKey(authority.senderJid),
           getGroupActivity:period => isGroup(chat)
