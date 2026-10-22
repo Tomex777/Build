@@ -68,6 +68,7 @@ assert.throws(()=>svc.enqueue(alice,channelId,{selectionId:update.selection.id,e
 const first=svc.jobs(alice,channelId).jobs.find(j=>j.status==='queued')
 assert.equal(typeof first.scheduledAt,'string')
 assert.equal(svc.cancel(alice,channelId,first.id).cancelled,true)
+for(const other of enqueued.jobs.filter(j=>j.id!==first.id))assert.equal(svc.cancel(alice,channelId,other.id).cancelled,true)
 assert.throws(()=>svc.cancel(bob,channelId,first.id),e=>e.status===404)
 // Persisted config and selections survive a new NightPlay process.
 const reloaded=new NightPlay(db,{now}).channels.publisher
