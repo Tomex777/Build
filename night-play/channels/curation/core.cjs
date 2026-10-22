@@ -59,11 +59,12 @@ function chooseFourMemes(items,{enabled=false,categories=[],allowDark=false,used
  if(enabled!==true)return [];
  const selected=(Array.isArray(categories)?categories:[]).filter(c=>CATEGORIES.includes(c));
  used=Array.isArray(used)?used:[];
+ const currentTime=Number.isFinite(Number(now))?Number(now):Date.now();
  const blocked=new Set(used.map(x=>typeof x==='string'?x:x&&typeof x.id==='string'?x.id:null).filter(Boolean));
  const previouslyUsed=used.filter(x=>x&&typeof x==='object'&&x.kind==='meme');
  const candidates=(Array.isArray(items)?items:[]).filter(i=>i&&i.kind==='meme'&&(!selected.length||selected.includes(i.category))&&
- (i.category!=='dark'||allowDark===true)&&!blocked.has(i.id)&&!previouslyUsed.some(prev=>isDuplicate(i,prev)));
- const ranked=candidates.map(i=>({...i,score:memeScore(i,{categories:selected,feedback,now})})).sort((a,b)=>b.score-a.score||a.id.localeCompare(b.id));
+ (i.category!=='dark'||allowDark===true)&&Date.parse(i.createdAt)<=currentTime+3600000&&!blocked.has(i.id)&&!previouslyUsed.some(prev=>isDuplicate(i,prev)));
+ const ranked=candidates.map(i=>({...i,score:memeScore(i,{categories:selected,feedback,now:currentTime})})).sort((a,b)=>b.score-a.score||a.id.localeCompare(b.id));
  const out=[],categoryCount=new Map(),sourceCount=new Map();
  const select=strict=>{
   for(const item of ranked){
