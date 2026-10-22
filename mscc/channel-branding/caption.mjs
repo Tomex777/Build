@@ -33,6 +33,10 @@ export function composeChannelCaption({
 } = {}) {
   if (typeof text !== 'string') throw new TypeError('Caption must be a string.');
   if (!Number.isInteger(maxUtf8Bytes) || maxUtf8Bytes < 1 || maxUtf8Bytes > 65536) throw new RangeError('Invalid caption budget.');
+  // A malicious source can deliver megabytes of text before formatting. Bound
+  // the work BEFORE Unicode normalization / regex transforms on the 1 GB bot.
+  if (bytes(text) > Math.max(8192, maxUtf8Bytes * 4))
+    throw new RangeError('Unformatted caption exceeds safe processing limit.');
   let main = replaceCaptionWords(text, replacements);
   main = main.replace(/[\s\uFEFF]+$/u, '');
   if (poster?.enabled === true) {
