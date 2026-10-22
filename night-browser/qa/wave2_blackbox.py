@@ -230,15 +230,25 @@ class Device:
         return "Clicked page link and fixture observed " + path
 
     def verify_title(self, title):
-        self.click("Tabs")
-        # Gecko title delivery is asynchronous after Back/Forward.
-        deadline = time.monotonic() + 18
-        while not self.find(title, partial=True):
+        # The fixture records a request at HTTP accept, before Gecko commits
+        # HTML. Leaving WEB immediately releases GeckoView and can suspend its
+        # content/title update; first demand real on-screen document content.
+        deadline = time.monotonic() + 22
+        while self.find(title, partial=True) is None:
             if time.monotonic() >= deadline:
-                raise AssertionError("Expected committed title not shown: " + title)
+                raise AssertionError("Gecko page content never committed: " + title)
+            time.sleep(.6)
+        self.click("Tabs")
+        # TabPanel scrolls the active tab into the viewport, including when
+        # >10 previously opened tabs would otherwise hide its card. Verify the
+        # real tab title too; on-page heading alone cannot pass this check.
+        deadline = time.monotonic() + 14
+        while self.find(title, partial=True) is None:
+            if time.monotonic() >= deadline:
+                raise AssertionError("Committed page missing from active tab card: " + title)
             time.sleep(.6)
         self.click(title, partial=True)
-        return "Confirmed committed tab title " + title
+        return "Gecko page and active tab card both confirmed " + title
 
     def regular_count(self):
         # Compose renders "Regular  10" inside a FilterChip (not a naked 10).
