@@ -7,7 +7,7 @@ fs.mkdirSync(output,{recursive:true});
 const chan='120363282083849178@newsletter',other='120363282083849179@newsletter';
 let linked=false,connected=false,down=false,configUnavailable=false,batchNumber=0,publishAttempts=0;
 let settings={revision:1,modules:{memes:false,news:false,anonymous:false,ai:false},
- memes:{mode:'review',categories:[],dailyLimit:1},news:{mode:'review',interests:[],spoilers:'avoid'},branding:{signatureEnabled:false,posterName:'',watermarkEnabled:false,watermarkOpacity:0.2,watermarkPosition:'bottom-right'},capabilities:{ai:false}};
+ memes:{mode:'review',categories:[],dailyLimit:1},news:{mode:'review',interests:[],spoilers:'avoid'},branding:{captionReplacementsEnabled:false,captionReplacements:[],signatureEnabled:false,posterName:'',watermarkEnabled:false,watermarkOpacity:0.22,watermarkPosition:'auto'},capabilities:{ai:false}};
 let decisions={},jobs=[];
 function crc(bytes){let n=0xffffffff;for(const b of bytes){n^=b;for(let i=0;i<8;i++)n=n&1?0xedb88320^(n>>>1):n>>>1;}return(n^0xffffffff)>>>0}
 function png(seed){
@@ -158,12 +158,21 @@ async function main(){
    assert.equal(settings.memes.mode,'automatic');
    assert.deepEqual(settings.memes.categories,['relatable']);
    assert.equal(await page.locator('#watermarkName').textContent(),'K-Drama 🌙 Zone','Watermark source is exact verified Unicode/emoji display name');
+   await page.locator('#captionReplacementsEnabled').check({force:true});
+   await page.getByRole('button',{name:'Save branding'}).click();
+   await page.getByText('Add a caption replacement before enabling').waitFor();
+   await page.getByRole('button',{name:'Add replacement'}).click();
+   await page.getByRole('textbox',{name:'Original word or phrase'}).fill('what the fuck');
+   await page.getByRole('textbox',{name:'Replacement text'}).fill('WTF');
    await page.locator('#signatureEnabled').check({force:true});
    await page.locator('#posterName').fill('QA Owner');
    await page.locator('#watermarkEnabled').check({force:true});
    await page.getByRole('button',{name:'Save branding'}).click();
    await page.waitForFunction(()=>document.querySelector('#saveBranding')?.disabled===false);
    assert.equal(settings.branding.posterName,'QA Owner');
+   assert.equal(settings.branding.captionReplacementsEnabled,true,'Caption word replacement is explicit opt-in');
+   assert.deepEqual(settings.branding.captionReplacements,[{from:'what the fuck',to:'WTF'}],'Replacement mapping saves server-side');
+   assert.equal(settings.branding.watermarkPosition,'auto','Quiet-corner watermark placement supported');
    assert.equal(settings.branding.watermarkEnabled,true);
    await page.getByRole('button',{name:'Find memes'}).click();
    await page.locator('.review-card').first().waitFor();
@@ -187,6 +196,8 @@ async function main(){
    await page.reload();
    await page.locator('#configUI').waitFor({state:'visible'});
    assert.match(await page.locator('#approvedCount').textContent(),/^1 approved/,'Server restores first approval on reload');
+   assert.equal(await page.locator('#captionReplacementsEnabled').isChecked(),true,'Caption replacements survive settings reload');
+   assert.equal(await page.getByRole('textbox',{name:'Replacement text'}).inputValue(),'WTF');
    await page.getByRole('button',{name:'Next four'}).click();
    await page.locator('.review-card').first().getByText('Test candidate 1').waitFor();
    assert.match(await page.locator('#approvedCount').textContent(),/^1 approved/,'Selection survives a new batch');
