@@ -520,6 +520,14 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
 
     fun select(tab: AnnieGeckoTab) {
         if (tab !in tabs) return
+        // Omni lifecycle principle: a background renderer must not retain the
+        // same active CPU/memory priority as the visible tab. Gecko also flushes
+        // its SessionState on deactivation, improving crash recovery.
+        val previouslySelected = active
+        if (previouslySelected != null && previouslySelected.id != tab.id &&
+            previouslySelected.session.isOpen) {
+            previouslySelected.session.setActive(false)
+        }
         if (tab.needsRestoration) {
             tab.needsRestoration = false
             tab.session.open(runtime)
@@ -533,6 +541,7 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
             }
         }
         selectedId = tab.id
+        if (tab.session.isOpen) tab.session.setActive(true)
         if (!tab.privateMode) lastNormalSelectedId = tab.id
         persistTabs()
     }
