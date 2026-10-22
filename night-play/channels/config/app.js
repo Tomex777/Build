@@ -1,0 +1,272 @@
+(() => {
+'use strict';
+const $=id=>document.getElementById(id);
+const params=new URLSearchParams(location.search);
+const channelId=params.get('channel')||'';
+const MODULES=['memes','news','anonymous','ai'];
+const CATEGORIES=new Set(['relatable','wholesome','anime','nigerian','animals','relationships','dark']);
+const INTERESTS=new Set(['casting','releases','trailers','renewals','romance','platforms']);
+let channel=null,config=null,batch=null,reviewBusy=false,configBusy=false,loadEpoch=0;
+const decisions=new Map(),captionDirty=new Set();
+const jid=/^\d{8,25}@newsletter$/;
+const make=(tag,cls,text)=>{const el=document.createElement(tag);if(cls)el.className=cls;if(text!==undefined)el.textContent=String(text);return el};
+const setBusy=(el,value)=>{if(el)el.disabled=value;};
+const toast=message=>{const t=$('toast');t.textContent=message;t.hidden=false;clearTimeout(toast.timer);toast.timer=setTimeout(()=>t.hidden=true,4300)};
+const note=(message,isError=false,id='notice')=>{const n=$(id);n.hidden=!message;n.className='config-banner'+(isError?' error':'');n.textContent=message||''};
+const showState=(title,body,retry=false)=>{$('state').hidden=false;$('configUI').hidden=true;$('stateTitle').textContent=title;$('stateText').textContent=body;$('retry').hidden=!retry};
+const errorMessage=error=>error instanceof Error?error.message:'NIGHT could not finish this request.';
+async function api(action,rest={}){
+  let response;
+  try {
+    response=await fetch('/api/account',{
+      method:action==='status'?'GET':'POST',
+      credentials:'same-origin',cache:'no-store',
+      headers:action==='status'?{}:{'content-type':'application/json'},
+      body:action==='status'?undefined:JSON.stringify({action,channelId,...rest}),
+      signal:AbortSignal.timeout(14000)
+    });
+  }catch{throw new Error('NIGHT is not responding. Nothing has been published.');}
+  const data=await response.json().catch(()=>({error:'Invalid response from NIGHT.'}));
+  if(!response.ok)throw new Error(typeof data.error==='string'?data.error:'This feature is not available on NIGHT yet.');
+  return data;
+}
+const validSettings=value=>{
+  if(!value||typeof value!=='object'||!Number.isInteger(value.revision)||value.revision<0
+    ||!value.modules||typeof value.modules!=='object')return false;
+  return MODULES.every(key=>typeof value.modules[key]==='boolean');
+};
+const selected=(id,allow)=>[...$(id).querySelectorAll('input:checked')].map(e=>e.value).filter(x=>allow.has(x));
+function fillChecks(id,items){
+ const current=new Set(Array.isArray(items)?items:[]);
+ for(const node of $(id).querySelectorAll('input'))node.checked=current.has(node.value);
+}
+function paintConfig(){
+ const m=config.modules;
+ MODULES.forEach(id=>{const input=document.querySelector('[data-module="'+id+'"]');if(input){input.checked=m[id]===true;input.disabled=configBusy||(id==='ai'&&config.capabilities?.ai!==true)}});
+ $('memeMode').value=['automatic','review'].includes(config.memes?.mode)?config.memes.mode:'review';
+ $('memeDaily').value=[1,2,3,4].includes(config.memes?.dailyLimit)?String(config.memes.dailyLimit):'1';
+ fillChecks('memeCategories',config.memes?.categories);
+ $('newsMode').value=['review','automatic'].includes(config.news?.mode)?config.news.mode:'review';
+ $('spoilerPolicy').value=['avoid','warn'].includes(config.news?.spoilers)?config.news.spoilers:'avoid';
+ fillChecks('newsInterests',config.news?.interests);
+ $('configUI').hidden=false;$('state').hidden=true;
+}
+async function changeConfig(patch,control){
+ if(configBusy||!config)return;
+ const prior=config;configBusy=true;control&&setBusy(control,true);
+ try{
+   const result=await api('channel:config:update',{expectedRevision:config.revision,patch});
+   if(!validSettings(result))throw Error('The bot did not confirm the settings. Refresh before changing anything else.');
+   config=result;paintConfig();note('Settings saved to NIGHT for this channel.');
+ }catch(error){
+   config=prior;paintConfig();note(errorMessage(error)+' No setting was changed.',true);
+ }finally{configBusy=false;paintConfig();if(control)setBusy(control,false);}
+}
+function attachControls(){
+ document.querySelectorAll('[data-module]').forEach(el=>el.addEventListener('change',()=>{
+   if(!config||configBusy)return;
+   const id=el.dataset.module;
+   if(id==='ai'&&config.capabilities?.ai!==true){el.checked=false;return;}
+   if(id==='memes'&&el.checked&&!selected('memeCategories',CATEGORIES).length){
+     el.checked=false;note('Choose at least one meme category before enabling.',true);return;
+   }
+   changeConfig({modules:{[id]:el.checked}},el);
+ }));
+ $('saveMemes').addEventListener('click',()=>{
+   const categories=selected('memeCategories',CATEGORIES);
+   if(!categories.length){note('Choose at least one meme category.',true);return;}
+   changeConfig({memes:{mode:$('memeMode').value,categories,dailyLimit:Number($('memeDaily').value)}},$('saveMemes'));
+ });
+ $('saveNews').addEventListener('click',()=>{
+   const interests=selected('newsInterests',INTERESTS);
+   if(!interests.length){note('Choose at least one news interest.',true);return;}
+   changeConfig({news:{mode:$('newsMode').value,interests,spoilers:$('spoilerPolicy').value}},$('saveNews'));
+ });
+ $('findMemes').addEventListener('click',()=>findMemes(false));
+ $('nextBatch').addEventListener('click',()=>findMemes(true));
+ $('publishApproved').addEventListener('click',()=>publish('now'));
+ $('scheduleButton').addEventListener('click',()=>{$('schedulePanel').hidden=false;$('scheduleAt').focus()});
+ $('cancelSchedule').addEventListener('click',()=>{$('schedulePanel').hidden=true});
+ $('confirmSchedule').addEventListener('click',()=>publish('schedule'));
+ $('refreshJobs').addEventListener('click',loadJobs);
+ $('retry').addEventListener('click',load);
+}
+function imageFromSource(candidate){
+ if(typeof candidate.previewData==='string'&&/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/i.test(candidate.previewData)&&candidate.previewData.length<=1900000)return candidate.previewData;
+ if(typeof candidate.previewUrl==='string'&&/^\/api\/channel-(?:media|assets)\/[a-zA-Z0-9_/%.-]{1,240}$/.test(candidate.previewUrl))return candidate.previewUrl;
+ return '';
+}
+function validBatch(result){
+ if(!result||typeof result.batchId!=='string'||!/^[A-Za-z0-9_-]{8,96}$/.test(result.batchId)
+   ||!Array.isArray(result.candidates)||result.candidates.length!==4)return false;
+ const ids=new Set();
+ return result.candidates.every(c=>{
+   if(!c||typeof c.id!=='string'||! /^[A-Za-z0-9_-]{5,100}$/.test(c.id)||ids.has(c.id)
+     ||typeof c.caption!=='string'||c.caption.length>1800||!imageFromSource(c))return false;
+   ids.add(c.id);return true;
+ });
+}
+const decisionValue=c=>decisions.get(c.id)?.decision||'pending';
+const approved=()=>batch?.candidates?.filter(c=>decisionValue(c)==='approved'&&!captionDirty.has(c.id))||[];
+function updateReview(){
+ const count=approved().length;
+ $('reviewSummary').hidden=!batch;
+ $('approvedCount').textContent=count+' approved';
+ $('publishApproved').disabled=!count||reviewBusy||captionDirty.size>0||config?.modules?.memes!==true;
+ $('scheduleButton').disabled=!count||reviewBusy||captionDirty.size>0||config?.modules?.memes!==true;
+ $('nextBatch').disabled=reviewBusy;
+}
+function reviewCard(c){
+ const card=make('article','review-card');
+ card.dataset.candidate=c.id;
+ const state=decisionValue(c);
+ if(state==='approved'||state==='declined')card.classList.add(state);
+ const art=make('div','review-art'),img=make('img');
+ img.src=imageFromSource(c);img.alt=typeof c.alt==='string'?c.alt:'Meme candidate';img.loading='lazy';img.decoding='async';
+ img.addEventListener('error',()=>{art.replaceChildren(make('span','config-note','Preview unavailable. Do not approve this image.'));approve.disabled=true});
+ art.append(img);
+ const body=make('div','review-card-body');
+ body.append(make('h3',null,typeof c.title==='string'?c.title:('Meme · '+(c.category||'Uncategorised'))));
+ const source=make('p','source');
+ source.append(document.createTextNode((c.category||'Meme')+' · '+(c.sourceName||'Source unverified')));
+ if(typeof c.sourceUrl==='string'&&/^https:\/\//.test(c.sourceUrl)){
+   const a=make('a',null,'View source');a.href=c.sourceUrl;a.rel='noopener noreferrer';a.target='_blank';
+   source.append(document.createTextNode(' · '),a);
+ }
+ body.append(source);
+ const label=make('label','field'),lbl=make('span',null,'Caption'),caption=make('textarea','text-input textarea');
+ caption.maxLength=1800;caption.value=decisions.get(c.id)?.caption??c.caption;caption.setAttribute('aria-label','Caption for '+(c.title||c.id));
+ label.append(lbl,caption);body.append(label);
+ const status=make('p','decision',state==='approved'?'Approved':state==='declined'?'Declined':state==='skipped'?'Skipped':'');
+ status.setAttribute('aria-live','polite');
+ const actions=make('div','action-row');
+ const approve=make('button','btn primary','Approve'),decline=make('button','btn','Decline');
+ approve.type=decline.type='button';
+ caption.addEventListener('input',()=>{
+   captionDirty.add(c.id);status.textContent='Caption edited — approve again to save';updateReview();
+ });
+ approve.addEventListener('click',()=>decide(c,'approved',caption.value,card,status,actions));
+ decline.addEventListener('click',()=>decide(c,'declined',caption.value,card,status,actions));
+ actions.append(approve,decline);
+ body.append(actions,status);card.append(art,body);
+ return card;
+}
+function paintReview(){
+ $('candidates').replaceChildren();
+ if(batch){
+   for(const c of batch.candidates)$('candidates').append(reviewCard(c));
+   $('batchLabel').textContent='Four candidates';
+ }else $('batchLabel').textContent='';
+ updateReview();
+}
+async function findMemes(next){
+ if(reviewBusy||!channel)return;
+ reviewBusy=true;setBusy($('findMemes'),true);updateReview();
+ note('Searching permitted sources…',false,'reviewNotice');
+ try{
+   const result=await api('channel:memes:find',{categories:selected('memeCategories',CATEGORIES),next:next===true});
+   if(!validBatch(result))throw Error('NIGHT did not return four complete sourced meme images.');
+   batch=result;decisions.clear();captionDirty.clear();
+   for(const d of result.decisions||[])if(d&&typeof d.candidateId==='string'&&['approved','declined','skipped'].includes(d.decision))decisions.set(d.candidateId,{decision:d.decision,caption:typeof d.caption==='string'?d.caption:''});
+   paintReview();note('',false,'reviewNotice');
+ }catch(error){note(errorMessage(error)+' No content was approved or published.',true,'reviewNotice');}
+ finally{reviewBusy=false;setBusy($('findMemes'),false);updateReview();}
+}
+async function decide(candidate,decision,caption,card,status,actions){
+ if(reviewBusy||!batch)return;
+ reviewBusy=true;
+ for(const btn of actions.querySelectorAll('button'))setBusy(btn,true);
+ updateReview();
+ try{
+   const result=await api('channel:memes:review',{batchId:batch.batchId,candidateId:candidate.id,decision,caption});
+   if(result?.decision!==decision||result?.candidateId!==candidate.id)throw Error('NIGHT did not confirm that decision.');
+   decisions.set(candidate.id,{decision,caption:typeof result.caption==='string'?result.caption:caption});
+   captionDirty.delete(candidate.id);
+   card.classList.toggle('approved',decision==='approved');
+   card.classList.toggle('declined',decision==='declined');
+   status.textContent=decision==='approved'?'Approved':'Declined';
+   note('',false,'reviewNotice');
+ }catch(error){note(errorMessage(error)+' Decision not saved.',true,'reviewNotice');}
+ finally{reviewBusy=false;for(const btn of actions.querySelectorAll('button'))setBusy(btn,false);updateReview();}
+}
+function localToUTC(input){
+ if(!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(input))throw Error('Choose a valid date and time.');
+ const d=new Date(input);
+ const reconstructed=[d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-')+'T'+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+ if(!Number.isFinite(d.getTime())||reconstructed!==input)throw Error('That local time does not exist. Choose another time.');
+ if(d.getTime()<Date.now()+60_000)throw Error('Choose a time at least one minute from now.');
+ return d.toISOString();
+}
+async function publish(mode){
+ if(reviewBusy||!batch||!approved().length||captionDirty.size>0||config?.modules?.memes!==true)return;
+ let schedule={};
+ if(mode==='schedule'){
+   try{schedule={scheduledAt:localToUTC($('scheduleAt').value),timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC',spacingMinutes:Number($('spacingMinutes').value)}}catch(error){note(errorMessage(error),true,'reviewNotice');return;}
+ }
+ reviewBusy=true;updateReview();
+ const btn=mode==='schedule'?$('confirmSchedule'):$('publishApproved');
+ setBusy(btn,true);
+ try{
+   const result=await api('channel:memes:publish',{batchId:batch.batchId,mode,...schedule});
+   if(!Array.isArray(result?.jobs)||result.jobs.length!==approved().length)throw Error('NIGHT did not confirm the selected publishing jobs. Check publishing status before retrying.');
+   note(result.jobs.length+(mode==='schedule'?' posts scheduled.':' approved posts queued.'));batch=null;decisions.clear();captionDirty.clear();paintReview();$('schedulePanel').hidden=true;
+   await loadJobs();
+ }catch(error){note(errorMessage(error)+' Check publishing status before trying again.',true,'reviewNotice');}
+ finally{reviewBusy=false;setBusy(btn,false);updateReview();}
+}
+async function loadJobs(){
+ if(!channel)return;
+ $('jobs').replaceChildren(make('p','config-note','Checking publishing status…'));
+ try{
+   const result=await api('channel:jobs:list');
+   if(!Array.isArray(result?.jobs))throw Error('Invalid publishing status.');
+   $('jobs').replaceChildren();
+   if(!result.jobs.length){$('jobs').append(make('p','config-note','No publishing activity yet.'));return;}
+   for(const job of result.jobs.slice(0,40)){
+     if(!job||typeof job.id!=='string'||typeof job.status!=='string')continue;
+     const row=make('div','job'),copy=make('div');
+     copy.append(make('strong',null,String(job.title||job.type||'Channel post').slice(0,120)));
+     const date=job.scheduledAt||job.createdAt;
+     const when=date&&Number.isFinite(Date.parse(date))?new Date(date).toLocaleString():'';
+     copy.append(make('small',null,(when?when+' · ':'')+job.status));
+     row.append(copy);
+     if(['queued','scheduled'].includes(job.status)){
+       const cancel=make('button','btn danger','Cancel');
+       cancel.type='button';cancel.addEventListener('click',async()=>{
+         setBusy(cancel,true);
+         try{const done=await api('channel:jobs:cancel',{jobId:job.id});if(done?.cancelled!==true)throw Error('Cancellation not confirmed.');await loadJobs();}catch(error){note(errorMessage(error),true);setBusy(cancel,false);}
+       });row.append(cancel);
+     }else row.append(make('span','job-state',job.status));
+     $('jobs').append(row);
+   }
+ }catch(error){$('jobs').replaceChildren(make('p','config-note',errorMessage(error)));}
+}
+async function load(){
+ const epoch=++loadEpoch;channel=null;config=null;batch=null;decisions.clear();captionDirty.clear();
+ $('configUI').hidden=true;note('');
+ if(!jid.test(channelId)){showState('Invalid channel','Choose a verified channel from Your channels.');return;}
+ showState('Checking permissions…','Verifying your WhatsApp identity and channel ownership.');
+ try{
+   const status=await api('status');if(epoch!==loadEpoch)return;
+   if(status.linked!==true||!status.profile){showState('Connect WhatsApp','Connect through Profile before configuring a channel.');return;}
+   const owned=await api('channel:list');if(epoch!==loadEpoch)return;
+   channel=Array.isArray(owned.channels)?owned.channels.find(c=>c.id===channelId&&c.status==='connected'):null;
+   if(!channel){showState('Access unavailable','Only a verified, connected channel can be configured.');return;}
+   $('channelTitle').textContent=channel.name||'Verified WhatsApp channel';
+   const result=await api('channel:config:get');if(epoch!==loadEpoch)return;
+   if(!validSettings(result))throw Error('NIGHT has not returned verified, persistent settings. Nothing can be enabled.');
+   config=result;paintConfig();
+   // A browser's local storage never authorizes publication or grants ownership.
+   try{
+     const saved=await api('channel:memes:current');
+     if(epoch===loadEpoch&&validBatch(saved)){
+       batch=saved;for(const d of saved.decisions||[])if(d&&typeof d.candidateId==='string'&&['approved','declined','skipped'].includes(d.decision))decisions.set(d.candidateId,{decision:d.decision,caption:typeof d.caption==='string'?d.caption:''});
+       paintReview();
+     }
+   }catch{/* No saved review, or this capability is not yet deployed. */}
+   if(epoch===loadEpoch)await loadJobs();
+ }catch(error){if(epoch!==loadEpoch)return;showState('Configuration unavailable',errorMessage(error)+' Channel settings remain unchanged.',true);}
+}
+attachControls();
+load();
+})();
