@@ -1,11 +1,10 @@
 {
-  "releaseId": "night-ai-chat-typing-and-bot-audit-20261021",
+  "releaseId": "night-emergency-channel-ai-opt-in-20261022",
   "baseBranch": "mscc-azure",
-  "baseCommit": "4437d28ace9a92a796f054a77369463f7d5bc896",
+  "baseCommit": "990adbb5784c37220553495ddea0ca8211b6dc8e",
   "pullRequests": [
-    549,
-    550
+    566
   ],
-  "preparedAt": "2026-10-21T21:03:48.840Z",
-  "notes": "Single approved NIGHT release batch: restore previous pending recovery of signed NIGHT Play bot bridge and guarded Cortex Agent 1.0.7 from current mscc-azure; include tested #549 natural AI chat / media handling / typing and #550 aggressive regression, account durability, source isolation and routing repairs. Supersedes unapproved Azure workflow run 39595137000. Only deploy after exact-head MSCC Azure, Integrated Readiness and Cortex Contract checks all succeed; request one protected mscc-production approval; preserve WhatsApp auth/sessions, Azure and MEGA credentials, SQLite, group/chat state and Cloud passive discovery. Verify production installer, active SHA, signed ingress, group and DM chat after deployment."
+  "preparedAt": "2026-10-22T16:51:05.823Z",
+  "notes": "USER-AUTHORIZED EMERGENCY SECURITY RELEASE ONLY: channels (@newsletter) deny all chatbot, command and reaction processing by default. Specific channel AI requires supreme-owner private .channelai on with actual NIGHT channel-admin role; allow exactly one AI profile/account, persist in shared storage, recheck enabled state before sending; OFF works immediately via JID. Keep all existing group and DM functionality unchanged. Validate exact PR head via MSCC Azure, Integrated Readiness, Cortex Contract, then one protected mscc-production approval. Never claim deployed until active Azure SHA, postdeploy smoke and observed channel default-off behavior are verified."
 }
