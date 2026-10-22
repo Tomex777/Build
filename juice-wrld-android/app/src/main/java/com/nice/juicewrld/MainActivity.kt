@@ -62,7 +62,7 @@ private val Light = Color(0xFFF4F1F9)
 private val Muted = Color(0xFF9994AA)
 private val Purple = Color(0xFFB886F5)
 private val Pink = Color(0xFFFF91C2)
-private val theme = darkColorScheme(
+private val juiceColorScheme = darkColorScheme(
     primary = Purple, onPrimary = Ink, surface = Surface, onSurface = Light,
     background = Ink, onBackground = Light, outline = Line,
 )
@@ -70,7 +70,7 @@ private val theme = darkColorScheme(
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { MaterialTheme(colorScheme = theme) { JuiceScreen() } }
+        setContent { MaterialTheme(colorScheme = juiceColorScheme) { JuiceScreen() } }
     }
 }
 
