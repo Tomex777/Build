@@ -14,6 +14,12 @@ android {
         versionCode = 100
         versionName = "1.0.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        // Android Gradle Plugin does not guarantee that injected.build.abi
+        // filters native packaging for a release APK. Build a genuinely arm64
+        // artifact from an explicit project property and verify its ZIP.
+        if (providers.gradleProperty("mise.arm64Only").orNull == "true") {
+            ndk { abiFilters += "arm64-v8a" }
+        }
     }
     buildFeatures { compose = true }
     compileOptions {
