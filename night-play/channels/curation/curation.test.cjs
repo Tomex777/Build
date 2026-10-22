@@ -1,7 +1,7 @@
 'use strict';
 const test=require('node:test'),assert=require('node:assert/strict');
 const {normalizeMeme,normalizeNews,chooseFourMemes,chooseNews,memeScore,isDuplicate,hashNear,safeUrl}=require('./core.cjs');
-const {boundedGet,redditAdapter,rssNewsAdapter,parseFeed}=require('./sources.cjs');
+const {boundedGet,redditAdapter,rssNewsAdapter,licensedCatalogAdapter,parseFeed}=require('./sources.cjs');
 const NOW=Date.parse('2026-10-22T16:00:00Z');
 function meme(id,overrides={}){
  return normalizeMeme({externalId:'t3_'+id,url:'https://www.reddit.com/r/funny/comments/'+id+'/post/?utm_source=x',
@@ -110,4 +110,17 @@ test('OAuth is mandatory; silent fallback to scraping is prohibited',async()=>{
 test('single selected humour category still fills four distinct review cards',()=>{
  const cards=Array.from({length:7},(_,i)=>meme('only'+i));
  assert.equal(chooseFourMemes(cards,{enabled:true,categories:['relatable'],now:NOW}).length,4);
+});
+
+test('licensed catalog requires server-side rights verification, not a caller claim',async()=>{
+ const base={assetId:'asset1',licenseEvidenceId:'license1',externalId:'artist1',url:'https://studio.example/post/1',
+ sourceUrl:'https://studio.example/post/1',mediaUrl:'https://studio.example/meme.png',mime:'image/png',
+ createdAt:new Date(NOW).toISOString(),category:'wholesome'};
+ const refused=licensedCatalogAdapter({loadRecords:async()=>[base],verifyRights:async()=>false});
+ assert.equal((await refused.discover()).items.length,0);
+ const approved=licensedCatalogAdapter({loadRecords:async()=>[base],verifyRights:async(id,evidence)=>id==='asset1'&&evidence==='license1'});
+ const result=(await approved.discover()).items;
+ assert.equal(result.length,1);assert.equal(result[0].publishable,true);
+ const noEvidence=licensedCatalogAdapter({loadRecords:async()=>[{...base,licenseEvidenceId:null}],verifyRights:async()=>true});
+ assert.equal((await noEvidence.discover()).items.length,0);
 });
