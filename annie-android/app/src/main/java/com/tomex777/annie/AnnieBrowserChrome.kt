@@ -147,8 +147,11 @@ internal fun AnnieBrowserChrome(
     LaunchedEffect(active.id, active.url) {
         if (!editing) address = active.url.takeUnless { it == "about:blank" }.orEmpty()
     }
-    LaunchedEffect(navigationSerial) {
-        if (navigationSerial > 0) {
+    LaunchedEffect(navigationSerial, state.isNewTab) {
+        // The initial Home state has no Gecko page focus target. Wait until a
+        // real navigation creates the page; otherwise Go from a blank tab could
+        // throw "FocusRequester is not initialized" before onLocationChange.
+        if (navigationSerial > 0 && !state.isNewTab) {
             androidx.compose.runtime.withFrameNanos { }
             pageFocus.requestFocus()
             keyboard?.hide()
