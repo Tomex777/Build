@@ -76,7 +76,8 @@ internal class VrmSpringRuntime private constructor(
         val safeDt = dt.coerceAtMost(1f / 30f)
         var changed = false
         roots.forEach { root ->
-            val enabled = if (root.category == "hair") appearance.hairPhysicsEnabled
+            val isHair = root.category == "hair"
+            val enabled = if (isHair) appearance.hairPhysicsEnabled
                 else appearance.fabricPhysicsEnabled
             if (!enabled) return@forEach
             if (!manager.hasComponent(root.parentEntity) ||
@@ -94,8 +95,11 @@ internal class VrmSpringRuntime private constructor(
                 dtSeconds = safeDt,
                 gravityLocal = gravity,
                 pivotWorld = pivot,
-                gravityPower = appearance.hairGravityStrength,
-                wind = appearance.hairWindStrength,
+                // Hair-strength and breeze controls are scoped to actual hair.
+                // Fabric dynamics has its own toggle: changing a hairstyle
+                // must not move the skirt, shirt, or the lower-body proof frame.
+                gravityPower = if (isHair) appearance.hairGravityStrength else 1f,
+                wind = if (isHair) appearance.hairWindStrength else 0f,
             )
             // Rebuild from bind pose every frame; NEVER compound the previous
             // frame's offset, which causes permanent distortion and skin drift.
