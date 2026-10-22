@@ -261,13 +261,14 @@ export class ChannelPublisher {
   }
   // Explicit worker; caller must wire a bounded scheduler before auto sending.
   // A stale 'sending' job remains unresolved: NEVER blindly retry an ambiguous send.
-  async drain(accounts,{limit=2,prepare=null}={}) {
+  async drain(accounts,{limit=2,prepare=null,allowedChannelIds=[]}={}) {
     let sent=0
     const due=this.db.prepare("SELECT * FROM play_channel_jobs WHERE state='queued' AND scheduled_at<=? ORDER BY scheduled_at LIMIT ?").all(this.now(),Math.min(2,Math.max(1,limit)))
     for(const j of due){
       const guard=this.db.prepare("UPDATE play_channel_jobs SET state='sending' WHERE id=? AND state='queued'").run(j.id)
       if(!guard.changes) continue
       try{
+        if(!Array.isArray(allowedChannelIds)||!allowedChannelIds.includes(j.channel_id)) fail(403,'Channel not enabled for approved publishing smoke.')
         const {account,name}=await this.permission(j.user_id,j.channel_id,accounts)
         if(name!==j.channel_name) fail(409,'Verified channel name changed after approval. Fresh review required.')
         const cfg=this.config(j.user_id,j.channel_id)
