@@ -45,9 +45,12 @@ function paintConfig(){
  MODULES.forEach(id=>{const input=document.querySelector('[data-module="'+id+'"]');if(input){input.checked=m[id]===true;input.disabled=configBusy||(id==='ai'&&config.capabilities?.ai!==true)}});
  $('memeMode').value=['automatic','review'].includes(config.memes?.mode)?config.memes.mode:'review';
  $('memeDaily').value=[1,2,3,4].includes(config.memes?.dailyLimit)?String(config.memes.dailyLimit):'1';
+ $('memeTime').value=/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(config.memes?.localTime||'')?config.memes.localTime:'18:00';
  fillChecks('memeCategories',config.memes?.categories);
  $('newsMode').value=['review','automatic'].includes(config.news?.mode)?config.news.mode:'review';
  $('spoilerPolicy').value=['avoid','warn'].includes(config.news?.spoilers)?config.news.spoilers:'avoid';
+ $('newsTime').value=/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(config.news?.localTime||'')?config.news.localTime:'18:00';
+ $('newsDaily').value=[1,2,3].includes(config.news?.dailyLimit)?String(config.news.dailyLimit):'1';
  fillChecks('newsInterests',config.news?.interests);
  const branding=config.branding;
  $('brandingControls').hidden=!branding;
@@ -93,17 +96,17 @@ function attachControls(){
    }
    const patch={modules:{[id]:el.checked}};
    if(id==='memes'&&el.checked)patch.memes={
-     mode:$('memeMode').value,categories:selected('memeCategories',CATEGORIES),dailyLimit:Number($('memeDaily').value)
+     mode:$('memeMode').value,categories:selected('memeCategories',CATEGORIES),dailyLimit:Number($('memeDaily').value),localTime:$('memeTime').value,timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC'
    };
    if(id==='news'&&el.checked)patch.news={
-     mode:$('newsMode').value,interests:selected('newsInterests',INTERESTS),spoilers:$('spoilerPolicy').value
+     mode:$('newsMode').value,interests:selected('newsInterests',INTERESTS),spoilers:$('spoilerPolicy').value,localTime:$('newsTime').value,dailyLimit:Number($('newsDaily').value),timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC'
    };
    changeConfig(patch,el);
  }));
  $('saveMemes').addEventListener('click',()=>{
    const categories=selected('memeCategories',CATEGORIES);
    if(!categories.length){note('Choose at least one meme category.',true);return;}
-   changeConfig({memes:{mode:$('memeMode').value,categories,dailyLimit:Number($('memeDaily').value)}},$('saveMemes'));
+   changeConfig({memes:{mode:$('memeMode').value,categories,dailyLimit:Number($('memeDaily').value),localTime:$('memeTime').value,timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC'}},$('saveMemes'));
  });
  $('saveBranding').addEventListener('click',()=>{
    if(!config?.branding)return;
@@ -122,7 +125,7 @@ function attachControls(){
  $('saveNews').addEventListener('click',()=>{
    const interests=selected('newsInterests',INTERESTS);
    if(!interests.length){note('Choose at least one news interest.',true);return;}
-   changeConfig({news:{mode:$('newsMode').value,interests,spoilers:$('spoilerPolicy').value}},$('saveNews'));
+   changeConfig({news:{mode:$('newsMode').value,interests,spoilers:$('spoilerPolicy').value,localTime:$('newsTime').value,dailyLimit:Number($('newsDaily').value),timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC'}},$('saveNews'));
  });
  $('findMemes').addEventListener('click',()=>findMemes(false));
  $('nextBatch').addEventListener('click',()=>findMemes(true));
