@@ -117,6 +117,10 @@ function nearSameNews(a,b){
  if(!a.show||!b.show||tokens(a.show).join(' ')!==tokens(b.show).join(' ')||a.event!==b.event)return false;
  const timeA=Date.parse(a.publishedAt),timeB=Date.parse(b.publishedAt);
  if(!Number.isFinite(timeA)||!Number.isFinite(timeB)||Math.abs(timeA-timeB)>72*3600000)return false;
+ // Different episode/season/year numbers are distinct news even if outlets use nearly identical wording.
+ const numericA=tokens(a.title).filter(x=>/^\d+$/.test(x)).sort().join('|');
+ const numericB=tokens(b.title).filter(x=>/^\d+$/.test(x)).sort().join('|');
+ if(numericA!==numericB)return false;
  const wordsA=storyWords(a),wordsB=storyWords(b),max=Math.max(wordsA.size,wordsB.size);
  if(max<4)return false;
  let same=0;for(const word of wordsA)if(wordsB.has(word))same++;
