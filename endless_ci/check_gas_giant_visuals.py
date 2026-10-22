@@ -6,7 +6,7 @@ settles on each planet. Qualitative scientific image comparison is still
 required; a pixel statistic is not photorealism certification.
 """
 from pathlib import Path
-from PIL import Image, ImageStat
+from PIL import Image, ImageChops, ImageFilter, ImageStat
 import sys
 
 root = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(
@@ -33,15 +33,39 @@ for planet in ("jupiter", "saturn"):
         # adjacent cloud bands/ring spans, not HUD or unrelated Sun pixels.
         radius_x = int(x * .075)
         radius_y = int(y * .13)
-        disk = screenshot.convert("RGB").crop((
+        image_rgb = screenshot.convert("RGB")
+        disk = image_rgb.crop((
             int(center_x)-radius_x, int(center_y)-radius_y,
             int(center_x)+radius_x, int(center_y)+radius_y
         ))
+        # A flat, untextured sphere can pass the existing mean/contrast
+        # checks because Lambertian shading itself creates a gradient.
+        # Inspect a fully on-disc patch away from the central UI label and
+        # the Saturn/Titan/Europa name chips; remove broad illumination with
+        # a low-pass filter and demand real local cloud-band structure.
+        # Relative offsets keep the ROI stable on API26/36 screenshot sizes.
+        cloud_patch = image_rgb.crop((
+            int(center_x + x * .040), int(center_y + y * .068),
+            int(center_x + x * .080), int(center_y + y * .155)
+        )).convert("L")
     stats = ImageStat.Stat(disk)
     mean = sum(stats.mean) / (3 * 255)
     contrast = sum(stats.stddev) / (3 * 255)
+    blur = cloud_patch.filter(ImageFilter.GaussianBlur(
+        radius=max(3.0, x * .005)
+    ))
+    texture_detail = ImageStat.Stat(
+        ImageChops.difference(cloud_patch, blur)
+    ).mean[0]
     print(f"{planet}: observed central brightness={mean:.3f}; "
-          f"spatial contrast={contrast:.3f}")
+          f"spatial contrast={contrast:.3f}; "
+          f"cloud detail={texture_detail:.2f}/255")
     assert mean > .043, f"{planet}: planet appears black/missing"
     assert contrast > .006, f"{planet}: no visible cloud/ring structure"
+    # 8-bit luma high-pass energy: an untextured ellipsoid scores nearly
+    # zero after local-lighting removal. Saturn's observed bands are subtler
+    # than Jupiter's and use a deliberately less restrictive threshold.
+    assert texture_detail > (2.2 if planet == "jupiter" else 1.4), (
+        f"{planet}: image lacks photographic cloud structure"
+    )
 print("Actual Android gas-giant orbital screenshots passed visibility checks")
