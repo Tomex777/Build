@@ -104,6 +104,11 @@ class PuzzleStore(private val context: Context) {
     fun loadPhoto(key: String="custom"): Bitmap? =
         imageFile(key)?.takeIf{it.isFile}?.let{ BitmapFactory.decodeFile(it.absolutePath) }
 
+    fun loadThumbnail(key: String): Bitmap? = imageFile(key)?.takeIf{it.isFile}?.let{
+        BitmapFactory.decodeFile(it.absolutePath,
+            BitmapFactory.Options().apply{inSampleSize=8})
+    }
+
     /** Resize/crop the selected local photo before storing it; do not retain a fragile gallery URI. */
     fun importPhoto(uri: Uri): ImportedPuzzlePhoto {
         val resolver=context.contentResolver
