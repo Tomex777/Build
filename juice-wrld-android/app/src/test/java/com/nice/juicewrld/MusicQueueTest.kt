@@ -28,6 +28,14 @@ class MusicQueueTest {
         assertEquals("a", MusicQueue.step(listOf("a","b"), "a", -1, RepeatMode.OFF))
         assertEquals("b", MusicQueue.step(listOf("a","b"), "a", -1, RepeatMode.ALL))
     }
+    @Test fun switchingFeelingRebuildsQueueForActiveSong() {
+        val originalSadQueue = listOf("lucid-dreams", "robbery", "wishing-well")
+        assertTrue(MusicQueue.hasSameSongs(originalSadQueue, originalSadQueue.reversed()))
+        assertFalse(MusicQueue.hasSameSongs(originalSadQueue, listOf("lucid-dreams", "flaws-and-sins")))
+        assertFalse(MusicQueue.hasSameSongs(emptyList(), listOf("lucid-dreams")))
+        assertFalse(MusicQueue.hasSameSongs(listOf("lucid-dreams", "lucid-dreams"), listOf("lucid-dreams")))
+    }
+
     @Test fun repeatCyclesAcrossAllThreeModes() {
         assertEquals(RepeatMode.ALL, RepeatMode.OFF.next())
         assertEquals(RepeatMode.ONE, RepeatMode.ALL.next())
