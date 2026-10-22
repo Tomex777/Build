@@ -163,6 +163,7 @@ async function main(){
    await cards.nth(0).locator('textarea').fill('Caption edited by owner');
    await cards.nth(0).getByRole('button',{name:'Preview post'}).click();
    await page.locator('#postPreview[open]').waitFor();
+   await page.getByText('Caption as it will be sent').waitFor();
    assert.match(await page.locator('#postPreviewContent').textContent(),/> QA Owner/,'Human caption attribution is separate from channel watermark');
    await page.screenshot({path:path.join(output,'channels-A-preview-dialog.jpg'),fullPage:false});
    await page.getByRole('button',{name:'Close preview'}).click();
