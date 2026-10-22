@@ -44,4 +44,13 @@ await assert.rejects(()=>prepareChannelContent({
   branding:{watermarkEnabled:true},transform:async()=>({success:true})
 }),/failed closed/);
 assert.equal(calls,1,'Failed closed without side-effectful fake post');
+await assert.rejects(()=>prepareChannelContent({
+  text:'Hello',sourceKind:'manual',
+  branding:{signatureEnabled:true,signaturePosterName:'Owner persona'}
+}),/Poster signature requires/,'Manual posts cannot impersonate configured automatic persona');
+const auto=await prepareChannelContent({
+  text:'Hello',sourceKind:'automation',
+  branding:{signatureEnabled:true,signaturePosterName:'Curator Ada'}
+});
+assert.equal(auto.caption,'Hello\n\n> Curator Ada');
 console.log('Channel branding preview/send transform contract: PASS');
