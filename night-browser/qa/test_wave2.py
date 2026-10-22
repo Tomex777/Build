@@ -32,6 +32,7 @@ class FixtureTests(unittest.TestCase):
     def test_real_html_branch(self):
         result, resp = self.fetch("/links")
         self.assertIn(b'href="/branch/a"', result)
+        self.assertIn(b'href="/file.pdf" download="night-qa.pdf"', result)
         self.assertIn(b"NIGHT QA LINKS", result)
         self.assertEqual(resp.status, 200)
 
