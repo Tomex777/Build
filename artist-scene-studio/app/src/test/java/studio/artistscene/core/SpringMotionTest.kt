@@ -34,6 +34,65 @@ class SpringMotionTest {
         assertTrue(abs(withWind.x) + abs(withWind.z) > .05f)
     }
 
+    @Test fun breezeDeflectsHangingHairEvenWhenGravityIsDisabled() {
+        val spring = SpringMotion(Vec3(0f, -1f, 0f), stiffness = .4f, drag = .4f)
+        var maxTilt = 0f
+        repeat(180) {
+            val sample = spring.advance(
+                dtSeconds = 1f / 30f,
+                gravityLocal = Vec3(0f, -1f, 0f),
+                pivotWorld = Vec3(),
+                gravityPower = 0f,
+                wind = 2f,
+            )
+            maxTilt = maxOf(maxTilt, abs(sample.x) + abs(sample.z))
+        }
+        assertTrue(
+            "Disabling Gravity must not also disable the independent Breeze slider",
+            maxTilt > .5f,
+        )
+        // With both sliders off and a stationary head, no phantom force.
+        val settled = SpringMotion(Vec3(0f, -1f, 0f))
+        assertEquals(Vec3(), integrate(settled, Vec3(0f, -1f, 0f), wind = 0f))
+    }
+
+    @Test fun realFemaleVrmSpringTipsDeformAtBudgetPhoneFrameRates() {
+        // Authored directions from the BUNDLED HairSample_Female spring manifest,
+        // rather than a synthetic sideways test strand. These exact joints bind
+        // to weighted Hair001 vertices in the packaged real glTF skin.
+        val tips = listOf(
+            Vec3(-.07681452f, -.12791419f, .02509075f),
+            Vec3(.04479633f, .05421329f, .00103015f),
+            Vec3(-.00891432f, -.06463218f, -.00434126f),
+            Vec3(.00434746f, -.04984069f, .00411876f),
+            Vec3(-.00298315f, -.05570221f, .00789168f),
+            Vec3(.0799448f, -.12631178f, .02506085f),
+            Vec3(-.03974458f, .04959571f, .00119012f),
+        )
+        tips.forEachIndexed { index, tip ->
+            val motion = SpringMotion(tip, stiffness = .4f, drag = .4f)
+            var maxTilt = 0f
+            // Actual Android 8 frames can be ~33ms; a 150ms scene hiccup
+            // must not permanently pin a real VRM HairJoint in the bind pose.
+            repeat(180) { frame ->
+                val sample = motion.advance(
+                    dtSeconds = if (frame == 30) .15f else 1f / 30f,
+                    gravityLocal = Vec3(0f, -1f, 0f),
+                    pivotWorld = Vec3(),
+                    gravityPower = 2f,
+                    wind = 2f,
+                )
+                maxTilt = maxOf(maxTilt, abs(sample.x) + abs(sample.z))
+                assertTrue("VRM hair root $index yielded a non-finite angle",
+                    sample.x.isFinite() && sample.z.isFinite())
+            }
+            assertTrue(
+                "Real VRM hair root $index stayed numerically frozen under wind/gravity",
+                maxTilt > .25f,
+            )
+        }
+    }
+
     @Test fun stopWindCausesDampedRecoveryToRest() {
         val spring = SpringMotion(Vec3(0f, -1f, 0f))
         integrate(spring, Vec3(0f, -1f, 0f), wind = 1.5f)

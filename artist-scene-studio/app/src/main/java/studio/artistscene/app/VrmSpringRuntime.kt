@@ -9,6 +9,7 @@ import org.json.JSONObject
 import studio.artistscene.core.Actor
 import studio.artistscene.core.AssetStorage
 import studio.artistscene.core.SpringMotion
+import studio.artistscene.core.RigPoseRenderSafety
 import studio.artistscene.core.Vec3
 import kotlin.math.sqrt
 
@@ -32,26 +33,69 @@ internal class VrmSpringRuntime private constructor(
         val restTip: Vec3,
         val motion: SpringMotion,
         val category: String,
+        // A disabled spring must restore its actual bind transform once.
+        // Otherwise the last simulated angle remains frozen on the skinned mesh.
+        var wasEnabled: Boolean = false,
     )
 
     private var lastFrameNs = 0L
     private var suspended = false
+    // Emit diagnostic evidence only when the user's actual live settings change.
+    // This catches stale Compose-to-native frame callbacks without log spam.
+    private var lastObservedGravity = Float.NaN
+    private var lastObservedWind = Float.NaN
+    private var lastObservedHairEnabled: Boolean? = null
     private val manager get() = model.engine.transformManager
     private val reusableParent = FloatArray(16)
     private val reusableRoot = FloatArray(16)
+
+    private fun restoreSpring(root: SpringRoot, actor: Actor): Boolean {
+        if (!manager.hasComponent(root.entity)) return false
+        val matrix = root.scratch
+        System.arraycopy(root.restMatrix, 0, matrix, 0, 16)
+        val authored = RigPoseRenderSafety.jointOffset(root.boundPoseId?.let { actor.rig?.joints?.get(it) })
+        Matrix.rotateM(matrix, 0, authored.x, 1f, 0f, 0f)
+        Matrix.rotateM(matrix, 0, authored.y, 0f, 1f, 0f)
+        Matrix.rotateM(matrix, 0, authored.z, 0f, 0f, 1f)
+        manager.setTransform(root.instance, matrix)
+        root.motion.reset()
+        root.wasEnabled = false
+        return true
+    }
 
     val hairCount: Int = roots.count { it.category == "hair" }
     val fabricCount: Int = roots.count { it.category == "fabric" }
 
     fun advance(actor: Actor, nanoTime: Long) {
         val appearance = actor.appearance
-        if (!actor.visible || actor.animation.playing ||
-            (!appearance.hairPhysicsEnabled && !appearance.fabricPhysicsEnabled)) {
+        if (lastObservedGravity != appearance.hairGravityStrength ||
+            lastObservedWind != appearance.hairWindStrength ||
+            lastObservedHairEnabled != appearance.hairPhysicsEnabled
+        ) {
+            lastObservedGravity = appearance.hairGravityStrength
+            lastObservedWind = appearance.hairWindStrength
+            lastObservedHairEnabled = appearance.hairPhysicsEnabled
+            Log.i("MiseHairPhysics", "Live renderer controls actor=${actor.id} hair=${appearance.hairPhysicsEnabled} gravity=${appearance.hairGravityStrength} wind=${appearance.hairWindStrength} roots=$hairCount")
+        }
+        val noPhysics = !appearance.hairPhysicsEnabled && !appearance.fabricPhysicsEnabled
+        if (!actor.visible || actor.animation.playing || noPhysics) {
             if (!suspended) {
-                roots.forEach { root -> root.motion.reset() }
+                // Unlike invisible actors or authored clip playback, switching
+                // BOTH physics categories off must restore real joint transforms
+                // immediately. Resetting numerical spring state alone would
+                // leave the rendered mesh in its last simulated bend.
+                var restored = false
+                roots.forEach { root ->
+                    if (noPhysics && actor.visible && !actor.animation.playing &&
+                        root.wasEnabled && restoreSpring(root, actor)) {
+                        restored = true
+                    } else {
+                        root.motion.reset()
+                        root.wasEnabled = false
+                    }
+                }
+                if (restored) model.animator.updateBoneMatrices()
                 suspended = true
-                // The normal bind/morph restore occurs in FilamentRigRuntime.apply
-                // when artist settings change or animation playback is toggled.
             }
             lastFrameNs = nanoTime
             return
@@ -63,15 +107,35 @@ internal class VrmSpringRuntime private constructor(
         val dt = if (lastFrameNs == 0L) 1f / 60f else
             ((nanoTime - lastFrameNs).toDouble() / 1_000_000_000.0).toFloat()
         lastFrameNs = nanoTime
-        if (dt <= 0f || !dt.isFinite() || dt > .15f) {
+        if (dt <= 0f || !dt.isFinite()) return
+        // Android 8 emulators and budget phones can miss a 150ms frame while
+        // loading textures or handling a sheet gesture. Resetting the springs on
+        // EVERY slow frame makes wind/gravity look permanently disabled. The
+        // integrator already bounds each step to 1/30s, so advance on a bounded
+        // timestep; only reset after a genuine background-sized pause.
+        if (dt > 2f) {
             roots.forEach { it.motion.reset() }
             return
         }
+        val safeDt = dt.coerceAtMost(1f / 30f)
         var changed = false
         roots.forEach { root ->
-            val enabled = if (root.category == "hair") appearance.hairPhysicsEnabled
+            val isHair = root.category == "hair"
+            val enabled = if (isHair) appearance.hairPhysicsEnabled
                 else appearance.fabricPhysicsEnabled
-            if (!enabled) return@forEach
+            if (!enabled) {
+                // The other category may still be playing, so the global
+                // suspend branch is not entered. Restore this spring's joint
+                // exactly once rather than leaving a bent strand/skirt frozen.
+                if (root.wasEnabled && restoreSpring(root, actor)) {
+                    changed = true
+                } else {
+                    root.motion.reset()
+                    root.wasEnabled = false
+                }
+                return@forEach
+            }
+            root.wasEnabled = true
             if (!manager.hasComponent(root.parentEntity) ||
                 !manager.hasComponent(root.entity)) return@forEach
             // The parent includes current head/chest/body rotation. Converting
@@ -84,17 +148,20 @@ internal class VrmSpringRuntime private constructor(
             val world = manager.getWorldTransform(root.instance, reusableRoot)
             val pivot = Vec3(world[12], world[13], world[14])
             val wobble = root.motion.advance(
-                dtSeconds = dt,
+                dtSeconds = safeDt,
                 gravityLocal = gravity,
                 pivotWorld = pivot,
-                gravityPower = appearance.hairGravityStrength,
-                wind = appearance.hairWindStrength,
+                // Hair-strength and breeze controls are scoped to actual hair.
+                // Fabric dynamics has its own toggle: changing a hairstyle
+                // must not move the skirt, shirt, or the lower-body proof frame.
+                gravityPower = if (isHair) appearance.hairGravityStrength else 1f,
+                wind = if (isHair) appearance.hairWindStrength else 0f,
             )
             // Rebuild from bind pose every frame; NEVER compound the previous
             // frame's offset, which causes permanent distortion and skin drift.
             val matrix = root.scratch
             System.arraycopy(root.restMatrix, 0, matrix, 0, 16)
-            val authored = root.boundPoseId?.let { actor.rig?.joints?.get(it) } ?: Vec3()
+            val authored = RigPoseRenderSafety.jointOffset(root.boundPoseId?.let { actor.rig?.joints?.get(it) })
             Matrix.rotateM(matrix, 0, authored.x + wobble.x, 1f, 0f, 0f)
             Matrix.rotateM(matrix, 0, authored.y, 0f, 1f, 0f)
             Matrix.rotateM(matrix, 0, authored.z + wobble.z, 0f, 0f, 1f)
@@ -136,9 +203,15 @@ internal class VrmSpringRuntime private constructor(
                 return null
             }
             val manager = model.engine.transformManager
-            val joints = (0 until model.skinCount)
-                .flatMap { model.getJointsAt(it).toList() }
-                .distinct()
+            // VRM springs are authored glTF NODES, not necessarily vertices
+            // weighted in the CURRENT skinned mesh. Android's compact GPU
+            // palettes may legitimately remove spring-root nodes from
+            // getJointsAt(), even though the complete GLB hierarchy remains.
+            // Resolve against all FilamentAsset nodes first; the skin-only
+            // lookup caused live hair controls to produce no rendered motion.
+            val allNodes = model.asset.entities
+                .filter { manager.hasComponent(it) }
+            val joints = allNodes
                 .associateBy { model.asset.getName(it).orEmpty() }
             val roots = buildList {
                 val chains = data.getJSONArray("chains")
@@ -168,8 +241,11 @@ internal class VrmSpringRuntime private constructor(
                     ))
                 }
             }
-            if (roots.isEmpty()) return null
-            Log.i("MiseHairPhysics", "Real VRM spring rig: ${roots.count { it.category == "hair" }} hair and ${roots.count { it.category == "fabric" }} fabric bones")
+            if (roots.isEmpty()) {
+                Log.e("MiseHairPhysics", "No authored spring roots bound: asset=${asset.assetId} nodes=${allNodes.size}")
+                return null
+            }
+            Log.i("MiseHairPhysics", "Real VRM spring rig: ${roots.count { it.category == "hair" }} hair and ${roots.count { it.category == "fabric" }} fabric bones (from ${allNodes.size} glTF nodes)")
             return VrmSpringRuntime(model, roots)
         }
     }

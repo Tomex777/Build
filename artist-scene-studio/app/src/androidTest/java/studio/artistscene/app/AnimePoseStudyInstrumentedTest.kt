@@ -229,6 +229,10 @@ class AnimePoseStudyInstrumentedTest {
                     if (actor.id == actorId) actor.copy(
                         appearance = actor.appearance.copy(
                             hairPhysicsEnabled = true,
+                            // Hair-only acceptance must not compare against a moving
+                            // fabric/skirt spring; preserve the strict identical-body
+                            // camera assertion instead of accepting body motion.
+                            fabricPhysicsEnabled = false,
                             hairGravityStrength = gravity,
                             hairWindStrength = wind,
                         ),
@@ -280,6 +284,25 @@ class AnimePoseStudyInstrumentedTest {
                 assertTrue("Inspector modal still obscures hair after back",
                     device.wait(Until.gone(By.res("context-sheet-content")), 10_000))
                 SystemClock.sleep(3_500)
+                // A SceneView Node can outlive the asynchronous ModelInstance
+                // load. First prove that its native onFrame closure consumes the
+                // NOW-loaded spring runtime and live Inspector values. This is a
+                // diagnostic guard, never a substitute for the hair pixel proof.
+                val physicsLog = device.executeShellCommand(
+                    "logcat -d -s MiseHairPhysics:I '*:S'",
+                )
+                File(proof, "anime-hair-live-physics.log").writeText(physicsLog)
+                println("MISE_HAIR_LIVE_RENDERER_DIAG " +
+                    physicsLog.lineSequence().filter { it.contains("Live renderer controls") }
+                        .toList().takeLast(8).joinToString(" | ").take(2_500))
+                assertTrue(
+                    "Native renderer callback did not consume the LIVE 2.0 gravity/wind " +
+                        "for $actorId; async springRuntime may be stale/null",
+                    physicsLog.lineSequence().any {
+                        it.contains("Live renderer controls actor=$actorId") &&
+                            it.contains("gravity=2.0") && it.contains("wind=2.0")
+                    },
+                )
                 movingHair = screenshot("female-hair-gravity", empty)
             }
             fun hairPixelsChanged(a: File, b: File): Int {
