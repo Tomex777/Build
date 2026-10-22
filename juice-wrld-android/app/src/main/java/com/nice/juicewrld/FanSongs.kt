@@ -152,10 +152,7 @@ object FanSongs {
             (mood == Mood.ALL ||
                 (mood == Mood.FAVORITES && song.id in favorites) ||
                 mood in song.moods) &&
-                (search.isBlank() ||
-                    song.title.contains(search, ignoreCase = true) ||
-                    song.album.contains(search, ignoreCase = true) ||
-                    song.year.contains(search, ignoreCase = true))
+                (search.isBlank() || SongSearch.matches(song, search))
         }
     }
 
