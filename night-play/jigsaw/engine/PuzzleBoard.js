@@ -90,22 +90,78 @@ export class PuzzleBoard{
   // At high counts, a max-distance blue-noise algorithm degenerates into
   // tiny, regimented rows. Use uneven overlapping clusters instead: like
   // loose cardboard pieces stacked on a real table, not an ordered grid.
-  const densitySamples=count<=24?24:count<=48?15:count<=72?8:count<=96?5:3;
-  for(let i=0;i<count;i++){
-   const zoneIndex=i%zones.length,z=zones[zoneIndex],previous=occupied[zoneIndex];
-   const rangeX=Math.max(0,z.w-pw),rangeY=Math.max(0,z.h-ph);
-   let best=null,bestScore=-Infinity;
-   for(let trial=0;trial<densitySamples;trial++){
-    const x=z.x+Math.random()*rangeX,y=z.y+Math.random()*rangeY;
-    let score=previous.length?Infinity:10;
-    for(const old of previous){
-     const dist=Math.hypot((x-old.x)/(pw*.84||1),(y-old.y)/(ph*.84||1));
-     if(dist<score)score=dist;
+  // On narrow phones, dense difficulties must remain individually touchable.
+  // The former three-candidate scatter compressed 144 pieces into many
+  // overlapping stacks: a centered fingertip frequently picked the wrong ID.
+  // A slightly irregular, shuffled packing keeps pieces outside the board and
+  // reachable without a permanent tray or a second overlapping-piece picker.
+  if(this.viewportWidth<680&&count>=96){
+   const piles=zones.map((z,zid)=>{
+    const target=Math.ceil((count-zid)/zones.length);
+    // Try genuine organic non-overlapping tabletop scatter first. Random
+    // packing is restartable at ~50% area density; no fake rows or stacks.
+    // The bounded jittered lattice below is a deterministic fallback only.
+    for(let pass=0;pass<9;pass++){
+     const packed=[];
+     for(let item=0;item<target;item++){
+      let found=null;
+      for(let trial=0;trial<3400;trial++){
+       const candidate={x:z.x+Math.random()*Math.max(0,z.w-pw),
+        y:z.y+Math.random()*Math.max(0,z.h-ph)};
+       if(packed.every(other=>candidate.x+pw<=other.x||
+        other.x+pw<=candidate.x||candidate.y+ph<=other.y||
+        other.y+ph<=candidate.y)){found=candidate;break;}
+      }
+      if(!found)break;
+      packed.push(found);
+     }
+     if(packed.length===target)return packed;
     }
-    score+=Math.random()*.085;
-    if(score>bestScore){best={x,y};bestScore=score;}
+    const maxCols=Math.max(1,Math.floor(z.w/pw));
+    let cols=Math.min(maxCols,Math.max(1,Math.round(
+     Math.sqrt(target*(z.w/Math.max(1,z.h))*(ph/pw)))));
+    let rows=Math.ceil(target/cols);
+    while(rows*ph>z.h-4&&cols<maxCols){cols++;rows=Math.ceil(target/cols);}
+    // Very short viewports cannot fit a dense tabletop without changing scale;
+    // keep the existing scatter algorithm as a documented fallback there.
+    if(cols*pw>z.w||rows*ph>z.h)return null;
+    const stepX=cols>1?(z.w-pw)/(cols-1):0;
+    const stepY=rows>1?(z.h-ph)/(rows-1):0;
+    const jiggleX=Math.max(0,Math.min(7,(stepX-pw)*.36));
+    const jiggleY=Math.max(0,Math.min(7,(stepY-ph)*.36));
+    const positions=[];
+    for(let row=0;row<rows;row++)for(let col=0;col<cols;col++){
+     positions.push({x:z.x+col*stepX+(Math.random()*2-1)*jiggleX,
+      y:z.y+row*stepY+(Math.random()*2-1)*jiggleY});
+    }
+    // Randomize the missing cells if a zone contains fewer than a full grid.
+    for(let i=positions.length-1;i>0;i--){
+     const j=Math.floor(Math.random()*(i+1));[positions[i],positions[j]]=[positions[j],positions[i]];
+    }
+    return positions.slice(0,target);
+   });
+   if(piles.every(Boolean)){
+    for(let i=0;i<count;i++)slots.push(piles[i%piles.length].pop());
    }
-   occupied[zoneIndex].push(best);slots.push(best);
+  }
+  if(!slots.length){
+   const densitySamples=count<=24?24:count<=48?15:count<=72?8:count<=96?5:3;
+   for(let i=0;i<count;i++){
+    const zoneIndex=i%zones.length,z=zones[zoneIndex],previous=occupied[zoneIndex];
+    const rangeX=Math.max(0,z.w-pw),rangeY=Math.max(0,z.h-ph);
+    let best=null,bestScore=-Infinity;
+    for(let trial=0;trial<densitySamples;trial++){
+     const x=z.x+Math.random()*rangeX,y=z.y+Math.random()*rangeY;
+     let score=previous.length?Infinity:10;
+     for(const old of previous){
+      const dist=Math.hypot((x-old.x)/(pw*.84||1),(y-old.y)/(ph*.84||1));
+      if(dist<score)score=dist;
+     }
+     score+=Math.random()*.085;
+     if(score>bestScore){best={x,y};bestScore=score;}
+    }
+    occupied[zoneIndex].push(best);slots.push(best);
+   }
   }
   // Shuffle which source image goes into each distributed location.
   for(let i=slots.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[slots[i],slots[j]]=[slots[j],slots[i]];}
@@ -163,6 +219,11 @@ export class PuzzleBoard{
   // by bounding box can grab an *invisible corner* of the topmost piece instead
   // of the piece the user actually sees. Use the pre-rendered alpha silhouette.
   const precise=this.totalPieces>=72;
+  // Very short phones fit 144 tiles only with narrow but non-overlapping
+  // packing. Choose the nearest actual piece center rather than a neighbour's
+  // protruding tab when both silhouettes share the fingertip radius.
+  const denseShort=this.totalPieces>=144&&this.viewportWidth<=380&&this.viewportHeight<550;
+  let closest=null,closestDistance=Infinity;
   for(let i=this.pieces.length-1;i>=0;i--){
    const p=this.pieces[i];if(p.isPlaced)continue;
    const pad=Math.min(this.pieceWidth*.12,8);
@@ -178,11 +239,21 @@ export class PuzzleBoard{
     const data=p.offscreenCanvas.getContext('2d').getImageData(ox,oy,pw,ph).data;
     let visible=false;
     for(let j=3;j<data.length;j+=4)if(data[j]>38){visible=true;break}
-    if(!visible)continue;
+    const nearCenter=denseShort&&
+     Math.abs(x-(p.x+this.pieceWidth*.5))<=this.pieceWidth*.47&&
+     Math.abs(y-(p.y+this.pieceHeight*.5))<=this.pieceHeight*.64;
+    if(!visible&&!nearCenter)continue;
+   }
+   if(denseShort){
+    const nx=(x-(p.x+this.pieceWidth*.5))/this.pieceWidth;
+    const ny=(y-(p.y+this.pieceHeight*.5))/this.pieceHeight;
+    const distance=nx*nx+ny*ny;
+    if(distance<closestDistance){closestDistance=distance;closest={piece:p,index:i};}
+    continue;
    }
    return {piece:p,index:i};
   }
-  return null;
+  return closest;
  }
  bringToTop(index){
   const p=this.pieces[index],id=p.group||p.id;
