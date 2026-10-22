@@ -124,7 +124,7 @@ async function main(){
      await page.getByRole('link',{name:'Configure '+name}).waitFor();
      await page.screenshot({path:path.join(output,'verified-owner-channel-route-390.png'),fullPage:true});
      await page.getByRole('link',{name:'Configure '+name}).click();
-     assert.match(new URL(page.url()).pathname,/^\\/channels\\/config\\//,
+     assert.ok(new URL(page.url()).pathname.startsWith('/channels/config/'),
        'Verified channel configure action remains inside the combined site');
    }else await page.goto(base+'/channels/config/?channel='+encodeURIComponent(A));
    await page.getByRole('heading',{name:'Configure channel'}).waitFor();
