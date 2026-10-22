@@ -256,8 +256,7 @@ async function main(){
    await page.locator('[data-module="memes"]').uncheck({force:true});
    await page.waitForFunction(()=>document.querySelector('[data-module="memes"]')?.checked===false);
    assert.equal(settings.modules.memes,false,'Module OFF persists backend-side');
-   await page.getByRole('button',{name:'Find memes'}).click();
-   await page.locator('.review-card').first().waitFor();
+   assert.equal(await page.getByRole('button',{name:'Find memes'}).isDisabled(),true,'OFF blocks discovery');
    assert.equal(await page.locator('.review-card').first().getByRole('button',{name:'Approve'}).isDisabled(),true,'OFF blocks approval');
    assert.equal(await page.locator('.review-card').first().getByRole('button',{name:'Skip'}).isDisabled(),true,'OFF blocks review changes');
    assert.equal(await page.getByRole('button',{name:'Publish approved'}).isDisabled(),true,'Cannot publish while OFF');
