@@ -186,6 +186,8 @@ test('four-card UI bridge flattens safe provenance but denies external image hot
  const item=meme('licensed',{rights:'cleared'});
  const ready=toReviewCard(item,{previewUrl:'/api/channel-media/preview/abc123'});
  assert.equal(ready.publishable,true);
+ assert.equal(ready.rightsStatus,'verified','Must match Agent A license gate enum');
+ assert.equal(ready.sourceRights,'cleared');
  assert.equal(ready.sourceUrl,item.source.url);
  assert.equal(ready.previewUrl,'/api/channel-media/preview/abc123');
  assert.throws(()=>toReviewCard(item,{previewUrl:'https://i.redd.it/unverified.jpg'}),/no external hotlink/);
@@ -194,7 +196,7 @@ test('four-card UI bridge flattens safe provenance but denies external image hot
  mime:'image/jpeg',createdAt:new Date(NOW).toISOString()},
  {id:'reddit:r/funny',provider:'reddit',rightsVerified:false});
  const blocked=toReviewCard(unknown,{previewUrl:'/api/channel-media/preview/unverified'});
- assert.equal(blocked.reviewOnly,true);assert.equal(blocked.publishBlockedReason,'rights_unverified');
+ assert.equal(blocked.reviewOnly,true);assert.equal(blocked.rightsStatus,'unverified');assert.equal(blocked.publishBlockedReason,'rights_unverified');
 });
 
 test('corrupt Reddit children are isolated per candidate rather than aborting all discovery',async()=>{
