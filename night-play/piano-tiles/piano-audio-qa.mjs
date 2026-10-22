@@ -80,6 +80,7 @@ try{
   await p.locator('[data-song="'+id+'"]').tap();await p.locator('#coverAction').tap();
   await p.waitForFunction(()=>document.body.classList.contains('is-playing'));
   const rect=await p.locator('#board').boundingBox();
+  await p.waitForTimeout(650); // finite charts enter the visible lanes later
   await p.touchscreen.tap(rect.x+rect.width*.125,rect.y+rect.height*.11);
   await p.waitForTimeout(50);
   assert.ok((await p.evaluate(()=>window.NightPiano.inspect())).lastPlayed,'song played sample');
