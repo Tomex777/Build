@@ -42,8 +42,9 @@ class EndlessGLView(
     private val frameTicker = object : Choreographer.FrameCallback {
         override fun doFrame(frameTimeNanos: Long) {
             if (!frameTickerActive || !isAttachedToWindow) return
-            if (!sceneOccluded || lastFrameRequestNanos == 0L ||
-                frameTimeNanos - lastFrameRequestNanos >= 200_000_000L) {
+            if (RendererFramePacing.shouldRequest(
+                    sceneOccluded, lastFrameRequestNanos, frameTimeNanos
+                )) {
                 lastFrameRequestNanos = frameTimeNanos
                 requestRender()
             }
