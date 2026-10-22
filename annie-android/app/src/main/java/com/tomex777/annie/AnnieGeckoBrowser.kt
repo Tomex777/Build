@@ -188,7 +188,7 @@ private class AnnieBrowserLibrary(context: Context) {
             for (i in 0 until minOf(array.length(), 300)) {
                 val entry = array.optJSONObject(i) ?: continue
                 val url = entry.optString("url")
-                if (AnnieBrowserAddress.resolve(url) == url) {
+                if (url == "about:blank" || AnnieBrowserAddress.resolve(url) == url) {
                     add(AnnieBrowserVisit(entry.optString("title").take(150), url))
                 }
             }
@@ -506,12 +506,13 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
 
     fun newTab(
         privateMode: Boolean = false,
-        address: String = "https://www.google.com/",
+        address: String = "about:blank",
         autoLoad: Boolean = true,
         desktopMode: Boolean = false,
         persistedId: String? = null,
     ): AnnieGeckoTab {
-        val url = AnnieBrowserAddress.resolve(address) ?: "https://www.google.com/"
+        val url = if (address == "about:blank") "about:blank"
+            else AnnieBrowserAddress.resolve(address) ?: "about:blank"
         val session = GeckoSession(
             GeckoSessionSettings.Builder().usePrivateMode(privateMode).build()
         )
@@ -600,7 +601,7 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
         session.open(runtime)
         tabs.add(tab)
         select(tab)
-        if (autoLoad) {
+        if (autoLoad && url != "about:blank") {
             // A failure or Gecko version mismatch safely falls back to the saved URL.
             val recovered = if (!privateMode && persistedId != null)
                 upstreamEngine.restoreNormalTab(tab.id, url) else null
@@ -630,11 +631,22 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
         // Address-bar navigation carries the original input into Gecko's load
         // handling, including URI fixup and the user-entered navigation source.
         applyUserAgentSettings(tab, url)
-        tab.session.load(GeckoSession.Loader().uri(url).originalInput(address))
-        return true
+        // Switch the Compose viewport immediately from internal Home to Gecko.
+        // History remains driven by actual Gecko navigation callbacks.
+        return runCatching {
+            tab.session.load(GeckoSession.Loader().uri(url).originalInput(address))
+            tab.url = url
+            if (!tab.privateMode) persistTabs()
+            true
+        }.getOrElse {
+            tab.loading = false
+            tab.error = "Couldn't open this address"
+            false
+        }
     }
 
     fun reload(tab: AnnieGeckoTab) {
+        if (tab.url == "about:blank") return
         if (tab.session.isOpen) tab.session.reload()
         else { tab.session.open(runtime); tab.session.loadUri(tab.url) }
     }
