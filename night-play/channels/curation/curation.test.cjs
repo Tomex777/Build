@@ -149,3 +149,20 @@ test('cannot mark speculation as official despite stale confirmation',()=>{
  {confirmedBySource:{old:{verified:true}}});
  assert.equal(row.confirmed,false);assert.equal(row.rumor,true);
 });
+
+test('unlicensed meme candidates must display explicit rights block, never appear publish-ready',()=>{
+ const unknown=normalizeMeme({externalId:'u',url:'https://reddit.com/r/funny/u',sourceUrl:'https://reddit.com/r/funny/u',
+ mediaUrl:'https://i.redd.it/u.jpg',mime:'image/jpeg',createdAt:new Date(NOW).toISOString()},
+ {id:'reddit',provider:'reddit',rightsVerified:false});
+ const found=chooseFourMemes([unknown],{enabled:true});
+ assert.equal(found.length,1);assert.equal(found[0].publishable,false);
+ assert.equal(found[0].reviewOnly,true);assert.equal(found[0].publishBlockedReason,'rights_unverified');
+});
+test('malformed RSS tags and interests never abort whole news selection',()=>{
+ const source={id:'s',name:'Studio',trustedHost:'studio.example',official:true};
+ const row={title:'Aurora series announcement from Studio',url:'https://studio.example/article',
+ publishedAt:new Date(NOW).toISOString(),confirmed:true,tags:'renewals'};
+ const item=normalizeNews(row,source,{now:NOW});
+ assert.deepEqual(item.tags,[]);
+ assert.deepEqual(chooseNews([item],{enabled:true,interests:'renewals',shows:null}),[item]);
+});
