@@ -54,10 +54,10 @@ const webp=await sharp(source).webp().toBuffer();
 const wr=await watermarkStaticImage({input:webp,channelId:a,displayName:'Channel A',
   sharpLibrary:sharp,renderText:renderer});
 assert.equal((await sharp(wr.buffer).metadata()).format,'webp');
-const tooManyPixels=await sharp({create:{width:3500,height:2000,channels:3,background:'#abc'}}).jpeg().toBuffer();
+const tooManyPixels=await sharp({create:{width:2500,height:1800,channels:3,background:'#abc'}}).jpeg().toBuffer();
 await assert.rejects(()=>watermarkStaticImage({input:tooManyPixels,channelId:a,
   displayName:'NIGHT',sharpLibrary:sharp,renderText:renderer}),/pixel|limit|bounded/i,
-  '7MP image is denied before memory-heavy composition');
+  '4.5MP image is denied before memory-heavy composition');
 const gif=await sharp({create:{width:16,height:16,channels:4,background:'red'}}).gif().toBuffer();
 await assert.rejects(()=>watermarkStaticImage({input:gif,channelId:a,displayName:'Hi',sharpLibrary:sharp}),/static/i);
 await assert.rejects(()=>watermarkStaticImage({input:Buffer.alloc(8*1024*1024+1),channelId:a,
