@@ -318,7 +318,8 @@ private fun ScriptStudioContent(
         // No implicit selection after deletion or reloading an unselected workspace.
         val project = preferredProject?.let { id -> projects.firstOrNull { it.id == id } }
         selectedProjectId = project?.id
-        val path = preferredPath?.takeIf { it in project?.files.orEmpty() } ?: project?.entryPath
+        // Null means no file was intentionally opened; never fall back to main.js.
+        val path = preferredPath?.takeIf { it in project?.files.orEmpty() }
         selectedPath = path
         val source = path?.let { project?.files?.get(it) }.orEmpty()
         val previous = editorValue
@@ -340,6 +341,20 @@ private fun ScriptStudioContent(
         savedSource = source
         status = ""
         if (openEditor) page = StudioPage.EDITOR
+        return true
+    }
+
+    // Folder focus is not file selection. It may scope ENV to a project, but
+    // must not automatically load, edit or preview the folder's main.js.
+    fun focusDirectory(project: ScriptProject, directory: String): Boolean {
+        if (!saveBeforeNavigation()) return false
+        selectedProjectId = project.id
+        selectedPath = null
+        currentDirectory = directory
+        editorValue = TextFieldValue("")
+        savedSource = ""
+        codeEditor = null
+        status = ""
         return true
     }
 
@@ -605,7 +620,7 @@ private fun ScriptStudioContent(
         ) {
             Column(Modifier.weight(1f)) {
                 Text("Script Studio", color = StudioText, fontSize = 21.sp, fontWeight = FontWeight.Bold)
-                Text(selectedProject?.let { "${it.name} · ${selectedPath ?: it.entryPath}" } ?: "Your JavaScript workspace", color = StudioMuted, fontSize = 12.sp, maxLines = 1)
+                Text(selectedProject?.let { project -> selectedPath?.let { "${project.name} · $it" } ?: project.name } ?: "Your JavaScript workspace", color = StudioMuted, fontSize = 12.sp, maxLines = 1)
             }
             StudioAction("Host AI", onClick = { hostAiSettings = true })
             StudioAction(
@@ -632,7 +647,7 @@ private fun ScriptStudioContent(
             StudioPage.entries.filterNot { it == StudioPage.EDITOR }.forEach { destination ->
                 val inFileSection = page == StudioPage.EDITOR && destination == StudioPage.FILES
                 StudioTab(destination.title, page == destination || inFileSection, Modifier.weight(1f)) {
-                    if (page != destination) {
+                    if (page != destination && saveBeforeNavigation()) {
                         codeEditor?.clearFocus()
                         focusManager.clearFocus(force = true)
                         keyboardController?.hide()
@@ -677,10 +692,10 @@ private fun ScriptStudioContent(
                                 else workspace.files.createFolder(owner.id, listOf(currentDirectory.trim('/'), name.trim('/')).filter(String::isNotBlank).joinToString("/"))
                             }.onSuccess { folder ->
                                 val id = if (owner == null) folder.name else owner!!.id
-                                val path = if (owner == null) "main.js" else folder.relativeTo(File(workspace.files.root, id)).invariantSeparatorsPath + "/main.js"
-                                refreshProjects(id, path)
-                                currentDirectory = path.substringBeforeLast('/', "")
-                                status = "Created \${folder.name}"
+                                val directory = if (owner == null) "" else folder.relativeTo(File(workspace.files.root, id)).invariantSeparatorsPath
+                                refreshProjects(id, null)
+                                currentDirectory = directory
+                                status = "Created ${folder.name}"
                             }.onFailure { status = it.message ?: "Could not create folder" }
                         }
                     })
@@ -703,15 +718,17 @@ private fun ScriptStudioContent(
                         projects.forEach { project ->
                             val isFolder = File(workspace.files.root, project.id).isDirectory
                             val shown = if (isFolder) project.name else project.entryPath
-                            if (shown.contains(query, true)) {
+                            val projectMatches = shown.contains(query, true)
+                            val projectHasMatchingFile = isFolder && project.files.keys.any { it.contains(query, true) }
+                            if (projectMatches || projectHasMatchingFile) {
                                 item(key = "project:${project.id}") {
                                     ScriptFileRow(
                                         name = shown,
                                         subtitle = if (isFolder) "Folder · ${project.files.size} ${if (project.files.size == 1) "file" else "files"}" else "JavaScript",
                                         isFolder = isFolder,
-                                        isEntry = true,
-                                        selected = selectedProjectId == project.id && selectedPath == project.entryPath,
-                                        onClick = { if (isFolder) { if (selectFile(project, project.entryPath, openEditor = false)) currentDirectory = "" } else selectFile(project, project.entryPath) },
+                                        isEntry = !isFolder,
+                                        selected = selectedProjectId == project.id && (if (isFolder) selectedPath == null else selectedPath == project.entryPath),
+                                        onClick = { if (isFolder) focusDirectory(project, "") else selectFile(project, project.entryPath) },
                                         actions = listOf(
                                             FileAction.RENAME,
                                             FileAction.SHARE,
@@ -723,7 +740,7 @@ private fun ScriptStudioContent(
                                             when (action) {
                                                 FileAction.RENAME -> askForText("Rename ${if (isFolder) "project" else "script"}", project.name) { next ->
                                                     runCatching { workspace.files.renameProject(project.id, next) }
-                                                        .onSuccess { id -> refreshProjects(id, if (isFolder) "main.js" else "$id.js"); status = "Renamed to $id" }
+                                                        .onSuccess { id -> refreshProjects(id, if (isFolder) null else "$id.js"); status = "Renamed to $id" }
                                                         .onFailure { status = it.message ?: "Rename failed" }
                                                 }
                                                 FileAction.SHARE -> shareProjectFile(project, project.entryPath)
@@ -744,7 +761,7 @@ private fun ScriptStudioContent(
                                                     val enabled = action == FileAction.ENABLE
                                                     runCatching { workspace.files.setEnabled(project.id, enabled) }
                                                         .onSuccess {
-                                                            refreshProjects(project.id, selectedPath)
+                                                            refreshProjects(project.id, selectedPath.takeIf { selectedProjectId == project.id })
                                                             scope.launch { onCommandsReloaded(workspace.reload()) }
                                                             status = if (enabled) "Script enabled" else "Script disabled"
                                                         }
@@ -767,7 +784,7 @@ private fun ScriptStudioContent(
                                             isEntry = false,
                                             selected = false,
                                             indent = normalizedDirectory.contains('/'),
-                                            onClick = { currentDirectory = normalizedDirectory.substringBeforeLast('/', "") },
+                                            onClick = { focusDirectory(project, normalizedDirectory.substringBeforeLast('/', "")) },
                                             actions = emptyList(),
                                             onAction = {},
                                         )
@@ -786,7 +803,7 @@ private fun ScriptStudioContent(
                                         childFiles += path
                                     }
                                 }
-                                childDirectories.filter { it.contains(query, true) }.forEach { child ->
+                                childDirectories.filter { projectMatches || it.contains(query, true) }.forEach { child ->
                                     val childPath = if (normalizedDirectory.isBlank()) child else "$normalizedDirectory/$child"
                                     item(key = "dir:" + project.id + ":" + childPath) {
                                         ScriptFileRow(
@@ -796,13 +813,13 @@ private fun ScriptStudioContent(
                                             isEntry = false,
                                             selected = false,
                                             indent = normalizedDirectory.isNotBlank(),
-                                            onClick = { currentDirectory = childPath },
+                                            onClick = { focusDirectory(project, childPath) },
                                             actions = emptyList(),
                                             onAction = {},
                                         )
                                     }
                                 }
-                                childFiles.filter { it.contains(query, true) }.forEach { path ->
+                                childFiles.filter { projectMatches || it.contains(query, true) }.forEach { path ->
                                     item(key = "file:" + project.id + ":" + path) {
                                         ScriptFileRow(
                                             name = path.substringAfterLast('/'),
@@ -837,7 +854,7 @@ private fun ScriptStudioContent(
                                                         if (confirmation == path.substringAfterLast('/')) {
                                                             runCatching { workspace.files.deleteFile(project.id, path) }
                                                                 .onSuccess {
-                                                                    refreshProjects(project.id, project.entryPath)
+                                                                    refreshProjects(project.id, null)
                                                                     currentDirectory = normalizedDirectory
                                                                     status = "Deleted $path"
                                                                 }.onFailure { status = it.message ?: "Delete failed" }
@@ -1264,7 +1281,7 @@ private fun ScriptFileRow(
                     modifier = Modifier.size(20.dp),
                 )
             } else {
-                Text("JS", color = StudioGreen, fontSize = 13.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                Text(name.substringAfterLast('.', "FILE").uppercase().take(4), color = StudioGreen, fontSize = 13.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
             }
             Spacer(Modifier.width(11.dp))
             Column(Modifier.weight(1f)) {
@@ -1274,19 +1291,21 @@ private fun ScriptFileRow(
                 }
                 Text(subtitle, color = StudioMuted, fontSize = 11.sp, maxLines = 1)
             }
-            Box {
-                Icon(
-                    studioGlyphVector(StudioGlyph.MORE),
-                    contentDescription = "File actions",
-                    tint = StudioMuted,
-                    modifier = Modifier.size(36.dp).clickable { expanded = true }.padding(8.dp),
-                )
-                DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                    actions.forEach { action ->
-                        DropdownMenuItem(
-                            text = { Text(action.label(), color = if (action == FileAction.DELETE) StudioDanger else StudioText) },
-                            onClick = { expanded = false; onAction(action) },
-                        )
+            if (actions.isNotEmpty()) {
+                Box {
+                    Icon(
+                        studioGlyphVector(StudioGlyph.MORE),
+                        contentDescription = "File actions",
+                        tint = StudioMuted,
+                        modifier = Modifier.size(48.dp).clickable { expanded = true }.padding(12.dp),
+                    )
+                    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                        actions.forEach { action ->
+                            DropdownMenuItem(
+                                text = { Text(action.label(), color = if (action == FileAction.DELETE) StudioDanger else StudioText) },
+                                onClick = { expanded = false; onAction(action) },
+                            )
+                        }
                     }
                 }
             }
