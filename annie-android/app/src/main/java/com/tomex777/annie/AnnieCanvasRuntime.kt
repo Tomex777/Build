@@ -15,6 +15,10 @@ internal val CANVAS_LIFECYCLE_BOOTSTRAP = """
   var originalClearTimeout = window.clearTimeout.bind(window);
   var originalFrame = window.requestAnimationFrame.bind(window);
   var originalCancelFrame = window.cancelAnimationFrame.bind(window);
+  var originalIdle = typeof window.requestIdleCallback === 'function'
+    ? window.requestIdleCallback.bind(window) : null;
+  var originalCancelIdle = typeof window.cancelIdleCallback === 'function'
+    ? window.cancelIdleCallback.bind(window) : null;
   var jobs = new Map();
   var nextId = 1000000000;
   var paused = window.__annieCanvasInitiallyPaused === true;
@@ -136,6 +140,11 @@ internal val CANVAS_LIFECYCLE_BOOTSTRAP = """
       job.callback(timestamp - frameOffset);
       return;
     }
+    if (job.kind === 'idle') {
+      jobs.delete(job.id);
+      job.callback(timestamp);
+      return;
+    }
     if (job.kind === 'timeout') jobs.delete(job.id);
     else { job.remaining = job.delay; schedule(job); }
     job.callback.apply(window, job.args);
@@ -145,18 +154,27 @@ internal val CANVAS_LIFECYCLE_BOOTSTRAP = """
     if (paused) return;
     if (job.kind === 'frame') {
       job.nativeId = originalFrame(function (timestamp) { invoke(job, timestamp); });
+    } else if (job.kind === 'idle') {
+      if (originalIdle) {
+        job.nativeId = originalIdle(function (deadline) { invoke(job, deadline); }, job.options);
+      } else {
+        job.nativeId = originalTimeout(function () {
+          invoke(job, { didTimeout: false, timeRemaining: function () { return 0; } });
+        }, 1);
+      }
     } else {
       job.due = performance.now() + job.remaining;
       job.nativeId = originalTimeout(function () { invoke(job, performance.now()); }, job.remaining);
     }
   }
 
-  function addJob(kind, callback, delay, args) {
+  function addJob(kind, callback, delay, args, options) {
     if (typeof callback !== 'function') return 0;
     var interval = Math.max(0, Number(delay) || 0);
     var job = {
       id: nextId++, kind: kind, callback: callback, args: args || [],
-      delay: interval, remaining: interval, nativeId: null, due: 0
+      delay: interval, remaining: interval, nativeId: null, due: 0,
+      options: options
     };
     jobs.set(job.id, job);
     schedule(job);
@@ -168,6 +186,7 @@ internal val CANVAS_LIFECYCLE_BOOTSTRAP = """
     if (!job) return;
     if (job.nativeId !== null) {
       if (job.kind === 'frame') originalCancelFrame(job.nativeId);
+      else if (job.kind === 'idle' && originalCancelIdle) originalCancelIdle(job.nativeId);
       else originalClearTimeout(job.nativeId);
     }
     jobs.delete(job.id);
@@ -186,6 +205,10 @@ internal val CANVAS_LIFECYCLE_BOOTSTRAP = """
     return addJob('frame', callback, 0, []);
   };
   window.cancelAnimationFrame = clearJob;
+  window.requestIdleCallback = function (callback, options) {
+    return addJob('idle', callback, 0, [], options);
+  };
+  window.cancelIdleCallback = clearJob;
 
   function pause() {
     if (paused) return;
@@ -195,7 +218,10 @@ internal val CANVAS_LIFECYCLE_BOOTSTRAP = """
     jobs.forEach(function (job) {
       if (job.nativeId === null) return;
       if (job.kind === 'frame') originalCancelFrame(job.nativeId);
-      else {
+      else if (job.kind === 'idle') {
+        if (originalCancelIdle) originalCancelIdle(job.nativeId);
+        else originalClearTimeout(job.nativeId);
+      } else {
         originalClearTimeout(job.nativeId);
         job.remaining = Math.max(0, job.due - pausedAt);
       }
