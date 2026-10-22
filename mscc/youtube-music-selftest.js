@@ -60,6 +60,7 @@ console.log(output)
       assert.equal((await stat(path)).size, 4096)
       temporaryPath = path
       firstSends.push(payload)
+      return { key:{ id:'mock-youtube-audio' } }
     } },
   })
   assert.equal(initial.delivered, true)
@@ -78,6 +79,7 @@ console.log(output)
       assert.equal((await stat(payload.document.url)).size, 4096)
       temporaryPath = payload.document.url
       if (attempts === 1) throw new Error('simulated WhatsApp send failure')
+      return { key:{ id:'mock-youtube-document' } }
     } },
   })
   assert.equal(recovered.delivered, true)

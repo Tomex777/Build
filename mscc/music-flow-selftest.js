@@ -1,4 +1,6 @@
 import { runSongCommand } from './music-flow.js'
+import { musicFollowupReply } from './music-chat-context.js'
+import { readFileSync } from 'node:fs'
 
 const calls = []
 const replies = []
@@ -266,7 +268,67 @@ if (progressStatus.some(row => row.startsWith('done:'))) {
 }
 canSend = true
 await runSongCommand(retryCtx, { args:['~numbers'] })
-if (retrySession || !progressStatus.some(row => row.startsWith('done:'))) {
-  throw new Error('Successful retry must report delivery and clear numeric selection')
+if (!retrySession?.lastSentAt || !progressStatus.some(row => row.startsWith('done:'))) {
+  throw new Error('Successful send must retain a brief retry session and report WhatsApp send, not recipient delivery')
+}
+if (!progressStatus.some(row => row.includes('Audio sent to WhatsApp'))) {
+  throw new Error('Music send confirmation must not claim the recipient received the track')
 }
 console.log('PASS silent-music failure reporting and selection retry')
+
+// Regression: an accidental spelling of the Pitch Perfect 2 song must not
+// produce 25 unrelated adult-toy/movie results or rank a lyric upload above
+// an official Jessie J recording.
+let correctedQuery = ''
+const rankedReplies = []
+let rankedSession = null
+await runSongCommand({
+  publicPrefix:'.',
+  reply:async value => { rankedReplies.push(String(value)); return value },
+  setCommandReplySession:value => { rankedSession = value },
+  executeSource:async ({ payload }) => {
+    if (payload.action !== 'search') throw new Error('Unexpected music action')
+    correctedQuery = payload.query
+    return { status:'ok', source:{ id:'youtube', name:'YouTube' }, result:{ items:[
+      { id:'a', title:'Jessie J - Flashlight (from Pitch Perfect 2) (Lyrics)', artist:'HopeLyrics' },
+      { id:'b', title:'Jessie J - Flashlight (from Pitch Perfect 2) (Official Video)', artist:'Jessie J' },
+      { id:'c', title:'The Best Fleshlight Reviewed', artist:'Unrelated uploader' },
+      { id:'d', title:'Flashlight (from Pitch Perfect 2) live cover', artist:'Fan Channel' },
+    ] } }
+  },
+}, { args:['fleshlight','by','pitch','perfect','2'] })
+if (correctedQuery !== 'Flashlight by pitch perfect 2') {
+  throw new Error('Pitch Perfect 2 track spelling was not normalized')
+}
+if (rankedSession?.entries?.[0]?.id !== 'b') {
+  throw new Error('The official song did not outrank a lyrics repost')
+}
+if (rankedSession.entries.some(row => row.id === 'c')) {
+  throw new Error('Unrelated explicit search result was not filtered')
+}
+if (!rankedReplies[0]?.includes('Showing matches for: *Flashlight by pitch perfect 2*')) {
+  throw new Error('Search correction was not disclosed in the song menu')
+}
+console.log('PASS soundtrack typo, official recording ranking and unrelated-result pruning')
+
+const followupSession = { kind:'number-selection', command:'song', entries:[{ number:'1' }] }
+const lostAudio = musicFollowupReply("Where's the song", followupSession)
+if (!lostAudio.includes('cannot confirm') || !lostAudio.includes('same song number')) {
+  throw new Error('Missing song must be handled as an honest retry, not as AI banter')
+}
+if (!musicFollowupReply('Original', followupSession).includes('official artist')) {
+  throw new Error('Original track follow-up must not make up a soundtrack or artist')
+}
+if (!musicFollowupReply('Fleshlight by Pitch Perfect 2', followupSession).includes('Flashlight by Jessie J')) {
+  throw new Error('Soundtrack typo clarification missing')
+}
+if (musicFollowupReply('Original', null) || musicFollowupReply('Hello', followupSession)) {
+  throw new Error('Music follow-up guard must not interrupt ordinary conversations')
+}
+const indexSource = readFileSync(new URL('./index.js', import.meta.url), 'utf8')
+if (!indexSource.includes("import { musicFollowupReply } from './music-chat-context.js'") ||
+    indexSource.indexOf('const musicGuidance = musicFollowupReply(') < 0 ||
+    indexSource.indexOf('const musicGuidance = musicFollowupReply(') > indexSource.indexOf('if (await handleProfileAssistant(account, msg, authority, text)) return')) {
+  throw new Error('Music follow-up must be handled before the generative personality')
+}
+console.log('PASS music post-search questions avoid invented delivery and repeated AI clarification')

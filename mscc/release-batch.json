@@ -1,10 +1,10 @@
 {
-  "releaseId": "night-emergency-channel-ai-opt-in-20261022",
+  "releaseId": "night-mscc-song-delivery-fix-20261022-pr581",
   "baseBranch": "mscc-azure",
-  "baseCommit": "990adbb5784c37220553495ddea0ca8211b6dc8e",
+  "baseCommit": "783d6d0fde2bf5ae49fd6a7bfcb8fa61dc919786",
   "pullRequests": [
-    566
+    581
   ],
-  "preparedAt": "2026-10-22T16:51:05.823Z",
-  "notes": "USER-AUTHORIZED EMERGENCY SECURITY RELEASE ONLY: channels (@newsletter) deny all chatbot, command and reaction processing by default. Specific channel AI requires supreme-owner private .channelai on with actual NIGHT channel-admin role; allow exactly one AI profile/account, persist in shared storage, recheck enabled state before sending; OFF works immediately via JID. Keep all existing group and DM functionality unchanged. Validate exact PR head via MSCC Azure, Integrated Readiness, Cortex Contract, then one protected mscc-production approval. Never claim deployed until active Azure SHA, postdeploy smoke and observed channel default-off behavior are verified."
+  "preparedAt": "2026-10-22T19:17:00.000Z",
+  "notes": "User explicitly authorized production deployment of NIGHT music fix PR #581. Only the exact song search, delivery receipt, retry, and AI music follow-up fix is included. Preserve the already deployed per-channel AI default-OFF security guard. Require the MSCC Azure, Integrated Readiness, Cortex Contract, and MSCC Music Lyrics Regression checks on this release PR before merge. Deploy via protected mscc-production approval once; verify Azure pinned SHA, smoke, and connected WhatsApp accounts after deployment."
 }

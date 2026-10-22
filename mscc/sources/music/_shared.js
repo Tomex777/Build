@@ -143,21 +143,27 @@ export async function sendAudio(context, {
   if (typeof context?.send !== 'function') throw new Error('Music delivery context is unavailable.')
   const mime = mimetype || mimeForUrl(url)
   const name = fileName || safeFileName(title, artist, extensionForMime(mime))
-  if (String(context?.requestedDelivery || '').toLowerCase() === 'document') {
-    await context.send({
-      document:{ url },
-      mimetype:mime,
-      fileName:name,
-    })
-  } else {
-    await context.send({
-      audio:{ url },
-      mimetype:mime,
-      fileName:name,
-      ptt:false,
-    })
+  const receipt = String(context?.requestedDelivery || '').toLowerCase() === 'document'
+    ? await context.send({
+        document:{ url },
+        mimetype:mime,
+        fileName:name,
+      })
+    : await context.send({
+        audio:{ url },
+        mimetype:mime,
+        fileName:name,
+        ptt:false,
+      })
+  // sendMessage resolving with undefined is NOT evidence an attachment was
+  // accepted by WhatsApp. We cannot promise delivery to the recipient, but
+  // must at least observe the Baileys message key before reporting a send.
+  if (!receipt?.key?.id) {
+    const error = new Error('WhatsApp did not confirm accepting the audio message.')
+    error.code = 'MUSIC_SEND_UNCONFIRMED'
+    throw error
   }
-  return { delivered:true }
+  return { delivered:true, messageId:String(receipt.key.id) }
 }
 
 export function textFromRuns(value) {
