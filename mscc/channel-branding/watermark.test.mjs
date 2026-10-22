@@ -54,6 +54,18 @@ const webp=await sharp(source).webp().toBuffer();
 const wr=await watermarkStaticImage({input:webp,channelId:a,displayName:'Channel A',
   sharpLibrary:sharp,renderText:renderer});
 assert.equal((await sharp(wr.buffer).metadata()).format,'webp');
+// Edge score must cover the actual watermark footprint. A visually busy image
+// is still rendered for the owner preview, but flagged for human placement QA.
+const busyRaw=Buffer.alloc(640*400*3);
+for(let y=0;y<400;y++)for(let x=0;x<640;x++){
+  const v=(Math.floor(x/17)+Math.floor(y/17))%2?14:242;
+  busyRaw.fill(v,(y*640+x)*3,(y*640+x)*3+3);
+}
+const busyPng=await sharp(busyRaw,{raw:{width:640,height:400,channels:3}}).png().toBuffer();
+const busyPreview=await watermarkStaticImage({input:busyPng,channelId:a,displayName:'NIGHT',
+  position:'auto',sharpLibrary:sharp,renderText:renderer});
+assert.ok(busyPreview.warnings.some(w=>/visually busy/.test(w)),
+  'Dense content needs a real placement review, not a false OCR guarantee');
 const tooManyPixels=await sharp({create:{width:2500,height:1800,channels:3,background:'#abc'}}).jpeg().toBuffer();
 await assert.rejects(()=>watermarkStaticImage({input:tooManyPixels,channelId:a,
   displayName:'NIGHT',sharpLibrary:sharp,renderText:renderer}),/pixel|limit|bounded/i,
