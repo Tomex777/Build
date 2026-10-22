@@ -260,8 +260,16 @@ async function loadEpisodes(ctx, { capability, commandName, sourceId, series, no
       resolvedSeries.title,
       ...(identity?.aliases || []),
     ]).slice(0, 3)
+    // SourceRegistry.list() is alphabetical for user-choice capabilities,
+    // not a reliability order. Sort explicitly so proven episode providers
+    // (notably AnimeSogo) are tested before AnimeOnsen's frequently blocked
+    // media endpoints. Keep the same bounded fallback count as delivery retry.
     const alternatives = (typeof ctx.listSources === 'function' ? ctx.listSources('anime') : [])
       .filter(source => source?.id && source.id !== sourceId)
+      .sort((a, b) =>
+        Number(a.fallbackOrder ?? 1000) - Number(b.fallbackOrder ?? 1000) ||
+        String(a.name || a.id).localeCompare(String(b.name || b.id))
+      )
       .slice(0, 4)
 
     fallbackSearch:

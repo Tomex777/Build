@@ -188,9 +188,12 @@ saved = null
   const fallbackCtx = {
     publicPrefix:'.',
     botProfile:{ id:'nami', displayName:'Nami' },
+    // Deliberately return alphabetical order: runtime source listing is
+    // alphabetical, but fallback must respect reliability/fallbackOrder.
     listSources:() => [
-      { id:'kayoanime', name:'KayoAnime' },
-      { id:'animesogo', name:'AnimeSogo' },
+      { id:'animeonsen', name:'AnimeOnsen', fallbackOrder:40 },
+      { id:'animesogo', name:'AnimeSogo', fallbackOrder:30 },
+      { id:'kayoanime', name:'KayoAnime', fallbackOrder:10 },
     ],
     getSourceDefault:() => '',
     getDeliveryDefault:() => null,
@@ -248,7 +251,7 @@ saved = null
     throw new Error('Anime command did not recover from a title with no episodes on the selected source')
   }
   if (fallbackSession.sourceId !== 'animesogo') {
-    throw new Error('Anime empty-episode recovery did not switch the session to the working provider')
+    throw new Error('Anime empty-episode recovery did not prioritize AnimeSogo over alphabetically earlier AnimeOnsen')
   }
   if (fallbackSession.entries.length !== 2) {
     throw new Error('Anime empty-episode recovery did not load the alternate provider episode list')
