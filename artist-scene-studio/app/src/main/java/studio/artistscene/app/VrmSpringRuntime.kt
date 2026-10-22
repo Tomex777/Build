@@ -39,6 +39,11 @@ internal class VrmSpringRuntime private constructor(
 
     private var lastFrameNs = 0L
     private var suspended = false
+    // Emit diagnostic evidence only when the user's actual live settings change.
+    // This catches stale Compose-to-native frame callbacks without log spam.
+    private var lastObservedGravity = Float.NaN
+    private var lastObservedWind = Float.NaN
+    private var lastObservedHairEnabled: Boolean? = null
     private val manager get() = model.engine.transformManager
     private val reusableParent = FloatArray(16)
     private val reusableRoot = FloatArray(16)
@@ -62,6 +67,15 @@ internal class VrmSpringRuntime private constructor(
 
     fun advance(actor: Actor, nanoTime: Long) {
         val appearance = actor.appearance
+        if (lastObservedGravity != appearance.hairGravityStrength ||
+            lastObservedWind != appearance.hairWindStrength ||
+            lastObservedHairEnabled != appearance.hairPhysicsEnabled
+        ) {
+            lastObservedGravity = appearance.hairGravityStrength
+            lastObservedWind = appearance.hairWindStrength
+            lastObservedHairEnabled = appearance.hairPhysicsEnabled
+            Log.i("MiseHairPhysics", "Live renderer controls actor=${actor.id} hair=${appearance.hairPhysicsEnabled} gravity=${appearance.hairGravityStrength} wind=${appearance.hairWindStrength} roots=$hairCount")
+        }
         val noPhysics = !appearance.hairPhysicsEnabled && !appearance.fabricPhysicsEnabled
         if (!actor.visible || actor.animation.playing || noPhysics) {
             if (!suspended) {
