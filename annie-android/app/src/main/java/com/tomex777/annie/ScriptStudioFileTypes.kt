@@ -70,9 +70,11 @@ internal fun studioImportTextDocument(
     val projectId = if (executable) root.nameWithoutExtension else root.name
     val path = fileName
     try {
+        // Disable the project *before* storing untrusted imported source. A
+        // concurrent workspace reload must never observe a runnable import.
+        files.setEnabled(projectId, false)
         if (!executable) files.createFile(projectId, path)
         files.writeFile(projectId, path, source)
-        files.setEnabled(projectId, false)
     } catch (failure: Throwable) {
         // Remove only the project created by this import. Do not retain an
         // enabled starter main.js or a partially imported script on failure.
