@@ -167,7 +167,16 @@ internal class ScriptFiles(context: Context) : PackageAssetResolver {
             AnniePackageArchive.readManifestIfPresent(file, id, file.nameWithoutExtension, sourceFiles.keys)
         } else null
         val entryRelative = importedManifest?.entryPoint ?: if (file.isDirectory) {
-            "main.js".takeIf { it in sourceFiles } ?: "main.ts".takeIf { it in sourceFiles } ?: "main.py".takeIf { it in sourceFiles } ?: "main.lua".takeIf { it in sourceFiles } ?: sourceFiles.keys.filter(::isExecutableScript).singleOrNull() ?: return null
+            val runnableFiles = sourceFiles.keys.filter(::isExecutableScript)
+            "main.js".takeIf { it in sourceFiles }
+                ?: "main.ts".takeIf { it in sourceFiles }
+                ?: "main.py".takeIf { it in sourceFiles }
+                ?: "main.lua".takeIf { it in sourceFiles }
+                ?: runnableFiles.singleOrNull()
+                // Read-only document folders contain no runnable entry point.
+                // Keep them editable without fabricating an executable main.js.
+                ?: if (runnableFiles.isEmpty()) sourceFiles.keys.sorted().firstOrNull() else null
+                ?: return null
         } else file.name
         if (entryRelative !in sourceFiles) return null
         ScriptProject(
@@ -273,6 +282,27 @@ internal class ScriptFiles(context: Context) : PackageAssetResolver {
         }
     }
 
+    /**
+     * Import-only document container. Unlike a new script folder it contains
+     * no runnable main.js or surprise command. Its disabled state is committed
+     * before the directory becomes visible to a concurrent workspace reload.
+     */
+    fun createDocumentProject(name: String): File {
+        val safe = validateName(name, "")
+        require(!projectNameExists(safe)) { "A project with this name already exists" }
+        check(enabledPrefs.edit().putBoolean(safe, false).commit()) {
+            "Could not disable the imported document"
+        }
+        val folder = File(root, safe)
+        try {
+            require(folder.mkdir()) { "A project with this name already exists" }
+            return folder
+        } catch (failure: Throwable) {
+            enabledPrefs.edit().remove(safe).commit()
+            throw failure
+        }
+    }
+
     fun readFile(projectId: String, relativePath: String): String {
         val target = resolveProjectFile(projectId, relativePath)
         require(target.isFile) { "Script file does not exist" }
@@ -304,6 +334,9 @@ internal class ScriptFiles(context: Context) : PackageAssetResolver {
     fun setEnabled(projectId: String, enabled: Boolean) {
         val container = resolveProjectContainer(projectId)
         val project = readProject(container) ?: error("Script project could not be loaded")
+        require(!enabled || isExecutableScript(project.entryPath)) {
+            "Documents without executable source cannot be enabled"
+        }
         if (project.hasPackageManifest) {
             if (packageRegistry.get(projectId) == null) {
                 packageRegistry.ensureRecovered(InstalledPackageState(
