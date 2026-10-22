@@ -57,6 +57,7 @@ required = {
         "userClosedCanvasRemainsClosedAfterItsLazyMessageControllerIsEvicted",
         "manuallyPausedCanvasRemainsPausedAfterLazyItemEviction",
         "closeCardRemainsClosedAfterComposeSavedStateRestoration",
+        "fullscreenLandscapeRotationRetainsTheOneRunningCanvasWebView",
     },
     "AnnieCanvasMessageTest": {
         "webGlShadersDrawReadPixelsAndSurviveFullscreen",
@@ -101,6 +102,7 @@ for screenshot in (
     "annie-ci-annie-agent4-canvas-closed-card.png",
     "annie-ci-annie-agent4-canvas-reopened.png",
     "annie-ci-annie-agent4-fullscreen-paused.png",
+    "annie-ci-annie-agent4-canvas-landscape-reused.png",
 ):
     matches = list((base / "screenshots").rglob(screenshot))
     if not matches or not any(path.stat().st_size >= 2048 for path in matches):
