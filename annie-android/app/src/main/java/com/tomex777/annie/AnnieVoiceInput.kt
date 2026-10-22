@@ -174,6 +174,7 @@ internal fun VoiceHoldButton(
     controller: VoiceNoteController,
     onNeedPermission: () -> Unit,
     modifier: Modifier = Modifier,
+    onBeforeRecord: () -> Unit = {},
 ) {
     val density = LocalDensity.current
     val cancelPx = with(density) { 110.dp.toPx() }
@@ -194,7 +195,10 @@ internal fun VoiceHoldButton(
                 onClick(label = "Start voice note") {
                     if (controller.recording) return@onClick true
                     if (!controller.hasPermission()) onNeedPermission()
-                    else if (controller.begin()) controller.locked = true
+                    else {
+                        onBeforeRecord()
+                        if (controller.begin()) controller.locked = true
+                    }
                     true
                 }
             }
@@ -208,7 +212,10 @@ internal fun VoiceHoldButton(
                     gesture.startY = event.y
                     if (!controller.recording) {
                         if (!controller.hasPermission()) onNeedPermission()
-                        else gesture.started = controller.begin()
+                        else {
+                            onBeforeRecord()
+                            gesture.started = controller.begin()
+                        }
                     }
                 }
                 MotionEvent.ACTION_MOVE -> if (gesture.started && controller.recording) {
