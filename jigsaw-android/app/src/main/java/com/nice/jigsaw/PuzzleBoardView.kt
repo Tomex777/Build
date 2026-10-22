@@ -38,6 +38,33 @@ class PuzzleBoardView(context: Context) : View(context) {
     private var lastY = 0f
     private var pinchDistance = 0f
     private var activePiece = -1
+    // Keep a grabbed piece under the finger while the tabletop scrolls toward an offscreen target.
+    private val edgeScroller = object : Runnable {
+        override fun run() {
+            val id=activePiece
+            val g=game
+            if (id<0 || g==null) return
+            val band=56f*resources.displayMetrics.density
+            val maxShift=7f*resources.displayMetrics.density
+            val shiftX=when {
+                lastX<band -> ((band-lastX)/band).coerceIn(0f,1f)*maxShift
+                lastX>width-band -> -((lastX-width+band)/band).coerceIn(0f,1f)*maxShift
+                else -> 0f
+            }
+            val shiftY=when {
+                lastY<band -> ((band-lastY)/band).coerceIn(0f,1f)*maxShift
+                lastY>height-band -> -((lastY-height+band)/band).coerceIn(0f,1f)*maxShift
+                else -> 0f
+            }
+            if (shiftX!=0f || shiftY!=0f) {
+                panX+=shiftX;panY+=shiftY
+                val p=g.pieces[id]
+                g.movePiece(id,p.x-shiftX/(baseScale*zoom),p.y-shiftY/(baseScale*zoom))
+                invalidate()
+            }
+            postOnAnimation(this)
+        }
+    }
 
     init {
         isClickable = true
@@ -213,6 +240,8 @@ class PuzzleBoardView(context: Context) : View(context) {
                 activePiece=hitTest(worldX(event.x),worldY(event.y))
                 if (activePiece >= 0) {
                     drawOrder.remove(activePiece);drawOrder.add(activePiece)
+                    removeCallbacks(edgeScroller)
+                    postOnAnimation(edgeScroller)
                 }
                 parent?.requestDisallowInterceptTouchEvent(true)
                 invalidate()
@@ -269,6 +298,13 @@ class PuzzleBoardView(context: Context) : View(context) {
             }
         }
         return true
+    }
+
+    override fun onDetachedFromWindow() {
+        removeCallbacks(edgeScroller)
+        sprites.values.forEach { it.bitmap.recycle() }
+        sprites.clear()
+        super.onDetachedFromWindow()
     }
 
     override fun performClick(): Boolean { super.performClick(); return true }
