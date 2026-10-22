@@ -102,7 +102,8 @@ import org.mozilla.geckoview.WebResponse
 /**
  * Annie's independent, Firefox/Gecko-powered browser. Script-request browser cards deliberately
  * continue using their isolated WebView profiles; a normal browser must never join those profiles.
- * No source code is copied from Omni Browser; it is an architectural reference only.
+ * This host now integrates source-derived Omni session persistence and WebExtension services
+ * via AnnieBrowserEngineBridge. See third_party/omni-browser/README.md for source/terms.
  */
 internal object AnnieGeckoRuntime {
     private var runtime: GeckoRuntime? = null
