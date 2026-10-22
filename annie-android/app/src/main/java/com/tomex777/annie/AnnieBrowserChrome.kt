@@ -9,6 +9,12 @@
 package com.tomex777.annie
 
 import androidx.activity.compose.BackHandler
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.view.WindowInsetsControllerCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -99,6 +105,7 @@ internal data class AnnieBrowserChromeTab(
     val canForward: Boolean = false,
     val bookmarked: Boolean = false,
     val error: String? = null,
+    val fullscreen: Boolean = false,
 )
 
 internal data class AnnieBrowserChromeEntry(val title: String, val url: String)
@@ -133,6 +140,7 @@ internal class AnnieBrowserChromeActions(
     val openSaved: (String) -> Unit,
     val toggleDesktop: () -> Unit,
     val share: () -> Unit,
+    val exitFullscreen: (() -> Unit)? = null,
     /** Absent until Agent 1's GPLv3 Omni WebExtension engine is actually bound. */
     val universalCopy: ((Boolean) -> Unit)? = null,
 )
@@ -156,6 +164,7 @@ internal fun AnnieBrowserChrome(
 ) {
     val active = state.active ?: return
     val keyboard = LocalSoftwareKeyboardController.current
+    val context = LocalContext.current
     val focus = LocalFocusManager.current
     var address by rememberSaveable(active.id, stateSaver = TextFieldValue.Saver) {
         mutableStateOf(TextFieldValue(active.url.takeUnless { it == "about:blank" }.orEmpty()))
@@ -182,11 +191,21 @@ internal fun AnnieBrowserChrome(
     LaunchedEffect(active.id, active.url) {
         if (!editing) address = TextFieldValue(active.url.takeUnless { it == "about:blank" }.orEmpty())
     }
-    LaunchedEffect(find?.visible) {
-        if (find?.visible == true) {
+    LaunchedEffect(find?.visible, active.fullscreen) {
+        if (find?.visible == true && !active.fullscreen) {
             androidx.compose.runtime.withFrameNanos { }
             findFocus.requestFocus()
             keyboard?.show()
+        }
+    }
+    LaunchedEffect(active.fullscreen) {
+        if (active.fullscreen) {
+            tabsOpen = false
+            panel = null
+            menuOpen = false
+            find?.takeIf { it.visible }?.close()
+            focus.clearFocus(force = true)
+            keyboard?.hide()
         }
     }
     LaunchedEffect(navigationSerial, state.isNewTab) {
@@ -224,9 +243,10 @@ internal fun AnnieBrowserChrome(
         focus.clearFocus(force = true)
         keyboard?.hide()
     }
-    BackHandler(enabled = menuOpen || find?.visible == true ||
+    BackHandler(enabled = active.fullscreen || menuOpen || find?.visible == true ||
         panel != null || tabsOpen || editing || active.canBack) {
         when {
+            active.fullscreen -> (actions.exitFullscreen ?: actions.exit).invoke()
             menuOpen -> menuOpen = false
             find?.visible == true -> dismissFind()
             tabsOpen -> tabsOpen = false
@@ -237,11 +257,31 @@ internal fun AnnieBrowserChrome(
         }
     }
 
+    DisposableEffect(context, active.fullscreen) {
+        var owner: Context = context
+        while (owner is ContextWrapper && owner !is Activity) {
+            owner = owner.baseContext
+        }
+        val activity = owner as? Activity
+        if (activity != null && active.fullscreen) {
+            val controller = WindowInsetsControllerCompat(activity.window, activity.window.decorView)
+            controller.hide(WindowInsetsCompat.Type.systemBars())
+        }
+        onDispose {
+            if (activity != null && active.fullscreen) {
+                WindowInsetsControllerCompat(activity.window, activity.window.decorView)
+                    .show(WindowInsetsCompat.Type.systemBars())
+            }
+        }
+    }
+
     Column(
         modifier.fillMaxSize().background(BrowserNight)
-            .statusBarsPadding().navigationBarsPadding().imePadding()
+            .then(if (active.fullscreen) Modifier else Modifier
+                .statusBarsPadding().navigationBarsPadding().imePadding())
             .testTag("annie_gecko_browser"),
     ) {
+        if (!active.fullscreen) {
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 5.dp, vertical = 5.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -317,8 +357,9 @@ internal fun AnnieBrowserChrome(
                 }
             }
         }
+        }
 
-        if (find?.visible == true) {
+        if (!active.fullscreen && find?.visible == true) {
             Row(
                 Modifier.fillMaxWidth().background(ChromeSurface)
                     .padding(horizontal = 6.dp, vertical = 3.dp)
@@ -364,14 +405,14 @@ internal fun AnnieBrowserChrome(
             }
         }
 
-        if (active.loading) {
+        if (!active.fullscreen && active.loading) {
             LinearProgressIndicator(
                 progress = { (active.progress.coerceIn(0, 100)) / 100f },
                 modifier = Modifier.fillMaxWidth().height(2.dp),
                 color = BrowserTeal,
                 trackColor = ChromeSurface,
             )
-        } else {
+        } else if (!active.fullscreen) {
             Spacer(Modifier.height(2.dp))
         }
 
@@ -535,6 +576,7 @@ internal fun AnnieBrowserChrome(
                 }
             }
         }
+        if (!active.fullscreen) {
         Row(
             Modifier.fillMaxWidth().background(ChromeSurface).height(54.dp)
                 .padding(horizontal = 4.dp),
@@ -606,6 +648,7 @@ internal fun AnnieBrowserChrome(
                 }
             }
         }
+        }
     }
 }
 
@@ -622,6 +665,8 @@ internal fun AnnieLegacyGeckoBrowserChrome(
     /** Pass model::setUniversalCopy only after the actual Omni engine PR is integrated. */
     universalCopy: ((Boolean) -> Unit)? = null,
     find: AnnieBrowserChromeFind? = null,
+    fullscreen: Boolean = false,
+    exitFullscreen: (() -> Unit)? = null,
 ) {
     val tab = model.active ?: return
     val state = AnnieBrowserChromeState(
@@ -631,6 +676,7 @@ internal fun AnnieLegacyGeckoBrowserChrome(
                 loading = item.loading, progress = item.progress, canBack = item.canBack,
                 canForward = item.canForward, bookmarked = model.isBookmarked(item),
                 error = item.error,
+                fullscreen = item.id == tab.id && fullscreen,
             )
         },
         activeId = tab.id,
@@ -652,6 +698,7 @@ internal fun AnnieLegacyGeckoBrowserChrome(
             openSaved = { address -> model.load(tab, address) },
             toggleDesktop = { model.toggleDesktop(tab) },
             share = { model.share(tab) },
+            exitFullscreen = exitFullscreen,
             universalCopy = universalCopy,
         )
     }
