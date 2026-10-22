@@ -110,7 +110,7 @@ class MainActivity : ComponentActivity() {
                     result.onSuccess { chosen ->
                         picture=chosen.bitmap
                         game=PuzzleGame.fresh(game.cols,game.rows,chosen.photo.key,
-                            landscape=game.landscapeMode)
+                            landscape=game.landscapeMode,mode=game.mode)
                         store.save(game)
                         refresh()
                     }.onFailure {
@@ -530,7 +530,7 @@ class MainActivity : ComponentActivity() {
                             OutlinedButton(onClick={
                                 picture=SceneImage.create()
                                 game=PuzzleGame.fresh(game.cols,game.rows,"starter",
-                                    landscape=landscape)
+                                    landscape=landscape,mode=game.mode)
                                 store.save(game);revision++;libraryPicker=false
                             },modifier=Modifier.fillMaxWidth()) {
                                 Text("Mountain · starter illustration")
@@ -544,7 +544,7 @@ class MainActivity : ComponentActivity() {
                                 if(selected!=null) {
                                     picture=selected
                                     game=PuzzleGame.fresh(game.cols,game.rows,entry.key,
-                                        landscape=landscape)
+                                        landscape=landscape,mode=game.mode)
                                     store.save(game);revision++;libraryPicker=false
                                 }
                             },modifier=Modifier.weight(1f)) {
@@ -720,7 +720,8 @@ class MainActivity : ComponentActivity() {
                                             outcome.onSuccess { chosen ->
                                                 picture=chosen.bitmap
                                                 game=PuzzleGame.fresh(game.cols,game.rows,
-                                                    chosen.photo.key,landscape=landscape)
+                                                    chosen.photo.key,landscape=landscape,
+                                                    mode=game.mode)
                                                 store.save(game)
                                                 onlinePicker=false
                                                 revision++
