@@ -7,6 +7,11 @@ import android.view.ViewGroup
 import android.webkit.WebView
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Column
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.LifecycleRegistry
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.test.assertExists
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -179,6 +184,40 @@ class AnnieCanvasLifecycleTest {
         assertEquals("true", eval(web, "window.__annieCanvasHost.paused"))
         // Return to chat must not be confused with destructive Close Canvas.
         assertEquals("true", eval(web, "window.frames === " + before))
+    }
+
+    @Test fun hostLifecycleStopFreezesTimersWithoutUserPausingAndStartResumes() {
+        val owner = object : LifecycleOwner {
+            val registry = LifecycleRegistry(this)
+            override val lifecycle: Lifecycle = registry
+        }
+        compose.runOnIdle {
+            owner.registry.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
+            owner.registry.handleLifecycleEvent(Lifecycle.Event.ON_START)
+        }
+        compose.setContent {
+            AnnieTheme {
+                CompositionLocalProvider(LocalLifecycleOwner provides owner) {
+                    AnnieCanvasMessage(document("Background lifecycle"))
+                }
+            }
+        }
+        compose.waitUntil(10_000) { allCanvasWebViews().size == 1 }
+        val view = allCanvasWebViews().single()
+        compose.waitUntil(10_000) { eval(view, "window.ticks || 0").toInt() > 3 }
+        compose.runOnIdle { owner.registry.handleLifecycleEvent(Lifecycle.Event.ON_STOP) }
+        compose.waitUntil(8_000) { eval(view, "window.__annieCanvasHost.paused") == "true" }
+        val frozen = eval(view, "window.ticks").toInt()
+        SystemClock.sleep(160)
+        assertEquals("Backgrounded Canvas must not advance", frozen,
+            eval(view, "window.ticks").toInt())
+        compose.runOnIdle { owner.registry.handleLifecycleEvent(Lifecycle.Event.ON_START) }
+        compose.waitUntil(10_000) {
+            eval(view, "window.__annieCanvasHost.paused") == "false" &&
+                eval(view, "window.ticks").toInt() > frozen
+        }
+        assertTrue("Foreground restoration should retain its Canvas WebView",
+            allCanvasWebViews().single() === view)
     }
 
 }
