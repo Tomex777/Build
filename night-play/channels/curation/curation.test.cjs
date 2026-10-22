@@ -3,6 +3,7 @@ const test=require('node:test'),assert=require('node:assert/strict');
 const {normalizeMeme,normalizeNews,chooseFourMemes,chooseNews,memeScore,isDuplicate,hashNear,safeUrl}=require('./core.cjs');
 const {boundedGet,redditAdapter,rssNewsAdapter,licensedCatalogAdapter,parseFeed}=require('./sources.cjs');
 const NOW=Date.parse('2026-10-22T16:00:00Z');
+const TEST_REDDIT_UA='web:night.channels.tests:v1.0.0 (by /u/fixtureoperator)';
 function meme(id,overrides={}){
  return normalizeMeme({externalId:'t3_'+id,url:'https://www.reddit.com/r/funny/comments/'+id+'/post/?utm_source=x',
  sourceUrl:'https://www.reddit.com/r/funny/comments/'+id+'/post/',mediaUrl:'https://i.redd.it/'+id+'.jpg',
@@ -93,7 +94,7 @@ test('Reddit OAuth allowlist, historical top, unknown rights, throttle',async()=
  let request;const mocked={data:{after:'t3_abc123',children:[{data:{name:'t3_abc123',permalink:'/r/funny/comments/abc123/x/',
  url_overridden_by_dest:'https://i.redd.it/abc123.jpg',created_utc:NOW/1000,author:'poster',title:'Funny one',
  ups:100,upvote_ratio:.9,preview:{images:[{source:{width:700,height:900}}]}}}]}};
- const adapter=redditAdapter({tokenProvider:async()=> 'auth-token-abc123',subreddits:['funny'],
+ const adapter=redditAdapter({userAgent:TEST_REDDIT_UA,tokenProvider:async()=> 'auth-token-abc123',subreddits:['funny'],
  fetchImpl:async(url,opts)=>{request={url,opts};return new Response(JSON.stringify(mocked));}});
  await assert.rejects(adapter.discover({subreddit:'notApproved',now:NOW}),/authorized/);
  const out=await adapter.discover({subreddit:'funny',now:NOW});
@@ -103,7 +104,7 @@ test('Reddit OAuth allowlist, historical top, unknown rights, throttle',async()=
  await assert.rejects(adapter.discover({subreddit:'funny',now:NOW+500}),e=>e.status===429);
 });
 test('OAuth is mandatory; silent fallback to scraping is prohibited',async()=>{
- const adapter=redditAdapter({subreddits:['funny'],tokenProvider:async()=>''});
+ const adapter=redditAdapter({userAgent:TEST_REDDIT_UA,subreddits:['funny'],tokenProvider:async()=>''});
  await assert.rejects(adapter.discover({subreddit:'funny',now:NOW}),/Missing authorized/);
 });
 
@@ -171,12 +172,12 @@ test('corrupt Reddit post timestamps skip one post without failing entire batch'
  const raw={data:{after:null,children:[
  {data:{name:'t3_a',created_utc:99999999999999999,permalink:'/r/funny/a',url_overridden_by_dest:'https://i.redd.it/a.jpg'}},
  {data:{name:'t3_b',created_utc:NOW/1000,permalink:'/r/funny/b',url_overridden_by_dest:'https://i.redd.it/b.jpg'}}]}};
- const source=redditAdapter({subreddits:['funny'],tokenProvider:async()=> 'authorized-access-token',
+ const source=redditAdapter({userAgent:TEST_REDDIT_UA,subreddits:['funny'],tokenProvider:async()=> 'authorized-access-token',
  fetchImpl:async()=>new Response(JSON.stringify(raw))});
  assert.equal((await source.discover({subreddit:'funny',now:NOW})).items.length,1);
 });
 test('external app-wide quota hook can deny outbound Reddit API requests',async()=>{
- const source=redditAdapter({subreddits:['funny'],tokenProvider:async()=> 'authorized-access-token',claimQuota:async()=>false});
+ const source=redditAdapter({userAgent:TEST_REDDIT_UA,subreddits:['funny'],tokenProvider:async()=> 'authorized-access-token',claimQuota:async()=>false});
  await assert.rejects(source.discover({subreddit:'funny',now:NOW}),e=>e.status===429);
 });
 
@@ -198,7 +199,7 @@ test('four-card UI bridge flattens safe provenance but denies external image hot
 
 test('corrupt Reddit children are isolated per candidate rather than aborting all discovery',async()=>{
  const raw={data:{children:[null,{kind:'t3',data:null},{data:{name:'t3_good',created_utc:NOW/1000,permalink:'/r/funny/good',url_overridden_by_dest:'https://i.redd.it/good.jpg'}}]}};
- const adapter=redditAdapter({subreddits:['funny'],tokenProvider:async()=> 'authorized-access-token',fetchImpl:async()=>new Response(JSON.stringify(raw))});
+ const adapter=redditAdapter({userAgent:TEST_REDDIT_UA,subreddits:['funny'],tokenProvider:async()=> 'authorized-access-token',fetchImpl:async()=>new Response(JSON.stringify(raw))});
  const result=await adapter.discover({subreddit:'funny',now:NOW});assert.equal(result.items.length,1);
 });
 test('feed malformed HTML is rejected, not mistaken for zero news',()=>{
@@ -338,8 +339,14 @@ test('Reddit discovery refuses misleading off-subreddit paths and external image
   {name:'t3_dotpath',created_utc:NOW/1000,permalink:'/r/funny/../../admin',url_overridden_by_dest:'https://i.redd.it/path.jpg'},
   {name:'t3_external',created_utc:NOW/1000,permalink:'https://attacker.example/not-reddit',url_overridden_by_dest:'https://i.redd.it/external.jpg'}
  ];
- const source=redditAdapter({subreddits:['funny'],tokenProvider:async()=> 'authorized-access-token',fetchImpl:async()=>new Response(JSON.stringify({data:{children:candidates.map(data=>({data}))}}))});
+ const source=redditAdapter({userAgent:TEST_REDDIT_UA,subreddits:['funny'],tokenProvider:async()=> 'authorized-access-token',fetchImpl:async()=>new Response(JSON.stringify({data:{children:candidates.map(data=>({data}))}}))});
  const out=await source.discover({subreddit:'funny',now:NOW});
  assert.equal(out.items.length,1);assert.equal(out.items[0].source.externalId,'t3_allowed');
  assert.equal(out.items[0].publishable,false);
+});
+
+test('Reddit adapter requires an honestly configured app identity instead of fake default',()=>{
+ assert.throws(()=>redditAdapter({tokenProvider:async()=> 'fixture-access-token',subreddits:['funny']}),/registered Reddit app User-Agent/);
+ assert.throws(()=>redditAdapter({tokenProvider:async()=> 'fixture-access-token',userAgent:'NIGHTBot/1.0',subreddits:['funny']}),/registered Reddit app User-Agent/);
+ assert.throws(()=>redditAdapter({tokenProvider:async()=> 'fixture-access-token',userAgent:TEST_REDDIT_UA,subreddits:'funny'}),/array of approved subreddits/);
 });
