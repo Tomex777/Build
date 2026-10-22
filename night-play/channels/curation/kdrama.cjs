@@ -32,6 +32,10 @@ function interpretKDramaEntry(row,{showAliases=[],confirmedBySource={}}={}){
  const confirmed=confirmation?.verified===true&&!RUMOR.test(title);
  return {show:String(confirmation?.show||findShow(title,Array.isArray(showAliases)?showAliases:[])),event:confirmation?.event||event,
  tags,rumor:RUMOR.test(title),spoiler:SPOILER.test(title),confirmed,
- storyKey:typeof confirmation?.storyKey==='string'?confirmation.storyKey:null,eventDate:confirmation?.eventDate||null};
+ storyKey:typeof confirmation?.storyKey==='string'?confirmation.storyKey:null,eventDate:confirmation?.eventDate||null,
+  // Only server-verified metadata can assert where/when a show streams.
+  genre:confirmation?.verified===true?confirmation.genre||'':'',
+  platform:confirmation?.verified===true?confirmation.platform||'':'',
+  availabilityRegion:confirmation?.verified===true?confirmation.availabilityRegion||'':''};
 }
 module.exports={interpretKDramaEntry,EVENT_PATTERNS};
