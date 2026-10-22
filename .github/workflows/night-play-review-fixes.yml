@@ -1,0 +1,38 @@
+name: NIGHT Play Review Fixes Gameplay
+on:
+  pull_request:
+    paths:
+      - 'night-play/**'
+      - '.github/workflows/night-play-review-fixes.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  gameplay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm install --no-save playwright@1.56.1
+      - run: npx playwright install --with-deps chromium
+      - run: node night-play/qa/review-fixes.mjs
+      - name: Read tested drawing backend source for isolated integration QA
+        uses: actions/checkout@v5
+        with:
+          ref: 33e77157ccfba6285424922cf4812b5637b47bab
+          path: drawing-backend
+          persist-credentials: false
+      - name: Play remote drawing with two browsers and the real SQLite module
+        run: node night-play/draw/browser-qa.mjs
+        env:
+          NIGHT_DRAW_BACKEND_ROOT: drawing-backend
+      - name: Save real gameplay and viewport evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: night-play-review-fixes
+          path: night-play/visual-output/review-fixes/
+          retention-days: 14

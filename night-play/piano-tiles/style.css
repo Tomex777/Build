@@ -99,3 +99,5 @@ body.is-playing .piano-attribution{display:none}
 .song-now-title strong{font-size:13px;font-weight:820;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
 .song-now-title span{color:#7b8b87;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 @media(max-width:360px){.song-card{grid-template-columns:43px minmax(0,1fr) auto;gap:8px;padding:9px}.song-card-art{width:43px;height:43px}.song-card-title{font-size:13px}.song-play{min-width:55px;padding:0 8px}.song-favorite{width:28px}.song-card-art svg{width:25px;height:25px}}
+
+.song-card-meta{flex-wrap:wrap;row-gap:3px}

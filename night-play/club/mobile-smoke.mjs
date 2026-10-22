@@ -483,25 +483,10 @@ try{
   if(await page.locator(".color-card.playable").count())await page.locator(".color-card.playable").first().click();
   else await page.locator('[data-action="card-draw"]').click();
   await page.waitForTimeout(560);
+  // Legacy drawing links must route to the separate-device online game.
   await page.goto(base+"/club/?game=draw");
-  await page.locator('[data-action="draw-ready"]').click();
-  assert.ok((await page.locator(".secret").innerText()).includes("Artist's word"),"artist sees word before game");
-  await page.locator('[data-action="draw-ready"]').click();
-  await page.locator("#drawCanvas").waitFor();
-  const cv=await page.locator("#drawCanvas").boundingBox();
-  await page.mouse.move(cv.x+10,cv.y+10);await page.mouse.down();await page.mouse.move(cv.x+80,cv.y+80,{steps:3});await page.mouse.up();
-  const stroke=await page.locator("#drawCanvas").evaluate(el=>{
-    const p=el.getContext('2d').getImageData(40,40,1,1).data;
-    return p[3];
-  });
-  assert.ok(stroke>0,'Draw & Guess paints actual canvas pixels with touch pointer actions');
-  assert.equal(await page.locator("#guessWord").count(),0,'Artist draws before guessing; answer field stays hidden');
-  await page.locator('[data-action="draw-guess"]').click();
-  assert.equal(await page.locator('#guessWord').count(),1,'Handoff reveals the second player guess form');
-  assert.ok(await page.locator("#drawCanvas").evaluate(el=>el.getContext('2d').getImageData(40,40,1,1).data[3])>0,'Artwork survives player handoff');
-  await page.locator("#guessWord").fill("wrong answer");
-  await page.locator('#guessForm button[type="submit"]').click();
-  assert.ok(await page.locator("#guessLog li").count(),"wrong guesses produce feedback");
+  await page.waitForURL('**/draw/');
+  assert.equal(await page.locator('#drawCanvas').count(),0,'no same-phone drawing substitute');
   await page.goto(base+"/club/?game=snakes");
   assert.equal(await page.locator(".snakes-board .square").count(),100);
   await page.locator('[data-action="snakes-roll"]').click();
@@ -591,7 +576,7 @@ try{
   await page.locator('[data-checker="1"]').click();
   assert.equal(await page.locator('[data-checker="10"].target').count(),1,'crowned white king can legally move backwards');
   await page.screenshot({path:'night-play/visual-output/CHECKERS-KING-BACKWARD.jpg',type:'jpeg',quality:80});
-  for(const name of ["ludo","estate","whot","colors","draw","snakes","checkers"]){
+  for(const name of ["ludo","estate","whot","colors","snakes","checkers"]){
     await page.goto(base+"/club/?game="+name);
     assert.equal(await page.locator("#gameTitle").innerText(),({ludo:"Nigerian Ludo",estate:"NIGHT Estates",whot:"WHOT",colors:"Colour Clash",draw:"Draw & Guess",snakes:"Snakes & Ladders",checkers:"Draughts"})[name]);
     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2),"no sideways mobile scroll on "+name);

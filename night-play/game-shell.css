@@ -33,3 +33,8 @@
  .night-action-row{gap:7px}.night-action-row button{flex:1;min-width:0}
 }
 @media(prefers-reduced-motion:reduce){.night-shell-header *, .night-sheet *{animation:none!important;transition:none!important}}
+
+/* Shared links and touch targets retain the same behavior on every game. */
+a.night-back,a.night-brand{text-decoration:none}
+.night-sheet-close{width:44px;height:44px}
+@media(max-width:650px){.night-back,.night-settings{width:44px;min-width:44px;height:44px}}

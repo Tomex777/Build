@@ -10,7 +10,7 @@ import {chromium} from 'playwright';
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 const visual=join(root,'visual-output','piano-tiles');mkdirSync(visual,{recursive:true});
 const assets=new Set(['game-shell.css','piano-tiles/index.html','piano-tiles/style.css',
- 'piano-tiles/game.js','piano-tiles/piano-audio.js','piano-tiles/song-library.js',
+ 'piano-tiles/game.js','piano-tiles/piano-audio.js','piano-tiles/song-library.js','piano-tiles/full-scores.js',
  ...['C3','Fs3','A3','C4','Ds4','Fs4','A4','C5','Ds5','Fs5'].map(n=>'piano-tiles/samples/'+n+'.mp3')]);
 const contentType={'.js':'text/javascript','.html':'text/html','.css':'text/css','.mp3':'audio/mpeg'};
 const server=createServer((req,res)=>{

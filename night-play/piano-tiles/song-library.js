@@ -9,8 +9,26 @@ const songs=[
  {id:"endless",title:"Endless Piano",artist:"NIGHT Originals",genre:"Endless",difficulty:"Normal",infinite:true},
  {id:"frere",title:"Frère Jacques",artist:"French folk song",genre:"Traditional",difficulty:"Easy",legacy:true},
  {id:"twinkle",title:"Twinkle, Twinkle",artist:"English folk song",genre:"Traditional",difficulty:"Easy",legacy:true},
+ {id:"bach-prelude",title:"Prelude in C major, BWV 846",artist:"Johann Sebastian Bach",genre:"Classical",difficulty:"Hard",score:window.NightPianoFullScores?.["bach-prelude"]},
+ {id:"fur-elise",title:"Für Elise, WoO 59",artist:"Ludwig van Beethoven",genre:"Classical",difficulty:"Expert",score:window.NightPianoFullScores?.["fur-elise"]},
  ...classics,...originals
 ];
+// Complete familiar melody forms; the remaining repertoire is explicitly
+// presented as short melody studies rather than full classical compositions.
+const completeMelodies={
+ frere:['C4 D4 E4 C4 C4 D4 E4 C4 E4 F4 G4 E4 F4 G4 G4 A4 G4 F4 E4 C4 G4 A4 G4 F4 E4 C4 C4 G3 C4 C4 G3 C4', [10,13,19,25,28,31]],
+ twinkle:['C4 C4 G4 G4 A4 A4 G4 F4 F4 E4 E4 D4 D4 C4 G4 G4 F4 F4 E4 E4 D4 G4 G4 F4 F4 E4 E4 D4 C4 C4 G4 G4 A4 A4 G4 F4 F4 E4 E4 D4 D4 C4', [6,13,20,27,34,41]],
+ ode:['E4 E4 F4 G4 G4 F4 E4 D4 C4 C4 D4 E4 E4 D4 D4 E4 E4 F4 G4 G4 F4 E4 D4 C4 C4 D4 E4 D4 C4 C4 D4 D4 E4 C4 D4 E4 F4 E4 C4 D4 E4 F4 E4 D4 C4 D4 G3 E4 E4 F4 G4 G4 F4 E4 D4 C4 C4 D4 E4 D4 C4 C4', [14,29,46,61]],
+ mary:['E4 D4 C4 D4 E4 E4 E4 D4 D4 D4 E4 G4 G4 E4 D4 C4 D4 E4 E4 E4 E4 D4 D4 E4 D4 C4', [6,9,12,25]],
+ bridge:['G4 A4 G4 F4 E4 F4 G4 D4 E4 F4 E4 F4 G4 G4 A4 G4 F4 E4 F4 G4 D4 G4 E4 C4', [6,9,12,19,23]],
+ baa:['C4 C4 G4 G4 A4 A4 G4 F4 F4 E4 E4 D4 D4 C4 G4 G4 F4 F4 E4 E4 D4 G4 G4 F4 F4 E4 E4 D4 C4 C4 G4 G4 A4 A4 G4 F4 F4 E4 E4 D4 D4 C4', [6,13,20,27,34,41]],
+ row:['C4 C4 C4 D4 E4 E4 D4 E4 F4 G4 C5 C5 C5 G4 G4 G4 E4 E4 E4 C4 C4 C4 G4 F4 E4 D4 C4', [4,9,26]]
+};
+for(const song of songs){
+ const complete=completeMelodies[song.id];
+ if(complete){song.notes=complete[0].split(' ');song.holdIndices=complete[1];song.form='Complete melody';song.legacy=false;}
+ else song.form=song.score?'Complete score · adapted':song.infinite?'Endless':song.genre==='Original'?'Original study':'Melody excerpt';
+}
 const tones={C:0,D:2,E:4,F:5,G:7,A:9,B:11};
 function hz(token){
  const match=/^([A-G])([#b]?)([2-6])$/.exec(token);
@@ -19,19 +37,32 @@ function hz(token){
  return 440*Math.pow(2,(midi-69)/12);
 }
 function arrangement(song){
+ if(song?.score){
+  return song.score.events.map((event,i,all)=>{
+   const gap=(all[i+1]?.time??song.score.duration)-event.time;
+   const hold=gap>.65;
+   const chord=event.notes.map(midi=>440*Math.pow(2,(midi-69)/12));
+   return {lane:[0,2,1,3,0,3,1,2][i%8],freq:chord.at(-1),chord,at:1.35+event.time,
+    duration:hold?Math.min(3,gap-.35):0,hold,state:"waiting",pointer:null,start:0,scoreGiven:false,voice:null,flash:0};
+  });
+ }
+
  if(!song?.notes?.length)throw Error("Missing playable song arrangement");
  // Traditional songs follow their named melody; original arrangements have
  // evolving phrases and cadences so they aren't one endlessly cloned bar.
  const tune=song.notes.map(hz),original=song.genre==="Original";
- const full=original?[...tune,...tune.slice(0,8).map((_,i)=>tune[(i+4)%tune.length]),...tune.slice(8),...tune.slice(0,8)]:[...tune,...tune];
+ // Develop original studies with a contrasting middle phrase, then reprise
+ // the opening and resolve on the tonic. Named melodies play their actual form.
+ const bridge=original?tune.map((_,i)=>tune[(i+8)%tune.length]):[];
+ const full=original?[...tune,...bridge,...tune]:tune;
  const patterns=[0,2,1,3,0,3,1,2,0,2,3,1,2,0,3,1];
  let prev=-1;
  return full.map((freq,i)=>{
   let lane=patterns[(i+song.id.length*3)%patterns.length];
   if(lane===prev)lane=(lane+1)%4;
   prev=lane;
-  const hold=i>3 && (i+song.id.length)%17===16;
-  return {lane,freq,at:1.35+i*.59,duration:hold?.58:0,hold,state:"waiting",pointer:null,start:0,scoreGiven:false,voice:null,flash:0};
+  const hold=song.holdIndices?song.holdIndices.includes(i):i>3 && (i+song.id.length)%17===16;
+  return {lane,freq,at:1.35+i*.59,duration:hold?.68:0,hold,state:"waiting",pointer:null,start:0,scoreGiven:false,voice:null,flash:0};
  });
 }
 window.NightPianoSongLibrary=Object.freeze({songs:Object.freeze(songs),arrangement});

@@ -10,7 +10,7 @@ const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 const output=join(root,'visual-output','piano-tiles');mkdirSync(output,{recursive:true});
 const assets=new Set([
  'piano-tiles/index.html','piano-tiles/style.css','piano-tiles/game.js',
- 'piano-tiles/piano-audio.js','piano-tiles/song-library.js','game-shell.css',
+ 'piano-tiles/piano-audio.js','piano-tiles/song-library.js','piano-tiles/full-scores.js','game-shell.css',
  ...['C3','Fs3','A3','C4','Ds4','Fs4','A4','C5','Ds5','Fs5'].map(n=>'piano-tiles/samples/'+n+'.mp3')
 ]);
 const mime={'.js':'text/javascript','.html':'text/html','.css':'text/css','.mp3':'audio/mpeg'};
@@ -36,7 +36,7 @@ try{
   p.on('response',r=>{if(r.url().endsWith('.mp3'))samples.push(r.status())});
   await p.goto(origin+'/piano-tiles/',{waitUntil:'domcontentloaded'});
   assert.ok(await p.locator('.piano-attribution').isVisible(),'required sample credit visible');
-  assert.equal(await p.locator('[data-play]').count(),37,'expanded playable piano song catalogue');
+  assert.equal(await p.locator('[data-play]').count(),39,'expanded playable piano song catalogue');
   await p.locator('[data-play="endless"]').tap();
   await p.waitForFunction(()=>document.body.classList.contains('is-playing'),null,{timeout:30000});
   const instrument=await p.evaluate(()=>window.NightPiano.inspect());
