@@ -88,6 +88,26 @@
 <div class="section-heading" style="margin-bottom:0"><div><strong>AI responses</strong><p>Optional channel replies; not required for memes or news.</p></div>
 <label class="switch"><span>Enabled</span><input type="checkbox" data-module="ai" aria-label="Enable channel AI responses" disabled><span class="track" aria-hidden="true"></span></label></div>
 </section>
+<section class="config-section" aria-labelledby="brandingTitle">
+<div class="section-heading"><div><h2 id="brandingTitle">Caption &amp; watermark</h2><p>Signature credits the person posting. The image watermark uses this channel's exact verified name.</p></div></div>
+<div id="brandingUnavailable" class="config-banner" hidden>Branding controls are not available on NIGHT Bot yet.</div>
+<div id="brandingControls">
+<div class="section-heading"><div><strong>Caption signature</strong><p>Optional author credit below the caption; never the channel name.</p></div>
+<label class="switch"><span>Enabled</span><input type="checkbox" id="signatureEnabled" aria-label="Add poster signature"><span class="track" aria-hidden="true"></span></label></div>
+<label class="field"><span>Poster name for automatic posts (leave empty to omit signature)</span><input class="text-input" id="posterName" maxlength="70" autocomplete="off" placeholder="Name of the person credited"></label>
+<div class="section-heading" style="margin-top:19px"><div><strong>Image watermark</strong><p>Applied transparently to media. Does not modify the caption's author credit.</p></div>
+<label class="switch"><span>Enabled</span><input type="checkbox" id="watermarkEnabled" aria-label="Enable exact-channel-name watermark"><span class="track" aria-hidden="true"></span></label></div>
+<p class="config-note">Verified channel name: <strong id="watermarkName" style="color:#254935;overflow-wrap:anywhere"></strong></p>
+<div class="config-fields" style="margin-top:14px">
+<label class="field"><span>Watermark opacity</span><span class="choice-wrap"><select id="watermarkOpacity" class="choice-input"><option value="0.15">15% · Subtle</option><option value="0.2">20% · Balanced</option><option value="0.25">25% · Visible</option><option value="0.3">30% · Stronger</option></select></span></label>
+<label class="field"><span>Preferred corner</span><span class="choice-wrap"><select id="watermarkPosition" class="choice-input"><option value="bottom-right">Bottom right</option><option value="bottom-left">Bottom left</option><option value="top-right">Top right</option><option value="top-left">Top left</option></select></span></label>
+</div>
+<div class="action-row"><button id="saveBranding" type="button" class="btn primary">Save branding</button></div>
+</div></section>
+<dialog id="postPreview" aria-labelledby="postPreviewTitle" style="border:1px solid #dbe1da;border-radius:16px;max-width:min(94vw,480px);width:100%;padding:20px;background:#fff;box-shadow:0 18px 60px #17271b44;color:#1c2328">
+<div class="section-heading"><h2 id="postPreviewTitle" style="margin:0;font-size:18px">WhatsApp post preview</h2><button id="closePostPreview" type="button" class="btn" aria-label="Close preview">Close</button></div>
+<div id="postPreviewContent" aria-live="polite"></div>
+</dialog>
 <section class="config-section" aria-labelledby="jobsTitle">
 <div class="section-heading"><div><h2 id="jobsTitle">Publishing</h2><p>Actual queued, scheduled, sent and failed posts for this channel.</p></div><button type="button" id="refreshJobs" class="btn">Check status</button></div>
 <div id="jobs" class="job-list" aria-live="polite"><p class="config-note">Loading…</p></div>
