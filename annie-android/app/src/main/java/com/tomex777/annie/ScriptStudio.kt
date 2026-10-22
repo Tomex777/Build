@@ -224,8 +224,10 @@ private fun ScriptStudioContent(
     val scriptAssistant = remember { ScriptAssistant() }
     var assistOpen by remember { mutableStateOf(false) }
     val initialProjects = remember(workspace, initialProjectId) { workspace.files.listProjects() }
+    // Opening Files must not silently select the first project or file. A deep link
+    // from a command may select a specific project, but the plain Studio opens clear.
     val initialProject = remember(initialProjects, initialProjectId) {
-        initialProjects.firstOrNull { it.id == initialProjectId } ?: initialProjects.firstOrNull()
+        initialProjectId?.let { id -> initialProjects.firstOrNull { it.id == id } }
     }
     var projects by remember(initialProjectId) { mutableStateOf(initialProjects) }
     var selectedProjectId by remember(initialProjectId) { mutableStateOf(initialProject?.id) }
@@ -313,7 +315,8 @@ private fun ScriptStudioContent(
 
     fun refreshProjects(preferredProject: String? = selectedProjectId, preferredPath: String? = selectedPath) {
         projects = workspace.files.listProjects()
-        val project = projects.firstOrNull { it.id == preferredProject } ?: projects.firstOrNull()
+        // No implicit selection after deletion or reloading an unselected workspace.
+        val project = preferredProject?.let { id -> projects.firstOrNull { it.id == id } }
         selectedProjectId = project?.id
         val path = preferredPath?.takeIf { it in project?.files.orEmpty() } ?: project?.entryPath
         selectedPath = path
@@ -625,8 +628,10 @@ private fun ScriptStudioContent(
         }
 
         Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp).background(StudioSurface, RoundedCornerShape(13.dp)).padding(4.dp)) {
-            StudioPage.entries.forEach { destination ->
-                StudioTab(destination.title, page == destination, Modifier.weight(1f)) {
+            // The editor is a file destination, not a fourth top-level tab.
+            StudioPage.entries.filterNot { it == StudioPage.EDITOR }.forEach { destination ->
+                val inFileSection = page == StudioPage.EDITOR && destination == StudioPage.FILES
+                StudioTab(destination.title, page == destination || inFileSection, Modifier.weight(1f)) {
                     if (page != destination) {
                         codeEditor?.clearFocus()
                         focusManager.clearFocus(force = true)

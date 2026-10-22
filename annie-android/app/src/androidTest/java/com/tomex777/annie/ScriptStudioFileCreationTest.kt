@@ -28,6 +28,38 @@ import org.junit.runner.RunWith
 class ScriptStudioFileCreationTest {
     @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
 
+    @Test fun plainStudioOpensWithoutSelectingTheFirstFileOrShowingEditorTab() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val workspace = ScriptWorkspace(context)
+        val name = "unselected" + System.nanoTime().toString().takeLast(9)
+        val file = workspace.files.createScript(name)
+        val shown = mutableStateOf(true)
+        try {
+            compose.setContent { AnnieTheme {
+                if (shown.value) ScriptStudioSheet(workspace, {})
+            } }
+            compose.onNodeWithTag("script_tab_editor").assertDoesNotExist()
+            compose.onNodeWithText("Your JavaScript workspace").assertExists()
+            compose.onNodeWithTag("script_tab_files").assertExists()
+            compose.onNodeWithTag("script_tab_env").assertExists()
+            compose.onNodeWithTag("script_tab_api").assertExists()
+            compose.onNodeWithText(file.name, substring = false).performClick()
+            onView(isAssignableFrom(CodeEditor::class.java)).check { view, failure ->
+                if (failure != null) throw failure
+                assertTrue(view is CodeEditor)
+            }
+            // Editor is still reached from a chosen file and Files returns to browsing.
+            compose.onNodeWithText("Files", substring = false).performClick()
+            compose.onNodeWithText("New File").assertExists()
+            compose.onNodeWithTag("script_tab_editor").assertDoesNotExist()
+        } finally {
+            compose.runOnIdle { shown.value = false }
+            compose.waitForIdle()
+            workspace.close()
+            workspace.files.deleteProject(name)
+        }
+    }
+
     @Test fun typeSelectionCreatesHtmlAndExplicitCssExtensionOverridesIt() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val workspace = ScriptWorkspace(context)
@@ -79,7 +111,7 @@ class ScriptStudioFileCreationTest {
                 if (shown.value) ScriptStudioSheet(workspace, {}, initialProjectId = name,
                     onClose = { closed = true })
             } }
-            compose.onNodeWithTag("script_tab_editor").performClick()
+            compose.onNodeWithText(file.name, substring = false).performClick()
             // Replace the backing file with a directory to force a real write failure.
             assertTrue(file.delete())
             assertTrue(file.mkdir())
@@ -150,7 +182,7 @@ class ScriptStudioFileCreationTest {
             compose.onNodeWithTag("script_file_search").performTextInput(second.name)
             closeSoftKeyboard()
             compose.onNode(hasText(second.name, substring = false) and !hasTestTag("script_file_search")).performClick()
-            compose.onNodeWithTag("script_tab_editor").performClick()
+            compose.onNodeWithText("main.js", substring = false).performClick()
             onView(isAssignableFrom(CodeEditor::class.java)).check { view, failure ->
                 if (failure != null) throw failure
                 org.junit.Assert.assertEquals(secondSource, (view as CodeEditor).text.toString())
