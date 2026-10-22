@@ -9,6 +9,11 @@ const EVENT_PATTERNS=Object.freeze({
 });
 const RUMOR=/\b(?:rumou?r(?:ed|s)?|reportedly|unconfirmed|speculation|in talks|allegedly|may (?:star|join|return))\b/i;
 const SPOILER=/\b(?:spoilers?|finale? (?:explained|reveals|twist)|ending (?:explained|revealed)|dies? in episode|episode \d+ (?:recap|twist))\b/i;
+// Conservative additional gate: source metadata cannot override speculative/spoiler wording.
+function classifyHeadline(title){
+ const text=String(title||'');
+ return Object.freeze({rumor:RUMOR.test(text),spoiler:SPOILER.test(text)});
+}
 function quoteShow(title){
  const match=/(?:“([^”]{2,90})”|"([^"]{2,90})"|'([^']{2,90})')/.exec(title);
  return (match?.[1]||match?.[2]||match?.[3]||'').trim();
@@ -29,13 +34,14 @@ function interpretKDramaEntry(row,{showAliases=[],confirmedBySource={}}={}){
  const event=tags.find(x=>['casting','releases','trailers','renewals'].includes(x))||'update';
  const approved=confirmedBySource&&typeof confirmedBySource==='object'?confirmedBySource:{};
  const confirmation=Object.hasOwn(approved,row.guid)?approved[row.guid]:null;
- const confirmed=confirmation?.verified===true&&!RUMOR.test(title);
+ const flags=classifyHeadline(title);
+ const confirmed=confirmation?.verified===true&&!flags.rumor;
  return {show:String(confirmation?.show||findShow(title,Array.isArray(showAliases)?showAliases:[])),event:confirmation?.event||event,
- tags,rumor:RUMOR.test(title),spoiler:SPOILER.test(title),confirmed,
- storyKey:typeof confirmation?.storyKey==='string'?confirmation.storyKey:null,eventDate:confirmation?.eventDate||null,
+ tags,rumor:flags.rumor,spoiler:flags.spoiler,confirmed,
+ storyKey:confirmation?.verified===true&&typeof confirmation?.storyKey==='string'?confirmation.storyKey:null,eventDate:confirmation?.eventDate||null,
   // Only server-verified metadata can assert where/when a show streams.
   genre:confirmation?.verified===true?confirmation.genre||'':'',
   platform:confirmation?.verified===true?confirmation.platform||'':'',
   availabilityRegion:confirmation?.verified===true?confirmation.availabilityRegion||'':''};
 }
-module.exports={interpretKDramaEntry,EVENT_PATTERNS};
+module.exports={interpretKDramaEntry,EVENT_PATTERNS,classifyHeadline};
