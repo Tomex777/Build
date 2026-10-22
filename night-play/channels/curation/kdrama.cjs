@@ -40,13 +40,18 @@ function interpretKDramaEntry(row,{showAliases=[],confirmedBySource={}}={}){
  const guid=typeof row.guid==='string'&&row.guid.trim()&&row.guid.length<=256?row.guid:null;
  const confirmation=guid&&Object.hasOwn(approved,guid)?approved[guid]:null;
  const flags=classifyHeadline(title);
- const confirmed=confirmation?.verified===true&&!flags.rumor;
- return {show:String(confirmation?.show||findShow(title,Array.isArray(showAliases)?showAliases:[])),event:confirmation?.event||event,
+ // RSS GUIDs can be recycled or collide. A verified "Aurora" event must still
+ // visibly identify Aurora in the headline (or drop to review-only), otherwise
+ // one publisher's stale ledger would promote an unrelated news story.
+ const ledgerShow=typeof confirmation?.show==='string'?confirmation.show.trim():'';
+ const showMatches=!ledgerShow||!!findShow(title,[ledgerShow]);
+ const confirmed=confirmation?.verified===true&&!flags.rumor&&showMatches;
+ return {show:String(showMatches&&ledgerShow?ledgerShow:findShow(title,Array.isArray(showAliases)?showAliases:[])),event:showMatches&&confirmation?.event||event,
  tags,rumor:flags.rumor,spoiler:flags.spoiler,confirmed,
- storyKey:confirmation?.verified===true&&typeof confirmation?.storyKey==='string'?confirmation.storyKey:null,eventDate:confirmation?.eventDate||null,
-  // Only server-verified metadata can assert where/when a show streams.
-  genre:confirmation?.verified===true?confirmation.genre||'':'',
-  platform:confirmation?.verified===true?confirmation.platform||'':'',
-  availabilityRegion:confirmation?.verified===true?confirmation.availabilityRegion||'':''};
+ storyKey:confirmed&&typeof confirmation?.storyKey==='string'?confirmation.storyKey:null,eventDate:confirmed?confirmation?.eventDate||null:null,
+  // Never assert streaming availability based on a mismatched or speculative record.
+  genre:confirmed?confirmation.genre||'':'',
+  platform:confirmed?confirmation.platform||'':'',
+  availabilityRegion:confirmed?confirmation.availabilityRegion||'':''};
 }
 module.exports={interpretKDramaEntry,EVENT_PATTERNS,classifyHeadline};
