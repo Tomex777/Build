@@ -45,6 +45,17 @@ class FanSmokeTest {
         screenshot("sad")
     }
 
+    @Test fun favoritesAreAccessibleWithoutAnotherNavigationTab() {
+        rule.onNodeWithText("Favorites").performClick()
+        rule.onNodeWithTag("songs").performScrollToNode(hasText("Your favorites"))
+        rule.onNodeWithText("Your favorites").assertExists()
+        rule.onNodeWithText("No favorites yet").assertExists()
+        screenshot("favorites")
+        rule.onNodeWithText("Favorites").performClick()
+        rule.onNodeWithTag("songs").performScrollToNode(hasText("Every song, every mood"))
+        rule.onNodeWithText("Every song, every mood").assertExists()
+    }
+
     @Test fun songOpensAndOffersGenuineFileImportWithoutFakeStreaming() {
         rule.onNodeWithTag("songs").performScrollToNode(hasText("Lucid Dreams"))
         rule.onNodeWithText("Lucid Dreams").performClick()
