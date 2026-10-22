@@ -726,6 +726,7 @@ internal fun AnnieChat() {
                 }
             }
             Composer(
+                chatId = activeChatId,
                 value = draft,
                 onValueChange = {
                     chatDrafts[activeChatId] = it
@@ -3375,6 +3376,7 @@ private fun ContextSuggestedActions(
 @Composable
 internal fun Composer(
     value: TextFieldValue,
+    chatId: String = "",
     onValueChange: (TextFieldValue) -> Unit,
     onSuggestionSelected: (String) -> Unit = {},
     onContextActionSelected: (String) -> Unit = {},
@@ -3388,8 +3390,12 @@ internal fun Composer(
 ) {
     val context = LocalContext.current
     val latestDraft = androidx.compose.runtime.rememberUpdatedState(value.text)
+    var speechDialogChatId by remember { mutableStateOf<String?>(null) }
+    var speechPermissionChatId by remember { mutableStateOf<String?>(null) }
     val speechLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        if (result.resultCode == android.app.Activity.RESULT_OK) {
+        val origin = speechDialogChatId
+        speechDialogChatId = null
+        if (origin == chatId && result.resultCode == android.app.Activity.RESULT_OK) {
             val spoken = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull().orEmpty()
             if (spoken.isNotBlank()) {
                 val combined = appendRecognizedText(latestDraft.value, spoken)
@@ -3398,13 +3404,15 @@ internal fun Composer(
         }
     }
     val latestOnValueChange = androidx.compose.runtime.rememberUpdatedState(onValueChange)
-    val voiceNotes = rememberVoiceNoteController(onVoiceNote)
-    val dictation = remember(context) {
+    val voiceNotes = rememberVoiceNoteController(onVoiceNote, sessionKey = chatId)
+    val dictation = remember(context, chatId) {
         AnnieDictation(
             context = context,
             onText = { text -> latestOnValueChange.value(TextFieldValue(text, selection = TextRange(text.length))) },
             onUnavailable = {
-                // No in-app recognizer on this device: fall back to the system speech dialog.
+                // Don't append speech from chat A into chat B if the system dialog
+                // returns after a conversation switch.
+                speechDialogChatId = chatId
                 runCatching {
                     speechLauncher.launch(
                         Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
@@ -3427,8 +3435,12 @@ internal fun Composer(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
     val speechPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted) dictation.start(value.text)
-        else android.widget.Toast.makeText(context, "Allow microphone access to dictate.", android.widget.Toast.LENGTH_SHORT).show()
+        val origin = speechPermissionChatId
+        speechPermissionChatId = null
+        if (origin == chatId) {
+            if (granted) dictation.start(latestDraft.value)
+            else android.widget.Toast.makeText(context, "Allow microphone access to dictate.", android.widget.Toast.LENGTH_SHORT).show()
+        }
     }
     val voicePermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (!granted) android.widget.Toast.makeText(context, "Allow microphone access to record a voice note.", android.widget.Toast.LENGTH_SHORT).show()
@@ -3438,6 +3450,7 @@ internal fun Composer(
         if (context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
             dictation.start(value.text)
         } else {
+            speechPermissionChatId = chatId
             speechPermission.launch(Manifest.permission.RECORD_AUDIO)
         }
     }
