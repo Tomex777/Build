@@ -39,6 +39,10 @@ internal object SurfaceMicroTexture {
                 }
             }
         }
+        // Apply geology-dependent treatment after optional high-pass photo grain
+        // so the same generic source photo cannot erase body-specific patterns.
+        // These structures are simulated, never labelled as a landing photograph.
+        PlanetaryGrainTreatment.apply(planet, atlas)
         val pixels = ByteBuffer.allocateDirect(atlas.size)
             .apply { put(atlas); position(0) }
         val names = IntArray(1)
