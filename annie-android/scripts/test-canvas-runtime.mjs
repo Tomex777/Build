@@ -29,7 +29,7 @@ assert.match(nativeHost, /allowFileAccess\s*=\s*false/,
   'Canvas must still disable filesystem access');
 
 
-function realm(initiallyPaused = false, asyncAudio = false) {
+function realm(initiallyPaused = false, asyncAudio = false, nativeIdle = false) {
   let clock = 0;
   let id = 0;
   const pending = new Map();
@@ -90,6 +90,11 @@ function realm(initiallyPaused = false, asyncAudio = false) {
     cancelAnimationFrame: (key) => pending.delete(key),
     HTMLMediaElement, AudioContext,
   };
+  if (nativeIdle) {
+    window.requestIdleCallback = (callback) =>
+      schedule(() => callback({ didTimeout: false, timeRemaining: () => 5 }), 25);
+    window.cancelIdleCallback = (key) => pending.delete(key);
+  }
   const document = {
     documentElement: { classList: {
       add: (key) => css.add(key), remove: (key) => css.delete(key),
@@ -223,6 +228,19 @@ await Promise.resolve();
 await Promise.resolve();
 assert.equal(racedAudio.state, 'running',
   'Late native AudioContext.suspend resolution must not leave Canvas audio stuck');
+
+// WebView versions with a native requestIdleCallback use cancelIdleCallback,
+// rather than the timeout fallback. Both pathways must freeze correctly.
+const idleWebView = realm(false, false, true);
+let nativeIdleRuns = 0;
+idleWebView.window.requestIdleCallback(() => nativeIdleRuns++);
+idleWebView.window.__annieCanvasHost.pause();
+idleWebView.advance(100);
+assert.equal(nativeIdleRuns, 0);
+idleWebView.window.__annieCanvasHost.resume();
+idleWebView.advance(30);
+assert.equal(nativeIdleRuns, 1, 'Native idle callback should resume once');
+
 
 const c = realm(true);
 let startup = 0;
