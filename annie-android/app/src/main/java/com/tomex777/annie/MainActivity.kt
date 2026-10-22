@@ -3388,10 +3388,14 @@ internal fun Composer(
     inputEnabled: Boolean = true,
 ) {
     val context = LocalContext.current
+    val latestDraft = androidx.compose.runtime.rememberUpdatedState(value.text)
     val speechLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == android.app.Activity.RESULT_OK) {
             val spoken = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)?.firstOrNull().orEmpty()
-            if (spoken.isNotBlank()) onValueChange(TextFieldValue(spoken))
+            if (spoken.isNotBlank()) {
+                val combined = appendRecognizedText(latestDraft.value, spoken)
+                onValueChange(TextFieldValue(combined, selection = TextRange(combined.length)))
+            }
         }
     }
     val latestOnValueChange = androidx.compose.runtime.rememberUpdatedState(onValueChange)
@@ -3413,10 +3417,23 @@ internal fun Composer(
         )
     }
     androidx.compose.runtime.DisposableEffect(dictation) { onDispose { dictation.release() } }
+    // Recording notes already pause/cancel on background. Dictation must also release
+    // the recognizer on STOP, not wait for the whole Composer to be disposed.
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    androidx.compose.runtime.DisposableEffect(dictation, lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_STOP) dictation.release()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
     val speechPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (granted) dictation.start(value.text)
+        else android.widget.Toast.makeText(context, "Allow microphone access to dictate.", android.widget.Toast.LENGTH_SHORT).show()
     }
-    val voicePermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { _ -> }
+    val voicePermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (!granted) android.widget.Toast.makeText(context, "Allow microphone access to record a voice note.", android.widget.Toast.LENGTH_SHORT).show()
+    }
     fun startSpeechRecognition() {
         if (dictation.listening) { dictation.stop(); return }
         if (context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
@@ -3465,7 +3482,7 @@ internal fun Composer(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            if (!voiceNotes.recording) Surface(color = Bubble, shape = CircleShape, modifier = Modifier.size(44.dp).clickable(onClick = onMenu).testTag("composer_tools")) {
+            if (!voiceNotes.recording) Surface(color = Bubble, shape = CircleShape, modifier = Modifier.size(48.dp).clickable(onClick = onMenu).testTag("composer_tools")) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = AnnieIcons.Add,
@@ -3475,7 +3492,7 @@ internal fun Composer(
                     )
                 }
             }
-            if (!voiceNotes.recording) Surface(color = if (dictation.listening) Color(0xFFFF4D4D) else Bubble, shape = CircleShape, modifier = Modifier.size(44.dp).clickable(onClick = ::startSpeechRecognition).testTag("composer_speech")) {
+            if (!voiceNotes.recording) Surface(color = if (dictation.listening) Color(0xFFFF4D4D) else Bubble, shape = CircleShape, modifier = Modifier.size(48.dp).clickable(onClick = ::startSpeechRecognition).testTag("composer_speech")) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = AnnieIcons.Dictation,
@@ -3526,12 +3543,12 @@ internal fun Composer(
                 )
             }
             if (value.text.isBlank()) {
-                if (voiceNotes.locked) androidx.compose.foundation.layout.Spacer(Modifier.size(46.dp))
+                if (voiceNotes.locked) androidx.compose.foundation.layout.Spacer(Modifier.size(48.dp))
                 else VoiceHoldButton(voiceNotes, onNeedPermission = { voicePermission.launch(Manifest.permission.RECORD_AUDIO) })
             } else Surface(
                 color = Blue,
                 shape = CircleShape,
-                modifier = Modifier.size(46.dp).clickable(onClick = onSend).testTag("send_message"),
+                modifier = Modifier.size(48.dp).clickable(onClick = onSend).testTag("send_message"),
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(
