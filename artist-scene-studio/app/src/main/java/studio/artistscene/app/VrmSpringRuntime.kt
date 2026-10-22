@@ -43,18 +43,44 @@ internal class VrmSpringRuntime private constructor(
     private val reusableParent = FloatArray(16)
     private val reusableRoot = FloatArray(16)
 
+    private fun restoreSpring(root: SpringRoot, actor: Actor): Boolean {
+        if (!manager.hasComponent(root.entity)) return false
+        val matrix = root.scratch
+        System.arraycopy(root.restMatrix, 0, matrix, 0, 16)
+        val authored = root.boundPoseId?.let { actor.rig?.joints?.get(it) } ?: Vec3()
+        Matrix.rotateM(matrix, 0, authored.x, 1f, 0f, 0f)
+        Matrix.rotateM(matrix, 0, authored.y, 0f, 1f, 0f)
+        Matrix.rotateM(matrix, 0, authored.z, 0f, 0f, 1f)
+        manager.setTransform(root.instance, matrix)
+        root.motion.reset()
+        root.wasEnabled = false
+        return true
+    }
+
     val hairCount: Int = roots.count { it.category == "hair" }
     val fabricCount: Int = roots.count { it.category == "fabric" }
 
     fun advance(actor: Actor, nanoTime: Long) {
         val appearance = actor.appearance
-        if (!actor.visible || actor.animation.playing ||
-            (!appearance.hairPhysicsEnabled && !appearance.fabricPhysicsEnabled)) {
+        val noPhysics = !appearance.hairPhysicsEnabled && !appearance.fabricPhysicsEnabled
+        if (!actor.visible || actor.animation.playing || noPhysics) {
             if (!suspended) {
-                roots.forEach { root -> root.motion.reset() }
+                // Unlike invisible actors or authored clip playback, switching
+                // BOTH physics categories off must restore real joint transforms
+                // immediately. Resetting numerical spring state alone would
+                // leave the rendered mesh in its last simulated bend.
+                var restored = false
+                roots.forEach { root ->
+                    if (noPhysics && actor.visible && !actor.animation.playing &&
+                        root.wasEnabled && restoreSpring(root, actor)) {
+                        restored = true
+                    } else {
+                        root.motion.reset()
+                        root.wasEnabled = false
+                    }
+                }
+                if (restored) model.animator.updateBoneMatrices()
                 suspended = true
-                // The normal bind/morph restore occurs in FilamentRigRuntime.apply
-                // when artist settings change or animation playback is toggled.
             }
             lastFrameNs = nanoTime
             return
@@ -86,18 +112,12 @@ internal class VrmSpringRuntime private constructor(
                 // The other category may still be playing, so the global
                 // suspend branch is not entered. Restore this spring's joint
                 // exactly once rather than leaving a bent strand/skirt frozen.
-                if (root.wasEnabled && manager.hasComponent(root.entity)) {
-                    val matrix = root.scratch
-                    System.arraycopy(root.restMatrix, 0, matrix, 0, 16)
-                    val authored = root.boundPoseId?.let { actor.rig?.joints?.get(it) } ?: Vec3()
-                    Matrix.rotateM(matrix, 0, authored.x, 1f, 0f, 0f)
-                    Matrix.rotateM(matrix, 0, authored.y, 0f, 1f, 0f)
-                    Matrix.rotateM(matrix, 0, authored.z, 0f, 0f, 1f)
-                    manager.setTransform(root.instance, matrix)
-                    root.motion.reset()
+                if (root.wasEnabled && restoreSpring(root, actor)) {
                     changed = true
+                } else {
+                    root.motion.reset()
+                    root.wasEnabled = false
                 }
-                root.wasEnabled = false
                 return@forEach
             }
             root.wasEnabled = true
