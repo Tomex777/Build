@@ -40,6 +40,39 @@ function fillChecks(id,items){
  const current=new Set(Array.isArray(items)?items:[]);
  for(const node of $(id).querySelectorAll('input'))node.checked=current.has(node.value);
 }
+function replacementRow(rule={}){
+ const row=make('div','replacement-row');
+ const from=make('input','text-input'),to=make('input','text-input');
+ from.type=to.type='text';from.maxLength=80;to.maxLength=120;
+ from.placeholder='Original phrase';to.placeholder='Replace with';
+ from.setAttribute('aria-label','Original word or phrase');
+ to.setAttribute('aria-label','Replacement text');
+ from.value=typeof rule.from==='string'?rule.from:'';
+ to.value=typeof rule.to==='string'?rule.to:'';
+ const remove=make('button','btn','Remove');remove.type='button';
+ remove.addEventListener('click',()=>row.remove());
+ row.append(from,to,remove);
+ $('replacementRows').append(row);
+}
+function paintReplacements(rules){
+ $('replacementRows').replaceChildren();
+ for(const item of Array.isArray(rules)?rules.slice(0,32):[])if(item&&typeof item==='object')replacementRow(item);
+}
+function readReplacements(){
+ const rows=[...$('replacementRows').children];
+ if(rows.length>32)throw Error('Use 32 or fewer caption replacements.');
+ const seen=new Set(),rules=[];
+ for(const row of rows){
+   const [fromInput,toInput]=row.querySelectorAll('input');
+   const from=fromInput.value.trim(),to=toInput.value;
+   if(!from&&!to)continue;
+   if(!from||from.length>80||to.length>120||/[\r\n]/.test(from))throw Error('Enter a valid phrase (maximum 80 characters) for each replacement.');
+   const key=from.normalize('NFC').toLocaleLowerCase('en');
+   if(seen.has(key))throw Error('Each replacement phrase must be unique.');
+   seen.add(key);rules.push({from,to});
+ }
+ return rules;
+}
 function paintConfig(){
  const m=config.modules;
  MODULES.forEach(id=>{const input=document.querySelector('[data-module="'+id+'"]');if(input){input.checked=m[id]===true;input.disabled=configBusy||(id==='ai'&&config.capabilities?.ai!==true)}});
@@ -56,12 +89,14 @@ function paintConfig(){
  $('brandingControls').hidden=!branding;
  $('brandingUnavailable').hidden=Boolean(branding);
  if(branding){
+   $('captionReplacementsEnabled').checked=branding.captionReplacementsEnabled===true;
+   paintReplacements(branding.captionReplacements);
    $('signatureEnabled').checked=branding.signatureEnabled===true;
    $('posterName').value=typeof branding.posterName==='string'?branding.posterName:'';
    $('watermarkEnabled').checked=branding.watermarkEnabled===true;
-   const alpha=[0.15,0.2,0.25,0.3].includes(branding.watermarkOpacity)?branding.watermarkOpacity:0.2;
+   const alpha=[0.15,0.2,0.22,0.25,0.3].includes(branding.watermarkOpacity)?branding.watermarkOpacity:0.22;
    $('watermarkOpacity').value=String(alpha);
-   $('watermarkPosition').value=['bottom-left','bottom-right','top-left','top-right'].includes(branding.watermarkPosition)?branding.watermarkPosition:'bottom-right';
+   $('watermarkPosition').value=['auto','bottom-left','bottom-right','top-left','top-right'].includes(branding.watermarkPosition)?branding.watermarkPosition:'auto';
  }
  $('watermarkName').textContent=channel?.name||'';
  $('configUI').hidden=false;$('state').hidden=true;
@@ -108,14 +143,23 @@ function attachControls(){
    if(!categories.length){note('Choose at least one meme category.',true);return;}
    changeConfig({memes:{mode:$('memeMode').value,categories,dailyLimit:Number($('memeDaily').value),localTime:$('memeTime').value,timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC'}},$('saveMemes'));
  });
+ $('addReplacement').addEventListener('click',()=>{
+   if($('replacementRows').children.length>=32){note('Maximum 32 caption replacements.',true);return;}
+   replacementRow();$('replacementRows').lastElementChild.querySelector('input')?.focus();
+ });
  $('saveBranding').addEventListener('click',()=>{
    if(!config?.branding)return;
+   let captionReplacements;
+   try{captionReplacements=readReplacements();}catch(error){note(errorMessage(error),true);return;}
+   const captionReplacementsEnabled=$('captionReplacementsEnabled').checked;
+   if(captionReplacementsEnabled&&!captionReplacements.length){note('Add a caption replacement before enabling the word swaps.',true);return;}
    const posterName=$('posterName').value.trim();
    const signatureEnabled=$('signatureEnabled').checked;
    if(signatureEnabled&&!posterName){
      note('An automatic post needs an explicitly credited person. Enter a poster name or disable the signature.',true);return;
    }
    changeConfig({branding:{
+     captionReplacementsEnabled,captionReplacements,
      signatureEnabled,posterName,watermarkEnabled:$('watermarkEnabled').checked,
      watermarkOpacity:Number($('watermarkOpacity').value),
      watermarkPosition:$('watermarkPosition').value
