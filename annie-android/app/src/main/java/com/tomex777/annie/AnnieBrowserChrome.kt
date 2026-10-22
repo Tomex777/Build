@@ -191,11 +191,21 @@ internal fun AnnieBrowserChrome(
     LaunchedEffect(active.id, active.url) {
         if (!editing) address = TextFieldValue(active.url.takeUnless { it == "about:blank" }.orEmpty())
     }
-    LaunchedEffect(find?.visible) {
-        if (find?.visible == true) {
+    LaunchedEffect(find?.visible, active.fullscreen) {
+        if (find?.visible == true && !active.fullscreen) {
             androidx.compose.runtime.withFrameNanos { }
             findFocus.requestFocus()
             keyboard?.show()
+        }
+    }
+    LaunchedEffect(active.fullscreen) {
+        if (active.fullscreen) {
+            tabsOpen = false
+            panel = null
+            menuOpen = false
+            find?.takeIf { it.visible }?.close()
+            focus.clearFocus(force = true)
+            keyboard?.hide()
         }
     }
     LaunchedEffect(navigationSerial, state.isNewTab) {
