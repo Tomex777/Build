@@ -91,4 +91,31 @@ class ChatInsetTest {
         saveEmulatorScreenshot("annie-agent5-composer-targets")
     }
 
+    @Test fun unsentDraftsStayWithinTheirChatsWhenSwitchingPersonas() {
+        val context = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext
+        compose.onNodeWithTag("chat_history_button").performClick()
+        compose.onNodeWithTag("drawer_new_chat").performClick()
+        val firstId = compose.run {
+            waitForIdle()
+            ChatHistoryStore.read(context).first().id
+        }
+        compose.onNodeWithTag("composer_input").performTextInput("first unsent draft")
+        compose.onNodeWithTag("chat_history_button").performClick()
+        compose.onNodeWithTag("drawer_new_chat").performClick()
+        val secondId = compose.run {
+            waitForIdle()
+            ChatHistoryStore.read(context).first().id
+        }
+        assertTrue("New chat reused the original identity", firstId != secondId)
+        compose.onNodeWithTag("composer_input").assertTextEquals("")
+        compose.onNodeWithTag("composer_input").performTextInput("second unsent draft")
+        compose.onNodeWithTag("chat_history_button").performClick()
+        compose.onNodeWithTag("drawer_chat_$firstId").performClick()
+        compose.onNodeWithTag("composer_input").assertTextEquals("first unsent draft")
+        compose.onNodeWithTag("chat_history_button").performClick()
+        compose.onNodeWithTag("drawer_chat_$secondId").performClick()
+        compose.onNodeWithTag("composer_input").assertTextEquals("second unsent draft")
+        saveEmulatorScreenshot("annie-agent5-per-chat-drafts")
+    }
+
 }
