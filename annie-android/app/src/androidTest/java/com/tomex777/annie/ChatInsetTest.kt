@@ -111,9 +111,11 @@ class ChatInsetTest {
         compose.onNodeWithTag("composer_input").performTextInput("second unsent draft")
         compose.onNodeWithTag("chat_history_button").performClick()
         compose.onNodeWithTag("drawer_chat_$firstId").performClick()
+        assertEquals("Selected conversation was not persisted", firstId, ChatHistoryStore.read(context).first().id)
         compose.onNodeWithTag("composer_input").assertTextEquals("first unsent draft")
         compose.onNodeWithTag("chat_history_button").performClick()
         compose.onNodeWithTag("drawer_chat_$secondId").performClick()
+        assertEquals(secondId, ChatHistoryStore.read(context).first().id)
         compose.onNodeWithTag("composer_input").assertTextEquals("second unsent draft")
         saveEmulatorScreenshot("annie-agent5-per-chat-drafts")
         compose.activityRule.scenario.recreate()
@@ -121,6 +123,7 @@ class ChatInsetTest {
         compose.onNodeWithTag("composer_input").assertTextEquals("second unsent draft")
         compose.onNodeWithTag("chat_history_button").performClick()
         compose.onNodeWithTag("drawer_chat_$firstId").performClick()
+        assertEquals("Selected conversation was not persisted", firstId, ChatHistoryStore.read(context).first().id)
         compose.onNodeWithTag("composer_input").assertTextEquals("first unsent draft")
     }
 
