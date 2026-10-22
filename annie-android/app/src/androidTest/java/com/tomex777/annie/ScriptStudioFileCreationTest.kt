@@ -144,6 +144,7 @@ class ScriptStudioFileCreationTest {
         val workspace = ScriptWorkspace(context)
         val suffix = System.nanoTime().toString().takeLast(8)
         val sources = mapOf(
+            "js" to "throw new Error('imported code cannot execute before review');",
             "ts" to "const answer: number = 42;",
             "py" to "print('hello')",
             "lua" to "print('hello')",
@@ -213,6 +214,12 @@ class ScriptStudioFileCreationTest {
             assertTrue("Duplicate import must not overwrite project", oneId != twoId)
             org.junit.Assert.assertEquals("body{}", workspace.files.readFile(oneId, onePath))
             org.junit.Assert.assertEquals("p{}", workspace.files.readFile(twoId, twoPath))
+            val (longId, longPath) = studioImportTextDocument(
+                workspace.files, "long" + "v".repeat(115) + ".html", "<p>Long name</p>",
+            )
+            importedIds += longId
+            assertTrue("Sanitized name must satisfy Android project file constraints", longPath.length <= 64)
+            org.junit.Assert.assertEquals("<p>Long name</p>", workspace.files.readFile(longId, longPath))
         } finally {
             workspace.close()
             importedIds.forEach { runCatching { workspace.files.deleteProject(it) } }
