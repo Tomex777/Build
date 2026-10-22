@@ -66,6 +66,13 @@ const busyPreview=await watermarkStaticImage({input:busyPng,channelId:a,displayN
   position:'auto',sharpLibrary:sharp,renderText:renderer});
 assert.ok(busyPreview.warnings.some(w=>/visually busy/.test(w)),
   'Dense content needs a real placement review, not a false OCR guarantee');
+// Extremely tall static images must sample enough overlay-area rows for
+// correct bright-background contrast (64x64 fixed thumbnails lose this).
+const tallSource=await sharp({create:{width:320,height:2800,channels:3,background:'#eeeeee'}}).png().toBuffer();
+const tallResult=await watermarkStaticImage({input:tallSource,channelId:a,
+  displayName:'Tall Channel',position:'auto',sharpLibrary:sharp,renderText:renderer});
+assert.equal(tallResult.tone,'dark','Bright tall image must receive dark-ink watermark');
+assert.ok(['top-left','top-right','bottom-left','bottom-right'].includes(tallResult.position));
 const tooManyPixels=await sharp({create:{width:2500,height:1800,channels:3,background:'#abc'}}).jpeg().toBuffer();
 await assert.rejects(()=>watermarkStaticImage({input:tooManyPixels,channelId:a,
   displayName:'NIGHT',sharpLibrary:sharp,renderText:renderer}),/pixel|limit|bounded/i,
