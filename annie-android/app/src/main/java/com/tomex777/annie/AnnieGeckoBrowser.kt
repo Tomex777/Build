@@ -597,7 +597,7 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
         if (autoLoad) {
             // A failure or Gecko version mismatch safely falls back to the saved URL.
             val recovered = if (!privateMode && persistedId != null)
-                upstreamEngine.restoreNormalTab(tab.id) else null
+                upstreamEngine.restoreNormalTab(tab.id, url) else null
             if (recovered == null) session.loadUri(url)
             else runCatching { session.restoreState(recovered) }
                 .onFailure { session.loadUri(url) }

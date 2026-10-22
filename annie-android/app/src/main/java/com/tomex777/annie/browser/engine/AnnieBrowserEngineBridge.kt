@@ -32,8 +32,8 @@ internal class AnnieBrowserEngineBridge(context: Context, runtime: GeckoRuntime)
         label = "Universal Copy"
     )
 
-    fun restoreNormalTab(tabId: String): GeckoSession.SessionState? =
-        sessions.readDurableState(tabId)
+    fun restoreNormalTab(tabId: String, expectedUrl: String): GeckoSession.SessionState? =
+        sessions.readDurableState(tabId, expectedUrl)
 
     fun checkpoint(
         tabId: String,

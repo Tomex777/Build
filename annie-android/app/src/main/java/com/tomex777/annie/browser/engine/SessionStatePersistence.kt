@@ -141,10 +141,11 @@ class SessionStatePersistence(private val baseDir: File) {
      * Read the latest durable SessionState for a tab.
      * Returns null if no durable state exists or if the state is too stale.
      */
-    fun readDurableState(tabId: String): GeckoSession.SessionState? {
+    fun readDurableState(tabId: String, expectedUrl: String? = null): GeckoSession.SessionState? {
         // 1. Check in-memory cache.
         if (forgottenTabs.contains(tabId)) return null
         durableStateCache[tabId]?.let { cached ->
+            if (!canRestore(cached, expectedUrl)) return null
             return try {
                 GeckoSession.SessionState.fromString(String(cached.sessionStateBytes, Charsets.UTF_8))
             } catch (e: Exception) {
@@ -154,7 +155,7 @@ class SessionStatePersistence(private val baseDir: File) {
         }
 
         // 2. Read from disk.
-        return readFromDisk(tabId)
+        return readFromDisk(tabId, expectedUrl)
     }
 
     /**
@@ -172,6 +173,7 @@ class SessionStatePersistence(private val baseDir: File) {
                 try {
                     val stateJson = statesObj.getJSONObject(tabId)
                     val omniState = AnnieSessionState.fromJson(stateJson)
+                    if (!canRestore(omniState, null)) return@forEach
                     val geckoState = GeckoSession.SessionState.fromString(String(omniState.sessionStateBytes, Charsets.UTF_8))
                         ?: return@forEach
                     durableStateCache[tabId] = omniState
@@ -307,7 +309,13 @@ class SessionStatePersistence(private val baseDir: File) {
         }
     }
 
-    private fun readFromDisk(tabId: String): GeckoSession.SessionState? {
+    /** No private or unrelated URL may be restored as an existing normal tab. */
+    private fun canRestore(state: AnnieSessionState, expectedUrl: String?): Boolean =
+        state.schemaVersion == AnnieSessionState.CURRENT_SCHEMA_VERSION &&
+        !state.metadata.isIncognito &&
+        (expectedUrl == null || state.metadata.url == expectedUrl)
+
+    private fun readFromDisk(tabId: String, expectedUrl: String?): GeckoSession.SessionState? {
         if (forgottenTabs.contains(tabId)) return null
         val file = File(baseDir, SESSION_STATE_FILE)
         if (!file.exists()) return null
@@ -318,6 +326,7 @@ class SessionStatePersistence(private val baseDir: File) {
             if (!statesObj.has(tabId)) return null
             val stateJson = statesObj.getJSONObject(tabId)
             val omniState = AnnieSessionState.fromJson(stateJson)
+            if (!canRestore(omniState, expectedUrl)) return null
             durableStateCache[tabId] = omniState
             GeckoSession.SessionState.fromString(String(omniState.sessionStateBytes, Charsets.UTF_8))
         } catch (e: Exception) {
