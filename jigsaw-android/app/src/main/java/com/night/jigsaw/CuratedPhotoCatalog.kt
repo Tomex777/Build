@@ -74,7 +74,7 @@ class CuratedPhotoDownloader(private val store: PuzzleStore,
                 }
             }
             check(received>0) { "Empty image." }
-            return store.importPhoto(Uri.fromFile(file),photo.title)
+            return store.importPhoto(Uri.fromFile(file),photo.title,"Unsplash")
         } finally {
             connection.disconnect()
             file.delete()
