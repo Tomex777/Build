@@ -417,21 +417,6 @@ async function handleNumbers(ctx) {
     return ctx.reply('I could not match those song numbers. Try: 1 or 1,3,5 or 1-4')
   }
 
-  if (parsed.selected.length === 1) {
-    const chosen = parsed.selected[0]
-    if (chosen?.cover && typeof ctx.sendImageUrl === 'function') {
-      try {
-        await ctx.sendImageUrl(chosen.cover, [
-          `*${chosen.title}*`,
-          chosen.artist ? `Artist: ${chosen.artist}` : '',
-          chosen.album ? `Album: ${chosen.album}` : '',
-        ].filter(Boolean).join('\n'))
-      } catch (error) {
-        console.warn('MSCC music cover failed:', error?.code || error?.name || 'Error')
-      }
-    }
-  }
-
   // Progress messages make slow extractor/provider calls visible in WhatsApp.
   // One progress message is updated rather than sending per-source spam.
   let progress = null
@@ -473,6 +458,25 @@ async function handleNumbers(ctx) {
     }
     if (!result.ok) return fail(result.outcome)
     if (result.text) messages.push(result.text)
+  }
+
+  // Artwork should not precede audio: a failed attachment previously left
+  // only a cover image that looked like the song had been sent.
+  if (parsed.selected.length === 1) {
+    const chosen = parsed.selected[0]
+    if (chosen?.cover && typeof ctx.sendImageUrl === 'function') {
+      try {
+        await ctx.sendImageUrl(chosen.cover, [
+          `*${chosen.title}*`,
+          chosen.artist
+            ? `${chosen.rawSourceId === 'youtube' ? 'Uploader' : 'Artist'}: ${chosen.artist}`
+            : '',
+          chosen.album ? `Album: ${chosen.album}` : '',
+        ].filter(Boolean).join('\n'))
+      } catch (error) {
+        console.warn('MSCC music cover failed:', error?.code || error?.name || 'Error')
+      }
+    }
   }
 
   // Keep one successful single-track choice available briefly for a retry
