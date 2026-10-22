@@ -249,7 +249,10 @@ private fun ScriptStudioContent(
     var dialogTitle by remember { mutableStateOf<String?>(null) }
     var dialogValue by remember { mutableStateOf("") }
     var dialogAction by remember { mutableStateOf<(String) -> Unit>({}) }
-    var query by remember { mutableStateOf("") }
+    // Browsing and in-editor Find are different tasks. A filename filter must
+    // never silently become a text-search pattern after opening a document.
+    var fileSearch by remember { mutableStateOf("") }
+    var editorSearch by remember { mutableStateOf("") }
     var replacement by remember { mutableStateOf("") }
     var replaceOpen by remember { mutableStateOf(false) }
     var codeEditor by remember { mutableStateOf<CodeEditor?>(null) }
@@ -730,7 +733,7 @@ private fun ScriptStudioContent(
                     })
                 }
 
-                StudioInput(query, { query = it }, "Search files", Modifier.fillMaxWidth().padding(horizontal = 14.dp), tag = "script_file_search")
+                StudioInput(fileSearch, { fileSearch = it }, "Search files", Modifier.fillMaxWidth().padding(horizontal = 14.dp), tag = "script_file_search")
                 if (projects.isEmpty()) {
                     EmptyStudioState("No scripts yet", "Create a file or folder to start a script project.")
                 } else {
@@ -741,8 +744,8 @@ private fun ScriptStudioContent(
                         projects.forEach { project ->
                             val isFolder = File(workspace.files.root, project.id).isDirectory
                             val shown = if (isFolder) project.name else project.entryPath
-                            val projectMatches = shown.contains(query, true)
-                            val projectHasMatchingFile = isFolder && project.files.keys.any { it.contains(query, true) }
+                            val projectMatches = shown.contains(fileSearch, true)
+                            val projectHasMatchingFile = isFolder && project.files.keys.any { it.contains(fileSearch, true) }
                             if (projectMatches || projectHasMatchingFile) {
                                 item(key = "project:${project.id}") {
                                     ScriptFileRow(
@@ -840,8 +843,8 @@ private fun ScriptStudioContent(
                                 }
                                 childDirectories.filter { child ->
                                     val childPath = if (normalizedDirectory.isBlank()) child else "$normalizedDirectory/$child"
-                                    projectMatches || child.contains(query, true) ||
-                                        project.files.keys.any { path -> path.startsWith("$childPath/") && path.contains(query, true) }
+                                    projectMatches || child.contains(fileSearch, true) ||
+                                        project.files.keys.any { path -> path.startsWith("$childPath/") && path.contains(fileSearch, true) }
                                 }.forEach { child ->
                                     val childPath = if (normalizedDirectory.isBlank()) child else "$normalizedDirectory/$child"
                                     item(key = "dir:" + project.id + ":" + childPath) {
@@ -858,7 +861,7 @@ private fun ScriptStudioContent(
                                         )
                                     }
                                 }
-                                childFiles.filter { projectMatches || it.contains(query, true) }.forEach { path ->
+                                childFiles.filter { projectMatches || it.contains(fileSearch, true) }.forEach { path ->
                                     item(key = "file:" + project.id + ":" + path) {
                                         ScriptFileRow(
                                             name = path.substringAfterLast('/'),
@@ -928,15 +931,15 @@ private fun ScriptStudioContent(
                         Spacer(Modifier.width(7.dp))
                         StudioAction("Run", emphasized = true, icon = StudioGlyph.RUN, onClick = { saveScript(runAfterSave = true) }, enabled = !saving && isExecutableScript(path))
                     }
-                    val matches = remember(query, editorValue.text) {
-                        if (query.isBlank()) 0 else Regex(Regex.escape(query), RegexOption.IGNORE_CASE).findAll(editorValue.text).count()
+                    val matches = remember(editorSearch, editorValue.text) {
+                        if (editorSearch.isBlank()) 0 else Regex(Regex.escape(editorSearch), RegexOption.IGNORE_CASE).findAll(editorValue.text).count()
                     }
                     Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(7.dp)) {
-                        StudioInput(query, { query = it }, "Find in file", Modifier.weight(1f), tag = "script_find_query")
-                        StudioAction("Find", icon = StudioGlyph.FIND, enabled = query.isNotBlank(), onClick = {
-                            codeEditor?.searcher?.search(query, EditorSearcher.SearchOptions(EditorSearcher.SearchOptions.TYPE_NORMAL, true))
+                        StudioInput(editorSearch, { editorSearch = it }, "Find in file", Modifier.weight(1f), tag = "script_find_query")
+                        StudioAction("Find", icon = StudioGlyph.FIND, enabled = editorSearch.isNotBlank(), onClick = {
+                            codeEditor?.searcher?.search(editorSearch, EditorSearcher.SearchOptions(EditorSearcher.SearchOptions.TYPE_NORMAL, true))
                         })
-                        Text(if (query.isBlank()) "" else "$matches", color = StudioMuted, fontSize = 11.sp)
+                        Text(if (editorSearch.isBlank()) "" else "$matches", color = StudioMuted, fontSize = 11.sp)
                         StudioIconAction(StudioGlyph.REPLACE, "Find and replace", onClick = { replaceOpen = !replaceOpen })
                         StudioIconAction(StudioGlyph.UNDO, "Undo", enabled = codeEditor?.text?.canUndo() == true, onClick = { codeEditor?.undo() })
                         StudioIconAction(StudioGlyph.REDO, "Redo", enabled = codeEditor?.text?.canRedo() == true, onClick = { codeEditor?.redo() })
@@ -948,14 +951,14 @@ private fun ScriptStudioContent(
                             StudioAction("Replace", enabled = matches > 0, contentDescription = "Replace next match", onClick = {
                                 codeEditor?.let { editor ->
                                     val source = editor.text.toString()
-                                    val pattern = Regex(Regex.escape(query), RegexOption.IGNORE_CASE)
+                                    val pattern = Regex(Regex.escape(editorSearch), RegexOption.IGNORE_CASE)
                                     val next = pattern.find(source, editor.text.cursor.left.coerceIn(0, source.length)) ?: pattern.find(source)
                                     next?.let { editor.text.replace(it.range.first, it.range.last + 1, replacement) }
                                 }
                             })
                             StudioAction("All", enabled = matches > 0, contentDescription = "Replace all matches", onClick = {
                                 codeEditor?.let { editor ->
-                                    val pattern = Regex(Regex.escape(query), RegexOption.IGNORE_CASE)
+                                    val pattern = Regex(Regex.escape(editorSearch), RegexOption.IGNORE_CASE)
                                     val source = editor.text.toString()
                                     // Content.replace retains the editor undo history. Treat
                                     // replacement literally, including dollar signs/backslashes.
