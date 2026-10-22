@@ -239,6 +239,8 @@ class MainActivity : ComponentActivity() {
         var difficultyPicker by remember { mutableStateOf(false) }
         var zonePicker by remember { mutableStateOf(false) }
         var libraryPicker by remember { mutableStateOf(false) }
+        var onlinePicker by remember { mutableStateOf(false) }
+        var downloading by remember { mutableStateOf<String?>(null) }
         openLibrary={libraryPicker=true}
         refresh={ revision++ }
         val landscape=LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
@@ -321,6 +323,12 @@ class MainActivity : ComponentActivity() {
                     },modifier=Modifier.fillMaxWidth()) {
                         Text("Add a picture from your phone")
                     }
+                    OutlinedButton(onClick={
+                        libraryPicker=false
+                        onlinePicker=true
+                    },modifier=Modifier.fillMaxWidth()) {
+                        Text("Browse downloadable puzzles")
+                    }
                     val savedPhotos=remember(libraryPicker){store.listPhotos()}
                     LazyColumn(Modifier.heightIn(max=320.dp),
                         verticalArrangement=Arrangement.spacedBy(5.dp)) {
@@ -361,6 +369,63 @@ class MainActivity : ComponentActivity() {
                 }
             },
             confirmButton={TextButton(onClick={libraryPicker=false}){Text("Close")}}
+        )
+
+        if(onlinePicker) AlertDialog(
+            onDismissRequest={if(downloading==null)onlinePicker=false},
+            title={Text("Downloadable photographs")},
+            text={
+                Column(verticalArrangement=Arrangement.spacedBy(8.dp)) {
+                    Text("14 handpicked puzzles · online download once, then play offline. Downloads use data.",
+                        fontSize=12.sp,color=muted)
+                    LazyColumn(Modifier.heightIn(max=360.dp),
+                        verticalArrangement=Arrangement.spacedBy(6.dp)) {
+                        items(CuratedPhotoCatalog.photos,key={it.id}) { candidate ->
+                            OutlinedButton(
+                                enabled=downloading==null,
+                                onClick={
+                                    downloading=candidate.id
+                                    Thread {
+                                        val outcome=runCatching {
+                                            CuratedPhotoDownloader(store,cacheDir)
+                                                .download(candidate)
+                                        }
+                                        runOnUiThread {
+                                            downloading=null
+                                            outcome.onSuccess { chosen ->
+                                                picture=chosen.bitmap
+                                                game=PuzzleGame.fresh(game.cols,game.rows,
+                                                    chosen.photo.key,landscape=landscape)
+                                                store.save(game)
+                                                onlinePicker=false
+                                                revision++
+                                            }.onFailure { error ->
+                                                Toast.makeText(this@MainActivity,
+                                                    error.message ?: "Download failed",
+                                                    Toast.LENGTH_LONG).show()
+                                            }
+                                        }
+                                    }.start()
+                                },
+                                modifier=Modifier.fillMaxWidth()) {
+                                Column(Modifier.weight(1f)) {
+                                    Text(candidate.title,maxLines=1,
+                                        overflow=TextOverflow.Ellipsis)
+                                    Text(candidate.category+" · Unsplash",
+                                        fontSize=11.sp,color=muted)
+                                }
+                                Spacer(Modifier.width(8.dp))
+                                Text(if(downloading==candidate.id) "Saving…" else "Get")
+                            }
+                        }
+                    }
+                    Text("Images: Unsplash License. Provider attribution is shown on each picture.",
+                        fontSize=11.sp,color=muted)
+                }
+            },
+            confirmButton={TextButton(
+                enabled=downloading==null,
+                onClick={onlinePicker=false}){Text("Close")}}
         )
 
         if(zonePicker && game.zoneCount>1) AlertDialog(
