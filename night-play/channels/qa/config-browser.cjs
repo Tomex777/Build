@@ -31,8 +31,8 @@ function clone(x){return JSON.parse(JSON.stringify(x));}
 function isOwn(owner,id){return (owner==='A'&&id===A)||(owner==='B'&&id===B);}
 const server=http.createServer(async(req,res)=>{
  const u=new URL(req.url,'http://127.0.0.1'), route=u.pathname;
- if(route==='/site-shell.css'||route==='/channels/config/style.css'||route==='/channels/config/app.js'||route==='/channels/config/index.html'){
-  const file=route==='/site-shell.css'?'site-shell.css':route.replace(/^\//,'');
+ if(route==='/site-shell.css'||route==='/channels/index.html'||route==='/channels/'||route==='/channels/config/style.css'||route==='/channels/config/app.js'||route==='/channels/config/index.html'){
+  const file=route==='/site-shell.css'?'site-shell.css':route==='/channels/'?'channels/index.html':route.replace(/^\//,'');
   const target=path.resolve(root,file);
   if(!target.startsWith(root+path.sep)||!fs.existsSync(target)){res.writeHead(404);return res.end('Missing source');}
   res.writeHead(200,{'Content-Type':file.endsWith('.js')?'application/javascript':file.endsWith('.css')?'text/css':'text/html'});
@@ -119,7 +119,14 @@ async function main(){
   for(const width of [320,360,390,412,1280]){
    const ctx=await context(browser,'A',width,width===1280?900:844),page=await ctx.newPage(),errors=[];
    page.on('pageerror',e=>errors.push(e.message));
-   await page.goto(base+'/channels/config/?channel='+encodeURIComponent(A));
+   if(width===390){
+     await page.goto(base+'/channels/');
+     await page.getByRole('link',{name:'Configure '+name}).waitFor();
+     await page.screenshot({path:path.join(output,'verified-owner-channel-route-390.png'),fullPage:true});
+     await page.getByRole('link',{name:'Configure '+name}).click();
+     assert.match(new URL(page.url()).pathname,/^\\/channels\\/config\\//,
+       'Verified channel configure action remains inside the combined site');
+   }else await page.goto(base+'/channels/config/?channel='+encodeURIComponent(A));
    await page.getByRole('heading',{name:'Configure channel'}).waitFor();
    await page.locator('#configUI:visible').waitFor();
    for(const module of ['memes','news','anonymous','ai'])
