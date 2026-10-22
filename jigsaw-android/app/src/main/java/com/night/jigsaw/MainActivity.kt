@@ -8,6 +8,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -39,6 +42,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.getValue
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -50,6 +55,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -183,14 +189,20 @@ class MainActivity : ComponentActivity() {
                 }
             }
             if(paused && !solved) {
-                Surface(shape=RoundedCornerShape(16.dp),color=Color(0xFFF7F5F0)) {
-                    Column(Modifier.padding(22.dp),
-                        horizontalAlignment=Alignment.CenterHorizontally) {
-                        Text("Paused",fontWeight=FontWeight.Bold,fontSize=22.sp)
-                        Spacer(Modifier.height(8.dp))
-                        Text(clockText(game.elapsedSeconds),color=muted)
-                        Spacer(Modifier.height(10.dp))
-                        Button(onClick=onResume) {Text("Resume")}
+                // Full overlay prevents the native puzzle from accepting
+                // concealed drag gestures while the game is paused.
+                Box(Modifier.fillMaxSize()
+                    .background(Color(0xDD232F2A)).clickable(onClick={}),
+                    contentAlignment=Alignment.Center) {
+                    Surface(shape=RoundedCornerShape(16.dp),color=Color(0xFFF7F5F0)) {
+                        Column(Modifier.padding(24.dp),
+                            horizontalAlignment=Alignment.CenterHorizontally) {
+                            Text("Paused",fontWeight=FontWeight.Bold,fontSize=22.sp)
+                            Spacer(Modifier.height(8.dp))
+                            Text(clockText(game.elapsedSeconds),color=muted)
+                            Spacer(Modifier.height(10.dp))
+                            Button(onClick=onResume) {Text("Resume")}
+                        }
                     }
                 }
             }
@@ -503,7 +515,7 @@ class MainActivity : ComponentActivity() {
                                         landscape=landscape)
                                     store.save(game);revision++;libraryPicker=false
                                 }
-                            },modifier=Modifier.fillMaxWidth()) {
+                            },modifier=Modifier.weight(1f)) {
                                 val thumbnail=remember(entry.key) {
                                     store.loadThumbnail(entry.key)?.asImageBitmap()
                                 }
