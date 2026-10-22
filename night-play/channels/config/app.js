@@ -112,7 +112,7 @@ function paintConfig(){
 }
 async function changeConfig(patch,control){
  if(configBusy||!config)return;
- const prior=config;configBusy=true;
+ const prior=config;configBusy=true;updateReview();
  for(const element of document.querySelectorAll('[data-module],#saveMemes,#saveNews,#saveBranding'))element.disabled=true;
  control&&setBusy(control,true);
  try{
