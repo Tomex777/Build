@@ -164,8 +164,9 @@ function chooseCorner(data,channels,w,h,layerRatioWidth,layerRatioHeight){
   let best='bottom-right',bestScore=Infinity;
   const tones={},scores={};
   const gap=Math.max(1,Math.round(Math.min(w,h)*.025));
-  const layerW=Math.max(1,Math.min(w-2*gap,Math.round(w*layerRatioWidth)));
-  const layerH=Math.max(1,Math.min(h-2*gap,Math.round(h*layerRatioHeight)));
+  // Ensure the projected region contains several samples on very tall media.
+  const layerW=Math.max(3,Math.min(w-2*gap,Math.round(w*layerRatioWidth)));
+  const layerH=Math.max(3,Math.min(h-2*gap,Math.round(h*layerRatioHeight)));
   const lum=(x,y)=>{
     const i=(y*w+x)*channels;
     return .2126*data[i]+.7152*data[i+1]+.0722*data[i+2];
@@ -213,8 +214,11 @@ export async function watermarkStaticImage({
   if(w<240||h<140)throw new Error('Image too small for a legible watermark with edge padding.');
   const layerWidth=Math.min(800,Math.max(200,Math.floor(w*.67)));
   const layerHeight=Math.max(64,Math.min(144,Math.floor(layerWidth*.18),Math.floor(h*.30)));
+  // A fixed 64x64 square compresses a tall 320x2800 image so severely that
+  // a 64px watermark occupies <2 sampled rows; preserve more vertical detail.
+  const sampleHeight=Math.min(256,Math.max(64,Math.round(64*h/w)));
   const thumb=await sharp(input,{limitInputPixels:MAX_PIXELS}).timeout({seconds:15}).rotate()
-    .resize(64,64,{fit:'fill'}).removeAlpha().raw().toBuffer({resolveWithObject:true});
+    .resize(64,sampleHeight,{fit:'fill'}).removeAlpha().raw().toBuffer({resolveWithObject:true});
   const decision=chooseCorner(thumb.data,thumb.info.channels,thumb.info.width,thumb.info.height,
     layerWidth/w,layerHeight/h);
   const usePosition=position==='auto'?decision.position:position;
