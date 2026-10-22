@@ -53,4 +53,13 @@ const auto=await prepareChannelContent({
   branding:{signatureEnabled:true,signaturePosterName:'Curator Ada'}
 });
 assert.equal(auto.caption,'Hello\n\n> Curator Ada');
+const uiAuto=await prepareChannelContent({
+  text:'Hello',sourceKind:'automation',
+  branding:{signatureEnabled:true,posterName:'TOMEX'}
+});
+assert.equal(uiAuto.caption,'Hello\n\n> TOMEX');
+await assert.rejects(()=>prepareChannelContent({
+  text:'Hello',sourceKind:'automation',
+  branding:{signatureEnabled:true,posterName:'Ada',signaturePosterName:'Sade'}
+}),/Conflicting/,'Two diverging author fields cannot silently pick a different identity');
 console.log('Channel branding preview/send transform contract: PASS');
