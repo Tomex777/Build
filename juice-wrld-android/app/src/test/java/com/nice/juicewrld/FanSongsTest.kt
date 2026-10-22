@@ -43,6 +43,8 @@ class FanSongsTest {
         assertNull(SongFileMatcher.matchFilename("Lucid Dreams (slowed).mp3"))
         assertNull(SongFileMatcher.matchFilename("Somebody Else.mp3"))
         assertNull(SongFileMatcher.matchFilename("Lucid Dreams.exe"))
+        assertNull(SongFileMatcher.matchFilename("Fast.mp3"))
+        assertEquals("fast", SongFileMatcher.matchFilename("Juice WRLD - Fast.mp3")?.id)
         assertEquals("im-still", SongFileMatcher.matchFilename("Juice WRLD - Im Still.mp3")?.id)
         assertEquals("go-hard-20", SongFileMatcher.matchFilename("Juice WRLD - Go Hard 2.0.mp3")?.id)
     }
