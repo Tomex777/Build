@@ -133,6 +133,9 @@ a.window.clearTimeout(cancellation);
 const frameCancellation = a.window.requestAnimationFrame(
   () => { throw Error('Canceled rAF executed'); });
 a.window.cancelAnimationFrame(frameCancellation);
+const idleCancellation = a.window.requestIdleCallback(
+  () => { throw Error('Canceled idle work executed'); });
+a.window.cancelIdleCallback(idleCancellation);
 let intervalCalls = 0;
 const canceledInterval = a.window.setInterval(() => {
   intervalCalls++;
@@ -173,12 +176,18 @@ await nextAudio.resume();
 assert.equal(nextAudio.state, 'suspended', 'New AudioContext must remain paused');
 
 let delayed = 0;
+let idleExecutions = 0;
 a.window.setTimeout(() => delayed++, 75);
+a.window.requestIdleCallback((deadline) => {
+  assert.equal(typeof deadline.timeRemaining, 'function');
+  idleExecutions++;
+});
 a.advance(500);
 b.advance(500);
 assert.equal(ticksA, before.ticksA, 'Host paused intervals must freeze');
 assert.equal(framesA, before.framesA, 'Host paused frames must freeze');
 assert.equal(delayed, 0, 'Timeouts scheduled during pause must freeze');
+assert.equal(idleExecutions, 0, 'Idle callbacks must not burn CPU during host Pause');
 assert.ok(ticksB > before.ticksB, 'Other Canvas timers must remain independent');
 
 a.window.__annieCanvasHost.resume();
@@ -186,6 +195,7 @@ a.advance(80);
 assert.ok(ticksA > before.ticksA);
 assert.ok(framesA > before.framesA);
 assert.equal(delayed, 1);
+assert.equal(idleExecutions, 1, 'Suspended idle callbacks resume exactly once');
 assert.ok(frameTime - before.frameTime <= 96, 'rAF must not jump by paused duration');
 assert.equal(animation.playState, 'running');
 assert.equal(audio.state, 'running');
