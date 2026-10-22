@@ -89,6 +89,12 @@ class SurfaceControlRuntimeTest {
                 floatArrayOf(moveX + 10f * density, lookX + 110f),
                 floatArrayOf(moveY - 51f * density, lookY - 65f))
             SystemClock.sleep(280)
+            // A slow software GLES frame need not have rendered yet. A real
+            // move event commits held input independently of frame cadence.
+            send(view, down, MotionEvent.ACTION_MOVE,
+                intArrayOf(0, 1),
+                floatArrayOf(moveX + 10f * density, lookX + 110f),
+                floatArrayOf(moveY - 51f * density, lookY - 65f))
 
             val moved = renderer.surfaceCoordinates()
             val yawAfter = renderer.surfaceOrientation().first
@@ -167,6 +173,8 @@ class SurfaceControlRuntimeTest {
                 floatArrayOf(moveY - 51f * density, secondY))
             val beforeHandoff = renderer.surfaceCoordinates()
             SystemClock.sleep(210)
+            send(view, handoffAt, MotionEvent.ACTION_MOVE, intArrayOf(5),
+                floatArrayOf(secondX), floatArrayOf(secondY))
             assertTrue("Second left thumb did not inherit movement",
                 renderer.surfaceCoordinates() != beforeHandoff)
             send(view, handoffAt, MotionEvent.ACTION_UP, intArrayOf(5),
@@ -193,6 +201,9 @@ class SurfaceControlRuntimeTest {
                 intArrayOf(11, 12), floatArrayOf(lookX + 90f, moveX),
                 floatArrayOf(lookY - 45f, moveY - 51f * density))
             SystemClock.sleep(230)
+            send(view, lookFirst, MotionEvent.ACTION_MOVE,
+                intArrayOf(11, 12), floatArrayOf(lookX + 90f, moveX),
+                floatArrayOf(lookY - 45f, moveY - 51f * density))
             assertTrue("Look-first gesture lost later left-thumb movement",
                 renderer.surfaceCoordinates() != leftBefore)
             assertTrue("Look-first gesture did not turn camera",
