@@ -329,3 +329,17 @@ test('review card previews refuse encoded traversal, query strings and third-par
  assert.equal(toReviewCard(item,{previewUrl:'/api/channel-assets/preview/abc123.webp'}).publishable,true);
  assert.equal(safeUrl('https://sub.localhost/internal'),null);
 });
+
+test('Reddit discovery refuses misleading off-subreddit paths and external images',async()=>{
+ const candidates=[
+  {name:'t3_allowed',created_utc:NOW/1000,permalink:'/r/funny/comments/allowed/title',url_overridden_by_dest:'https://i.redd.it/allowed.jpg'},
+  {name:'t3_unsafehost',created_utc:NOW/1000,permalink:'/r/funny/comments/unsafe/title',url_overridden_by_dest:'https://other.example/picture.jpg'},
+  {name:'t3_othercommunity',created_utc:NOW/1000,permalink:'/r/private/comments/wrong/title',url_overridden_by_dest:'https://i.redd.it/wrong.jpg'},
+  {name:'t3_dotpath',created_utc:NOW/1000,permalink:'/r/funny/../../admin',url_overridden_by_dest:'https://i.redd.it/path.jpg'},
+  {name:'t3_external',created_utc:NOW/1000,permalink:'https://attacker.example/not-reddit',url_overridden_by_dest:'https://i.redd.it/external.jpg'}
+ ];
+ const source=redditAdapter({subreddits:['funny'],tokenProvider:async()=> 'authorized-access-token',fetchImpl:async()=>new Response(JSON.stringify({data:{children:candidates.map(data=>({data}))}}))});
+ const out=await source.discover({subreddit:'funny',now:NOW});
+ assert.equal(out.items.length,1);assert.equal(out.items[0].source.externalId,'t3_allowed');
+ assert.equal(out.items[0].publishable,false);
+});
