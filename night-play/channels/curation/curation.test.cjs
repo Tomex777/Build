@@ -491,3 +491,15 @@ test('GUID reused for another series cannot silently verify a different show',()
  assert.equal(real.storyKey,'aurora:season2');
  assert.equal(real.platform,'Viki');
 });
+
+test('unverified news cannot forge a canonical fingerprint shared with official article',()=>{
+ const official={id:'source1',trustedHost:'studio.example',official:true};
+ const press={id:'source2',trustedHost:'press.example',official:false};
+ const common={title:'“Aurora” season two release announced',show:'Aurora',event:'releases',
+  publishedAt:new Date(NOW).toISOString(),tags:['releases'],storyKey:'aurora:release:2026'};
+ const one=normalizeNews({...common,url:'https://studio.example/a',confirmed:true},official,{now:NOW});
+ const second=normalizeNews({...common,url:'https://press.example/a',confirmed:false},press,{now:NOW});
+ assert.notEqual(one.fingerprint,second.fingerprint,'Unverified newsroom cannot assign canonical official storyKey');
+ assert.equal(one.verification,'official');assert.equal(second.verification,'unverified');
+ assert.deepEqual(chooseNews([one,second],{enabled:true,mode:'automatic',now:NOW}),[one]);
+});
