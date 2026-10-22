@@ -25,4 +25,18 @@ function toReviewCard(item,{previewUrl,previewData}={}){
   provenance:{sourceId:item.source?.id||'',externalId:item.source?.externalId||'',attributionRequired:item.source?.attributionRequired===true}
  });
 }
-module.exports={toReviewCard};
+// The UI's existing validBatch contract requires EXACTLY four distinct cards.
+// Reject incomplete, duplicate or uncached sets here instead of returning a
+// partial success that would erase review context on Next four.
+function toReviewBatch(items,previewsById){
+ if(!Array.isArray(items)||items.length!==4)throw new Error('Exactly four candidate records are required for a review batch.');
+ if(!previewsById||typeof previewsById!=='object')throw new Error('Server-authorized preview mapping is required.');
+ const seen=new Set();
+ return Object.freeze(items.map(item=>{
+  if(!item||typeof item.id!=='string'||seen.has(item.id))throw new Error('Review batch candidate IDs must be distinct.');
+  seen.add(item.id);
+  if(!Object.hasOwn(previewsById,item.id))throw new Error('Review batch candidate is missing a server-owned preview.');
+  return toReviewCard(item,previewsById[item.id]);
+ }));
+}
+module.exports={toReviewCard,toReviewBatch};
