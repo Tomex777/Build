@@ -6,6 +6,7 @@ import {pathToFileURL} from 'node:url';
 const root=path.resolve(process.env.NIGHT_BRANDING_ROOT || path.resolve(process.cwd(),'mscc/channel-branding'));
 const caption=await import(pathToFileURL(path.join(root,'caption.mjs')).href);
 const watermark=await import(pathToFileURL(path.join(root,'watermark.mjs')).href);
+const {prepareChannelContent}=await import(pathToFileURL(path.join(root,'prepare.mjs')).href);
 const jid='120363282083849178@newsletter';
 const channelName='NIGHT 👩🏽‍💻 • 𝙊̀rẹ́ 🇳🇬';
 const altered=channelName.replace('\u200d','');
@@ -67,4 +68,34 @@ assert.equal(cache.get(key1),null,'LRU evicts older entries under cap');
 assert.ok(cache.get(key3));
 cache.invalidateChannel(jid);
 assert.equal(cache.bytes,0,'Disconnect/name change can destroy per-channel cached watermark');
-console.log('PASS D branding contract: poster vs verified name, graphemes/ZWJ, opt-in substitutions, UTF-8 limits, emoji fails closed and LRU');
+
+const media=Buffer.from('authorized-static-image-fixture');
+const raw=await prepareChannelContent({text:'Look at this!',channelId:jid,
+ verifiedDisplayName:channelName,posterName:'TOMEX',mediaBuffer:media,
+ branding:{signatureEnabled:true,watermarkEnabled:false}});
+assert.equal(raw.caption,'Look at this!\\n\\n> TOMEX',
+ 'Poster must never be silently replaced with a verified channel name');
+assert.strictEqual(raw.mediaBuffer,media,'OFF watermark must not decode or copy media');
+assert.equal(raw.watermarked,false);
+let calls=0;
+const fakeCompositor=async ({input,channelId:id,displayName})=>{
+  calls++;
+  assert.strictEqual(input,media);
+  assert.equal(id,jid);
+  assert.equal(displayName,channelName,'Source must use exact emoji/ZWJ WhatsApp name');
+  return {buffer:Buffer.from('transformed-media'),assetKey:'verified_fixture_asset_key',
+    position:'bottom-right',format:'png',warnings:[]};
+};
+const transformed=await prepareChannelContent({text:'fun',mediaBuffer:media,
+ channelId:jid,verifiedDisplayName:channelName,posterName:'TOMEX',
+ branding:{signatureEnabled:true,watermarkEnabled:true,watermarkOpacity:.2},
+ transform:fakeCompositor});
+assert.equal(transformed.caption,'fun\\n\\n> TOMEX');
+assert.equal(transformed.watermarked,true);
+assert.equal(transformed.watermarkAssetKey,'verified_fixture_asset_key');
+assert.equal(calls,1);
+await assert.rejects(()=>prepareChannelContent({text:'fun',mediaBuffer:media,
+ channelId:jid,verifiedDisplayName:'',branding:{watermarkEnabled:true},
+ transform:fakeCompositor}),/verified channel display name/);
+assert.equal(calls,1,'Missing authoritative metadata must not call compositor');
+console.log('PASS D branding contract: poster vs verified name, graphemes/ZWJ, opt-in substitutions, UTF-8 limits, preview/send pure transform, emoji fails closed and LRU');
