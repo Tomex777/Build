@@ -41,14 +41,14 @@ function isDuplicate(a,b){
  return hashNear(a.media?.perceptualHash,b.media?.perceptualHash);
 }
 function memeScore(item,options={}){
- const selected=new Set(options.categories||[]);
+ const selected=new Set(Array.isArray(options.categories)?options.categories:[]);
  const categoryMatch=selected.has(item.category)?1:selected.size?0:.55;
  const px=item.media.width*item.media.height,resolution=clamp((px-120000)/650000);
  const ratio=item.media.width/Math.max(1,item.media.height),shape=ratio>=.55&&ratio<=2.6?1:.15;
  const quality=resolution*.45+item.metrics.legibility*.45+shape*.1;
  const votes=clamp(Math.log10(1+item.metrics.upvotes)/4.2);
  const engagement=votes*.65+item.metrics.ratio*.35;
- const feedback=clamp((options.feedback?.[item.category]??.5));
+ const feedback=clamp((options.feedback&&typeof options.feedback==='object'?options.feedback[item.category]:undefined)??.5);
  const hours=Math.max(0,((options.now||Date.now())-Date.parse(item.createdAt))/3600000);
  const freshness=clamp(1-Math.log1p(hours/24)/Math.log1p(365*6));
  return Math.round(100*(WEIGHTS.interest*categoryMatch+WEIGHTS.quality*quality+WEIGHTS.engagement*engagement+WEIGHTS.feedback*feedback+WEIGHTS.originality*item.metrics.originality+WEIGHTS.freshness*freshness)/Object.values(WEIGHTS).reduce((a,b)=>a+b,0))/100;
@@ -57,7 +57,7 @@ function chooseFourMemes(items,{enabled=false,categories=[],allowDark=false,used
  if(enabled!==true)return [];
  const selected=(Array.isArray(categories)?categories:[]).filter(c=>CATEGORIES.includes(c));
  used=Array.isArray(used)?used:[];
- const blocked=new Set(used.map(x=>typeof x==='string'?x:x.id));
+ const blocked=new Set(used.map(x=>typeof x==='string'?x:x&&typeof x.id==='string'?x.id:null).filter(Boolean));
  const previouslyUsed=used.filter(x=>x&&typeof x==='object'&&x.kind==='meme');
  const candidates=(Array.isArray(items)?items:[]).filter(i=>i&&i.kind==='meme'&&(!selected.length||selected.includes(i.category))&&
  (i.category!=='dark'||allowDark===true)&&!blocked.has(i.id)&&!previouslyUsed.some(prev=>isDuplicate(i,prev)));
