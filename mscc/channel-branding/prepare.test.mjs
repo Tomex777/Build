@@ -62,4 +62,25 @@ await assert.rejects(()=>prepareChannelContent({
   text:'Hello',sourceKind:'automation',
   branding:{signatureEnabled:true,posterName:'Ada',signaturePosterName:'Sade'}
 }),/Conflicting/,'Two diverging author fields cannot silently pick a different identity');
+// An approved PNG for an emoji channel must reach BOTH preview and final send.
+// The binary is supplied by authenticated server-side storage, never trusted UI input.
+const fallback=Buffer.from('STUB_OWNER_APPROVED_PNG');
+const withFallback=await prepareChannelContent({
+  text:'NIGHT',mediaBuffer:media,channelId,verifiedDisplayName,
+  branding:{watermarkEnabled:true},approvedFallbackPng:fallback,
+  transform:async options=>{
+    assert.strictEqual(options.approvedFallbackPng,fallback);
+    assert.equal(options.colorEmojiVerified,false,'Fallback must not spoof host emoji verification');
+    assert.equal(options.displayName,verifiedDisplayName,'Full ZWJ identity preserved');
+    return {buffer:Buffer.from('COMPOSITED_FALLBACK'),assetKey:'fallback-hash'};
+  }
+});
+assert.equal(withFallback.mediaBuffer.toString(),'COMPOSITED_FALLBACK');
+assert.equal(withFallback.watermarked,true);
+await assert.rejects(()=>prepareChannelContent({
+  branding:{watermarkEnabled:false},approvedFallbackPng:'data:image/png;base64,...'
+}),/server-verified PNG Buffer/,'Never accept client-supplied fallback string');
+await assert.rejects(()=>prepareChannelContent({
+  text:'Hi',branding:{captionReplacementsEnabled:true,captionReplacements:'incorrect'}
+}),/Invalid saved caption replacement rules/,'Malformed enabled replacement must fail closed');
 console.log('Channel branding preview/send transform contract: PASS');
