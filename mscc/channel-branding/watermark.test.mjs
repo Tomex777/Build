@@ -67,7 +67,9 @@ assert.equal((await sharp(wr.buffer).metadata()).format,'webp');
 // is still rendered for the owner preview, but flagged for human placement QA.
 const busyRaw=Buffer.alloc(640*400*3);
 for(let y=0;y<400;y++)for(let x=0;x<640;x++){
-  const v=(Math.floor(x/17)+Math.floor(y/17))%2?14:242;
+  // 40px source blocks become ~4px thumbnail stripes; a single-scale
+  // 2px sampler previously reported zero busyness due to aliasing.
+  const v=(Math.floor(x/40)+Math.floor(y/25))%2?14:242;
   busyRaw.fill(v,(y*640+x)*3,(y*640+x)*3+3);
 }
 const busyPng=await sharp(busyRaw,{raw:{width:640,height:400,channels:3}}).png().toBuffer();
