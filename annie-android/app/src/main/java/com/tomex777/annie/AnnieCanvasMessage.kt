@@ -167,7 +167,11 @@ internal class AnnieCanvasController(private val id: String) {
         val host = if (expanded) fullscreenHost else inlineHost
         if (host == null || !host.isAttachedToWindow || !host.isShown) return false
         val visible = Rect()
-        return host.getGlobalVisibleRect(visible) && visible.width() > 0 && visible.height() > 0
+        if (!host.getGlobalVisibleRect(visible) || host.width <= 0 || host.height <= 0) return false
+        // Near-offscreen cards must not spin simply because a few pixels are
+        // still visible below the conversation header. Re-enable on scroll.
+        return visible.width().toLong() * visible.height().toLong() * 4L >=
+            host.width.toLong() * host.height.toLong()
     }
 
     private fun shouldSuspend() = pausedByUser ||
