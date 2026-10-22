@@ -93,6 +93,10 @@ import org.json.JSONArray
 import org.json.JSONObject
 import com.tomex777.annie.browser.engine.AnnieBrowserEngineBridge
 import com.tomex777.annie.browser.engine.AnnieBrowserFindController
+import com.tomex777.annie.browser.engine.permissions.AnnieBrowserPermissionBroker
+import com.tomex777.annie.browser.engine.permissions.ContentPermissionPrompt
+import com.tomex777.annie.browser.engine.permissions.MediaPermissionPrompt
+import com.tomex777.annie.browser.engine.permissions.SystemPermissionRequest
 import com.tomex777.annie.browser.engine.tabs.BrowserTab
 import com.tomex777.annie.browser.engine.tabs.SmartTabManager
 import com.tomex777.annie.browser.engine.tabs.TabGroup
@@ -449,6 +453,7 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
     // Original Omni per-site UA settings, separated from Gecko session identities.
     private val userAgentManager = UserAgentManager(context.applicationContext)
     private val smartTabManager = SmartTabManager()
+    private val permissionBroker = AnnieBrowserPermissionBroker(context)
     val findController = AnnieBrowserFindController()
     private val library = AnnieBrowserLibrary(context)
     private val prefs = context.applicationContext.getSharedPreferences("annie_gecko_tabs_v1", Context.MODE_PRIVATE)
@@ -470,6 +475,18 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
         GeckoSession.PromptDelegate.FilePrompt,
         GeckoResult<GeckoSession.PromptDelegate.PromptResponse>,
     ) -> Unit)? = null
+
+    // Omni source prompt contracts. Agent 2 supplies foreground Compose dialogs
+    // and Android runtime permission launchers. With no handler, requests DENY.
+    var requestContentPermission: ((ContentPermissionPrompt) -> Unit)?
+        get() = permissionBroker.requestContentPrompt
+        set(value) { permissionBroker.requestContentPrompt = value }
+    var requestMediaPermission: ((MediaPermissionPrompt) -> Unit)?
+        get() = permissionBroker.requestMediaPrompt
+        set(value) { permissionBroker.requestMediaPrompt = value }
+    var requestSystemPermission: ((SystemPermissionRequest) -> Unit)?
+        get() = permissionBroker.requestSystemPrompt
+        set(value) { permissionBroker.requestSystemPrompt = value }
 
     private var restoringTabs = true
     private var lastNormalSelectedId = ""
@@ -643,6 +660,11 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
                 return answer
             }
         }
+        permissionBroker.attach(
+            session = session,
+            isPrivate = privateMode,
+            isForeground = { tab in tabs && selectedId == tab.id && session.isOpen }
+        )
         if (!deferRestore) session.open(runtime)
         tabs.add(tab)
         if (!deferRestore) {
@@ -742,6 +764,9 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
     }
 
     fun destroy() {
+        requestContentPermission = null
+        requestMediaPermission = null
+        requestSystemPermission = null
         tabs.toList().forEach { if (it.session.isOpen) it.session.close() }
         tabs.clear()
         upstreamEngine.close()
