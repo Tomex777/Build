@@ -137,11 +137,23 @@ fun FanHome(player: FanPlayer = viewModel()) {
                     Text("Pick a feeling", fontSize = 20.sp, letterSpacing = (-0.7).sp,
                         color = White, fontWeight = FontWeight.ExtraBold)
                     Spacer(Modifier.weight(1f))
-                    Text(
-                        when (mood) { Mood.ALL -> "EVERY SIDE"; Mood.FAVORITES -> "YOUR PICKS"; else -> mood.tagline.uppercase() },
-                        color = Lavender, fontSize = 10.sp,
-                        fontWeight = FontWeight.Black, letterSpacing = 1.sp
-                    )
+                    TextButton(
+                        onClick = {
+                            moodName = if (mood == Mood.FAVORITES) Mood.ALL.name
+                                else Mood.FAVORITES.name
+                        },
+                        modifier = Modifier.heightIn(min = 44.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp)
+                    ) {
+                        Icon(
+                            if (mood == Mood.FAVORITES) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                            contentDescription = null, tint = if (mood == Mood.FAVORITES) Rose else Lavender,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(Modifier.width(5.dp))
+                        Text("Favorites", color = if (mood == Mood.FAVORITES) Rose else Lavender,
+                            fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
             item {
@@ -151,7 +163,7 @@ fun FanHome(player: FanPlayer = viewModel()) {
                     horizontalArrangement = Arrangement.spacedBy(11.dp)
                 ) {
                     items(
-                        listOf(Mood.ALL, Mood.LOVE, Mood.SAD, Mood.HEARTBREAK, Mood.HYPE, Mood.CHILL, Mood.FAVORITES),
+                        listOf(Mood.ALL, Mood.LOVE, Mood.SAD, Mood.HEARTBREAK, Mood.HYPE, Mood.CHILL),
                         key = { it.name }
                     ) { item ->
                         FeelingCard(
