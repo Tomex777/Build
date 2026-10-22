@@ -7,6 +7,7 @@ const MODULES=['memes','news','anonymous','ai'];
 const CATEGORIES=new Set(['relatable','wholesome','anime','nigerian','animals','relationships','dark']);
 const INTERESTS=new Set(['casting','releases','trailers','renewals','romance','platforms']);
 const MAX_APPROVED=10; // Agent C's bounded durable queue contract.
+const MAX_REPLACEMENTS=20; // Conservative current C transport limit; D parser may support more.
 let channel=null,config=null,batch=null,selection=null,selectionUncertain=false,trayEditing=false,reviewBusy=false,configBusy=false,loadEpoch=0;
 const decisions=new Map(),captionDirty=new Set();
 const jid=/^\d{8,25}@newsletter$/;
@@ -48,7 +49,7 @@ function fillChecks(id,items){
 function replacementRow(rule={}){
  const row=make('div','replacement-row');
  const from=make('input','text-input'),to=make('input','text-input');
- from.type=to.type='text';from.maxLength=80;to.maxLength=120;
+ from.type=to.type='text';from.maxLength=40;to.maxLength=60;
  from.placeholder='Original phrase';to.placeholder='Replace with';
  from.setAttribute('aria-label','Original word or phrase');
  to.setAttribute('aria-label','Replacement text');
@@ -61,17 +62,17 @@ function replacementRow(rule={}){
 }
 function paintReplacements(rules){
  $('replacementRows').replaceChildren();
- for(const item of Array.isArray(rules)?rules.slice(0,32):[])if(item&&typeof item==='object')replacementRow(item);
+ for(const item of Array.isArray(rules)?rules.slice(0,MAX_REPLACEMENTS):[])if(item&&typeof item==='object')replacementRow(item);
 }
 function readReplacements(){
  const rows=[...$('replacementRows').children];
- if(rows.length>32)throw Error('Use 32 or fewer caption replacements.');
+ if(rows.length>MAX_REPLACEMENTS)throw Error('Use 20 or fewer caption replacements.');
  const seen=new Set(),rules=[];
  for(const row of rows){
    const [fromInput,toInput]=row.querySelectorAll('input');
    const from=fromInput.value.trim(),to=toInput.value;
    if(!from&&!to)continue;
-   if(!from||from.length>80||to.length>120||/[\r\n]/.test(from))throw Error('Enter a valid phrase (maximum 80 characters) for each replacement.');
+   if(!from||from.length>40||to.length>60||/[\r\n]/.test(from))throw Error('Use a phrase of 1–40 characters and replacement of 0–60 characters.');
    const key=from.normalize('NFC').toLocaleLowerCase('en');
    if(seen.has(key))throw Error('Each replacement phrase must be unique.');
    seen.add(key);rules.push({from,to});
@@ -152,7 +153,7 @@ function attachControls(){
    changeConfig({memes:{mode:$('memeMode').value,categories,dailyLimit:Number($('memeDaily').value),localTime:$('memeTime').value,timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC'}},$('saveMemes'));
  });
  $('addReplacement').addEventListener('click',()=>{
-   if($('replacementRows').children.length>=32){note('Maximum 32 caption replacements.',true);return;}
+   if($('replacementRows').children.length>=MAX_REPLACEMENTS){note('Maximum 20 caption replacements.',true);return;}
    replacementRow();$('replacementRows').lastElementChild.querySelector('input')?.focus();
  });
  $('saveBranding').addEventListener('click',()=>{
