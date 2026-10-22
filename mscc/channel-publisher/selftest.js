@@ -82,7 +82,7 @@ await reloaded.update(alice,channelId,1,{modules:{memes:false}},accounts)
 assert.equal(reloaded.jobs(alice,channelId).jobs.find(j=>j.id===scheduled.jobs[0].id).status,'cancelled')
 let prepared=0
 const fakePrepare=async arg=>{prepared++;assert.equal(arg.verifiedDisplayName,displayName);assert.equal(arg.branding.posterName,'TOMEX');return {mediaBuffer:arg.mediaBuffer,caption:arg.text+'\n> TOMEX'}}
-assert.equal((await reloaded.drain(accounts,{prepare:fakePrepare})).sent,0)
+assert.equal((await reloaded.drain(accounts,{prepare:fakePrepare,allowedChannelIds:[channelId]})).sent,0)
 assert.equal(sent.length,0,'Turned-off module must prevent publishing')
 // Exact account + admin gates at final send must remain enforced.
 await reloaded.update(alice,channelId,2,{modules:{memes:true}},accounts)
@@ -91,7 +91,7 @@ const pending=reloaded.batch(alice,channelId,pendingBatch)
 const accept=reloaded.review(alice,channelId,{batchId:pendingBatch,candidateId:pending.candidates[1].id,decision:'approved',caption:'Allowed post',expectedSelectionRevision:5})
 const job=reloaded.enqueue(alice,channelId,{selectionId:accept.selection.id,expectedSelectionRevision:6,mode:'now'}).jobs[0]
 role='SUBSCRIBER'
-assert.equal((await reloaded.drain(accounts,{prepare:fakePrepare})).sent,0)
+assert.equal((await reloaded.drain(accounts,{prepare:fakePrepare,allowedChannelIds:[channelId]})).sent,0)
 assert.equal(reloaded.jobs(alice,channelId).jobs.find(j=>j.id===job.id).status,'needs_review')
 assert.equal(sent.length,0)
 role='ADMIN'
