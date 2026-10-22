@@ -7,13 +7,13 @@ package com.tomex777.annie.browser.engine
 
 import android.content.Context
 import android.util.Log
+import android.util.AtomicFile
 import kotlinx.coroutines.*
 import org.mozilla.geckoview.GeckoSession
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.atomic.AtomicLong
 
 /**
  * Maintains durable recoverable state for every eligible (non-incognito) tab.
@@ -42,13 +42,9 @@ class SessionStatePersistence(private val baseDir: File) {
     companion object {
         private const val TAG = "SessionStatePersistence"
         private const val SESSION_STATE_FILE = "browser_session_states.json"
-        private const val SESSION_STATE_TEMP = "browser_session_states.tmp"
         private const val DEBOUNCE_MS = 500L
         private const val FORCE_CHECKPOINT_TIMEOUT_MS = 3_000L
     }
-
-    /** Monotonically-increasing write generation for stale-write detection. */
-    private val writeGeneration = AtomicLong(0L)
 
     // Original upstream code read/modified a shared JSON file on multiple IO
     // threads. Serialize file transactions so concurrent tab checkpoints cannot
@@ -75,9 +71,9 @@ class SessionStatePersistence(private val baseDir: File) {
             return
         }
 
-        // Re-activating a tab after a previous close is explicit; ordinary
-        // navigation continues checkpointing the same stable normal-tab ID.
-        forgottenTabs.remove(tabId)
+        // UUID identities are never reused. Late callbacks from a closed
+        // GeckoSession must not resurrect a closed tab or its private history.
+        if (forgottenTabs.contains(tabId)) return
         // Cancel any in-flight job for this tab.
         pendingJobs[tabId]?.cancel()
 
@@ -148,6 +144,7 @@ class SessionStatePersistence(private val baseDir: File) {
      */
     fun readDurableState(tabId: String): GeckoSession.SessionState? {
         // 1. Check in-memory cache.
+        if (forgottenTabs.contains(tabId)) return null
         durableStateCache[tabId]?.let { cached ->
             return try {
                 GeckoSession.SessionState.fromString(String(cached.sessionStateBytes, Charsets.UTF_8))
@@ -225,10 +222,12 @@ class SessionStatePersistence(private val baseDir: File) {
         pendingJobs.values.forEach { it.cancel() }
         pendingJobs.clear()
         persistenceScope.launch {
-            try {
-                File(baseDir, SESSION_STATE_FILE).delete()
-            } catch (e: Exception) {
-                Log.w(TAG, "Failed to clear all durable states", e)
+            synchronized(diskLock) {
+                try {
+                    AtomicFile(File(baseDir, SESSION_STATE_FILE)).delete()
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to clear all durable states", e)
+                }
             }
         }
     }
@@ -245,7 +244,7 @@ class SessionStatePersistence(private val baseDir: File) {
 
     private fun performAtomicWrite(state: AnnieSessionState) {
         synchronized(diskLock) {
-        if (forgottenTabs.contains(state.tabId)) return
+        if (forgottenTabs.contains(state.tabId) || state.metadata.isIncognito) return
         try {
             val file = File(baseDir, SESSION_STATE_FILE)
             val existingJson = if (file.exists()) {
@@ -274,7 +273,7 @@ class SessionStatePersistence(private val baseDir: File) {
 
     private fun performAtomicWriteBatch(states: List<AnnieSessionState>) {
         synchronized(diskLock) {
-        val validStates = states.filterNot { forgottenTabs.contains(it.tabId) }
+        val validStates = states.filterNot { forgottenTabs.contains(it.tabId) || it.metadata.isIncognito }
         if (validStates.isEmpty()) return
         try {
             val file = File(baseDir, SESSION_STATE_FILE)
@@ -305,17 +304,21 @@ class SessionStatePersistence(private val baseDir: File) {
     }
 
     private fun atomicWriteFile(content: String) {
-        val dir = baseDir
-        val tempFile = File(dir, SESSION_STATE_TEMP)
-        val finalFile = File(dir, SESSION_STATE_FILE)
-        tempFile.writeText(content)
-        if (!tempFile.renameTo(finalFile)) {
-            // Fallback: direct write if rename fails (shouldn't happen on Android)
-            finalFile.writeText(content)
+        // Never fall back to truncating the only recovery copy on failure.
+        // AtomicFile uses the previous complete state if the process dies mid-write.
+        val file = AtomicFile(File(baseDir, SESSION_STATE_FILE))
+        val stream = file.startWrite()
+        try {
+            stream.write(content.toByteArray(Charsets.UTF_8))
+            file.finishWrite(stream)
+        } catch (failure: Throwable) {
+            file.failWrite(stream)
+            throw failure
         }
     }
 
     private fun readFromDisk(tabId: String): GeckoSession.SessionState? {
+        if (forgottenTabs.contains(tabId)) return null
         val file = File(baseDir, SESSION_STATE_FILE)
         if (!file.exists()) return null
 
