@@ -184,7 +184,8 @@ internal class ScriptFiles(context: Context) : PackageAssetResolver {
             name = importedManifest?.displayName ?: file.nameWithoutExtension,
             entryPath = entryRelative,
             files = sourceFiles,
-            enabled = packageRegistry.get(id)?.enabled ?: enabledPrefs.getBoolean(id, importedManifest == null),
+            enabled = packageRegistry.get(id)?.enabled
+                ?: enabledPrefs.getBoolean(id, importedManifest == null && isExecutableScript(entryRelative)),
             importedManifest = importedManifest,
         )
     }.getOrNull()
