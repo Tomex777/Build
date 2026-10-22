@@ -185,7 +185,8 @@ class Handler(BaseHTTPRequestHandler):
                 '<button type="submit">Upload test file</button></form>'))
         if path == "/links":
             return self.send(self.page("LINKS", '<a href="/branch/a">Visit A</a>'
-                '<a href="/branch/b">Visit B</a><a href="/redirect">Redirect</a>'))
+                '<a href="/branch/b">Visit B</a><a href="/redirect">Redirect</a>'
+                '<a href="/file.pdf" download="night-qa.pdf">Download PDF fixture</a>'))
         if path == "/branch/a":
             return self.send(self.page("BRANCH A", '<a href="/branch/c">Visit C</a>'))
         if path == "/branch/b":
