@@ -3,6 +3,7 @@ package com.tomex777.annie
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.hasText
@@ -167,6 +168,34 @@ class ScriptStudioFileCreationTest {
         } finally {
             workspace.close()
             importedIds.forEach { id -> workspace.files.deleteProject(id) }
+        }
+    }
+
+    @Test fun fileFilterNeverBecomesEditorFindText() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val workspace = ScriptWorkspace(context)
+        val folder = workspace.files.createFolder("searchsplit" + System.nanoTime().toString().takeLast(8))
+        val shown = mutableStateOf(true)
+        try {
+            compose.setContent { AnnieTheme {
+                if (shown.value) ScriptStudioSheet(workspace, {})
+            } }
+            compose.onNodeWithTag("script_file_search").performTextInput("main.js")
+            closeSoftKeyboard()
+            compose.onNodeWithText(folder.name, substring = false).performClick()
+            compose.onNodeWithText("main.js", substring = false).performClick()
+            compose.onNodeWithTag("script_editor").assertExists()
+            compose.onNodeWithTag("script_find_query").assertTextEquals("")
+            compose.onNodeWithTag("script_find_query").performTextInput("commands")
+            compose.onNodeWithText("Files", substring = false).performClick()
+            compose.onNodeWithTag("script_file_search").assertTextEquals("main.js")
+            compose.onNodeWithText("main.js", substring = false).performClick()
+            compose.onNodeWithTag("script_find_query").assertTextEquals("commands")
+        } finally {
+            compose.runOnIdle { shown.value = false }
+            compose.waitForIdle()
+            workspace.close()
+            workspace.files.deleteProject(folder.name)
         }
     }
 
