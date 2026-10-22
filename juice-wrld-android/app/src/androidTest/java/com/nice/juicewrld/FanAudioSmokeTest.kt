@@ -9,7 +9,6 @@ import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
-import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
@@ -40,29 +39,30 @@ class FanAudioSmokeTest {
             .putString("file:robbery", Uri.fromFile(second).toString())
             .commit()
 
-        lateinit var player: FanPlayer
+        var player: FanPlayer? = null
         try {
             instrumentation.runOnMainSync { player = FanPlayer(app) }
-            instrumentation.runOnMainSync { player.playInMood("lucid-dreams", Mood.SAD) }
-            awaitPlaying(player, "lucid-dreams")
-            assertTrue("Expected a decoded WAV duration", player.state.value.durationMs >= 3_000)
-            assertEquals(listOf("lucid-dreams", "robbery"), player.state.value.queueIds)
+            val current = requireNotNull(player)
+            instrumentation.runOnMainSync { current.playInMood("lucid-dreams", Mood.SAD) }
+            awaitPlaying(current, "lucid-dreams")
+            assertTrue("Expected a decoded WAV duration", current.state.value.durationMs >= 3_000)
+            assertEquals(listOf("lucid-dreams", "robbery"), current.state.value.queueIds)
 
             instrumentation.runOnMainSync {
-                player.seekTo(0.5f)
-                player.pause()
+                current.seekTo(0.5f)
+                current.pause()
             }
-            assertFalse("Pause must stop actual playback", player.state.value.isPlaying)
-            assertTrue("Seek must update playback position", player.state.value.positionMs >= 1_000)
+            assertFalse("Pause must stop actual playback", current.state.value.isPlaying)
+            assertTrue("Seek must update playback position", current.state.value.positionMs >= 1_000)
 
-            instrumentation.runOnMainSync { player.play("lucid-dreams") }
-            awaitPlaying(player, "lucid-dreams")
-            instrumentation.runOnMainSync { player.skip(1) }
-            awaitPlaying(player, "robbery")
-            assertTrue("Next audio clip should decode and play", player.state.value.durationMs >= 3_000)
+            instrumentation.runOnMainSync { current.play("lucid-dreams") }
+            awaitPlaying(current, "lucid-dreams")
+            instrumentation.runOnMainSync { current.skip(1) }
+            awaitPlaying(current, "robbery")
+            assertTrue("Next audio clip should decode and play", current.state.value.durationMs >= 3_000)
         } finally {
-            if (::player.isInitialized) {
-                instrumentation.runOnMainSync { player.pause() }
+            player?.let { current ->
+                instrumentation.runOnMainSync { current.pause() }
             }
             prefs.edit().remove("file:lucid-dreams").remove("file:robbery").commit()
             first.delete()
