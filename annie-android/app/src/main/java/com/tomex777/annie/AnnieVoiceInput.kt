@@ -140,10 +140,14 @@ internal class VoiceNoteController(
 }
 
 @Composable
-internal fun rememberVoiceNoteController(onVoiceNote: (String, Long) -> Unit): VoiceNoteController {
+internal fun rememberVoiceNoteController(
+    onVoiceNote: (String, Long) -> Unit,
+    sessionKey: String = "",
+): VoiceNoteController {
     val context = androidx.compose.ui.platform.LocalContext.current
     val latest = androidx.compose.runtime.rememberUpdatedState(onVoiceNote)
-    val controller = remember(context) { VoiceNoteController(context) { path, ms -> latest.value(path, ms) } }
+    // Chat switching disposes the old recorder instead of letting a recording cross conversations.
+    val controller = remember(context, sessionKey) { VoiceNoteController(context) { path, ms -> latest.value(path, ms) } }
     DisposableEffect(controller) { onDispose { controller.cancel() } }
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     DisposableEffect(controller, lifecycleOwner) {
