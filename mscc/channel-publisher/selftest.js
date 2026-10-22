@@ -95,4 +95,16 @@ assert.equal((await reloaded.drain(accounts,{prepare:fakePrepare,allowedChannelI
 assert.equal(reloaded.jobs(alice,channelId).jobs.find(j=>j.id===job.id).status,'needs_review')
 assert.equal(sent.length,0)
 role='ADMIN'
+const liveBatch=reloaded.registerBatch(alice,channelId,[meme(1),meme(2),meme(3),meme(4)])
+const liveCandidates=reloaded.batch(alice,channelId,liveBatch)
+const liveReview=reloaded.review(alice,channelId,{batchId:liveBatch,candidateId:liveCandidates.candidates[1].id,decision:'approved',caption:'One publishable example',expectedSelectionRevision:7})
+assert.equal(liveReview.selection.items.length,1)
+const liveJob=reloaded.enqueue(alice,channelId,{selectionId:liveReview.selection.id,expectedSelectionRevision:8,mode:'now'}).jobs[0]
+const delivered=await reloaded.drain(accounts,{prepare:fakePrepare,allowedChannelIds:[channelId]})
+assert.equal(delivered.sent,1)
+assert.equal(sent.length,1)
+assert.equal(sent[0].caption,'One publishable example\n> TOMEX')
+assert.equal(reloaded.jobs(alice,channelId).jobs.find(j=>j.id===liveJob.id).status,'sent')
+assert.equal((await reloaded.drain(accounts,{prepare:fakePrepare,allowedChannelIds:[channelId]})).sent,0)
+assert.equal(sent.length,1,'A completed job must never send twice.')
 console.log('NIGHT Channels publisher selftest passed: owner isolation, exact Unicode metadata, fail-closed module controls, rights, revisioned cross-batch tray, durability, scheduling, cancellation, admin revocation, no send without permission.')
