@@ -90,4 +90,21 @@ function rssNewsAdapter({id,name,url,official=false,fetchImpl,interpreter,now=()
   until=current+Math.min(15,Math.max(1,official?5:10))*60000;return cache;
  }});
 }
-module.exports={SourceError,boundedGet,parseFeed,redditAdapter,rssNewsAdapter};
+
+function licensedCatalogAdapter({id='licensed-library',loadRecords,verifyRights}={}){
+ if(typeof loadRecords!=='function'||typeof verifyRights!=='function')throw new TypeError('A trusted approved-record loader and rights verifier are required.');
+ return Object.freeze({async discover({category,limit=50}={}){
+  const records=await loadRecords({category,limit:Math.max(1,Math.min(100,Math.trunc(limit)||50))});
+  if(!Array.isArray(records))throw new SourceError('Approved media catalogue is unavailable.');
+  const items=[];
+  for(const row of records.slice(0,100)){
+   if(!row||typeof row.assetId!=='string'||!row.assetId||typeof row.licenseEvidenceId!=='string'||!row.licenseEvidenceId)continue;
+   const verified=await verifyRights(row.assetId,row.licenseEvidenceId);
+   if(verified!==true)continue;
+   const item=normalizeMeme({...row,rights:'cleared'},{id:'licensed:'+id,provider:'licensed-catalog',rightsVerified:true});
+   if(item)items.push(item);
+  }
+  return {items,rightsNotice:'Verified by server-side rights records; publisher must revalidate before send.'};
+ }});
+}
+module.exports={SourceError,boundedGet,parseFeed,redditAdapter,rssNewsAdapter,licensedCatalogAdapter};
