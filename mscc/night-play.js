@@ -1,6 +1,7 @@
 import { createHash, randomBytes, randomUUID, verify, createPublicKey } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { NightPlayMatches } from './night-play-matches.js'
+import { NightPlayDraw } from './night-play-draw.js'
 import { NightPlayParty, PartyRoomError } from './night-play-party.js'
 import { NightPlayChannels, ChannelError } from './night-play-channels.js'
 
@@ -41,6 +42,7 @@ export class NightPlay {
     this.nextCleanup = 0
     this.matches = new NightPlayMatches(db, { now })
     this.partyRooms = new NightPlayParty(db, { now })
+    this.drawRooms = new NightPlayDraw(db, { now })
     this.channels = new NightPlayChannels(this, { now })
   }
   transaction(fn) {
@@ -56,6 +58,7 @@ export class NightPlay {
     this.db.prepare('DELETE FROM play_channel_consent WHERE expires_at<=?').run(this.now())
     this.db.prepare("DELETE FROM play_channel_claims WHERE state!='connected' AND expires_at<=?").run(this.now())
     this.partyRooms.cleanup()
+    this.drawRooms.cleanup()
     this.nextCleanup = this.now() + 60_000
   }
   limit(key, maximum, window = 60_000) {
@@ -93,14 +96,14 @@ export class NightPlay {
       .run(id, jpeg ? 'image/jpeg' : 'image/png', data, this.now())
     return true
   }
-  request({ action, session, client, displayName, matchId, code, cell, channelId, mode, questions, guestName, guestSession, answer }) {
+  request({ action, session, client, displayName, matchId, code, cell, channelId, mode, questions, guestName, guestSession, answer, stroke, guess, since, mutationId }) {
     this.cleanup()
-    if (action === 'health') return { ok:true, service:'night-play', version:1 }
+    if (action === 'health') return { ok:true, service:'night-play', version:1, features:{draw:true} }
     if (action === 'status') {
       const row = session ? this.session(session) : null
       const profile = row?.user_id ? this.profile(row.user_id) : null
       const pending = row && this.db.prepare('SELECT expires_at FROM play_challenges WHERE session_id=? AND expires_at>?').get(row.id, this.now())
-      return { linked:Boolean(profile), profile, pendingUntil:pending?.expires_at || null }
+      return { linked:Boolean(profile), profile, features:{draw:true}, pendingUntil:pending?.expires_at || null }
     }
     if (action === 'link') {
       const id = requireSession(session)
@@ -128,6 +131,10 @@ export class NightPlay {
       if (row) this.db.prepare('DELETE FROM play_sessions WHERE id=?').run(row.id)
       return { ok:true }
     }
+    if (typeof action === 'string' && action.startsWith('draw:')) {
+      this.limit((action==='draw:state'?'draw-poll-client:':'draw-client:') + String(client || 'unknown'), action==='draw:state'?900:180)
+      return this.drawRooms.request(action,{userId:row?.user_id,guestSession,guestName,code,stroke,guess,since,mutationId})
+    }
     if (typeof action === 'string' && action.startsWith('party:')) {
       this.limit((action==='party:state'?'party-poll-client:':'party-client:') + String(client || 'unknown'), action==='party:state'?900:160)
       return this.partyRooms.request(action, {userId:row?.user_id,guestSession,code,mode,questions,guestName,answer})
@@ -152,6 +159,7 @@ export class NightPlay {
     if (action === 'delete') {
       this.matches.removeUser(row.user_id)
       this.partyRooms.removeUser(row.user_id)
+      this.drawRooms.removeUser(row.user_id)
       this.channels.removeUser(row.user_id)
       this.db.prepare('DELETE FROM play_avatars WHERE user_id=?').run(row.user_id)
       this.db.prepare('DELETE FROM play_users WHERE id=?').run(row.user_id)
@@ -232,7 +240,7 @@ export function createNightPlayHandler(play, { publicKey = readFileSync(new URL(
       try { body = JSON.parse(raw) } catch { return reply(400, { error:'Invalid JSON.' }) }
       if (!body || Array.isArray(body) || typeof body !== 'object') return reply(400, { error:'Invalid request.' })
       play.limit('rpc-global', 1800)
-      play.limit((body.action==='party:state'?'rpc-poll-client:':'rpc-client:') + String(body.client || 'unknown'), body.action==='party:state'?900:180)
+      play.limit((['party:state','draw:state'].includes(body.action)?'rpc-poll-client:':'rpc-client:') + String(body.client || 'unknown'), ['party:state','draw:state'].includes(body.action)?900:180)
       const result = body.action === 'channel:verify' ? await (async () => {
         const userId = body.session ? play.session(body.session)?.user_id : null
         if (!userId) throw new PlayError(401,'Connect WhatsApp to continue.')
