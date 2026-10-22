@@ -228,6 +228,26 @@ class ScriptStudioFileCreationTest {
         }
     }
 
+    @Test fun rootDocumentProjectSanitizesContainerButPreservesVisibleFilename() {
+        val workspace = ScriptWorkspace(InstrumentationRegistry.getInstrumentation().targetContext)
+        val docName = "my notes ${System.nanoTime().toString().takeLast(8)}.v2.md"
+        val created = studioCreateStandaloneDocument(workspace.files, docName)
+        val projectId = created.parentFile.name
+        try {
+            assertTrue("Visible filename must not be silently renamed", created.name == docName)
+            assertTrue("Container must use a safe internal ID",
+                projectId.matches(Regex("[A-Za-z0-9_-]{1,48}")))
+            assertFalse("New Markdown documents must not generate runnable JS",
+                File(created.parentFile, "main.js").exists())
+            assertFalse("Data-only folder must be disabled", workspace.files.isEnabled(projectId))
+            org.junit.Assert.assertEquals(docName,
+                workspace.files.listProjects().first { it.id == projectId }.entryPath)
+        } finally {
+            workspace.close()
+            workspace.files.deleteProject(projectId)
+        }
+    }
+
     @Test fun newRootHtmlFileIsARealDocumentAndNotADummyJsCommand() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val workspace = ScriptWorkspace(context)
