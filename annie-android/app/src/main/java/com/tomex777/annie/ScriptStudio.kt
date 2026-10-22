@@ -449,13 +449,17 @@ private fun ScriptStudioContent(
     val importScript = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null && saveBeforeNavigation()) scope.launch {
             runCatching {
+                val displayName = context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
+                    ?.use { cursor -> if (cursor.moveToFirst()) cursor.getString(0) else null }
+                    ?: uri.lastPathSegment.orEmpty().substringAfterLast('/')
+                require(displayName.substringAfterLast('/').substringAfterLast('\\')
+                    .substringAfterLast('.', "").lowercase() in StudioFileTypes) {
+                    "Choose a supported code document, or use ZIP to import a package"
+                }
                 val source = withContext(Dispatchers.IO) {
                     context.contentResolver.openInputStream(uri)?.use(::studioReadTextImport)
                         ?: error("Could not read the selected document")
                 }
-                val displayName = context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)
-                    ?.use { cursor -> if (cursor.moveToFirst()) cursor.getString(0) else null }
-                    ?: uri.lastPathSegment.orEmpty().substringAfterLast('/')
                 if (!saveBeforeNavigation()) return@launch
                 val (id, path) = withContext(Dispatchers.IO) {
                     studioImportTextDocument(workspace.files, displayName, source)
@@ -1913,10 +1917,10 @@ private fun StudioAction(
         color = when { !enabled -> Color(0xFF15202D); emphasized -> Color(0xFF16446A); else -> StudioSurface2 },
         shape = RoundedCornerShape(10.dp),
         border = BorderStroke(1.dp, if (emphasized) StudioBlue.copy(alpha = .55f) else StudioBorder),
-        modifier = Modifier.clickable(enabled = enabled, onClick = onClick).then(semanticModifier),
+        modifier = Modifier.heightIn(min = 48.dp).clickable(enabled = enabled, onClick = onClick).then(semanticModifier),
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 11.dp, vertical = 9.dp),
+            modifier = Modifier.heightIn(min = 48.dp).padding(horizontal = 11.dp, vertical = 9.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
@@ -2036,7 +2040,7 @@ private fun StudioTab(label: String, selected: Boolean, modifier: Modifier = Mod
         shape = RoundedCornerShape(10.dp),
         modifier = modifier.clickable(onClick = onClick).testTag("script_tab_${label.lowercase()}"),
     ) {
-        Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(horizontal = 12.dp, vertical = 9.dp)) {
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.heightIn(min = 48.dp).padding(horizontal = 12.dp, vertical = 9.dp)) {
             Text(label, color = if (selected) StudioBlue else StudioMuted, fontSize = 12.sp, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium)
         }
     }
