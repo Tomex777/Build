@@ -2608,8 +2608,8 @@ out vec4 fragColor;
 
 void main() {
     vec4 t = texture(uTexture, vUv);
-    // The NASA-derived ring strip already stores particle optical density in
-    // alpha and reflected colour in RGB. Multiplying alpha by RGB's brightness
+    // The licensed ring texture already stores particle opacity in
+    // alpha and ring colour in RGB. Multiplying alpha by RGB's brightness
     // AGAIN squared dark bands and made the entire lit ring nearly invisible.
     // Respect the supplied opacity; Cassini gaps remain transparent via t.a.
     float alpha = t.a * 0.92;
