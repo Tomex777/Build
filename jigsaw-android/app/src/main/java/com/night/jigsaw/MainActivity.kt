@@ -432,11 +432,12 @@ class MainActivity : ComponentActivity() {
                     Column(Modifier.width(166.dp).fillMaxHeight().verticalScroll(
                         rememberScrollState()),
                         verticalArrangement=Arrangement.spacedBy(9.dp)) {
-                        Text("JIGSAW",fontSize=19.sp,fontWeight=FontWeight.Black,
+                        Text("NIGHT JIGSAW",fontSize=17.sp,fontWeight=FontWeight.Black,
                             color=forest,letterSpacing=1.2.sp)
                         Text(photoTitle,fontSize=11.sp,
                             color=muted,maxLines=1,overflow=TextOverflow.Ellipsis)
                         Progress(revision)
+                        Text(game.mode.label,fontSize=12.sp,color=muted)
                         GameActions(revision,true,
                             {newPuzzleMode=game.mode;difficultyPicker=true},
                             {zonePicker=true},onGuide,{paused=true})
@@ -448,7 +449,7 @@ class MainActivity : ComponentActivity() {
                     Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically,
                         horizontalArrangement=Arrangement.SpaceBetween) {
                         Column {
-                            Text("JIGSAW",fontSize=21.sp,fontWeight=FontWeight.Black,
+                            Text("NIGHT JIGSAW",fontSize=19.sp,fontWeight=FontWeight.Black,
                                 color=forest,letterSpacing=1.6.sp)
                             Text(photoTitle,fontSize=11.sp,color=muted,maxLines=1,
                                 overflow=TextOverflow.Ellipsis)
