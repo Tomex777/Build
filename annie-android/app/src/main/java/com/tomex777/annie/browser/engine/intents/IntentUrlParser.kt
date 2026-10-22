@@ -133,7 +133,7 @@ object IntentUrlParser {
 
         // Reject null bytes and control characters (security hardening)
         if (trimmed.any { it.code < 32 }) {
-            Log.w(TAG, "🛡️ Blocked intent input containing control characters")
+            Log.w(TAG, "Blocked external text with control characters")
             return null
         }
 
@@ -142,7 +142,7 @@ object IntentUrlParser {
         if (colonIdx > 0) {
             val potentialScheme = trimmed.substring(0, colonIdx).lowercase(Locale.ROOT).trim()
             if (isDisallowedScheme(potentialScheme)) {
-                Log.w(TAG, "🛡️ Blocked disallowed scheme '$potentialScheme' in intent text: $trimmed")
+                Log.w(TAG, "Blocked disallowed external URI scheme")
                 return null
             }
         }
@@ -159,7 +159,7 @@ object IntentUrlParser {
             if (validExternalUrl(candidate)) {
                 return candidate
             } else {
-                Log.w(TAG, "🛡️ Security policy rejected candidate HTTP URL: $candidate")
+                Log.w(TAG, "Rejected external HTTP URL")
                 return null
             }
         }
@@ -171,7 +171,7 @@ object IntentUrlParser {
             if (validExternalUrl(candidate)) {
                 return candidate
             } else {
-                Log.w(TAG, "🛡️ Security policy rejected candidate www URL: $candidate")
+                Log.w(TAG, "Rejected external www URL")
                 return null
             }
         }
