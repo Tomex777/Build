@@ -25,6 +25,9 @@ class AnnieGeckoTabRestoreTest {
                 prefs.edit().clear().putString("open", saved.toString()).putInt("selected", 12).commit()
                 model = AnnieGeckoBrowserModel(context)
                 assertEquals(13, model!!.tabs.size)
+                assertEquals("Normal-tab identities must survive cold recreation", stableIds, model!!.tabs.map { it.id })
+                val stableIds = model!!.tabs.map { it.id }
+                assertEquals(13, stableIds.toSet().size)
                 assertEquals("https://example.org/tab-12", model!!.active!!.url)
                 model!!.toggleDesktop(model!!.active!!)
                 model!!.newTab(privateMode = true, address = "https://example.net/private-overflow-proof", autoLoad = false)
@@ -64,7 +67,9 @@ class AnnieGeckoTabRestoreTest {
                     .put("https://example.org/second").toString()).commit()
                 model = AnnieGeckoBrowserModel(context)
                 assertEquals(2, model!!.tabs.size)
+                assertEquals("Legacy URL-only migration must assign stable tab IDs", stableIds, model!!.tabs.map { it.id })
                 val selected = model!!.tabs[1]
+                val stableIds = model!!.tabs.map { it.id }
                 model!!.select(selected)
                 model!!.toggleDesktop(selected)
                 model!!.newTab(privateMode = true, address = "https://example.net/private-proof", autoLoad = false)
