@@ -14,6 +14,7 @@ kotlinc \
     "$SRC/SurfaceMicroMaterial.kt" \
     "$SRC/PlanetaryGrainTreatment.kt" \
     "$SRC/WorldGeomorphology.kt" \
+    "$SRC/FineRegolithRelief.kt" \
     "$ROOT/endless_ci/agent2_smoke/GeologySmoke.kt" \
     -include-runtime -d "$TMP/geology-smoke.jar"
 java -jar "$TMP/geology-smoke.jar"
