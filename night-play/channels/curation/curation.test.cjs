@@ -287,3 +287,45 @@ test('only persisted human approve/decline events influence ranking feedback',()
  const animal=meme('favAnimal',{category:'animals',upvotes:90});const relatable=meme('notFunny',{category:'relatable',upvotes:90});
  assert(memeScore(animal,{categories:['animals','relatable'],feedback,now:NOW})>memeScore(relatable,{categories:['animals','relatable'],feedback,now:NOW}));
 });
+
+test('official metadata cannot auto-approve a speculative or spoiler headline',()=>{
+ const studio={id:'studio',name:'Studio',trustedHost:'studio.example',official:true};
+ const base={publishedAt:new Date(NOW).toISOString(),show:'Aurora',tags:['casting'],confirmed:true};
+ const rumor=normalizeNews({...base,title:'Actress reportedly in talks to join Aurora cast',url:'https://studio.example/rumor'},studio,{now:NOW});
+ const spoiler=normalizeNews({...base,title:'Aurora finale ending explained and reveals a twist',url:'https://studio.example/ending'},studio,{now:NOW});
+ const official=normalizeNews({...base,title:'Aurora official casting announcement today',url:'https://studio.example/casting'},studio,{now:NOW});
+ assert.equal(rumor.verification,'rumor');assert.equal(rumor.autoEligible,false);
+ assert.equal(spoiler.spoiler,true);assert.equal(spoiler.autoEligible,false);
+ assert.equal(official.autoEligible,true);
+ assert.deepEqual(chooseNews([rumor,spoiler,official],{enabled:true,mode:'automatic',includeSpoilers:true,now:NOW}),[official]);
+ assert.equal(chooseNews([rumor],{enabled:true,mode:'review',now:NOW}).length,1);
+ assert.deepEqual(chooseNews([official],{enabled:true,mode:'invalid',now:NOW}),[]);
+});
+test('only a verified source ledger can attach a cross-outlet story identity',()=>{
+ const {interpretKDramaEntry}=require('./kdrama.cjs');
+ const row={guid:'news001',title:'“Aurora” official renewal announcement'};
+ const unverified=interpretKDramaEntry(row,{confirmedBySource:{news001:{verified:false,storyKey:'aurora:renewal:2026'}}});
+ const trusted=interpretKDramaEntry(row,{confirmedBySource:{news001:{verified:true,storyKey:'aurora:renewal:2026'}}});
+ assert.equal(unverified.storyKey,null);assert.equal(trusted.storyKey,'aurora:renewal:2026');
+});
+test('different headlines for one drama story collapse, distinct seasons do not',()=>{
+ const sourceA={id:'studio',name:'Studio',trustedHost:'studio.example',official:true};
+ const sourceB={id:'press',name:'Press',trustedHost:'press.example',official:false};
+ const common={publishedAt:new Date(NOW).toISOString(),show:'Aurora',event:'renewals',tags:['renewals']};
+ const a=normalizeNews({...common,title:'Aurora renewal confirmed for season 2 by Studio',url:'https://studio.example/season2',confirmed:true},sourceA,{now:NOW});
+ const b=normalizeNews({...common,title:'Studio confirms Aurora renewal for season 2',url:'https://press.example/season2'},sourceB,{now:NOW});
+ const c=normalizeNews({...common,title:'Aurora renewal confirmed for season 3 by Studio',url:'https://studio.example/season3',confirmed:true},sourceA,{now:NOW});
+ const out=chooseNews([b,a,c],{enabled:true,now:NOW,limit:4});
+ assert.equal(out.length,2);assert(out.some(x=>x.id===a.id));assert(out.some(x=>x.id===c.id));
+ const publishedNextWeek=normalizeNews({...common,publishedAt:new Date(NOW+8*86400000).toISOString(),title:'Studio confirms Aurora renewal for season 2',url:'https://press.example/season2later'},sourceB,{now:NOW+8*86400000});
+ assert.equal(chooseNews([a,publishedNextWeek],{enabled:true,now:NOW+8*86400000,maxAgeDays:14}).length,2);
+});
+test('review card previews refuse encoded traversal, query strings and third-party media',()=>{
+ const {toReviewCard}=require('./contracts.cjs');
+ const item=meme('trust',{rights:'cleared'});
+ for(const previewUrl of ['/api/channel-media/%2e%2e/secret','/api/channel-media/../../admin','/api/channel-media/preview/%2fmalicious','/api/channel-media/asset?redirect=https://evil.example','//evil.example/api/channel-media/asset']){
+  assert.throws(()=>toReviewCard(item,{previewUrl}),/no external hotlink/);
+ }
+ assert.equal(toReviewCard(item,{previewUrl:'/api/channel-assets/preview/abc123.webp'}).publishable,true);
+ assert.equal(safeUrl('https://sub.localhost/internal'),null);
+});
