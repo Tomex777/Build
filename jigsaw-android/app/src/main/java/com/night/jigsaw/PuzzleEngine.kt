@@ -9,7 +9,8 @@ import kotlin.random.Random
 /** View-independent puzzle rules in a 1000-unit world; no Android or browser dependency. */
 data class PuzzlePiece(
     val id: Int, val row: Int, val col: Int,
-    var x: Float, var y: Float, var placed: Boolean = false
+    var x: Float, var y: Float, var placed: Boolean = false,
+    var groupId: Int = id
 )
 
 class PuzzleGame private constructor(
@@ -122,9 +123,12 @@ class PuzzleGame private constructor(
         fun restore(cols: Int, rows: Int, seed: Long, imageKey: String,
                     positions: List<Triple<Float, Float, Boolean>>,
                     hints: Int, moves: Int, preview: Boolean, landscape: Boolean = false,
-                    activeZone: Int = 0): PuzzleGame? {
+                    activeZone: Int = 0, groupIds: List<Int>? = null): PuzzleGame? {
             if (cols !in 2..32 || rows !in 2..32 || cols * rows != positions.size ||
                 cols * rows > 600 || hints !in 0..3 || moves < 0) return null
+            if (groupIds!=null &&
+                (groupIds.size!=positions.size || groupIds.any{it !in positions.indices}))
+                return null
             val game = fresh(cols, rows, imageKey, seed, landscape)
             for ((i, data) in positions.withIndex()) {
                 if (!data.first.isFinite() || !data.second.isFinite() ||
@@ -133,6 +137,7 @@ class PuzzleGame private constructor(
                     x = if (data.third) game.targetX(this) else data.first
                     y = if (data.third) game.targetY(this) else data.second
                     placed = data.third
+                    groupId = if (data.third) id else groupIds?.get(i) ?: id
                 }
             }
             if(activeZone !in 0 until game.zoneCount) return null
