@@ -65,14 +65,20 @@ function paintConfig(){
 }
 async function changeConfig(patch,control){
  if(configBusy||!config)return;
- const prior=config;configBusy=true;control&&setBusy(control,true);
+ const prior=config;configBusy=true;
+ for(const element of document.querySelectorAll('[data-module],#saveMemes,#saveNews,#saveBranding'))element.disabled=true;
+ control&&setBusy(control,true);
  try{
    const result=await api('channel:config:update',{expectedRevision:config.revision,patch});
    if(!validSettings(result))throw Error('The bot did not confirm the settings. Refresh before changing anything else.');
    config=result;paintConfig();note('Settings saved to NIGHT for this channel.');
  }catch(error){
    config=prior;paintConfig();note(errorMessage(error)+' No setting was changed.',true);
- }finally{configBusy=false;paintConfig();if(control)setBusy(control,false);}
+ }finally{
+   configBusy=false;paintConfig();
+   for(const id of ['saveMemes','saveNews','saveBranding'])setBusy($(id),false);
+   if(control)setBusy(control,false);
+ }
 }
 function attachControls(){
  document.querySelectorAll('[data-module]').forEach(el=>el.addEventListener('change',()=>{
@@ -82,7 +88,17 @@ function attachControls(){
    if(id==='memes'&&el.checked&&!selected('memeCategories',CATEGORIES).length){
      el.checked=false;note('Choose at least one meme category before enabling.',true);return;
    }
-   changeConfig({modules:{[id]:el.checked}},el);
+   if(id==='news'&&el.checked&&!selected('newsInterests',INTERESTS).length){
+     el.checked=false;note('Choose at least one news interest before enabling.',true);return;
+   }
+   const patch={modules:{[id]:el.checked}};
+   if(id==='memes'&&el.checked)patch.memes={
+     mode:$('memeMode').value,categories:selected('memeCategories',CATEGORIES),dailyLimit:Number($('memeDaily').value)
+   };
+   if(id==='news'&&el.checked)patch.news={
+     mode:$('newsMode').value,interests:selected('newsInterests',INTERESTS),spoilers:$('spoilerPolicy').value
+   };
+   changeConfig(patch,el);
  }));
  $('saveMemes').addEventListener('click',()=>{
    const categories=selected('memeCategories',CATEGORIES);
