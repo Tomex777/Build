@@ -1,0 +1,36 @@
+/* Original finite racing game. Rivals have independent distance/speed;
+   positions and the finish order are calculated from the same simulation. */
+(()=>{'use strict';
+const $=id=>document.getElementById(id),canvas=$('track'),ctx=canvas.getContext('2d');
+const W=420,H=640,FINISH=2500,keys=new Set();
+let state='ready',frame=0,last=0,elapsed=0,travel=0,x=.5,target=.5,velocity=0,crashes=0,cooldown=0,braking=false,steering=null,rivals=[];
+function reset(){elapsed=0;travel=0;x=target=.5;velocity=0;crashes=0;cooldown=0;braking=false;keys.clear();rivals=[{x:.22,d:50,speed:108,color:'#d8a448'},{x:.5,d:94,speed:116,color:'#677fa6'},{x:.78,d:140,speed:122,color:'#a06e7f'}];}
+function rank(){return 1+rivals.filter(r=>r.d>travel).length;}
+function hud(){ $('position').textContent=rank()+' / 4';$('distance').textContent=Math.min(FINISH,Math.floor(travel))+' m';$('speed').textContent=Math.round(velocity*1.2)+' km/h';}
+function message(title,copy,action){$('start').hidden=false;$('coverTitle').textContent=title;$('coverCopy').textContent=copy;$('start').textContent=action;$('cover').hidden=false;}
+function buttons(){const live=state==='running';$('pause').disabled=!['running','paused'].includes(state);$('pauseLabel').textContent=state==='paused'?'Resume':'Pause';$('pause').setAttribute('aria-label',state==='paused'?'Resume race':'Pause race');$('brake').disabled=!live;}
+function start(){if(state==='paused'){state='running';last=0;}else{reset();state='running';last=0;}$('cover').hidden=true;buttons();$('status').textContent='Drag to steer · Hold Brake for tight passes';canvas.focus({preventScroll:true});loop();}
+function pause(){if(state==='running'){state='paused';braking=false;steering=null;keys.clear();message('Race paused.','Use Resume in the top bar.','Resume race');$('start').hidden=true;buttons();cancelAnimationFrame(frame);frame=0;}else if(state==='paused')start();}
+function finish(crashed=false){if(state==='finished')return;window.NightRecords?.round('racing',Math.min(FINISH,travel));state='finished';braking=false;keys.clear();buttons();const place=rank();$('coverTag').textContent='RACE COMPLETE';message(crashed?'Race over.':place===1?'First over the line!':'Finished '+['','1st','2nd','3rd','4th'][place]+'.',crashed?'Three collisions. Brake before overtaking and leave a little room.':place===1?'Coastal sprint won in '+elapsed.toFixed(1)+' seconds.': 'Your rivals reached the line first. Keep your speed up on the road and choose clear passing lanes.','Race again');$('status').textContent=crashed?'Race ended after three collisions.':'Finished · '+place+' of 4';}
+function step(dt){elapsed+=dt;cooldown=Math.max(0,cooldown-dt);const direction=(keys.has('ArrowRight')||keys.has('d')?1:0)-(keys.has('ArrowLeft')||keys.has('a')?1:0);if(direction)target=Math.max(-.12,Math.min(1.12,target+direction*dt*.9));x+=(target-x)*Math.min(1,dt*12);const offroad=x<.05||x>.95;const max=braking||keys.has(' ')?55:offroad?70:164;velocity+=Math.sign(max-velocity)*Math.min(Math.abs(max-velocity),dt*(max<velocity?180:56));travel+=velocity*dt;
+ for(const [i,r] of rivals.entries()){r.d+=r.speed*dt;r.x+=Math.sin(elapsed*.35+i*2)*dt*.012;r.x=Math.max(.16,Math.min(.84,r.x));if(cooldown===0&&Math.abs(r.d-travel)<12&&Math.abs(r.x-x)<.13){crashes++;velocity=35;cooldown=1.8;target=x<r.x?Math.max(.07,x-.18):Math.min(.93,x+.18);$('status').textContent='Collision · '+(3-crashes)+(crashes===2?' chance left':' chances left');if(crashes===3){finish(true);return;}}}
+ if(travel>=FINISH)finish();else if(cooldown===0&&offroad)$('status').textContent='Off the road · Steer back onto the tarmac';}
+function car(px,py,color,player=false){ctx.save();ctx.translate(px,py);ctx.fillStyle='#152621';for(const dx of [-19,14])for(const dy of [-22,16])ctx.fillRect(dx,dy,6,12);ctx.fillStyle=color;ctx.beginPath();ctx.roundRect(-16,-33,32,66,8);ctx.fill();ctx.fillStyle='#d4e8e4';ctx.beginPath();ctx.roundRect(-12,-18,24,14,4);ctx.fill();ctx.fillStyle='#243d42';ctx.fillRect(-11,13,22,9);ctx.fillStyle='#f1e2ab';ctx.fillRect(-13,-29,7,4);ctx.fillRect(6,-29,7,4);if(player){ctx.fillStyle='#e9f1e1';ctx.fillRect(-3,-1,6,12);}ctx.restore();}
+function draw(){ctx.clearRect(0,0,W,H);ctx.fillStyle='#b6c7a6';ctx.fillRect(0,0,W,H);ctx.fillStyle='#76a9b1';ctx.fillRect(0,0,31,H);ctx.fillStyle='#d3d0ab';ctx.fillRect(31,0,16,H);ctx.fillStyle='#52625f';ctx.fillRect(67,0,286,H);const scroll=travel*3;for(let i=-1;i<12;i++){const y=((i*82+scroll)%984)-82;ctx.fillStyle=i%2?'#e9ebd8':'#b56f5b';ctx.fillRect(59,y,8,42);ctx.fillRect(353,y,8,42);ctx.fillStyle='#e5e5c9';ctx.fillRect(160,y,3,38);ctx.fillRect(257,y,3,38);ctx.fillStyle='#78976e';ctx.beginPath();ctx.arc(391,y+15,16,0,Math.PI*2);ctx.fill();ctx.fillStyle='#8eaa7a';ctx.beginPath();ctx.arc(386,y+9,12,0,Math.PI*2);ctx.fill();}
+ const finishY=490-(FINISH-travel)*3;if(finishY>-40&&finishY<H+40){for(let a=0;a<16;a++)for(let b=0;b<2;b++){ctx.fillStyle=(a+b)%2?'#263c36':'#f1eedc';ctx.fillRect(67+a*17.875,finishY+b*18,18,18);}}
+ for(const r of rivals){const y=490-(r.d-travel)*3;if(y>-70&&y<H+70)car(83+r.x*254,y,r.color);}
+ if(cooldown===0||Math.floor(cooldown*9)%2===0)car(83+x*254,490,'#bf6551',true);}
+function loop(ts=0){
+ cancelAnimationFrame(frame);frame=0;if(state!=='running')return;
+ let remaining=last?Math.min(.25,(ts-last)/1000):0;last=ts;
+ // Integrate elapsed time in small steps: collision detection stays reliable
+ // on a slow phone without making the whole race run in slow motion.
+ while(remaining>0&&state==='running'){const dt=Math.min(1/120,remaining);step(dt);remaining-=dt;}
+ hud();draw();if(state==='running')frame=requestAnimationFrame(loop);
+}
+function resize(){const dpr=Math.min(2,devicePixelRatio||1);canvas.width=W*dpr;canvas.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);draw();}
+function point(e){const rect=canvas.getBoundingClientRect();target=Math.max(-.12,Math.min(1.12,((e.clientX-rect.left)/rect.width*W-83)/254));}
+canvas.addEventListener('pointerdown',e=>{if(state!=='running')return;steering=e.pointerId;canvas.setPointerCapture(e.pointerId);point(e);});canvas.addEventListener('pointermove',e=>{if(e.pointerId===steering)point(e);});for(const event of ['pointerup','pointercancel','lostpointercapture'])canvas.addEventListener(event,e=>{if(steering===e.pointerId)steering=null;});
+const brake=$('brake');brake.addEventListener('pointerdown',e=>{if(state==='running'){braking=true;brake.setPointerCapture(e.pointerId);}});for(const event of ['pointerup','pointercancel','lostpointercapture','blur'])brake.addEventListener(event,()=>braking=false);
+document.addEventListener('keydown',e=>{if(['ArrowLeft','ArrowRight','a','d',' '].includes(e.key)&&state==='running'){e.preventDefault();keys.add(e.key);}if(e.key==='Escape'&&!e.repeat)pause();});document.addEventListener('keyup',e=>keys.delete(e.key));document.addEventListener('visibilitychange',()=>{if(document.hidden&&state==='running')pause();});window.addEventListener('blur',()=>{if(state==='running')pause();});window.addEventListener('resize',resize);$('start').addEventListener('click',start);$('pause').addEventListener('click',pause);if(['localhost','127.0.0.1'].includes(location.hostname))window.__nightRacingTest=Object.freeze({snapshot:()=>({state,elapsed,travel,x,velocity,crashes,rivals:rivals.map(r=>({...r}))})});reset();resize();hud();buttons();
+})();

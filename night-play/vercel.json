@@ -2,6 +2,22 @@
   "version": 2,
   "rewrites": [
     {
+      "source": "/draw",
+      "destination": "/draw/index.html"
+    },
+    {
+      "source": "/draw/",
+      "destination": "/draw/index.html"
+    },
+    {
+      "source": "/racing",
+      "destination": "/racing/index.html"
+    },
+    {
+      "source": "/racing/",
+      "destination": "/racing/index.html"
+    },
+    {
       "source": "/sling-siege",
       "destination": "/sling-siege/index.html"
     },

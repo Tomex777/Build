@@ -15,7 +15,7 @@ let songFilter="All",songQuery="";
 const favouriteKey="night-play-piano-favourites-v1";
 function savedFavorites(){try{const a=JSON.parse(localStorage.getItem(favouriteKey)||"[]");return new Set(Array.isArray(a)?a:[])}catch{return new Set()}}
 let favorites=savedFavorites();
-function bestFor(song){try{return Math.max(0,Number(localStorage.getItem("night-play-piano-tiles-best-"+song.id+"-v1"))||0)}catch{return 0}}
+function bestFor(song){try{return Math.max(0,Number(localStorage.getItem(song.id==="frere"?"night-play-piano-tiles-best-v1":"night-play-piano-tiles-best-"+song.id+"-v1"))||0)}catch{return 0}}
 const bestKey=()=>selectedSong.id==="frere"?"night-play-piano-tiles-best-v1":"night-play-piano-tiles-best-"+selectedSong.id+"-v1";
 const readBest=()=>{try{return Math.max(0,Number(localStorage.getItem(bestKey()))||0)}catch{return 0}};
 function saveBest(){try{if(score>readBest())localStorage.setItem(bestKey(),String(score))}catch{}}
@@ -57,62 +57,7 @@ function extendEndless(count){
 }
 function chart(){
  if(selectedSong.id==="endless"){endlessIndex=0;endlessNextAt=1.45;return spaceNotes(extendEndless(32));}
- if(selectedSong.id==="twinkle")return spaceNotes(twinkleChart());
- if(selectedSong.id!=="frere")return spaceNotes(window.NightPianoSongLibrary.arrangement(selectedSong));
- // Frère Jacques (traditional), C-major; lanes determine hit geometry,
- // note.frequency determines pitch. The final bar includes two-note chords.
- const phrase=[
-  [0,261.63],[1,293.66],[2,329.63],[0,261.63],
-  [0,261.63],[1,293.66],[2,329.63],[0,261.63],
-  [2,329.63],[3,349.23],[2,392.00],[2,329.63],
-  [3,349.23],[2,392.00],[2,329.63],[1,293.66],
-  [2,392.00],[3,440.00],[2,392.00],[1,349.23],
-  [2,329.63],[0,261.63],[2,392.00],[3,440.00],
-  [2,392.00],[1,349.23],[2,329.63],[0,261.63],
-  [0,261.63],[2,392.00],[0,261.63],[0,261.63]
- ];
- let t=2.15;const result=[];
- for(let i=0;i<phrase.length;i++){
-  const [lane,freq]=phrase[i],hold=[7,14,26,31].includes(i);
-  const beat=Math.max(.34,.535-i*.0045);
-  const duration=hold?Math.max(.65,beat*1.55):0;
-  result.push({lane,freq,at:t,duration,hold,state:"waiting",pointer:null,
-   start:0,scoreGiven:false,voice:null,flash:0});
-  if(i===19||i===29){
-   const other=(lane+2)%4;
-   result.push({lane:other,freq:freq/2,at:t,duration:0,hold:false,
-    state:"waiting",pointer:null,start:0,scoreGiven:false,voice:null,flash:0});
-  }
-  t+=beat;
- }
- return spaceNotes(result);
-}
-// Public-domain Twinkle, Twinkle Little Star, full A–B–B–A variation.
-// Interleaved lanes avoid a string of tiny repeated taps on one narrow lane.
-function twinkleChart(){
- const pitches=[
- 261.63,261.63,392,392,440,440,392,
- 349.23,349.23,329.63,329.63,293.66,293.66,261.63,
- 392,392,349.23,349.23,329.63,329.63,293.66,
- 392,392,349.23,349.23,329.63,329.63,293.66,
- 261.63,261.63,392,392,440,440,392,
- 349.23,349.23,329.63,329.63,293.66,293.66,261.63
- ];
- let t=2.15;const result=[];
- for(let i=0;i<pitches.length;i++){
-  const lane=[0,1,2,3,1,0,2,3][i%8];
-  const beat=Math.max(.44,.60-i*.0038);
-  const hold=[6,13,20,27,34,41].includes(i);
-  const duration=hold?Math.max(.72,beat*1.5):0;
-  result.push({lane,freq:pitches[i],at:t,duration,hold,state:"waiting",pointer:null,
-   start:0,scoreGiven:false,voice:null,flash:0});
-  // The final cadence gets an independent second finger/key harmony.
-  if(i===35||i===40)result.push({lane:(lane+2)%4,freq:pitches[i]/2,at:t,
-   duration:0,hold:false,state:"waiting",pointer:null,start:0,
-   scoreGiven:false,voice:null,flash:0});
-  t+=beat;
- }
- return result;
+ return spaceNotes(window.NightPianoSongLibrary.arrangement(selectedSong));
 }
 function cover(kicker,title,copy,button){
  $("coverKicker").textContent=kicker;$("coverKicker").hidden=!kicker;$("coverTitle").textContent=title;
@@ -154,8 +99,9 @@ function renderSongLibrary(){
   const artist=document.createElement("div");artist.className="song-card-artist";artist.textContent=song.artist;
   const meta=document.createElement("div");meta.className="song-card-meta";
   const diff=document.createElement("span");diff.className="song-level";diff.textContent=song.difficulty;
+  const form=document.createElement("span");form.textContent=song.form;
   const best=document.createElement("span");best.textContent=bestFor(song)?"Best "+bestFor(song).toLocaleString():"";
-  meta.append(diff,best);detail.append(title,artist,meta);
+  meta.append(diff,form,best);detail.append(title,artist,meta);
   const actions=document.createElement("div");actions.className="song-card-actions";
   const fave=document.createElement("button");fave.type="button";fave.className="song-favorite";
   fave.dataset.favourite=song.id;fave.setAttribute("aria-label",(favorites.has(song.id)?"Remove ":"Add ")+song.title+(favorites.has(song.id)?" from favourites":" to favourites"));
@@ -231,7 +177,7 @@ async function begin(){
  }finally{preparing=false;action.disabled=false;setSongControls()}
 }
 function lose(reason){
- if(ended)return;
+ if(ended)return;window.NightRecords?.round("piano-tiles",score);
  ended=true;running=false;paused=false;
  if(raf)cancelAnimationFrame(raf);raf=0;
  closeSounds();held.clear();keyHeld.clear();saveBest();updateHud();setPauseButton();setSongControls();$("restart").hidden=true;
@@ -241,10 +187,10 @@ function lose(reason){
  render();
 }
 function win(){
- if(ended)return;ended=true;running=false;paused=false;
+ if(ended)return;window.NightRecords?.round("piano-tiles",score);ended=true;running=false;paused=false;
  if(raf)cancelAnimationFrame(raf);raf=0;
  closeSounds();held.clear();keyHeld.clear();saveBest();updateHud();setPauseButton();setSongControls();
- document.body.classList.remove("is-playing");$("status").textContent="";
+ document.body.classList.remove("is-playing");$("status").textContent="";$("restart").hidden=true;
  cover("SONG COMPLETE","Beautifully played.","Score "+score+" · "+complete+" notes","Play again");
  render();
 }
@@ -260,19 +206,20 @@ function pause(){
  }else{
   $("cover").hidden=true;previous=0;
   for(const n of notes){
-   if(n.state==="holding"&&n.pointer!==null&&!n.voice)n.voice=sound(n.freq,true);
+   if(n.state==="holding"&&n.pointer!==null&&!n.voice)n.voice=sound(n.chord||n.freq,true);
   }
   $("status").textContent="";
   raf=requestAnimationFrame(tick);
  }
 }
 function sound(frequency,hold){
+ if(Array.isArray(frequency)){const voices=frequency.map(freq=>window.NightPiano.play(freq,hold));return {release:seconds=>voices.forEach(voice=>voice.release(seconds))}}
  return window.NightPiano.play(frequency,hold);
 }
 // Beat-locked world displacement: all tiles move through a continuous shared
 // timeline. A successful tap must never teleport every other tile.
 const TILE_HEIGHT=166,TILE_GAP=TILE_HEIGHT;
-function baseSpeed(){return ({Easy:525,Normal:570,Hard:610,Expert:660})[selectedSong.difficulty]||570}
+function baseSpeed(){return selectedSong.score?950:({Easy:525,Normal:570,Hard:610,Expert:660})[selectedSong.difficulty]||570}
 const MAX_RAMP=100,RAMP_PER_SECOND=1.3;
 function trackTravel(t){
  t=Math.max(0,t);
@@ -364,7 +311,7 @@ function play(x,y,id){
  // The full tile is tappable; the lower playable third earns 'Perfect'.
  const accurate=hit.bottom>=HIT-45&&hit.bottom<=H+18;
  score+=accurate?125:100;
- updateHud();n.voice=sound(n.freq,n.hold);
+ updateHud();n.voice=sound(n.chord||n.freq,n.hold);
  if(n.hold){
   n.state="holding";n.pointer=id;n.hitBottom=hit.bottom;n.holdSpeed=hit.speed;held.set(id,n);
   $("status").textContent="Keep holding";

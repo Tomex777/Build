@@ -10,7 +10,7 @@
 <symbol id="icon-pause" viewBox="0 0 24 24"><path d="M8 4v16M16 4v16"/></symbol>
 <symbol id="icon-play" viewBox="0 0 24 24"><path d="m8 4 12 8-12 8z"/></symbol>
 </svg>
-<header class="night-shell-header"><a class="night-back" href="/games"><svg class="night-ico"><use href="#icon-back"/></svg><span class="night-text">Games</span></a>
+<header class="night-shell-header"><a class="night-back" href="/games" aria-label="Back to NIGHT Play games"><svg class="night-ico"><use href="#icon-back"/></svg><span class="night-text">Games</span></a>
 <a class="night-brand" href="/dashboard" aria-label="NIGHT Play home"><svg class="night-brand-mark"><use href="#night-mark"/></svg><strong>NIGHT <em>PLAY</em></strong></a>
 <button type="button" class="night-settings" id="pause" aria-label="Pause Piano Tiles" disabled><svg class="night-ico"><use id="pauseIcon" href="#icon-pause"/></svg><span class="night-text" id="pauseLabel">Pause</span></button></header>
 <main>
@@ -37,7 +37,9 @@
 </div>
 <div class="game-tools"><button id="restart" type="button" hidden><svg class="night-ico"><use href="#icon-restart"/></svg> Restart</button><p role="status" aria-live="polite" id="status">Ready</p></div>
 </section></section><p class="piano-attribution">Grand piano recordings by <a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noopener noreferrer" aria-label="Grand piano samples by Alexander Holm, CC BY 3.0">Alexander Holm · CC BY 3.0</a></p></main>
+<script src="/piano-tiles/full-scores.js" defer></script>
 <script src="/piano-tiles/song-library.js" defer></script>
 <script src="/piano-tiles/piano-audio.js" defer></script>
+<script src="/records.js" defer></script>
 <script src="/piano-tiles/game.js" defer></script>
 </body></html>

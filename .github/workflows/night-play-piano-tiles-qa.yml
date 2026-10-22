@@ -21,6 +21,8 @@ jobs:
           node-version: '22'
       - name: Install Chromium runner
         run: npm install --no-save playwright@1.56.1
+      - name: Install matching Chromium
+        run: npx playwright install --with-deps chromium
       - name: Play all Piano Tiles notes on a real browser
         run: node night-play/piano-tiles/mobile-smoke.mjs
       - name: Retain gameplay screenshots for visual inspection

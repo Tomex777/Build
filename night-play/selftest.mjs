@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import vm from 'node:vm'
+import './records-selftest.mjs'
 const html = readFileSync(new URL('./index.html', import.meta.url), 'utf8')
 const vercel = JSON.parse(readFileSync(new URL('./vercel.json', import.meta.url), 'utf8'))
 /* ABR: navigational arrows are SVG, not text characters or generated CSS labels. */

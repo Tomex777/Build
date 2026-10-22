@@ -8,9 +8,9 @@ import {fileURLToPath} from 'node:url';
 import {chromium} from 'playwright';
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
 const output=join(root,'visual-output','piano-tiles');mkdirSync(output,{recursive:true});
-const assets=new Set([
+const assets=new Set(['records.js',
  'piano-tiles/index.html','piano-tiles/style.css','piano-tiles/game.js',
- 'piano-tiles/piano-audio.js','piano-tiles/song-library.js','game-shell.css',
+ 'piano-tiles/piano-audio.js','piano-tiles/song-library.js','piano-tiles/full-scores.js','game-shell.css',
  ...['C3','Fs3','A3','C4','Ds4','Fs4','A4','C5','Ds5','Fs5'].map(n=>'piano-tiles/samples/'+n+'.mp3')
 ]);
 const mime={'.js':'text/javascript','.html':'text/html','.css':'text/css','.mp3':'audio/mpeg'};
@@ -36,7 +36,7 @@ try{
   p.on('response',r=>{if(r.url().endsWith('.mp3'))samples.push(r.status())});
   await p.goto(origin+'/piano-tiles/',{waitUntil:'domcontentloaded'});
   assert.ok(await p.locator('.piano-attribution').isVisible(),'required sample credit visible');
-  assert.equal(await p.locator('[data-play]').count(),37,'expanded playable piano song catalogue');
+  assert.equal(await p.locator('[data-play]').count(),39,'expanded playable piano song catalogue');
   await p.locator('[data-play="endless"]').tap();
   await p.waitForFunction(()=>document.body.classList.contains('is-playing'),null,{timeout:30000});
   const instrument=await p.evaluate(()=>window.NightPiano.inspect());
@@ -46,9 +46,16 @@ try{
   assert.ok(samples.every(x=>x===200)&&samples.length===10,'every local MP3 served');
   const rect=await p.locator('#board').boundingBox();
   assert.ok(rect.width>=300&&rect.height>=310,'fully visible responsive touch area');
+  assert.ok(rect.y>=0&&rect.y+rect.height<=height+1,'entire board fits vertically');
+  assert.ok(rect.width/4>=70,'each lane remains finger-sized');
+  const pageSize=await p.evaluate(()=>({width:document.documentElement.scrollWidth,
+   height:document.documentElement.scrollHeight}));
+  assert.ok(pageSize.width<=width+1&&pageSize.height<=height+1,
+   'active game fits without horizontal or vertical page scrolling');
   if(width===390)await p.screenshot({path:join(output,'piano-real-grand-390.png')});
   const first=await p.evaluate(()=>window.__nightPianoTest.geometry()[0]);
-  await p.touchscreen.tap(rect.x+rect.width*.125,
+  const lane=await p.evaluate(()=>window.__nightPianoTest.snapshot().notes[0].lane);
+  await p.touchscreen.tap(rect.x+rect.width*(lane+.5)/4,
    rect.y+rect.height*Math.max(30,first.bottom-30)/660);
   await p.waitForTimeout(110);
   const strike=await p.evaluate(()=>({
@@ -84,7 +91,8 @@ try{
   const rect=await p.locator('#board').boundingBox();
   await p.waitForTimeout(60); // songs start with their first key already visible
   const first=await p.evaluate(()=>window.__nightPianoTest.geometry()[0]);
-  await p.touchscreen.tap(rect.x+rect.width*.125,
+  const lane=await p.evaluate(()=>window.__nightPianoTest.snapshot().notes[0].lane);
+  await p.touchscreen.tap(rect.x+rect.width*(lane+.5)/4,
    rect.y+rect.height*Math.max(30,first.bottom-30)/660);
   await p.waitForTimeout(50);
   assert.ok((await p.evaluate(()=>window.NightPiano.inspect())).lastPlayed,'song played sample');

@@ -7,8 +7,8 @@ import {dirname,resolve,join,extname} from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {chromium} from 'playwright';
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..');
-const assets=new Set(['game-shell.css','piano-tiles/index.html','piano-tiles/style.css',
- 'piano-tiles/game.js','piano-tiles/song-library.js','piano-tiles/piano-audio.js',
+const assets=new Set(['records.js','game-shell.css','piano-tiles/index.html','piano-tiles/style.css',
+ 'piano-tiles/game.js','piano-tiles/song-library.js','piano-tiles/full-scores.js','piano-tiles/piano-audio.js',
  ...['C3','Fs3','A3','C4','Ds4','Fs4','A4','C5','Ds5','Fs5'].map(k=>'piano-tiles/samples/'+k+'.mp3')]);
 const mime={'.mp3':'audio/mpeg','.js':'application/javascript','.html':'text/html','.css':'text/css'};
 const server=createServer((req,res)=>{
@@ -30,8 +30,8 @@ try{
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto(origin+'/piano-tiles/');
   const tunes=await page.evaluate(()=>window.NightPianoSongLibrary.songs);
-  assert.equal(tunes.length,37,'all 37 arrangements in catalogue');
-  assert.equal(await page.locator('[data-play]').count(),37,'every song has a play button');
+  assert.equal(tunes.length,39,'all 37 arrangements in catalogue');
+  assert.equal(await page.locator('[data-play]').count(),39,'every song has a play button');
   assert.equal(await page.locator('#playPage').isVisible(),false,'selection screen first');
   const position=await page.locator('[data-play="endless"]').boundingBox();
   assert.ok(position?.width>40,'play control real hit area');
@@ -89,7 +89,7 @@ try{
   }
   await page.locator('#songBack').tap();
   assert.equal(await page.locator('#songLibrary').isVisible(),true,'back to song browsing');
-  assert.equal(await page.locator('[data-play]').count(),37,'all songs remain selectable');
+  assert.equal(await page.locator('[data-play]').count(),39,'all songs remain selectable');
   if(index%12===0)console.log('CHECKED',index+1,song.id,t.s.notes.length);
  }
  await page.close();
