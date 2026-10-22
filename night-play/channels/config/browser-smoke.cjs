@@ -77,6 +77,7 @@ const server=http.createServer(async(req,res)=>{
      return send(res,200,{previewData:candidate.previewData,formattedCaption:q.caption+(name?'\n> '+name:'')});
    }
    if(action==='channel:memes:review'){
+     if(settings.modules.memes!==true)return send(res,403,{error:'Enable memes before reviewing for publication'});
      if(q.expectedSelectionRevision!==selection.revision)return send(res,409,{error:'Selection changed elsewhere'});
      const candidate=(current?.batchId===q.batchId?current.candidates.find(c=>c.id===q.candidateId):null)
        ||selection.items.find(c=>c.batchId===q.batchId&&c.candidateId===q.candidateId);
@@ -257,8 +258,11 @@ async function main(){
    assert.equal(settings.modules.memes,false,'Module OFF persists backend-side');
    await page.getByRole('button',{name:'Find memes'}).click();
    await page.locator('.review-card').first().waitFor();
-   await page.locator('.review-card').first().getByRole('button',{name:'Approve'}).click();
+   assert.equal(await page.locator('.review-card').first().getByRole('button',{name:'Approve'}).isDisabled(),true,'OFF blocks approval');
+   assert.equal(await page.locator('.review-card').first().getByRole('button',{name:'Skip'}).isDisabled(),true,'OFF blocks review changes');
    assert.equal(await page.getByRole('button',{name:'Publish approved'}).isDisabled(),true,'Cannot publish while OFF');
+   await page.locator('[data-module="memes"]').check({force:true});
+   await page.waitForFunction(()=>document.querySelector('[data-module="memes"]')?.checked===true);
    // Another authenticated tab changes the server-owned selection revision.
    selection={...selection,revision:selection.revision+1};
    await page.locator('.review-card').first().getByRole('button',{name:'Skip'}).click();
