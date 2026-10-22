@@ -167,6 +167,28 @@ class UnderTreeSceneTest {
         })
         assertEquals(movedTree,
             UnderTreeScene.upgradeUntouchedDemoComposition(movedTree))
+        val editedSun = legacy.copy(actors = legacy.actors.map {
+            if (it.id == "schoolyard-sun")
+                it.copy(light = it.light!!.copy(intensity = 56_000f))
+            else it
+        })
+        assertEquals(editedSun,
+            UnderTreeScene.upgradeUntouchedDemoComposition(editedSun))
+        val editedWorld = legacy.copy(world = legacy.world.copy(groundTileCount = 14))
+        assertEquals(editedWorld,
+            UnderTreeScene.upgradeUntouchedDemoComposition(editedWorld))
+        val editedBodyMaterial = legacy.copy(actors = legacy.actors.map {
+            if (it.id == UnderTreeScene.SECOND_STUDENT_ID)
+                it.copy(material = studio.artistscene.core.MaterialSettings(
+                    baseColorHex = "#CCAA88"))
+            else it
+        })
+        assertEquals(editedBodyMaterial,
+            UnderTreeScene.upgradeUntouchedDemoComposition(editedBodyMaterial))
+        val changedDescription = legacy.copy(metadata = legacy.metadata.copy(
+            description = "My graduation memories"))
+        assertEquals(changedDescription,
+            UnderTreeScene.upgradeUntouchedDemoComposition(changedDescription))
         val withCustomObject = legacy.copy(actors = legacy.actors + legacy.actors[0].copy(id = "my-prop"))
         assertEquals(withCustomObject,
             UnderTreeScene.upgradeUntouchedDemoComposition(withCustomObject))
