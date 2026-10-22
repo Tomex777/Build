@@ -226,6 +226,35 @@ class ScriptStudioFileCreationTest {
         }
     }
 
+    @Test fun newRootHtmlFileIsARealDocumentAndNotADummyJsCommand() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val workspace = ScriptWorkspace(context)
+        val id = "rootdoc" + System.nanoTime().toString().takeLast(8)
+        val shown = mutableStateOf(true)
+        try {
+            compose.setContent { AnnieTheme {
+                if (shown.value) ScriptStudioSheet(workspace, {})
+            } }
+            compose.onNodeWithText("New File").performClick()
+            compose.onNodeWithTag("script_file_name").performTextInput("$id.html")
+            compose.onNodeWithText("Continue").performClick()
+            compose.waitUntil(8_000) { File(workspace.files.root, "$id/$id.html").isFile }
+            compose.onNodeWithTag("script_editor").assertExists()
+            assertFalse(File(workspace.files.root, "$id/main.js").exists())
+            assertFalse("A document cannot run a generated command", workspace.files.isEnabled(id))
+            compose.onNodeWithText("Files", substring = false).performClick()
+            compose.onNodeWithTag("script_file_search").performTextInput(id)
+            closeSoftKeyboard()
+            compose.onNodeWithText("$id.html", substring = false).assertExists()
+            saveEmulatorScreenshot("annie-agent3-root-html-document")
+        } finally {
+            compose.runOnIdle { shown.value = false }
+            compose.waitForIdle()
+            workspace.close()
+            runCatching { workspace.files.deleteProject(id) }
+        }
+    }
+
     @Test fun downloadedHtmlOpensRealDocumentWithoutGeneratedCommand() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val workspace = ScriptWorkspace(context)
