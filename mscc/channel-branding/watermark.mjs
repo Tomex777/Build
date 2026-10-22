@@ -8,6 +8,7 @@ const POSITIONS=new Set(['auto','top-left','top-right','bottom-left','bottom-rig
 const hasEmoji=text=>/\p{Extended_Pictographic}|\p{Regional_Indicator}/u.test(text);
 const hash=value=>createHash('sha256').update(value).digest('hex');
 const getSharp=async provided=>provided||(await import('sharp')).default;
+const warmedFonts=new WeakSet();
 
 function checkChannel(channelId,displayName) {
   if(typeof channelId!=='string'||!JID.test(channelId)) throw new Error('Verified numeric WhatsApp Channel JID required.');
@@ -62,7 +63,10 @@ export async function renderUnicodeTextLayer({displayName,width,height,tone,canv
   // installed/registered on the actual bot host. Callers can register an
   // approved Noto Color Emoji font via lib.GlobalFonts.registerFromPath(...)
   // before starting the worker. Never silently substitute ASCII for emoji.
-  lib.GlobalFonts?.loadSystemFonts?.();
+  if(!warmedFonts.has(lib)){
+    lib.GlobalFonts?.loadSystemFonts?.();
+    warmedFonts.add(lib);
+  }
   const canvas=lib.createCanvas(width,height),ctx=canvas.getContext('2d');
   ctx.clearRect(0,0,width,height);ctx.fillStyle=tone==='dark'?'#141d20':'#f7f9f6';
   ctx.textAlign='center';ctx.textBaseline='middle';
