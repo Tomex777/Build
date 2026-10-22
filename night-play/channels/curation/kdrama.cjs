@@ -37,7 +37,8 @@ function interpretKDramaEntry(row,{showAliases=[],confirmedBySource={}}={}){
  if(!tags.length&&feedCategories.some(c=>typeof c==='string'&&/^(?:k[- ]?drama|korean dramas?|dramas?|drama preview|tv drama)$/i.test(c.trim())))tags.push('other');
  const event=tags.find(x=>['casting','releases','trailers','renewals'].includes(x))||'update';
  const approved=confirmedBySource&&typeof confirmedBySource==='object'?confirmedBySource:{};
- const confirmation=Object.hasOwn(approved,row.guid)?approved[row.guid]:null;
+ const guid=typeof row.guid==='string'&&row.guid.trim()&&row.guid.length<=256?row.guid:null;
+ const confirmation=guid&&Object.hasOwn(approved,guid)?approved[guid]:null;
  const flags=classifyHeadline(title);
  const confirmed=confirmation?.verified===true&&!flags.rumor;
  return {show:String(confirmation?.show||findShow(title,Array.isArray(showAliases)?showAliases:[])),event:confirmation?.event||event,
