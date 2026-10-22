@@ -40,6 +40,9 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.contentDescription
 import kotlinx.coroutines.delay
 
 /**
@@ -181,7 +184,20 @@ internal fun VoiceHoldButton(
     Surface(
         color = if (controller.recording) Color(0xFFFF4D4D) else Color(0xFF168EEA),
         shape = CircleShape,
-        modifier = modifier.size(48.dp).testTag("composer_voice_hold").pointerInteropFilter { event ->
+        modifier = modifier.size(48.dp).testTag("composer_voice_hold")
+            // TalkBack cannot perform drag-and-hold gestures. An accessibility click
+            // starts a locked recording with visible Pause, Delete and Send actions.
+            .semantics {
+                role = Role.Button
+                contentDescription = "Record voice note"
+                onClick(label = "Start voice note") {
+                    if (controller.recording) return@onClick true
+                    if (!controller.hasPermission()) onNeedPermission()
+                    else if (controller.begin()) controller.locked = true
+                    true
+                }
+            }
+            .pointerInteropFilter { event ->
             // Compose represents ACTION_CANCEL as unpressed pointers. Keep the
             // native distinction: only ACTION_UP may send an unlocked draft.
             when (event.actionMasked) {
@@ -222,7 +238,7 @@ internal fun VoiceHoldButton(
         Box(contentAlignment = Alignment.Center) {
             Icon(
                 AnnieIcons.Microphone,
-                contentDescription = "Hold to record a voice note",
+                contentDescription = null,
                 tint = Color.White,
                 modifier = Modifier.size(22.dp),
             )
