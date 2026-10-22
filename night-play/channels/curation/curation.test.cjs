@@ -445,3 +445,18 @@ test('cached story arrays are immutable across feed refreshes and consumers',asy
  assert.throws(()=>{one.source.official=false},TypeError);
  assert.equal((await feed.discover()).items.length,1);assert.equal(calls,1);
 });
+
+test('simultaneous owner polls share exactly one RSS request and an immutable result',async()=>{
+ const xml='<rss><item><title>Aurora official renewal announced</title><link>https://studio.example/story</link>'+
+ '<pubDate>Wed, 21 Oct 2026 12:00:00 GMT</pubDate></item></rss>';
+ let calls=0,release;
+ const wait=new Promise(resolve=>{release=resolve});
+ const feed=rssNewsAdapter({id:'studio',url:'https://studio.example/feed',official:true,now:()=>NOW,
+  fetchImpl:async()=>{calls++;await wait;return new Response(xml)},
+  interpreter:()=>({show:'Aurora',event:'renewals',tags:['renewals'],confirmed:true})});
+ const one=feed.discover(),two=feed.discover(),three=feed.discover();
+ assert.equal(calls,1);
+ release();
+ const [a,b,c]=await Promise.all([one,two,three]);
+ assert.equal(calls,1);assert.equal(a,b);assert.equal(b,c);assert(Object.isFrozen(a.items));
+});
