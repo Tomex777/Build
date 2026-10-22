@@ -4,6 +4,8 @@
 
 ## Integration contract (A and C)
 
+**A's current preview object compatibility:** `toReviewCard(normalizedMeme,{previewUrl|previewData})` in `contracts.cjs` maps nested B `media/source` data into A's flat `{id,caption,category,title,sourceName,sourceUrl,previewUrl|previewData,publishable,reviewOnly,publishBlockedReason,rightsStatus}` shape. The proxy preview must be **same-origin and server-authorized**; raw Reddit/media URLs are not embedded as images in A. Display rights-blocked cards only as discovery if source conditions allow, with disabled Approve/Publish until C records actual redistribution clearance. Never mistake a signed preview URL for permission to repost.
+
 `core.cjs` exports `normalizeMeme`, `memeScore`, `chooseFourMemes`, `normalizeNews`, `chooseNews`, and de-duplication utilities. `sources.cjs` exports `redditAdapter`, `rssNewsAdapter`, `licensedCatalogAdapter`, `boundedGet` and `SourceError`. Runtime: Node >=18; no extra dependencies or credentials committed.
 
 **Meme candidate:** `{id,kind:'meme',category,caption,createdAt,media:{url,mime,width,height,byteLength,perceptualHash},source:{id,provider,url,externalId,author,attributionRequired,rights,license},metrics,score?,publishable}`. Four selection cards are returned from `chooseFourMemes(items,{enabled,categories,allowDark,used,feedback,now})`; this returns an empty list when `enabled` is not explicitly true. Persist `used` per owner/channel/session (IDs *and*, where available, earlier candidate objects for near-duplicate protection). All candidate IDs are source-scoped deterministic SHA256 digests. Caution: a new `score` is an advisory ranking, **not** posting permission.
