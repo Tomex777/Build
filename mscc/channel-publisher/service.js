@@ -1,0 +1,270 @@
+import { createHash, randomUUID } from 'node:crypto'
+import { ChannelError } from '../night-play-channels.js'
+
+// Backend-only candidates: the browser never supplies images or licensing evidence.
+// Publishing stays disabled until a trusted source registers a licensed batch.
+const JID = /^\d{8,25}@newsletter$/
+const MODULES = ['memes', 'news', 'anonymous', 'ai']
+const CATEGORIES = new Set(['relatable', 'wholesome', 'anime', 'nigerian', 'animals', 'relationships', 'dark'])
+const INTERESTS = new Set(['casting', 'releases', 'trailers', 'renewals', 'romance', 'platforms'])
+const MAX_IMAGE_BYTES = 192 * 1024
+const fail = (status, message) => { throw new ChannelError(status, message) }
+const plain = x => x && typeof x === 'object' && !Array.isArray(x)
+const isoTime = value => {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/.test(value)) fail(400, 'Choose a valid UTC publishing time.')
+  const millis = Date.parse(value)
+  if (!Number.isFinite(millis) || new Date(millis).toISOString() !== value.replace(/\.000Z$/, '.000Z')) fail(400, 'Choose a valid UTC publishing time.')
+  return millis
+}
+const enabled = x => x === true
+const clone = x => JSON.parse(JSON.stringify(x))
+const defaultConfig = () => ({
+  revision: 0,
+  modules: { memes: false, news: false, anonymous: false, ai: false },
+  capabilities: { ai: false },
+  memes: { categories: ['relatable'], mode: 'review', dailyLimit: 1, localTime: '18:00', timezone: 'UTC' },
+  news: { interests: ['releases'], mode: 'review', spoilers: 'avoid', dailyLimit: 1, localTime: '18:00', timezone: 'UTC' },
+  branding: { signatureEnabled:false, posterName:'', watermarkEnabled:false, watermarkOpacity:0.2, watermarkPosition:'bottom-right', captionReplacementsEnabled:false, captionReplacements:[] },
+})
+const text = (x, max) => typeof x === 'string' && x.length <= max
+const clock = s => typeof s === 'string' && /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(s)
+const timezone = s => {
+  if (!text(s, 80) || !/^[A-Za-z0-9_+\-\/]{1,80}$/.test(s)) return false
+  try { new Intl.DateTimeFormat('en', {timeZone:s}); return true } catch { return false }
+}
+function patchConfig(current, patch) {
+  if (!plain(patch) || !Object.keys(patch).length || Object.keys(patch).some(k => !['modules','memes','news','branding'].includes(k))) fail(400,'Unknown channel setting.')
+  const next = clone(current)
+  for (const [section, values] of Object.entries(patch)) {
+    if (!plain(values) || Object.keys(values).some(k => !(k in next[section]))) fail(400, 'Unknown or malformed channel setting.')
+    for (const [k,v] of Object.entries(values)) {
+      if (section === 'modules' && (typeof v !== 'boolean' || !MODULES.includes(k))) fail(400,'Channel module must be on or off.')
+      if (section === 'modules' && k === 'ai' && v) fail(403, 'Channel AI requires separate supreme-owner authorization.')
+      if (section === 'memes' && k === 'categories' && (!Array.isArray(v) || !v.length || v.length>7 || v.some(y=>!CATEGORIES.has(y)) || new Set(v).size!==v.length)) fail(400,'Choose supported meme categories.')
+      if (section === 'news' && k === 'interests' && (!Array.isArray(v) || !v.length || v.length>6 || v.some(y=>!INTERESTS.has(y)) || new Set(v).size!==v.length)) fail(400,'Choose supported news interests.')
+      if (['memes','news'].includes(section) && k === 'mode' && !['review','automatic'].includes(v)) fail(400,'Invalid publishing mode.')
+      if (['memes','news'].includes(section) && k === 'mode' && v === 'automatic') fail(503,'Automatic posting is not active until the approved scheduler is connected.')
+      if (['memes','news'].includes(section) && k === 'dailyLimit' && (!Number.isInteger(v) || v<1 || v>(section==='memes'?4:3))) fail(400,'Invalid daily post limit.')
+      if (['memes','news'].includes(section) && k === 'localTime' && !clock(v)) fail(400,'Invalid local posting time.')
+      if (['memes','news'].includes(section) && k === 'timezone' && !timezone(v)) fail(400,'Invalid timezone.')
+      if (section === 'news' && k === 'spoilers' && !['avoid','warn'].includes(v)) fail(400,'Invalid spoiler option.')
+      if (section === 'branding' && ['signatureEnabled','watermarkEnabled','captionReplacementsEnabled'].includes(k) && typeof v !== 'boolean') fail(400,'Invalid branding toggle.')
+      if (section === 'branding' && k === 'posterName' && (!text(v,100) || /[\p{Cc}]/u.test(v))) fail(400,'Invalid posting person.')
+      if (section === 'branding' && k === 'watermarkOpacity' && ![0.15,0.2,0.25,0.3].includes(v)) fail(400,'Invalid watermark opacity.')
+      if (section === 'branding' && k === 'watermarkPosition' && !['top-left','top-right','bottom-left','bottom-right'].includes(v)) fail(400,'Invalid watermark position.')
+      if (section === 'branding' && k === 'captionReplacements' && (!Array.isArray(v) || v.length>20 || v.some(a=>!plain(a) || !text(a.from,40) || !text(a.to,60) || !a.from))) fail(400,'Invalid caption substitutions.')
+      next[section][k] = v
+    }
+  }
+  if (next.branding.signatureEnabled && !next.branding.posterName.trim()) fail(400,'Name the person credited in the caption.')
+  return next
+}
+const digest = bytes => createHash('sha256').update(bytes).digest('hex')
+const role = meta => String((meta?.viewer_metadata || meta?.viewerMetadata || {}).role || '').toUpperCase()
+const admin = meta => ['ADMIN','OWNER','SUPERADMIN','SUPER_ADMIN','CREATOR'].includes(role(meta))
+const exactName = meta => {
+  const value = (typeof meta?.name==='string' ? meta.name : meta?.name?.text) ?? meta?.thread_metadata?.name?.text ?? meta?.subject
+  if (typeof value !== 'string' || !value.trim() || Buffer.byteLength(value,'utf8')>512 || /\p{Cc}/u.test(value)) fail(502,'WhatsApp returned an invalid channel display name.')
+  return value // Exact verified Unicode, including ZWJ, RTL and colour-emoji sequences.
+}
+function assertImage(item) {
+  const data=item.image
+  if (!Buffer.isBuffer(data) || !data.length || data.length>MAX_IMAGE_BYTES) fail(400,'Curated images must be safe bounded buffers.')
+  const png=data.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]))
+  const jpg=data.length>=3 && data[0]===255 && data[1]===216 && data[2]===255
+  const webp=data.length>=12 && data.toString('ascii',0,4)==='RIFF' && data.toString('ascii',8,12)==='WEBP'
+  const detected=png?'image/png':jpg?'image/jpeg':webp?'image/webp':''
+  if (!detected || detected!==item.mime) fail(400,'Unsupported curated image type.')
+}
+
+export class ChannelPublisher {
+  constructor(channels, {now=Date.now} = {}) {
+    this.channels=channels; this.play=channels.play; this.db=channels.db; this.now=now
+    this.db.exec(
+      'CREATE TABLE IF NOT EXISTS play_channel_config (user_id TEXT NOT NULL, channel_id TEXT NOT NULL, revision INTEGER NOT NULL DEFAULT 0, payload TEXT NOT NULL, PRIMARY KEY(user_id,channel_id), FOREIGN KEY(user_id,channel_id) REFERENCES play_channel_claims(user_id,channel_id) ON DELETE CASCADE);'+
+      'CREATE TABLE IF NOT EXISTS play_channel_batches (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, channel_id TEXT NOT NULL, created_at INTEGER NOT NULL, FOREIGN KEY(user_id,channel_id) REFERENCES play_channel_claims(user_id,channel_id) ON DELETE CASCADE);'+
+      'CREATE TABLE IF NOT EXISTS play_channel_candidates (id TEXT PRIMARY KEY, batch_id TEXT NOT NULL REFERENCES play_channel_batches(id) ON DELETE CASCADE, user_id TEXT NOT NULL, channel_id TEXT NOT NULL, caption TEXT NOT NULL, title TEXT NOT NULL, category TEXT NOT NULL, source_name TEXT NOT NULL, source_url TEXT NOT NULL, image BLOB NOT NULL, mime TEXT NOT NULL, sha256 TEXT NOT NULL, license_id TEXT NOT NULL, rights_verified INTEGER NOT NULL DEFAULT 0, FOREIGN KEY(user_id,channel_id) REFERENCES play_channel_claims(user_id,channel_id) ON DELETE CASCADE);'+
+      'CREATE TABLE IF NOT EXISTS play_channel_reviews (candidate_id TEXT PRIMARY KEY REFERENCES play_channel_candidates(id) ON DELETE CASCADE, user_id TEXT NOT NULL, channel_id TEXT NOT NULL, decision TEXT NOT NULL CHECK(decision IN (\'approved\',\'declined\',\'skipped\')), caption TEXT NOT NULL, updated_at INTEGER NOT NULL);'+
+      'CREATE TABLE IF NOT EXISTS play_channel_jobs (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, channel_id TEXT NOT NULL, candidate_id TEXT NOT NULL UNIQUE REFERENCES play_channel_candidates(id), caption TEXT NOT NULL, scheduled_at INTEGER NOT NULL, created_at INTEGER NOT NULL, state TEXT NOT NULL CHECK(state IN (\'queued\',\'sending\',\'sent\',\'cancelled\',\'blocked\',\'needs_review\')), sent_at INTEGER, message_id TEXT, last_error TEXT, FOREIGN KEY(user_id,channel_id) REFERENCES play_channel_claims(user_id,channel_id) ON DELETE CASCADE);'+
+      'CREATE INDEX IF NOT EXISTS play_channel_jobs_due ON play_channel_jobs(state,scheduled_at);'
+    )
+  }
+  claim(userId,channelId) {
+    if (!userId) fail(401,'Connect WhatsApp to continue.')
+    if (!JID.test(String(channelId))) fail(400,'Invalid WhatsApp Channel.')
+    const row=this.db.prepare('SELECT * FROM play_channel_claims WHERE user_id=? AND channel_id=? AND state=\'connected\'').get(userId,channelId)
+    if (!row) fail(404,'This verified channel is not connected to your account.')
+    return row
+  }
+  config(userId,channelId) {
+    const channel=this.claim(userId,channelId)
+    let row=this.db.prepare('SELECT * FROM play_channel_config WHERE user_id=? AND channel_id=?').get(userId,channelId)
+    if(!row) {
+      const first=defaultConfig()
+      this.db.prepare('INSERT INTO play_channel_config VALUES (?,?,?,?) ON CONFLICT(user_id,channel_id) DO NOTHING').run(userId,channelId,0,JSON.stringify(first))
+      row=this.db.prepare('SELECT * FROM play_channel_config WHERE user_id=? AND channel_id=?').get(userId,channelId)
+    }
+    return {channel:{id:channelId,name:channel.name,status:channel.state},...JSON.parse(row.payload),revision:row.revision}
+  }
+  async permission(userId,channelId,accounts) {
+    const claim=this.claim(userId,channelId)
+    const account=accounts?.get(claim.account_id)
+    if (!account?.connected || typeof account.sock?.newsletterMetadata!=='function') fail(503,'The verified WhatsApp posting account is offline.')
+    let meta
+    try { meta=await account.sock.newsletterMetadata('jid',channelId) }
+    catch { fail(503,'Unable to recheck current WhatsApp Channel permissions.') }
+    if (!meta || String(meta.id||meta.jid)!==channelId || !admin(meta)) fail(403,'This NIGHT account is no longer a channel admin.')
+    const name=exactName(meta)
+    if (name!==claim.name) this.db.prepare('UPDATE play_channel_claims SET name=? WHERE user_id=? AND channel_id=?').run(name,userId,channelId)
+    return {account,name}
+  }
+  async update(userId,channelId,revision,patch,accounts) {
+    await this.permission(userId,channelId,accounts)
+    if (!Number.isInteger(revision) || revision<0) fail(400,'Invalid settings revision.')
+    // Optimistic atomic revision guard, prevents two devices overwriting each other.
+    const prev=this.config(userId,channelId)
+    if (prev.revision!==revision) fail(409,'Channel settings changed on another device. Refresh first.')
+    const next=patchConfig(prev,patch)
+    delete next.channel
+    next.revision=revision+1
+    const changed=this.db.prepare('UPDATE play_channel_config SET revision=?,payload=? WHERE user_id=? AND channel_id=? AND revision=?').run(next.revision,JSON.stringify(next),userId,channelId,revision)
+    if(!changed.changes) fail(409,'Channel settings changed. Refresh first.')
+    // Revocation invalidates pending jobs, including jobs queued by a second device.
+    if (patch.modules?.memes===false) this.db.prepare("UPDATE play_channel_jobs SET state='cancelled',last_error='Module disabled' WHERE user_id=? AND channel_id=? AND state='queued'").run(userId,channelId)
+    return this.config(userId,channelId)
+  }
+  // Trusted internal source only, NEVER exposed through signed website RPC.
+  registerBatch(userId,channelId,items) {
+    this.claim(userId,channelId)
+    if (!Array.isArray(items) || items.length!==4) fail(400,'A batch requires four actual sourced images.')
+    for(const item of items) {
+      assertImage(item)
+      if (!text(item.caption,1800) || !text(item.title,160) || !text(item.category,48) || !text(item.sourceName,100) || !text(item.sourceUrl,500) || !/^https:\/\//.test(item.sourceUrl)) fail(400,'Invalid candidate or provenance.')
+    }
+    const batchId=randomUUID().replaceAll('-','_')
+    this.play.transaction(()=>{
+      this.db.prepare('INSERT INTO play_channel_batches VALUES (?,?,?,?)').run(batchId,userId,channelId,this.now())
+      for (const item of items) {
+        const rights=item.rightsEvidence
+        const cleared=rights?.verifiedByServer===true && rights?.status==='cleared' && text(rights?.licenseId,140) && !!rights.licenseId
+        this.db.prepare('INSERT INTO play_channel_candidates VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)').run(randomUUID().replaceAll('-','_'),batchId,userId,channelId,item.caption,item.title,item.category,item.sourceName,item.sourceUrl,item.image,item.mime,digest(item.image),cleared?rights.licenseId:'',cleared?1:0)
+      }
+    })
+    return batchId
+  }
+  batch(userId,channelId,id) {
+    this.claim(userId,channelId)
+    const batch=this.db.prepare('SELECT id FROM play_channel_batches WHERE id=? AND user_id=? AND channel_id=?').get(id,userId,channelId)
+    if(!batch) fail(404,'No review batch belongs to this channel.')
+    const candidates=this.db.prepare('SELECT * FROM play_channel_candidates WHERE batch_id=? AND user_id=? AND channel_id=?').all(id,userId,channelId)
+    return {batchId:id,candidates:candidates.map(c=>({
+      id:c.id,caption:c.caption,title:c.title,category:c.category,sourceName:c.source_name,sourceUrl:c.source_url,
+      previewData:'data:'+c.mime+';base64,'+Buffer.from(c.image).toString('base64'),
+      rightsStatus:c.rights_verified===1?'verified':'unverified', publishable:c.rights_verified===1, reviewOnly:c.rights_verified!==1,
+      ...(c.rights_verified!==1?{publishBlockedReason:'rights_unverified'}:{})
+    })),decisions:this.db.prepare('SELECT r.candidate_id AS candidateId,r.decision,r.caption FROM play_channel_reviews r JOIN play_channel_candidates c ON c.id=r.candidate_id WHERE c.batch_id=? AND r.user_id=? AND r.channel_id=?').all(id,userId,channelId)}
+  }
+  current(userId,channelId) {
+    this.claim(userId,channelId)
+    const r=this.db.prepare('SELECT id FROM play_channel_batches WHERE user_id=? AND channel_id=? ORDER BY created_at DESC LIMIT 1').get(userId,channelId)
+    if(!r) return {batchId:null,candidates:[],decisions:[]}
+    return this.batch(userId,channelId,r.id)
+  }
+  review(userId,channelId,{batchId,candidateId,decision,caption},accounts) {
+    this.claim(userId,channelId)
+    if(!['approved','declined','skipped'].includes(decision)||!text(caption,1800)) fail(400,'Invalid review decision.')
+    const c=this.db.prepare('SELECT * FROM play_channel_candidates WHERE id=? AND batch_id=? AND user_id=? AND channel_id=?').get(candidateId,batchId,userId,channelId)
+    if(!c) fail(404,'This review candidate is unavailable.')
+    if(decision==='approved' && (!c.rights_verified || !c.license_id || digest(c.image)!==c.sha256)) fail(403,'Media reuse rights are not verified. Cannot approve.')
+    const cfg=this.config(userId,channelId)
+    if(!cfg.modules.memes) fail(403,'Enable channel memes before reviewing for publication.')
+    this.db.prepare('INSERT INTO play_channel_reviews VALUES (?,?,?,?,?,?) ON CONFLICT(candidate_id) DO UPDATE SET decision=excluded.decision,caption=excluded.caption,updated_at=excluded.updated_at').run(candidateId,userId,channelId,decision,caption,this.now())
+    if(decision!=='approved') this.db.prepare("UPDATE play_channel_jobs SET state='cancelled',last_error='Approval revoked' WHERE candidate_id=? AND state='queued'").run(candidateId)
+    return {candidateId,decision,caption}
+  }
+  enqueue(userId,channelId,{batchId,mode,scheduledAt,spacingMinutes},accounts) {
+    this.claim(userId,channelId)
+    const cfg=this.config(userId,channelId)
+    if(!cfg.modules.memes) fail(403,'This channel has memes turned off.')
+    if(!['now','schedule'].includes(mode)) fail(400,'Invalid publishing mode.')
+    if (mode==='schedule' && (!Number.isInteger(spacingMinutes)||spacingMinutes<1||spacingMinutes>1440)) fail(400,'Invalid post spacing.')
+    const first=mode==='now'?this.now():isoTime(scheduledAt)
+    if(mode==='schedule' && (first<this.now()+60000||first>this.now()+30*86400000)) fail(400,'Choose a time within the next 30 days.')
+    this.batch(userId,channelId,batchId)
+    const cs=this.db.prepare("SELECT c.*,r.caption AS reviewed_caption FROM play_channel_candidates c JOIN play_channel_reviews r ON r.candidate_id=c.id AND r.user_id=c.user_id AND r.channel_id=c.channel_id AND r.decision='approved' WHERE c.batch_id=? AND c.user_id=? AND c.channel_id=? ORDER BY c.rowid").all(batchId,userId,channelId)
+    if(!cs.length) fail(400,'Approve at least one licensed meme first.')
+    const jobs=[]
+    this.play.transaction(()=>{
+      cs.forEach((c,i)=>{
+        if(!c.rights_verified||!c.license_id||digest(c.image)!==c.sha256) fail(403,'Cannot queue unlicensed or changed media.')
+        const existing=this.db.prepare('SELECT id,state,scheduled_at FROM play_channel_jobs WHERE candidate_id=?').get(c.id)
+        if(existing){jobs.push({id:existing.id,status:existing.state,scheduledAt:new Date(existing.scheduled_at).toISOString()});return}
+        const id=randomUUID()
+        const due=first+i*(mode==='schedule'?spacingMinutes:1)*60000
+        this.db.prepare("INSERT INTO play_channel_jobs (id,user_id,channel_id,candidate_id,caption,scheduled_at,created_at,state) VALUES (?,?,?,?,?,?,?,'queued')").run(id,userId,channelId,c.id,c.reviewed_caption,due,this.now())
+        jobs.push({id,status:'queued',scheduledAt:new Date(due).toISOString()})
+      })
+    })
+    return {jobs}
+  }
+  jobs(userId,channelId) {
+    this.claim(userId,channelId)
+    return {jobs:this.db.prepare('SELECT id,state AS status,scheduled_at AS scheduledAt,sent_at AS sentAt,last_error AS error FROM play_channel_jobs WHERE user_id=? AND channel_id=? ORDER BY created_at DESC LIMIT 60').all(userId,channelId).map(j=>({...j,scheduledAt:new Date(j.scheduledAt).toISOString(),sentAt:j.sentAt?new Date(j.sentAt).toISOString():null}))}
+  }
+  cancel(userId,channelId,jobId) {
+    this.claim(userId,channelId)
+    if(typeof jobId!=='string') fail(400,'Invalid job.')
+    const changed=this.db.prepare("UPDATE play_channel_jobs SET state='cancelled' WHERE id=? AND user_id=? AND channel_id=? AND state='queued'").run(jobId,userId,channelId)
+    if(!changed.changes) fail(409,'This pending channel post cannot be cancelled.')
+    return {ok:true}
+  }
+  async handle(action,body,userId,accounts) {
+    const id=body.channelId
+    if (action==='channel:config:get') return this.config(userId,id)
+    if (action==='channel:config:update') return this.update(userId,id,body.expectedRevision,body.patch,accounts)
+    if (action==='channel:memes:current') return this.current(userId,id)
+    if (action==='channel:memes:find') {
+      // B's licensed ingestion must register genuine candidates first. Never invent posts.
+      const current=this.current(userId,id)
+      if(current.candidates.length===4 && body.next!==true) return current
+      fail(503,'NIGHT has no rights-cleared meme batch available yet. No content was published.')
+    }
+    if (action==='channel:memes:review') { await this.permission(userId,id,accounts); return this.review(userId,id,body,accounts) }
+    if (action==='channel:memes:publish') { await this.permission(userId,id,accounts); return this.enqueue(userId,id,body,accounts) }
+    if (action==='channel:jobs:list') return this.jobs(userId,id)
+    if (action==='channel:jobs:cancel') return this.cancel(userId,id,body.jobId)
+    fail(503,'This channel operation is not ready for publication.')
+  }
+  // Explicit worker; caller must wire a bounded scheduler before auto sending.
+  // A stale 'sending' job remains unresolved: NEVER blindly retry an ambiguous send.
+  async drain(accounts,{limit=2,prepare=null}={}) {
+    let sent=0
+    const due=this.db.prepare("SELECT * FROM play_channel_jobs WHERE state='queued' AND scheduled_at<=? ORDER BY scheduled_at LIMIT ?").all(this.now(),Math.min(2,Math.max(1,limit)))
+    for(const j of due){
+      const guard=this.db.prepare("UPDATE play_channel_jobs SET state='sending' WHERE id=? AND state='queued'").run(j.id)
+      if(!guard.changes) continue
+      try{
+        const {account,name}=await this.permission(j.user_id,j.channel_id,accounts)
+        const cfg=this.config(j.user_id,j.channel_id)
+        const c=this.db.prepare("SELECT * FROM play_channel_candidates WHERE id=? AND user_id=? AND channel_id=?").get(j.candidate_id,j.user_id,j.channel_id)
+        const r=this.db.prepare("SELECT * FROM play_channel_reviews WHERE candidate_id=? AND user_id=? AND channel_id=?").get(j.candidate_id,j.user_id,j.channel_id)
+        if (!cfg.modules.memes||!c||!r||r.decision!=='approved'||r.caption!==j.caption||!c.rights_verified||!c.license_id||digest(c.image)!==c.sha256) fail(403,'Module, approval, or licensed media was revoked.')
+        if(typeof prepare!=='function') fail(503,'Verified watermark and caption renderer is not connected.')
+        // Recheck once immediately before send; all sends remain fail-closed by default.
+        const formatted=await prepare({image:Buffer.from(c.image),mime:c.mime,caption:j.caption,branding:cfg.branding,displayName:name,channelId:j.channel_id,sourceKind:'automation'})
+        if(!formatted?.image || !Buffer.isBuffer(formatted.image) || typeof formatted.caption!=='string') fail(503,'Unable to validate the final post.')
+        await this.permission(j.user_id,j.channel_id,accounts)
+        if(!this.config(j.user_id,j.channel_id).modules.memes) fail(403,'Module disabled before sending.')
+        if(typeof account.sock?.sendMessage!=='function') fail(503,'Newsletter media publishing is unsupported.')
+        const result=await account.sock.sendMessage(j.channel_id,{image:formatted.image,caption:formatted.caption})
+        if(!result?.key?.id) fail(502,'WhatsApp did not confirm the sent message; operator review required.')
+        this.db.prepare("UPDATE play_channel_jobs SET state='sent',sent_at=?,message_id=?,last_error=NULL WHERE id=? AND state='sending'").run(this.now(),result.key.id,j.id)
+        sent++
+      }catch(error){
+        // At-most-once automatic attempts: unknown outcomes never blindly resubmit.
+        this.db.prepare("UPDATE play_channel_jobs SET state='needs_review',last_error=? WHERE id=? AND state='sending'").run(error instanceof ChannelError?error.message:'Delivery uncertain; operator review required.',j.id)
+      }
+    }
+    return {sent,attempted:due.length}
+  }
+}
