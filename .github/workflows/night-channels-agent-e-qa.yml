@@ -70,3 +70,21 @@ jobs:
           path: night-play/visual-output/channels-agent-e/config/
           if-no-files-found: warn
           retention-days: 14
+
+  cross-agent-b-curation-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/checkout@v5
+        with:
+          ref: agentB/channel-curation-news-20261022
+          path: agentB
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate Agent B curation against independent license/news regressions
+        run: node night-play/channels/qa/curation-contract.cjs
+        env:
+          NIGHT_CURATION_ROOT: agentB/night-play/channels/curation
