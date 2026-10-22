@@ -633,8 +633,8 @@ internal fun AnnieChat() {
             LazyColumn(
                 modifier = Modifier.weight(1f).fillMaxWidth().testTag("conversation"),
                 state = listState,
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 16.dp, end = 16.dp, top = 20.dp, bottom = 18.dp),
-                verticalArrangement = Arrangement.spacedBy(18.dp, Alignment.Top)
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp, Alignment.Top)
             ) {
                 items(messages, key = { it.id }) { entry ->
                     val bubbleContent: @Composable () -> Unit = {
@@ -1442,7 +1442,7 @@ private fun AnnieTopBar(
     onScriptStudio: () -> Unit,
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth().height(68.dp).background(Panel).padding(horizontal = 16.dp).testTag("top_bar"),
+        modifier = Modifier.fillMaxWidth().height(60.dp).background(Panel).padding(horizontal = 12.dp).testTag("top_bar"),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
@@ -1452,14 +1452,14 @@ private fun AnnieTopBar(
             contentAlignment = Alignment.Center,
         ) {
             // Shows the ACTIVE character, so avatar and name switch together with the chat.
-            AnnieCharacterAvatar(character = character, size = 42.dp)
+            AnnieCharacterAvatar(character = character, size = 40.dp)
         }
         Text(
             character.name,
             color = BrightText,
             fontWeight = FontWeight.Bold,
-            fontSize = 19.sp,
-            modifier = Modifier.padding(start = 12.dp).weight(1f),
+            fontSize = 18.sp,
+            modifier = Modifier.padding(start = 8.dp).weight(1f),
         )
         IconButton(onClick = onScriptStudio, modifier = Modifier.testTag("topbar_script_studio")) {
             Icon(AnnieIcons.Package, contentDescription = "Open Script Studio", tint = Color(0xFF82C9FF))
@@ -1498,7 +1498,7 @@ internal fun ChatBubble(
             horizontalAlignment = if (entry.fromUser) Alignment.End else Alignment.Start
         ) {
             if (!entry.fromUser) {
-                Text(character.name, color = SoftText, fontSize = 11.sp, modifier = Modifier.padding(start = 4.dp, bottom = 5.dp))
+                Text(character.name, color = Color(0xFFAEC7DD), fontSize = 12.sp, modifier = Modifier.padding(start = 4.dp, bottom = 5.dp))
             }
             if (entry.voiceNotePath != null) {
                 VoiceNoteBubble(entry.voiceNotePath, entry.voiceNoteDurationMs, entry.fromUser)
