@@ -160,6 +160,30 @@ class AnnieVoiceGestureTest {
         }
     }
 
+
+    @Test fun accessibilityClickStartsLockedRecordingWithVisibleCancel() {
+        var sends = 0
+        val controller = showMicrophone { _, _ -> sends++ }
+        try {
+            // A semantics click is what a switch-control or TalkBack user activates.
+            // It must NOT require the physical hold-and-swipe gesture.
+            compose.onNodeWithTag("composer_voice_hold").performClick()
+            compose.runOnIdle {
+                assertTrue("Accessibility click failed to begin recording", controller.recording)
+                assertTrue("Accessible microphone cannot reach locked controls", controller.locked)
+            }
+            compose.onNodeWithTag("voice_pause_resume").assertExists()
+            compose.onNodeWithTag("voice_send").assertExists()
+            compose.onNodeWithTag("voice_delete").performClick()
+            compose.runOnIdle {
+                assertTrue("Cancel left accessibility microphone active", !controller.recording)
+                assertEquals("Cancelled accessibility recording sent audio", 0, sends)
+            }
+        } finally {
+            compose.runOnIdle { controller.cancel() }
+        }
+    }
+
     @Test fun switchingChatsDisposesLockedRecordingWithoutSendingOrLeavingAudio() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
