@@ -9,12 +9,13 @@ const $=id=>document.getElementById(id),board=$("board"),ctx=board.getContext("2
 const colors=["#263948","#263948","#263948","#263948"],deepColors=["#101e2b","#101e2b","#101e2b","#101e2b"];
 let preparing=false,running=false,paused=false,ended=false,elapsed=0,previous=0,raf=0;
 let notes=[],score=0,streak=0,complete=0,held=new Map(),keyHeld=new Set();
-const SONGS=[
- {id:"endless",title:"Endless"},
- {id:"frere",title:"Frère Jacques"},
- {id:"twinkle",title:"Twinkle, Twinkle"}
-];
+const SONGS=window.NightPianoSongLibrary.songs;
 let selectedSong=SONGS[0],endlessNextAt=0,endlessIndex=0;
+let songFilter="All",songQuery="";
+const favouriteKey="night-play-piano-favourites-v1";
+function savedFavorites(){try{const a=JSON.parse(localStorage.getItem(favouriteKey)||"[]");return new Set(Array.isArray(a)?a:[])}catch{return new Set()}}
+let favorites=savedFavorites();
+function bestFor(song){try{return Math.max(0,Number(localStorage.getItem("night-play-piano-tiles-best-"+song.id+"-v1"))||0)}catch{return 0}}
 const bestKey=()=>selectedSong.id==="frere"?"night-play-piano-tiles-best-v1":"night-play-piano-tiles-best-"+selectedSong.id+"-v1";
 const readBest=()=>{try{return Math.max(0,Number(localStorage.getItem(bestKey()))||0)}catch{return 0}};
 function saveBest(){try{if(score>readBest())localStorage.setItem(bestKey(),String(score))}catch{}}
@@ -55,8 +56,9 @@ function extendEndless(count){
  return result;
 }
 function chart(){
- if(selectedSong.id==="endless"){endlessIndex=0;endlessNextAt=1.45;return extendEndless(32);}
- if(selectedSong.id==="twinkle")return twinkleChart();
+ if(selectedSong.id==="endless"){endlessIndex=0;endlessNextAt=1.45;return spaceNotes(extendEndless(32));}
+ if(selectedSong.id==="twinkle")return spaceNotes(twinkleChart());
+ if(selectedSong.id!=="frere")return spaceNotes(window.NightPianoSongLibrary.arrangement(selectedSong));
  // Frère Jacques (traditional), C-major; lanes determine hit geometry,
  // note.frequency determines pitch. The final bar includes two-note chords.
  const phrase=[
@@ -83,7 +85,7 @@ function chart(){
   }
   t+=beat;
  }
- return result;
+ return spaceNotes(result);
 }
 // Public-domain Twinkle, Twinkle Little Star, full A–B–B–A variation.
 // Interleaved lanes avoid a string of tiny repeated taps on one narrow lane.
@@ -127,20 +129,75 @@ function setPauseButton(){
 }
 function closeSounds(){window.NightPiano.silence();for(const n of notes)n.voice=null}
 function setSongControls(){
- for(const button of document.querySelectorAll("[data-song]")){
-  const active=button.dataset.song===selectedSong.id;
-  button.setAttribute("aria-pressed",String(active));
-  button.disabled=preparing||(running&&!ended);
+ // The song library is a separate browse screen; not a three-tab HUD.
+ $("pause").hidden=$("playPage").hidden;
+}
+function renderSongLibrary(){
+ const list=$("songList");list.replaceChildren();
+ const filtered=SONGS.filter(song=>{
+  const genre=song.genre;
+  if(songFilter==="Favorites"&&!favorites.has(song.id))return false;
+  if(!["All","Favorites"].includes(songFilter)&&genre!==songFilter)return false;
+  return (song.title+" "+song.artist+" "+song.difficulty).toLocaleLowerCase().includes(songQuery);
+ });
+ $("songCount").textContent=SONGS.length+" playable piano arrangements";
+ for(const song of filtered){
+  const item=document.createElement("article");item.className="song-card";item.dataset.id=song.id;
+  const art=document.createElement("div");art.className="song-card-art";
+  const palette=song.genre==="Classical"?["#e5e3ed","#554d85"]:
+   song.genre==="Original"?["#dfebe8","#427969"]:
+   song.genre==="Endless"?["#dce6ef","#3d637f"]:["#ece6d9","#766449"];
+  art.style.setProperty("--art-bg",palette[0]);art.style.setProperty("--art-ink",palette[1]);
+  art.innerHTML='<svg viewBox="0 0 28 28" aria-hidden="true"><path d="M10 18V6l13-3v12"/><ellipse cx="6.5" cy="20.5" rx="5" ry="3"/><ellipse cx="19.5" cy="17.5" rx="5" ry="3"/></svg>';
+  const detail=document.createElement("div");detail.className="song-card-main";
+  const title=document.createElement("div");title.className="song-card-title";title.textContent=song.title;
+  const artist=document.createElement("div");artist.className="song-card-artist";artist.textContent=song.artist;
+  const meta=document.createElement("div");meta.className="song-card-meta";
+  const diff=document.createElement("span");diff.className="song-level";diff.textContent=song.difficulty;
+  const best=document.createElement("span");best.textContent=bestFor(song)?"Best "+bestFor(song).toLocaleString():"";
+  meta.append(diff,best);detail.append(title,artist,meta);
+  const actions=document.createElement("div");actions.className="song-card-actions";
+  const fave=document.createElement("button");fave.type="button";fave.className="song-favorite";
+  fave.dataset.favourite=song.id;fave.setAttribute("aria-label",(favorites.has(song.id)?"Remove ":"Add ")+song.title+(favorites.has(song.id)?" from favourites":" to favourites"));
+  fave.setAttribute("aria-pressed",String(favorites.has(song.id)));
+  fave.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 8.3c0 4.2-8.8 10.5-8.8 10.5S3.2 12.5 3.2 8.3a4.8 4.8 0 0 1 8.8-2.5 4.8 4.8 0 0 1 8.8 2.5Z"/></svg>';
+  const play=document.createElement("button");play.type="button";play.className="song-play";play.dataset.play=song.id;
+  play.textContent="Play";play.setAttribute("aria-label","Play "+song.title);
+  actions.append(fave,play);item.append(art,detail,actions);list.append(item);
+ }
+ if(!filtered.length){const empty=document.createElement("p");empty.className="song-empty";
+  empty.textContent="No songs match your search.";list.append(empty)}
+}
+function buildFilters(){
+ const container=$("songFilters");
+ for(const name of ["All","Traditional","Classical","Original","Endless","Favorites"]){
+  const button=document.createElement("button");button.type="button";button.className="song-filter";
+  button.textContent=name==="Original"?"NIGHT Originals":name==="All"?"All songs":name;
+  button.setAttribute("aria-pressed",String(songFilter===name));
+  button.addEventListener("click",()=>{
+   songFilter=name;
+   for(const b of container.children)b.setAttribute("aria-pressed",String(b===button));
+   renderSongLibrary();
+  });container.append(button);
  }
 }
-function chooseSong(id){
- if(running&&!ended)return;
- const found=SONGS.find(song=>song.id===id);
- if(!found||selectedSong===found)return;
- selectedSong=found;
- clearRun();
- cover("","Feel the rhythm.",selectedSong.id==="endless"?"Tap any visible colored tile. Keep holding the long ones.":"Tap the visible notes anywhere along their tiles.","Start playing");
+function showLibrary(){
+ if(preparing)return;
+ clearRun();$("playPage").hidden=true;$("songLibrary").hidden=false;
+ $("pause").hidden=true;renderSongLibrary();
+ window.scrollTo({top:0,behavior:"instant"});
 }
+function openSong(song){
+ if(!song||preparing)return;
+ selectedSong=song;
+ $("songLibrary").hidden=true;$("playPage").hidden=false;$("pause").hidden=false;
+ $("activeSongTitle").textContent=song.title;
+ $("activeSongArtist").textContent=song.artist;
+ clearRun();cover("","Ready to play?",song.title+" · "+song.difficulty,"Start playing");
+ window.scrollTo({top:0,behavior:"instant"});
+}
+
+function chooseSong(id){openSong(SONGS.find(song=>song.id===id))}
 function clearRun(){
  if(raf)cancelAnimationFrame(raf);raf=0;closeSounds();notes=chart();
  held.clear();keyHeld.clear();score=0;streak=0;complete=0;
@@ -161,7 +218,7 @@ async function begin(){
   // Start with the first key already visible and descending; do not make
   // players stare at an empty piano board for the first second or two.
   // The key still takes ~0.9s to reach the natural lower playing area.
-  elapsed=Math.max(0,notes[0].at-.90);
+  elapsed=Math.max(0,notes[0].at-.38);
   document.body.classList.add("is-playing");
   $("cover").hidden=true;$("restart").hidden=false;
   setPauseButton();$("status").textContent="Tap any visible tile";
@@ -210,25 +267,56 @@ function sound(frequency,hold){
 }
 // Beat-locked world displacement: all tiles move through a continuous shared
 // timeline. A successful tap must never teleport every other tile.
-const BASE_SPEED=294,MAX_RAMP=65,RAMP_PER_SECOND=1.18;
+const TILE_HEIGHT=166,TILE_GAP=TILE_HEIGHT;
+function baseSpeed(){return ({Easy:525,Normal:570,Hard:610,Expert:660})[selectedSong.difficulty]||570}
+const MAX_RAMP=100,RAMP_PER_SECOND=1.3;
 function trackTravel(t){
  t=Math.max(0,t);
- if(selectedSong.id!=="endless")return BASE_SPEED*t;
- const transition=MAX_RAMP/RAMP_PER_SECOND,accelerated=Math.min(t,transition);
- return BASE_SPEED*t+.5*RAMP_PER_SECOND*accelerated*accelerated+
-  MAX_RAMP*Math.max(0,t-transition);
+ const base=baseSpeed();
+ if(selectedSong.id!=="endless")return base*t;
+ const threshold=MAX_RAMP/RAMP_PER_SECOND,accelerated=Math.min(t,threshold);
+ return base*t+.5*RAMP_PER_SECOND*accelerated*accelerated+
+  MAX_RAMP*Math.max(0,t-threshold);
 }
-function currentFallSpeed(){
- return BASE_SPEED+(selectedSong.id==="endless"?
-  Math.min(MAX_RAMP,Math.max(0,elapsed)*RAMP_PER_SECOND):0);
+function speedAt(t){
+ return baseSpeed()+(selectedSong.id==="endless"?
+  Math.min(MAX_RAMP,Math.max(0,t)*RAMP_PER_SECOND):0);
+}
+function currentFallSpeed(){return speedAt(elapsed)}
+function timeForDistance(distance){
+ let lo=0,hi=Math.max(2,distance/baseSpeed()+3);
+ for(let i=0;i<28;i++){const mid=(lo+hi)/2;if(trackTravel(mid)<distance)lo=mid;else hi=mid}
+ return (lo+hi)/2;
+}
+// A normal key occupies one tile-height; the white gap before the next key
+// is exactly ANOTHER tile-height (166 world units), regardless of tempo.
+// Long notes occupy their full height before the same clean 166-unit gap.
+// Chords share an exact timestamp, not a fake gap between simultaneous keys.
+function spaceNotes(batch,previous=[]){
+ const prev=previous.length?previous[previous.length-1]:null;
+ let prevAt=prev?.at??null,prevLength=prev?
+  Math.max(...previous.filter(n=>Math.abs(n.at-prevAt)<.01)
+   .map(n=>n.hold?138+n.duration*speedAt(n.at):TILE_HEIGHT)):0;
+ let groupRaw=null,currentAt=null;
+ for(const n of batch){
+  const raw=n.at;
+  if(groupRaw===null||Math.abs(raw-groupRaw)>.01){
+   currentAt=prevAt===null?Math.max(1.15,raw):
+    timeForDistance(trackTravel(prevAt)+prevLength+TILE_GAP);
+   prevAt=currentAt;prevLength=0;groupRaw=raw;
+  }
+  n.at=currentAt;
+  n.holdSpeed=speedAt(currentAt);
+  prevLength=Math.max(prevLength,n.hold?138+n.duration*n.holdSpeed:TILE_HEIGHT);
+ }
+ return batch;
 }
 function noteGeometry(n){
- const speed=currentFallSpeed();
- const bottom=n.state==="holding"&&Number.isFinite(n.hitBottom)?
+ const speed=currentFallSpeed(),bottom=n.state==="holding"&&Number.isFinite(n.hitBottom)?
   n.hitBottom:HIT+trackTravel(elapsed)-trackTravel(n.at);
- const length=n.hold?(n.duration*(n.holdSpeed||speed)+138):166;
+ const length=n.hold?138+n.duration*(n.holdSpeed||speedAt(n.at)):TILE_HEIGHT;
  const tailLength=n.state==="holding"?
-  138+Math.max(0,n.duration-(elapsed-n.start))*(n.holdSpeed||speed):length;
+  138+Math.max(0,n.duration-(elapsed-n.start))*(n.holdSpeed||speedAt(n.at)):length;
  return {bottom,top:bottom-length,left:n.lane*100+4,right:n.lane*100+96,speed,length,tailLength};
 }
 function finishNote(n,holdBonus){
@@ -318,7 +406,20 @@ document.addEventListener("keydown",e=>{
 document.addEventListener("keyup",e=>{
  const key="key-"+e.key.toLowerCase();keyHeld.delete(key);release(key);
 });
-document.querySelectorAll("[data-song]").forEach(button=>button.addEventListener("click",()=>chooseSong(button.dataset.song)));
+$("songSearch").addEventListener("input",e=>{songQuery=e.target.value.trim().toLocaleLowerCase();renderSongLibrary()});
+$("songList").addEventListener("click",e=>{
+ const heart=e.target.closest("[data-favourite]");
+ if(heart){
+  const id=heart.dataset.favourite;
+  if(favorites.has(id))favorites.delete(id);else favorites.add(id);
+  try{localStorage.setItem(favouriteKey,JSON.stringify([...favorites]))}catch{}
+  renderSongLibrary();return;
+ }
+ const play=e.target.closest("[data-play]");
+ if(play){chooseSong(play.dataset.play);begin()}
+});
+$("songBack").addEventListener("click",showLibrary);
+buildFilters();renderSongLibrary();$("pause").hidden=true;
 $("coverAction").addEventListener("click",begin);
 $("restart").addEventListener("click",begin);
 $("pause").addEventListener("click",pause);
@@ -339,7 +440,10 @@ function tick(ts){
  }
 
  if(!ended&&selectedSong.id==="endless"){
-  if(endlessNextAt-elapsed<11)notes.push(...extendEndless(20));
+  if(trackTravel(endlessNextAt)-trackTravel(elapsed)<baseSpeed()*12){
+   notes.push(...spaceNotes(extendEndless(20),notes));
+   endlessNextAt=notes[notes.length-1].at;
+  }
   if(notes.length>110)notes=notes.filter(t=>t.state!=="done");
  }
  if(!ended&&selectedSong.id!=="endless"&&complete===notes.length){win();return;}
@@ -402,5 +506,6 @@ if(location.hostname==="localhost"||location.hostname==="127.0.0.1")
   speed:currentFallSpeed(),distance:trackTravel(elapsed),
   notes:notes.map(n=>({lane:n.lane,at:n.at,duration:n.duration,hold:n.hold,state:n.state}))
  }),geometry:()=>notes.map(noteGeometry),travelAt:trackTravel});
-clearRun();scale();window.addEventListener("resize",scale,{passive:true});
+clearRun();$("playPage").hidden=true;$("songLibrary").hidden=false;
+scale();window.addEventListener("resize",scale,{passive:true});
 })();
