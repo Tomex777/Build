@@ -362,6 +362,19 @@ class Device:
             # later opened private-download consent dialogs in ordinary tests.
             self.ensure_regular()
 
+    def journeys(self):
+        self.click("More")
+        self.click("Journeys")
+        # Verify the actual native graph, not a transient More menu label.
+        until = time.monotonic() + 12
+        while self.find("Search pages and branches") is None:
+            if time.monotonic() >= until:
+                raise AssertionError("Journeys graph editor did not replace webpage")
+            time.sleep(.6)
+        if self.find("My browsing") is None:
+            raise AssertionError("Native graph lacks default persisted journey")
+        return "Opened native Journey graph with search and persisted rows"
+
     def upload(self):
         """Select a synthetic file through Android DocumentsUI and verify exact posted bytes."""
         from wave2_fixture import UPLOAD_BYTES
@@ -737,10 +750,8 @@ class Device:
         self.test("C14", "Library bookmark visible", lambda: (
                   self.click("More"), self.click("Library"),
                   self.click("10.0.2.2", partial=True)), prerequisites=("C13",))
-        self.test("C15", "Journeys history access", lambda: (
-                  self.click("More"), self.click("Journeys"),
-                  "Journeys panel visible" if self.find("Journeys", partial=True)
-                  else self._missing("Journeys panel")), prerequisites=("C13",), screenshot=True)
+        self.test("C15", "Journeys history access", self.journeys,
+                  prerequisites=("C13",), screenshot=True)
         self.test("C16", "10 tabs via touch", self.ten_tabs, prerequisites=("C01",), screenshot=True)
         self.test("C17", "Landscape UI still interactive", self.rotate,
                   prerequisites=("C16",), screenshot=True)
