@@ -523,3 +523,14 @@ test('future-dated meme metadata cannot game freshness rankings',()=>{
  const results=chooseFourMemes([invented,valid],{enabled:true,now});
  assert.deepEqual(results.map(x=>x.id),[valid.id]);
 });
+
+test('episode and finale headlines require review even when official ledger confirms source',()=>{
+ const {classifyHeadline}=require('./kdrama.cjs');
+ for(const title of ['Aurora episode 12 airs tonight','Aurora finale shocks fans','The ending of Aurora season 3','Aurora plot twist revealed']){
+  assert.equal(classifyHeadline(title).spoiler,true,title);
+  const source={id:'studio',trustedHost:'studio.example',official:true};
+  const normalized=normalizeNews({title,url:'https://studio.example/'+encodeURIComponent(title),publishedAt:new Date(NOW).toISOString(),confirmed:true},source,{now:NOW});
+  assert.equal(normalized.autoEligible,false,title);
+  assert.equal(normalized.requiresReview,true,title);
+ }
+});
