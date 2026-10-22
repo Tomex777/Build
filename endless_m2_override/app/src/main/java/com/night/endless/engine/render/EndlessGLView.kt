@@ -153,6 +153,10 @@ class EndlessGLView(
 
     override fun onPause() {
         stopFrameTicker()
+        // The view may remain attached while Android backgrounds the app.
+        // Release both captured pointers now: a held stick must never keep
+        // walking when the user unlocks or returns from the app switcher.
+        cancelSurfaceControls()
         super.onPause()
     }
 
