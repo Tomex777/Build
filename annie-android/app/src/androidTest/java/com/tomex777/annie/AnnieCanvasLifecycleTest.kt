@@ -298,10 +298,8 @@ class AnnieCanvasLifecycleTest {
 
     @Test fun closeCardRemainsClosedAfterComposeSavedStateRestoration() {
         val tester = StateRestorationTester(compose)
-        compose.setContent {
-            tester.setContent {
-                AnnieTheme { AnnieCanvasMessage(document("Saved close")) }
-            }
+        tester.setContent {
+            AnnieTheme { AnnieCanvasMessage(document("Saved close")) }
         }
         compose.waitUntil(10_000) { allCanvasWebViews().size == 1 }
         compose.onNodeWithTag("annie_canvas_close").performClick()
