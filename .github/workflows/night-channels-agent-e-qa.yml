@@ -88,3 +88,21 @@ jobs:
         run: node night-play/channels/qa/curation-contract.cjs
         env:
           NIGHT_CURATION_ROOT: agentB/night-play/channels/curation
+
+  cross-agent-d-branding-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/checkout@v5
+        with:
+          ref: agentD/channels-captions-branding-20261022
+          path: agentD
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Independently check poster identity, Unicode watermark keys and limits
+        run: node night-play/channels/qa/branding-contract.mjs
+        env:
+          NIGHT_BRANDING_ROOT: agentD/mscc/channel-branding
