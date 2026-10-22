@@ -10,7 +10,20 @@ internal fun studioNewFileName(input: String, selectedType: String): String {
     val name = input.trim()
     require(name.isNotBlank() && name.substringAfterLast('/').isNotBlank()) { "Enter a filename" }
     require(selectedType in StudioFileTypes) { "Choose a supported file type" }
-    return if (name.substringAfterLast('/').contains('.')) name else "$name.$selectedType"
+    val result = if (name.substringAfterLast('/').contains('.')) name else "$name.$selectedType"
+    require(
+        result.length <= 240 &&
+            !result.startsWith('/') &&
+            !result.contains('\\') &&
+            result.split('/').all { part ->
+                part.matches(Regex("[A-Za-z0-9_-][A-Za-z0-9_. -]{0,63}")) &&
+                    part != "." && part != ".." && !part.startsWith('.')
+            }
+    ) { "Use a valid project-relative filename" }
+    require(result.substringAfterLast('.', "").lowercase() in StudioFileTypes) {
+        "Use .js, .ts, .py, .lua, .html, .css, .json, .md or .txt"
+    }
+    return result
 }
 
 
