@@ -89,10 +89,17 @@ jobs:
             mkdir -p screenshots
             adb shell screencap -p /sdcard/juice-wrld.png
             adb pull /sdcard/juice-wrld.png screenshots/start-api-${{ matrix.api }}.png
+            set +e
             gradle -p juice-wrld-android --no-daemon :app:connectedDebugAndroidTest
+            TEST_EXIT=$?
+            set -e
             adb pull /sdcard/Android/data/com.nice.juicewrld/files/screenshots screenshots/compose-api-${{ matrix.api }} || true
+            adb logcat -d -v brief -t 1200 > screenshots/logcat-api-${{ matrix.api }}.txt || true
+            exit "$TEST_EXIT"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: juice-wrld-api-${{ matrix.api }}-screenshots
-          path: screenshots/**
+          path: |
+            screenshots/**
+            juice-wrld-android/app/build/outputs/androidTest-results/connected/**
