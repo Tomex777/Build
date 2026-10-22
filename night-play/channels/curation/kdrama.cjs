@@ -1,0 +1,36 @@
+'use strict';
+const EVENT_PATTERNS=Object.freeze({
+ casting:/\b(?:cast(?:ing)?|joins? (?:the )?(?:cast|series)|set to star|in talks|lead role|stars? in)\b/i,
+ releases:/\b(?:premier(?:e|es|ing)|release date|air date|debut|episodes? (?:arrive|air))\b/i,
+ trailers:/\b(?:trailer|teaser|first look|preview clip)\b/i,
+ renewals:/\b(?:renewed|renewal|season (?:two|three|four|2|3|4) (?:announced|confirmed))\b/i,
+ platforms:/\b(?:netflix|disney\+|tving|viki|wavve|coupang play|kocowa|prime video)\b/i,
+ romance:/\b(?:romance|romantic|love story|rom-com|romcom)\b/i
+});
+const RUMOR=/\b(?:rumou?r(?:ed|s)?|reportedly|unconfirmed|speculation|in talks|allegedly|may (?:star|join|return))\b/i;
+const SPOILER=/\b(?:spoilers?|finale? (?:explained|reveals|twist)|ending (?:explained|revealed)|dies? in episode|episode \d+ (?:recap|twist))\b/i;
+function quoteShow(title){
+ const match=/(?:“([^”]{2,90})”|"([^"]{2,90})"|'([^']{2,90})')/.exec(title);
+ return (match?.[1]||match?.[2]||match?.[3]||'').trim();
+}
+function findShow(title,aliases){
+ for(const raw of aliases){
+  if(typeof raw!=='string'||raw.length<2||raw.length>100)continue;
+  const at=title.toLocaleLowerCase().indexOf(raw.toLocaleLowerCase());
+  if(at>=0){const before=title[at-1]||' ',after=title[at+raw.length]||' ';
+   if(!/[\p{L}\p{N}]/u.test(before)&&!/[\p{L}\p{N}]/u.test(after))return raw;}
+ }
+ return quoteShow(title);
+}
+function interpretKDramaEntry(row,{showAliases=[],confirmedBySource={}}={}){
+ if(!row||typeof row.title!=='string')return null;
+ const title=row.title.replace(/\s+/g,' ').trim();if(title.length<8||title.length>240)return null;
+ const tags=Object.entries(EVENT_PATTERNS).filter(([,re])=>re.test(title)).map(([tag])=>tag);
+ const event=tags.find(x=>['casting','releases','trailers','renewals'].includes(x))||'update';
+ const confirmation=Object.hasOwn(confirmedBySource,row.guid)?confirmedBySource[row.guid]:null;
+ const confirmed=confirmation?.verified===true&&!RUMOR.test(title);
+ return {show:String(confirmation?.show||findShow(title,showAliases)),event:confirmation?.event||event,
+ tags,rumor:RUMOR.test(title),spoiler:SPOILER.test(title),confirmed,
+ storyKey:typeof confirmation?.storyKey==='string'?confirmation.storyKey:null,eventDate:confirmation?.eventDate||null};
+}
+module.exports={interpretKDramaEntry,EVENT_PATTERNS};
