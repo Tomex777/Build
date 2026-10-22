@@ -484,7 +484,10 @@ internal fun AnnieCanvasMessage(payload: JSONObject) {
                     maxLines = 1, overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f).padding(start = 7.dp))
                 if (controller.isClosed) {
-                    TextButton(onClick = controller::reopen, modifier = Modifier.testTag("annie_canvas_reopen")) {
+                    TextButton(onClick = {
+                        controller.reopen()
+                        closedAcrossRestore = false
+                    }, modifier = Modifier.testTag("annie_canvas_reopen")) {
                         Text("Open", color = BrowserTeal)
                     }
                 } else {
@@ -499,8 +502,10 @@ internal fun AnnieCanvasMessage(payload: JSONObject) {
                             contentDescription = if (controller.pausedByUser) "Resume Canvas" else "Pause Canvas",
                             tint = BrowserTeal, modifier = Modifier.size(21.dp))
                     }
-                    IconButton(onClick = controller::close,
-                        modifier = Modifier.size(48.dp).testTag("annie_canvas_close")) {
+                    IconButton(onClick = {
+                        controller.close()
+                        closedAcrossRestore = true
+                    }, modifier = Modifier.size(48.dp).testTag("annie_canvas_close")) {
                         Icon(AnnieCanvasIcons.Close, contentDescription = "Close Canvas",
                             tint = BrowserSoftText, modifier = Modifier.size(21.dp))
                     }
