@@ -374,3 +374,31 @@ test('region targeting requires verified show availability, not an outlet guess'
  assert.equal(chooseNews([confirmed],{enabled:true,regions:['United States'],now:NOW}).length,0);
  assert.equal(chooseNews([unconfirmed],{enabled:true,regions:['nigeria'],now:NOW}).length,0);
 });
+
+test('feedback keeps funny source taste owner-scoped when the caller supplies validated reviews',()=>{
+ const {deriveHumanFeedback}=require('./core.cjs');
+ const liked=meme('source-liked',{category:'relatable',upvotes:100,upvoteRatio:.9});
+ const disliked=meme('source-disliked',{category:'relatable',upvotes:100,upvoteRatio:.9});
+ const history=[
+  ...Array.from({length:18},()=>({category:'relatable',sourceId:liked.source.id,decision:'approved'})),
+  ...Array.from({length:18},()=>({category:'relatable',sourceId:disliked.source.id,decision:'declined'}))
+ ];
+ const learned=deriveHumanFeedback(history);
+ assert(learned.sources[liked.source.id]>.75);
+ assert(learned.sources[disliked.source.id]<.25);
+ assert(memeScore(liked,{categories:['relatable'],feedback:learned,now:NOW})>
+   memeScore(disliked,{categories:['relatable'],feedback:learned,now:NOW}));
+ assert(Object.isFrozen(learned.sources));
+ assert.throws(()=>{learned.sources[liked.source.id]=0},TypeError);
+});
+test('source feedback is bounded against malformed identity flooding',()=>{
+ const {deriveHumanFeedback}=require('./core.cjs');
+ const history=Array.from({length:600},(_,index)=>({
+  category:'other',decision:'approved',sourceId:'source:'+index
+ }));
+ const feedback=deriveHumanFeedback(history);
+ assert.equal(Object.keys(feedback.sources).length,256);
+ assert.equal(feedback.sources['source:0']>.5,true);
+ assert.equal(feedback.sources['source:590'],undefined);
+ assert.equal(feedback.sources['__proto__'],undefined);
+});
