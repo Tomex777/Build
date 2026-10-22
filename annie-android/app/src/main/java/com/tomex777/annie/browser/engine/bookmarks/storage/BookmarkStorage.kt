@@ -15,6 +15,7 @@
 package com.tomex777.annie.browser.engine.bookmarks.storage
 
 import android.content.Context
+import android.util.AtomicFile
 import com.tomex777.annie.browser.engine.bookmarks.model.*
 import org.json.JSONArray
 import org.json.JSONObject
@@ -80,9 +81,11 @@ internal fun loadBookmarksFromDir(filesDir: File): BookmarkCollection {
     val v2File = File(filesDir, V2_FILE)
     val legacyFile = File(filesDir, LEGACY_FILE)
 
-    if (v2File.exists()) {
+    if (v2File.exists() || File(filesDir, "$V2_FILE.bak").exists()) {
         try {
-            val json = JSONObject(v2File.readText())
+            val json = JSONObject(
+                AtomicFile(v2File).openRead().bufferedReader(Charsets.UTF_8).use { it.readText() }
+            )
             val version = json.optInt("schema_version", 1)
             if (version >= 2) {
                 parseV2(json, collection)
@@ -91,6 +94,9 @@ internal fun loadBookmarksFromDir(filesDir: File): BookmarkCollection {
             }
         } catch (e: Exception) {
             OmniLog.e(TAG, "Error loading v2 bookmarks", e)
+            // Fail closed: never return an empty collection that the caller
+            // could accidentally save over corrupt but recoverable source data.
+            throw e
         }
     } else if (legacyFile.exists()) {
         try {
@@ -99,6 +105,7 @@ internal fun loadBookmarksFromDir(filesDir: File): BookmarkCollection {
             saveBookmarksToDir(filesDir, collection)
         } catch (e: Exception) {
             OmniLog.e(TAG, "Error migrating legacy bookmarks", e)
+            throw e
         }
     }
     return collection
@@ -108,23 +115,16 @@ internal fun loadBookmarksFromDir(filesDir: File): BookmarkCollection {
  * Saves [collection] to [filesDir] atomically. Exposed for unit tests.
  */
 internal fun saveBookmarksToDir(filesDir: File, collection: BookmarkCollection) {
-    val v2File = File(filesDir, V2_FILE)
-    val tempFile = File(filesDir, "$V2_FILE.tmp")
+    val atomic = AtomicFile(File(filesDir, V2_FILE))
+    val bytes = serializeV2(collection).toString().toByteArray(Charsets.UTF_8)
+    val stream = atomic.startWrite()
     try {
-        val json = serializeV2(collection)
-        tempFile.writeText(json.toString())
-        // Atomic rename: delete destination first so rename always succeeds on overwrite.
-        if (v2File.exists() && !v2File.delete()) {
-            throw IllegalStateException("Failed to delete existing $V2_FILE before rename")
-        }
-
-        if (!tempFile.renameTo(v2File)) {
-            throw IllegalStateException("Failed to rename temp file to $V2_FILE")
-        }
+        stream.write(bytes)
+        atomic.finishWrite(stream)
     } catch (e: Exception) {
+        atomic.failWrite(stream)
         OmniLog.e(TAG, "Error saving bookmarks: ${e.message}", e)
-        // Clean up temp file on failure.
-        tempFile.delete()
+        throw e
     }
 }
 
@@ -199,8 +199,9 @@ private fun parseV2(json: JSONObject, collection: BookmarkCollection) {
     // Validate before committing — if the stored data is corrupt, start fresh.
     val issues = BookmarkCollection.validate(bookmarks, folders)
     if (issues.isNotEmpty()) {
-        OmniLog.w(TAG, "Stored bookmark data is corrupt (${issues.size} issues), starting fresh: ${issues.first().message}")
-        return
+        throw IllegalStateException(
+            "Stored bookmark data is invalid (${issues.size} issues): ${issues.first().message}"
+        )
     }
     collection.replaceAll(bookmarks, folders)
 }
