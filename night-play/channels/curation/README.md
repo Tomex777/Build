@@ -16,6 +16,9 @@
 
 **Hard security boundary:** None of these source and ranking helpers knows an account, channel owner, connection proof, feature toggle in durable storage or publisher credentials. Agent C must enforce those on the server before curation/scheduling **and immediately before send**, with idempotency, revocation, disconnect, and per-channel isolation; Agent A must not expose this as a directly callable unauthenticated feed or post endpoint. Returning `autoEligible:true` does **not** imply account authorization or ownership.
 
+
+**K-drama interpreter:** `interpretKDramaEntry(row,{showAliases,confirmedBySource})` in `kdrama.cjs` recognizes casting, releases, trailers, renewals, platforms, romance, speculative/rumor language and likely spoiler headlines. It extracts quoted or approved-show-list names, but *cannot* automatically verify claims. Official auto-eligibility requires a trusted, server-maintained `confirmedBySource[guid]` record on an official allowlisted source. `chooseNews(...,{includeSpoilers:false})` filters spoilers by default; owner can opt in. Event dates are stored separately from article publication dates. Heuristic tags and summaries must still be reviewed visually by A/E before live posting.
+
 ## Validation / handoff
 
 `node --test night-play/channels/curation/curation.test.cjs` covers default-OFF, category opt-ins including dark, selection diversity, older funny entries, media near-duplicate hashes, prior review choices, unsafe URLs, attribution/rights, freshness, official-vs-rumor, news-interest filtering and cross-outlet duplication, OAuth pagination/rate limiting, XML safety, feed cache and oversized/redirect denial. Tests use mock source responses; there are no live Reddit or licensed newsroom responses/credentials in the repo.
