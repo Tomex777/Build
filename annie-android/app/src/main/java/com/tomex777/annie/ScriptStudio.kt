@@ -992,6 +992,7 @@ private fun ScriptStudioContent(
                     }
                     ScriptCodeEditor(
                         value = editorValue,
+                        fileType = path.substringAfterLast('.', "").lowercase(),
                         onValueChange = { editorValue = it },
                         onEditorReady = { codeEditor = it },
                         enabled = !saving,
@@ -1774,6 +1775,7 @@ private fun StudioStatus(status: String, modifier: Modifier = Modifier) {
 @Composable
 private fun ScriptCodeEditor(
     value: TextFieldValue,
+    fileType: String,
     onValueChange: (TextFieldValue) -> Unit,
     onEditorReady: (CodeEditor) -> Unit,
     enabled: Boolean,
@@ -1782,7 +1784,12 @@ private fun ScriptCodeEditor(
     AndroidView(
         modifier = modifier,
         factory = { context ->
-            val registry = MonarchGrammarRegistry()
+            // Applying TypeScript analysis to HTML, CSS, Python, Markdown or
+            // plain text produces false coloring and JavaScript completion.
+            // Sora's built-in plain language is preferable until a verified
+            // per-language tokenizer is bundled.
+            val syntaxLanguage = if (fileType in setOf("js", "ts")) {
+                val registry = MonarchGrammarRegistry()
             registry.loadGrammars(
                 monarchLanguages {
                     language("typescript") {
@@ -1809,6 +1816,8 @@ private fun ScriptCodeEditor(
                     )
                 )
             }
+                language
+            } else null
             AnnieScriptCodeEditor(context).apply {
                 onTextSync = {
                     val cursor = text.cursor
@@ -1823,13 +1832,13 @@ private fun ScriptCodeEditor(
                 // always describe the same visible editor state.
                 val annieTheme = ensureAnnieMonarchTheme(context)
                 setColorScheme(MonarchColorScheme.create(annieTheme))
-                setEditorLanguage(language)
+                syntaxLanguage?.let { setEditorLanguage(it) }
                 setTextSize(14f)
-                setTabWidth(4)
-                isLineNumberEnabled = true
-                isWordwrap = false
-                props.autoIndent = true
-                props.symbolPairAutoCompletion = true
+                setTabWidth(if (fileType in setOf("html", "css", "json")) 2 else 4)
+                isLineNumberEnabled = fileType !in setOf("md", "txt")
+                isWordwrap = fileType in setOf("html", "css", "json", "md", "txt")
+                props.autoIndent = fileType !in setOf("md", "txt")
+                props.symbolPairAutoCompletion = fileType !in setOf("md", "txt")
                 setText(value.text)
                 isEnabled = enabled
                 subscribeAlways<ContentChangeEvent> {
