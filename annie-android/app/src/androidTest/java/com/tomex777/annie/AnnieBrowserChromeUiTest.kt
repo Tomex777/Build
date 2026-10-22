@@ -149,6 +149,43 @@ class AnnieBrowserChromeUiTest {
     }
 
     @Test
+    fun findInPageIsOnlyExposedWhenRealFinderIsProvided() {
+        val visible = mutableStateOf(false)
+        val query = mutableStateOf("")
+        var next = 0
+        var previous = 0
+        rule.setContent {
+            AnnieBrowserChrome(
+                state = state("https://example.net"),
+                actions = actions(),
+                webContent = { Box(it) },
+                downloadsContent = { Box(it) },
+                find = AnnieBrowserChromeFind(
+                    visible = visible.value, query = query.value,
+                    current = 1, total = 3, found = true,
+                    open = { visible.value = true },
+                    update = { query.value = it },
+                    next = { next++ }, previous = { previous++ },
+                    close = { visible.value = false },
+                ),
+            )
+        }
+        rule.onNodeWithContentDescription("Browser menu").performClick()
+        rule.onNodeWithText("Find in page").performClick()
+        rule.onNodeWithTag("annie_browser_find_bar").assertIsDisplayed()
+        rule.onNodeWithTag("annie_browser_find_input").performTextInput("Gecko")
+        rule.onNodeWithContentDescription("Next match").performClick()
+        rule.onNodeWithContentDescription("Previous match").performClick()
+        rule.runOnIdle {
+            assertEquals("Gecko", query.value)
+            assertEquals(1, next)
+            assertEquals(1, previous)
+        }
+        rule.onNodeWithContentDescription("Close find in page").performClick()
+        rule.onNodeWithTag("annie_browser_find_bar").assertDoesNotExist()
+    }
+
+    @Test
     fun realAndroidScreenshotEvidenceForHomeAndTabs() {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val context = instrumentation.targetContext
