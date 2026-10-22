@@ -1,11 +1,6 @@
 name: Annie Agent 1 Omni engine acceptance
 
 on:
-  push:
-    branches: [feature/annie-agent1-omni-engine-20261022]
-    paths:
-      - 'annie-android/**'
-      - '.github/workflows/annie-agent1-omni-validation.yml'
   pull_request:
     branches: [annie-five-agent-recovery-20261022]
     paths:
