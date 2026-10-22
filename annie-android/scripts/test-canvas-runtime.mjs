@@ -126,11 +126,15 @@ assert.ok(a.css.has('annie-host-paused'));
 assert.equal(animation.playState, 'paused');
 assert.equal(sound.paused, true, 'Detached audio element should pause');
 assert.equal(audio.state, 'suspended');
+await audio.resume();
+assert.equal(audio.state, 'suspended', 'Canvas JS must not bypass host pause via AudioContext.resume');
 const nextSound = new a.window.HTMLMediaElement();
 nextSound.play();
 assert.equal(nextSound.paused, true, 'Sound created during pause may not play');
 const nextAudio = new a.window.AudioContext();
 assert.equal(nextAudio.state, 'suspended', 'WebAudio created during pause must suspend');
+await nextAudio.resume();
+assert.equal(nextAudio.state, 'suspended', 'New AudioContext must remain paused');
 
 let delayed = 0;
 a.window.setTimeout(() => delayed++, 75);
