@@ -7,7 +7,8 @@ const $=id=>document.getElementById(id);
 const soundKey='night-play-action-sfx-v1';
 const bestKey='night-play-v1-action-runner-chromium';
 let runner=null,started=false,paused=false,dead=false,sound=true,loadedSound=false;
-let best=0,lastPersistedBest=0,lastSaveAt=0,activePointer=null,duckPointer=null,pointerDownY=0,score=0;
+let best=0,lastPersistedBest=0,lastSaveAt=0,activePointer=null,pointerDownY=0,score=0;
+let touchGesture='idle',touchTimer=null;
 try{sound=localStorage.getItem(soundKey)!=='off';best=Math.max(0,Number(localStorage.getItem(bestKey))||0);lastPersistedBest=best}catch{}
 $('best').textContent=String(best);
 function persistBest(){if(best<=lastPersistedBest)return;try{localStorage.setItem(bestKey,String(best));lastPersistedBest=best;lastSaveAt=performance.now()}catch{}}
@@ -33,7 +34,7 @@ function start(){if(!runner?.canvas)return;
   runner.play();
  }else if(paused){runner.play()}
  started=true;paused=false;hideOverlay();pauseIcon(false);
- prepareAudio();$('arenaHint').textContent='JUMP • DUCK';
+ prepareAudio();$('arenaHint').textContent='TAP · JUMP / SWIPE ↓';
 }
 function pause(){if(!runner||!started||dead)return;
  if(paused){runner.play();paused=false;hideOverlay()}
@@ -49,44 +50,50 @@ function jumpEnd(){if(runner&&runner.tRex?.jumping)runner.tRex.endJump()}
 function duckStart(){if(!runner||!started||paused||dead)return;
  if(runner.tRex.jumping)runner.tRex.setSpeedDrop();
  else runner.tRex.setDuck(true);
- $('duckButton').setAttribute('aria-pressed','true');
 }
-function duckEnd(){if(runner?.tRex){runner.tRex.speedDrop=false;runner.tRex.setDuck(false)}
- $('duckButton').setAttribute('aria-pressed','false');
-}
+function duckEnd(){if(runner?.tRex){runner.tRex.speedDrop=false;runner.tRex.setDuck(false)}}
 $('overlayAction').addEventListener('click',()=>start());
 $('pauseButton').addEventListener('click',()=>pause());
 $('settingsButton').addEventListener('click',()=>{if(started&&!paused&&!dead)pause();$('settingsDialog').showModal()});
 $('settingsClose').addEventListener('click',()=>$('settingsDialog').close());
 $('settingsDialog').addEventListener('click',e=>{if(e.target===$('settingsDialog'))$('settingsDialog').close()});
 $('soundToggle').addEventListener('click',()=>{setSound(!sound);if(sound)prepareAudio()});
-$('touchPad').addEventListener('pointerdown',e=>{if(activePointer!==null)return;
+// A single gesture surface: quick taps launch the original jump; sliding
+// downward instead activates Chromium's native crouch. No dock/DUCK button.
+// Short (45ms) recognition avoids a jump firing before a duck gesture.
+$('touchPad').addEventListener('pointerdown',e=>{
+ if(activePointer!==null)return;
  e.preventDefault();activePointer=e.pointerId;pointerDownY=e.clientY;
+ touchGesture='pending';
  try{$('touchPad').setPointerCapture(e.pointerId)}catch{}
- jumpStart();
+ touchTimer=setTimeout(()=>{
+  touchTimer=null;
+  if(touchGesture==='pending'){touchGesture='jump';jumpStart()}
+ },45);
 });
 $('touchPad').addEventListener('pointermove',e=>{
- if(e.pointerId===activePointer&&e.clientY-pointerDownY>32&&runner?.tRex?.jumping){
-  // Chromium's native jump cancellation / speed-drop mechanic.
+ if(e.pointerId!==activePointer)return;
+ const dy=e.clientY-pointerDownY;
+ if(dy>23 && touchGesture!=='duck'){
+  if(touchTimer){clearTimeout(touchTimer);touchTimer=null}
+  if(touchGesture==='jump')jumpEnd();
+  touchGesture='duck';duckStart();
+ }else if(touchGesture==='jump'&&dy>23&&runner?.tRex?.jumping){
   runner.tRex.setSpeedDrop();
  }
 });
-function releaseJump(e){if(e.pointerId!==activePointer)return;activePointer=null;jumpEnd();
+function releaseTouch(e){
+ if(e.pointerId!==activePointer)return;
+ if(touchTimer){clearTimeout(touchTimer);touchTimer=null}
+ if(touchGesture==='pending'){jumpStart();jumpEnd()}
+ else if(touchGesture==='jump')jumpEnd();
+ else if(touchGesture==='duck')duckEnd();
+ activePointer=null;touchGesture='idle';
  try{$('touchPad').releasePointerCapture(e.pointerId)}catch{}
 }
-$('touchPad').addEventListener('pointerup',releaseJump);
-$('touchPad').addEventListener('pointercancel',releaseJump);
-$('touchPad').addEventListener('lostpointercapture',releaseJump);
-$('duckButton').addEventListener('pointerdown',e=>{
- if(duckPointer!==null)return;e.preventDefault();e.stopPropagation();duckPointer=e.pointerId;
- try{$('duckButton').setPointerCapture(e.pointerId)}catch{}duckStart();
-});
-function releaseDuck(e){if(e.pointerId!==duckPointer)return;duckPointer=null;duckEnd();
- try{$('duckButton').releasePointerCapture(e.pointerId)}catch{}
-}
-$('duckButton').addEventListener('pointerup',releaseDuck);
-$('duckButton').addEventListener('pointercancel',releaseDuck);
-$('duckButton').addEventListener('lostpointercapture',releaseDuck);
+$('touchPad').addEventListener('pointerup',releaseTouch);
+$('touchPad').addEventListener('pointercancel',releaseTouch);
+$('touchPad').addEventListener('lostpointercapture',releaseTouch);
 window.addEventListener('keydown',e=>{
  if(['Space','ArrowDown','ArrowUp'].includes(e.code))e.preventDefault();
  if($('settingsDialog').open||!$('overlay').hidden){
@@ -103,14 +110,38 @@ function pulse(){
    runner.distanceMeter.getActualDistance(Math.ceil(runner.distanceRan)):runner.distanceRan*.025;
   if(started)displayScore(measured);
   if(started&&runner.crashed&&!dead){
-   dead=true;paused=false;duckEnd();activePointer=null;persistBest();
+   dead=true;paused=false;duckEnd();activePointer=null;touchGesture='idle';
+   if(touchTimer)clearTimeout(touchTimer);touchTimer=null;persistBest();
    overlay('GAME OVER','Run ended','Score '+score+' · Best '+best,'Play again');pauseIcon(false);
   }
  }
  requestAnimationFrame(pulse);
 }
-window.addEventListener('load',()=>{
+window.addEventListener('load',async()=>{
  if(typeof window.Runner!=='function'){overlay('UNAVAILABLE','Game did not load','Refresh to try again.','Retry');return}
+ // One game footprint for every NIGHT action game: the display canvas fills
+ // the full 390:550 arena. Render Chromium's ORIGINAL 150-unit gameplay world
+ // uniformly zoomed (both axes) so the character and hazards no longer occupy
+ // a tiny strip at the bottom. Physics/collision remain in native coordinates.
+ window.NIGHT_DINO_ZOOM=window.innerWidth<700?1.45:1.34;
+ window.Runner.updateCanvasScaling=function(canvas){
+  const zoom=window.NIGHT_DINO_ZOOM;
+  const stage=$('stage');
+  const displayWidth=Math.max(1,stage.clientWidth);
+  const displayHeight=Math.max(1,stage.clientHeight);
+  const dpr=Math.min(2,Math.max(1,window.devicePixelRatio||1));
+  canvas.width=Math.round(displayWidth*dpr);
+  canvas.height=Math.round(displayHeight*dpr);
+  canvas.style.width=displayWidth+'px';
+  canvas.style.height=displayHeight+'px';
+  canvas.getContext('2d').setTransform(dpr*zoom,0,0,dpr*zoom,0,
+    dpr*(displayHeight-window.Runner.defaultDimensions.HEIGHT*zoom));
+  return true;
+ };
+ try{await window.NightDinoSkin.install()}catch(e){
+  console.error('Unable to install NIGHT game artwork',e);
+  overlay('UNAVAILABLE','Artwork unavailable','Refresh to try again.','Retry');return;
+ }
  runner=new window.Runner('#main-frame-error');
  const nativeSound=runner.playSound.bind(runner);
  runner.playSound=buffer=>{if(sound)nativeSound(buffer)};
@@ -125,6 +156,8 @@ window.addEventListener('load',()=>{
   jumping:runner.tRex?.jumping,ducking:runner.tRex?.ducking,
   obstacles:runner.horizon?.obstacles?.map(o=>({type:o.typeConfig?.type,x:o.xPos,y:o.yPos,w:o.width})),
   speed:runner.currentSpeed,score,best,distanceRan:runner.distanceRan,
+  zoom:window.NIGHT_DINO_ZOOM,canvasHeight:runner.canvas?.getBoundingClientRect().height,
+  arenaHeight:$('stage').getBoundingClientRect().height,
   gravity:runner.tRex?.config.GRAVITY,jumpVelocity:runner.tRex?.config.INIITAL_JUMP_VELOCITY
  }),jump:jumpStart,release:jumpEnd,pause,start};
  pulse();

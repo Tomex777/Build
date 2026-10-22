@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="840" height="166" viewBox="0 0 840 166">
+<defs><linearGradient id="blocks" y1="0" y2="1" x1="0" x2="0"><stop stop-color="#9bb8bc"/><stop offset="1" stop-color="#74979d"/></linearGradient><linearGradient id="towers" y1="0" y2="1" x1="0" x2="0"><stop stop-color="#a1bec0"/><stop offset="1" stop-color="#73939b"/></linearGradient></defs>
+<path d="M0 166V95l26-13 36 16 41-34 37 22 31-19 50 26 34-51 30 21 47-35 38 40 43-14 36 36 43-24 54 20 45-35 42 27 40-15 35 17 42-29 44 37 42-9v78Z" fill="#a6c3bd" opacity=".4"/>
+<g fill="url(#towers)">
+<path d="M-4 166V84h44v82ZM45 166V47h41v119ZM96 166V69h49v97ZM150 166V36h58v130ZM214 166V81h49v85ZM269 166V53h40v113ZM316 166V25h46v141ZM365 166V92h52v74ZM424 166V63h37v103ZM465 166V37h61v129ZM535 166V71h38v95ZM577 166V49h52v117ZM635 166V85h43v81ZM682 166V31h59v135ZM747 166V56h46v110ZM800 166V83h47v83Z"/>
+</g>
+<g fill="#567e83" opacity=".6">
+<path d="M60 47V36h8v11ZM172 36V23h8v13ZM342 25V7h6v18ZM496 37V16h6v21ZM599 49V29h8v20ZM711 31V10h6v21Z"/>
+<path d="M47 53h39v4H47zM152 40h54v6h-54zM316 27h46v5h-46zM464 42h62v5h-62zM577 53h52v5h-52zM681 35h59v5h-59z"/>
+</g>
+<g fill="#dcebe1" opacity=".65">
+<path d="M12 99h6v11h-6zm14 0h6v11h-6zM55 69h7v12h-7zm14 0h7v12h-7zM55 93h7v12h-7zm14 0h7v12h-7zM109 84h7v11h-7zm16 0h7v11h-7zM109 109h7v11h-7zm16 0h7v11h-7z"/>
+<path d="M161 55h8v13h-8zm19 0h8v13h-8zm-19 26h8v13h-8zm19 0h8v13h-8zm-19 26h8v13h-8zm19 0h8v13h-8zM225 95h7v10h-7zm16 0h7v10h-7zM281 70h7v10h-7zm13 0h7v10h-7z"/>
+<path d="M326 43h8v13h-8zm17 0h8v13h-8zm-17 28h8v13h-8zm17 0h8v13h-8zm-17 28h8v13h-8zm17 0h8v13h-8zM379 104h9v10h-9zm18 0h9v10h-9zM434 76h8v10h-8zm-1 22h8v10h-8z"/>
+<path d="M478 56h9v13h-9zm19 0h9v13h-9zm-19 29h9v13h-9zm19 0h9v13h-9zm-19 29h9v13h-9zm19 0h9v13h-9zM547 83h7v10h-7zm15 0h7v10h-7zM586 65h9v13h-9zm20 0h9v13h-9zm-20 27h9v13h-9zm20 0h9v13h-9zM647 100h7v10h-7zm15 0h7v10h-7z"/>
+<path d="M693 48h9v13h-9zm19 0h9v13h-9zm-19 28h9v13h-9zm19 0h9v13h-9zm-19 28h9v13h-9zm19 0h9v13h-9zM757 72h8v11h-8zm16 0h8v11h-8zm16 0h8v11h-8z"/>
+</g>
+<path d="M0 158h840v8H0z" fill="#638987" opacity=".6"/>
+</svg>

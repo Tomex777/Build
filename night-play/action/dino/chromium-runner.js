@@ -429,7 +429,11 @@
                 boxStyles.paddingLeft.length - 2));
 
             this.dimensions.WIDTH = this.outerContainerEl.offsetWidth - padding * 2;
-            this.dimensions.WIDTH = Math.min(DEFAULT_WIDTH, this.dimensions.WIDTH); //Arcade Mode
+            // NIGHT presentation viewport: uniformly magnify rendered sprites,
+            // preserving original Trex physics, jump timings and obstacle
+            // colliders in their native logical coordinate system.
+            this.dimensions.WIDTH = Math.min(DEFAULT_WIDTH,
+                Math.round(this.dimensions.WIDTH / (window.NIGHT_DINO_ZOOM || 1)));
             if (this.activated) {
                 // NIGHT layout manages resizing; no full-viewport transform.
             }
@@ -1505,7 +1509,9 @@
             yPos: [100, 75, 50], // Variable height.
             yPosMobile: [100, 50], // Variable height mobile.
             multipleSpeed: 999,
-            minSpeed: 8.5,
+            // NIGHT level pacing: reveal the aerial sentry before long sessions.
+            // Original Chromium generator, collision boxes and flight animation.
+            minSpeed: 4.4,
             minGap: 150,
             collisionBoxes: [
                 new CollisionBox(15, 15, 16, 5),

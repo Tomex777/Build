@@ -11,7 +11,8 @@ const output=join(root,'visual-output','chromium-dino');
 mkdirSync(output,{recursive:true});
 const allowed=new Set([
  'action/index.html','action/style.css','action/games.js',
- 'action/dino/index.html','action/dino/style.css','action/dino/bridge.js',
+ 'action/dino/index.html','action/dino/style.css','action/dino/bridge.js','action/dino/night-skin.js',
+ 'action/dino/skyline.svg',
  'action/dino/chromium-runner.js','game-shell.css'
 ]);
 const server=createServer((req,res)=>{
@@ -19,7 +20,7 @@ const server=createServer((req,res)=>{
  let file=path.startsWith('/action/dino/')?path==='/action/dino/'?'action/dino/index.html':path.slice(1):
   path==='/action/'?'action/index.html':path.slice(1);
  if(!allowed.has(file)){res.writeHead(404);res.end();return}
- res.writeHead(200,{'content-type':file.endsWith('.js')?'application/javascript':file.endsWith('.css')?'text/css':'text/html'});
+ res.writeHead(200,{'content-type':file.endsWith('.svg')?'image/svg+xml':file.endsWith('.js')?'application/javascript':file.endsWith('.css')?'text/css':'text/html'});
  res.end(readFileSync(join(root,file)));
 });
 await new Promise(done=>server.listen(0,'127.0.0.1',done));
@@ -34,19 +35,39 @@ try{
   await page.goto(origin+'/action/?game=runner',{waitUntil:'networkidle'});
   await page.waitForURL('**/action/dino/');
   await page.waitForFunction(()=>window.__nightDinoTest?.snapshot().ready);
+  // The skyline is part of the original runner's identity, not a 404'd decoration.
+  assert.equal((await page.request.get(origin+'/action/dino/skyline.svg')).status(),200,
+    'original-inspired local skyline asset is served');
+  assert.equal(await page.locator('.dino-skyline').count(),1,'old runner skyline present');
   const initial=await snap(page);
   assert.equal(initial.gravity,.6,'original Chromium gravity');
+  assert.equal(await page.evaluate(()=>typeof window.NightDinoSkin?.install),'function',
+    'classic human artwork installer present');
+  assert.ok(await page.evaluate(()=>{
+   const img=document.querySelector('#offline-resources-2x');
+   const art=document.createElement('canvas');art.width=img.naturalWidth;art.height=img.naturalHeight;
+   const ctx=art.getContext('2d');ctx.drawImage(img,0,0);const rgba=ctx.getImageData(1678+2*24,2+2*20,1,1).data;
+   return rgba[1]>rgba[0]*.8 || rgba[0]>10;
+  }),'custom runner skin atlas successfully installed');
   assert.equal(initial.jumpVelocity,-10,'original Chromium T-Rex jump velocity');
   assert.equal(initial.groundY,93,'original Chromium ground geometry');
   const overflow=await page.evaluate(()=>document.documentElement.scrollWidth-innerWidth);
   assert.ok(overflow<=1,'no horizontal overflow at '+width);
   const arena=await page.locator('#stage').boundingBox();
   const rect=await page.locator('.runner-canvas').boundingBox();
-  const expectedHeight=height>=800?(width<700?550:500):width<700?340:220;
-  assert.ok(arena.height>=expectedHeight,'game arena must stay tall on '+width+'x'+height+': '+arena.height);
-  assert.ok(arena.height>=rect.height+150,'more sky/visible space, not a stretched dinosaur');
-  assert.equal(rect.height,150,'original pixel-space height, not stretched');
+  // All NIGHT Play arcade games use the 390:550 stage footprint.
+  const other=await browser.newPage({viewport:{width,height},hasTouch:true,isMobile:width<700});
+  await other.goto(origin+'/action/?game=slice',{waitUntil:'domcontentloaded'});
+  const reference=await other.locator('#screen').boundingBox();
+  assert.ok(Math.abs(arena.width-reference.width)<=4,'Dino and Fruit Slice widths align at '+width);
+  assert.ok(Math.abs(arena.height-reference.height)<=4,'Dino and Fruit Slice heights align at '+width+
+    ': Dino='+arena.height+', Slice='+reference.height);
+  await other.close();
+  assert.ok(Math.abs(rect.height-arena.height)<=3,
+    'the full Chromium canvas, not a short 150px strip, must fill the game height at '+width);
+  assert.ok(initial.zoom>=1.3,'uniform camera zoom keeps sprites legible in tall arena');
   assert.ok(rect.width>290&&rect.width<=600,'Chromium native game width');
+  assert.equal(initial.groundY,93,'physics coordinates remain original 150px world despite tall rendering');
   await page.locator('#overlayAction').click();
   await page.waitForTimeout(390);
   const playing=await snap(page);assert.equal(playing.playing,true,'engine plays');
@@ -63,13 +84,15 @@ try{
    await input.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
    await page.waitForTimeout(570);
    assert.equal((await snap(page)).jumping,false,'original jump lands');
-   const duck=await page.locator('#duckButton').boundingBox();
-   const dx=duck.x+duck.width*.5,dy=duck.y+duck.height*.5;
+   assert.equal(await page.locator('#duckButton').count(),0,'no visible duck dock/control');
+   // Recognizable single-surface swipe down triggers original Chromium duck.
+   const dx=x,dy=y-55;
    await input.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{id:2,x:dx,y:dy}]});
-   await page.waitForTimeout(90);
-   assert.equal((await snap(page)).ducking,true,'physical DUCK button crouches');
+   await input.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{id:2,x:dx,y:dy+36}]});
+   await page.waitForTimeout(85);
+   assert.equal((await snap(page)).ducking,true,'swipe down crouches without dock button');
    await input.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
-   assert.equal((await snap(page)).ducking,false,'releasing DUCK stands');
+   assert.equal((await snap(page)).ducking,false,'swipe release stands');
    await page.locator('#pauseButton').click();
    const paused=await snap(page);
    assert.equal(paused.paused,true,'pause toggled');
@@ -92,7 +115,7 @@ try{
    assert.ok((await snap(page)).distanceRan<200,'new round resets distance');
   }
   assert.deepEqual(errors,[],'no browser exceptions at '+width);
-  console.log('PASS',width,{overflow,arenaHeight:arena.height,originalJumpVelocity:initial.jumpVelocity,canvasWidth:rect.width,canvasHeight:rect.height});
+  console.log('PASS',width,{overflow,arenaHeight:arena.height,canvasHeight:rect.height,zoom:initial.zoom,referenceHeight:reference.height,originalJumpVelocity:initial.jumpVelocity,canvasWidth:rect.width,skin:'NIGHT'});
   await page.close();
  }
 }finally{if(browser)await browser.close();await new Promise(done=>server.close(done));}
