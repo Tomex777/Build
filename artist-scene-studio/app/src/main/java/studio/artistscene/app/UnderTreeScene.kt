@@ -42,7 +42,7 @@ object UnderTreeScene {
             id = FIRST_STUDENT_ID,
             name = "Classmate A",
             transform = Transform(
-                position = Vec3(-0.73f, 0f, -0.13f),
+                position = Vec3(-0.52f, 0f, -0.13f),
                 rotationEulerDegrees = Vec3(y = 197f),
             ),
             appearance = CharacterAppearanceSettings(
@@ -78,7 +78,7 @@ object UnderTreeScene {
             id = SECOND_STUDENT_ID,
             name = "Classmate B",
             transform = Transform(
-                position = Vec3(0.70f, 0f, -0.09f),
+                position = Vec3(0.52f, 0f, -0.09f),
                 rotationEulerDegrees = Vec3(y = 163f),
             ),
             appearance = CharacterAppearanceSettings(
@@ -150,11 +150,13 @@ object UnderTreeScene {
                 SceneCamera(
                     id = "camera-main",
                     name = "Under the tree",
-                    // Move 0.9 m closer and lower the aim: enlarged student faces and less
-                    // empty upper sky while still showing both figures on narrow phones.
-                    position = Vec3(0.14f, 1.66f, 5.10f),
-                    target = Vec3(0f, 1.22f, -0.28f),
-                    verticalFovDegrees = 52f,
+                    // A real API26 320×640 frame showed full horizontal T-pose arms
+                    // touching BOTH viewport edges. Keep the existing 6m/55°
+                    // portrait camera until native pose application lowers them;
+                    // a tighter zoom would crop genuine model geometry.
+                    position = Vec3(0.14f, 1.82f, 6.0f),
+                    target = Vec3(0f, 1.60f, -0.35f),
+                    verticalFovDegrees = 55f,
                 ),
             ),
             world = WorldSettings(
