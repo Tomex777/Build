@@ -179,3 +179,19 @@ test('external app-wide quota hook can deny outbound Reddit API requests',async(
  const source=redditAdapter({subreddits:['funny'],tokenProvider:async()=> 'authorized-access-token',claimQuota:async()=>false});
  await assert.rejects(source.discover({subreddit:'funny',now:NOW}),e=>e.status===429);
 });
+
+const {toReviewCard}=require('./contracts.cjs');
+test('four-card UI bridge flattens safe provenance but denies external image hotlinks',()=>{
+ const item=meme('licensed',{rights:'cleared'});
+ const ready=toReviewCard(item,{previewUrl:'/api/channel-media/preview/abc123'});
+ assert.equal(ready.publishable,true);
+ assert.equal(ready.sourceUrl,item.source.url);
+ assert.equal(ready.previewUrl,'/api/channel-media/preview/abc123');
+ assert.throws(()=>toReviewCard(item,{previewUrl:'https://i.redd.it/unverified.jpg'}),/no external hotlink/);
+ const unknown=normalizeMeme({externalId:'u',url:'https://reddit.com/r/funny/u',
+ sourceUrl:'https://reddit.com/r/funny/u',mediaUrl:'https://i.redd.it/u.jpg',
+ mime:'image/jpeg',createdAt:new Date(NOW).toISOString()},
+ {id:'reddit:r/funny',provider:'reddit',rightsVerified:false});
+ const blocked=toReviewCard(unknown,{previewUrl:'/api/channel-media/preview/unverified'});
+ assert.equal(blocked.reviewOnly,true);assert.equal(blocked.publishBlockedReason,'rights_unverified');
+});
