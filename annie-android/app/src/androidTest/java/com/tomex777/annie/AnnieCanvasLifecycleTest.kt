@@ -7,6 +7,8 @@ import android.view.ViewGroup
 import android.webkit.WebView
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Column
+import androidx.compose.ui.test.assertExists
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
@@ -110,6 +112,7 @@ class AnnieCanvasLifecycleTest {
         }
         compose.onAllNodesWithTag("annie_canvas_pause")[0].performClick()
         compose.waitUntil(8_000) { eval(first, "window.__annieCanvasHost.paused") == "true" }
+        saveEmulatorScreenshot("annie-agent4-two-canvases-paused")
         val firstTick = eval(first, "window.ticks").toInt()
         val firstFrame = eval(first, "window.frames").toInt()
         val secondTick = eval(second, "window.ticks").toInt()
@@ -127,7 +130,8 @@ class AnnieCanvasLifecycleTest {
                 eval(first, "window.ticks").toInt() > firstTick
         }
         compose.onAllNodesWithTag("annie_canvas_close")[0].performClick()
-        compose.onNodeWithTag("annie_canvas_closed").assertExists()
+        compose.onNodeWithTag("annie_canvas_closed").assertIsDisplayed()
+        saveEmulatorScreenshot("annie-agent4-canvas-closed-card")
         assertTrue("Closed WebView must detach from chat", first.parent == null)
         assertEquals(1, allCanvasWebViews().size)
 
@@ -137,5 +141,44 @@ class AnnieCanvasLifecycleTest {
         assertNotSame("Reopen must create a fresh WebView", first, replacement)
         compose.waitUntil(10_000) { eval(replacement, "window.ticks || 0").toInt() > 0 }
         assertEquals("true", eval(second, "window.__annieCanvasHost.paused === false"))
+        saveEmulatorScreenshot("annie-agent4-canvas-reopened")
     }
+    @Test fun pausedCanvasStaysPausedAcrossFullscreenAndReturnsToTheSameWebView() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        compose.setContent { AnnieTheme { AnnieCanvasMessage(document("Fullscreen lifecycle")) } }
+        compose.waitUntil(10_000) { allCanvasWebViews().size == 1 }
+        val web = allCanvasWebViews().single()
+        compose.waitUntil(10_000) { eval(web, "window.frames || 0").toInt() > 3 }
+        compose.onNodeWithTag("annie_canvas_pause").performClick()
+        compose.waitUntil(8_000) { eval(web, "window.__annieCanvasHost.paused") == "true" }
+        val before = eval(web, "window.frames").toInt()
+        val monitor = instrumentation.addMonitor(AnnieCanvasActivity::class.java.name, null, false)
+        var fullscreen: AnnieCanvasActivity? = null
+        try {
+            compose.onNodeWithTag("annie_canvas_fullscreen").performClick()
+            fullscreen = instrumentation.waitForMonitorWithTimeout(monitor, 8_000) as? AnnieCanvasActivity
+                ?: error("Fullscreen Canvas Activity never opened")
+            compose.waitUntil(12_000) {
+                val current = fullscreen
+                var found = false
+                if (current != null) instrumentation.runOnMainSync {
+                    found = allWebViewsOnThread(current.window.decorView).any { it === web }
+                }
+                found
+            }
+            assertEquals("true", eval(web, "window.__annieCanvasHost.paused"))
+            SystemClock.sleep(250)
+            assertEquals("Host pause must survive inline-to-fullscreen handoff",
+                before, eval(web, "window.frames").toInt())
+            saveEmulatorScreenshot("annie-agent4-fullscreen-paused")
+        } finally {
+            fullscreen?.let { instrumentation.runOnMainSync { it.finish() } }
+            instrumentation.removeMonitor(monitor)
+        }
+        compose.waitUntil(10_000) { allCanvasWebViews().any { it === web } }
+        assertEquals("true", eval(web, "window.__annieCanvasHost.paused"))
+        // Return to chat must not be confused with destructive Close Canvas.
+        assertEquals("true", eval(web, "window.frames === " + before))
+    }
+
 }
