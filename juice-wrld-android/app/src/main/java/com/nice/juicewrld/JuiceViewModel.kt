@@ -57,7 +57,8 @@ class JuiceViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 val page = service.releasesPage(if (refresh) 0 else current.offset)
                 val updated = CatalogParser.merge(
-                    if (refresh) emptyList() else current.items, page.entries
+                    if (refresh) current.items.filter { it.id in current.favorites } else current.items,
+                    page.entries
                 )
                 _state.update { it.copy(
                     items = updated, offset = page.nextOffset, hasMore = page.hasMore,
