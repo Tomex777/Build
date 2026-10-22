@@ -4,7 +4,9 @@
 (()=>{"use strict";
 const W=400,H=660,LANES=4,HIT=H-93,KEYS={1:0,2:1,3:2,4:3,a:0,s:1,d:2,f:3};
 const $=id=>document.getElementById(id),board=$("board"),ctx=board.getContext("2d");
-const colors=["#2193a2","#8260c6","#d77d46","#328c78"],deepColors=["#165665","#46356e","#814521","#1c5446"],ACCENT="#86d4d4";
+// Piano keys are a consistent ink-dark instrument surface, not four unrelated
+// coloured arcade bars. Held notes use a soft turquoise completion accent.
+const colors=["#263948","#263948","#263948","#263948"],deepColors=["#101e2b","#101e2b","#101e2b","#101e2b"];
 let preparing=false,running=false,paused=false,ended=false,elapsed=0,previous=0,raf=0;
 let notes=[],score=0,streak=0,complete=0,held=new Map(),keyHeld=new Set();
 const SONGS=[
@@ -16,7 +18,7 @@ let selectedSong=SONGS[0],endlessNextAt=0,endlessIndex=0;
 const bestKey=()=>selectedSong.id==="frere"?"night-play-piano-tiles-best-v1":"night-play-piano-tiles-best-"+selectedSong.id+"-v1";
 const readBest=()=>{try{return Math.max(0,Number(localStorage.getItem(bestKey()))||0)}catch{return 0}};
 function saveBest(){try{if(score>readBest())localStorage.setItem(bestKey(),String(score))}catch{}}
-function scale(){const dpr=Math.min(2.5,Math.max(1,window.devicePixelRatio||1));
+function scale(){const dpr=Math.min(2,Math.max(1,window.devicePixelRatio||1));
  board.width=Math.round(W*dpr);board.height=Math.round(H*dpr);
  ctx.setTransform(dpr,0,0,dpr,0,0);render();}
 function updateHud(){
@@ -316,16 +318,16 @@ function tick(ts){
 function render(){
  const x=ctx;
  x.clearRect(0,0,W,H);
- x.fillStyle="#f4f6f9";x.fillRect(0,0,W,H);
+ x.fillStyle="#f6f8f8";x.fillRect(0,0,W,H);
  for(let lane=0;lane<LANES;lane++){
-  x.fillStyle=lane%2===0?"#f6f8fd":"#e9edf5";
+  x.fillStyle=lane%2===0?"#fafbf9":"#f0f3f1";
   x.fillRect(lane*100,0,100,H);
-  if(lane){x.fillStyle="#ced7e2";x.fillRect(lane*100-.7,0,1.4,H);}
+  if(lane){x.fillStyle="#d8e1dd";x.fillRect(lane*100-.7,0,1.4,H);}
  }
  // Held feedback belongs inside the long tile; never flash or tint an entire lane.
  // A low-contrast timing shelf, not a full-width black strike line.
  const cue=x.createLinearGradient(0,HIT-24,0,H);
- cue.addColorStop(0,"#cad7e700");cue.addColorStop(1,"#c6d6e59c");
+ cue.addColorStop(0,"#d1dfd700");cue.addColorStop(1,"#c6d6cb64");
  x.fillStyle=cue;x.fillRect(0,HIT-24,W,H-HIT+24);
  for(const n of notes){
   if(n.state==="done")continue;
@@ -339,15 +341,15 @@ function render(){
   x.save();x.beginPath();x.rect(g.left,top,g.right-g.left,bottom-top);x.clip();
   const gradient=x.createLinearGradient(0,tileTop,0,g.bottom);
   if(n.state==="holding"){
-   gradient.addColorStop(0,"#296b76");gradient.addColorStop(1,"#49b8bf");
+   gradient.addColorStop(0,"#2b5765");gradient.addColorStop(1,"#377d82");
   }else{
    gradient.addColorStop(0,colors[n.lane]);gradient.addColorStop(1,deepColors[n.lane]);
   }
   x.fillStyle=gradient;x.fillRect(g.left,tileTop,g.right-g.left,tail);
-  x.fillStyle=n.state==="holding"?"#bff1e9":"#96b3d3";
+  x.fillStyle=n.state==="holding"?"#bfe8d9":"#ffffff31";
   x.fillRect(g.left+9,tileTop+9,3,Math.max(0,tail-18));
   if(n.hold){
-   x.fillStyle=n.state==="holding"?"#8df3dc":"#8bb4db";
+   x.fillStyle=n.state==="holding"?"#a1e0c9":"#aac3c9";
    x.fillRect(g.left+20,g.bottom-12,(g.right-g.left-40)*Math.max(.12,progress),4);
    x.fillStyle="#f4fafb";
    x.beginPath();x.arc((g.left+g.right)/2,g.bottom-27,5,0,Math.PI*2);x.fill();
