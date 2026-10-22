@@ -28,7 +28,7 @@ async function api(action,rest={}){
       body:action==='status'?undefined:JSON.stringify({action,channelId,...rest}),
       signal:AbortSignal.timeout(14000)
     });
-  }catch{throw new Error('NIGHT is not responding. Nothing has been published.');}
+  }catch{throw new Error('NIGHT did not confirm the request. Check status before retrying.');}
   const data=await response.json().catch(()=>({error:'Invalid response from NIGHT.'}));
   if(!response.ok)throw new Error(typeof data.error==='string'?data.error:'This feature is not available on NIGHT yet.');
   return data;
@@ -117,7 +117,7 @@ async function changeConfig(patch,control){
    if(!validSettings(result))throw Error('The bot did not confirm the settings. Refresh before changing anything else.');
    config=result;paintConfig();note('Settings saved to NIGHT for this channel.');
  }catch(error){
-   config=prior;paintConfig();note(errorMessage(error)+' No setting was changed.',true);
+   config=prior;paintConfig();note(errorMessage(error)+' Save not confirmed. Reload to check actual settings.',true);
  }finally{
    configBusy=false;paintConfig();
    for(const id of ['saveMemes','saveNews','saveBranding'])setBusy($(id),false);
@@ -272,7 +272,7 @@ function reviewCard(c){
  if(state==='approved'||state==='declined')card.classList.add(state);
  const art=make('div','review-art'),img=make('img');
  img.src=imageFromSource(c);img.alt=typeof c.alt==='string'?c.alt:'Meme candidate';img.loading='lazy';img.decoding='async';
- img.addEventListener('error',()=>{art.replaceChildren(make('span','config-note','Preview unavailable. Do not approve this image.'));approve.disabled=true});
+ img.addEventListener('error',()=>{card.dataset.previewFailed='true';art.replaceChildren(make('span','config-note','Preview unavailable. Do not approve this image.'));approve.disabled=true});
  art.append(img);
  const body=make('div','review-card-body');
  body.append(make('h3',null,typeof c.title==='string'?c.title:('Meme · '+(c.category||'Uncategorised'))));
@@ -367,8 +367,11 @@ async function decide(candidate,decision,caption,card,status,actions){
    status.textContent=decision==='approved'?'Approved':decision==='declined'?'Declined':'Skipped';
    paintSelection();
    note('',false,'reviewNotice');
- }catch(error){note(errorMessage(error)+' Decision not saved.',true,'reviewNotice');}
- finally{reviewBusy=false;for(const btn of actions.querySelectorAll('button'))setBusy(btn,false);paintSelection();updateReview();}
+ }catch(error){note(errorMessage(error)+' Decision not confirmed. Reload before retrying.',true,'reviewNotice');}
+ finally{reviewBusy=false;for(const btn of actions.querySelectorAll('button'))setBusy(btn,false);
+   const approveButton=actions.querySelector('button.primary');
+   if(approveButton)approveButton.disabled=!licensable(candidate)||card.dataset.previewFailed==='true';
+   paintSelection();updateReview();}
 }
 function localToUTC(input){
  if(!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(input))throw Error('Choose a valid date and time.');
