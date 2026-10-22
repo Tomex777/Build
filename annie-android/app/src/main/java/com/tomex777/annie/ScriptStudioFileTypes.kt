@@ -14,6 +14,20 @@ internal fun studioNewFileName(input: String, selectedType: String): String {
 }
 
 
+internal fun studioReadTextImport(input: java.io.InputStream): String {
+    val limit = 2 * 1024 * 1024
+    val output = java.io.ByteArrayOutputStream()
+    val chunk = ByteArray(8192)
+    while (true) {
+        val size = input.read(chunk)
+        if (size < 0) break
+        if (size == 0) continue
+        require(output.size() + size <= limit) { "Document is too large (2 MB maximum)" }
+        output.write(chunk, 0, size)
+    }
+    return output.toString(Charsets.UTF_8.name())
+}
+
 /**
  * Import a text document without running untrusted code. Every imported project
  * starts disabled, even when its source language has an executable runtime.
