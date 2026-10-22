@@ -140,7 +140,10 @@ internal fun canvasHasVisibleComposeArea(coordinates: LayoutCoordinates): Boolea
     return visibleArea * 4.0 >= totalArea
 }
 
-internal class AnnieCanvasController(private val id: String) {
+internal class AnnieCanvasController(
+    private val id: String,
+    initiallyClosed: Boolean = false,
+) {
     private var web: WebView? = null
     private var inlineHost: FrameLayout? = null
     private var fullscreenHost: FrameLayout? = null
@@ -153,7 +156,7 @@ internal class AnnieCanvasController(private val id: String) {
     private var observedTree: ViewTreeObserver? = null
     var pausedByUser by mutableStateOf(false)
         private set
-    var isClosed by mutableStateOf(false)
+    var isClosed by mutableStateOf(initiallyClosed)
         private set
     var expanded: Boolean = false
         private set
@@ -349,6 +352,7 @@ internal class AnnieCanvasController(private val id: String) {
 
     fun close() {
         isClosed = true
+        AnnieCanvasSessions.rememberClosed(id, true)
         releaseWebView()
         // Preserve the message and controller: the chat card offers Open again.
     }
@@ -356,6 +360,7 @@ internal class AnnieCanvasController(private val id: String) {
     fun reopen() {
         if (!isClosed) return
         isClosed = false
+        AnnieCanvasSessions.rememberClosed(id, false)
         pausedByUser = false
         // AndroidView is mounted again by Compose and loads the same document.
     }
@@ -407,9 +412,30 @@ internal class AnnieCanvasController(private val id: String) {
 
 internal object AnnieCanvasSessions {
     private val sessions = ConcurrentHashMap<String, AnnieCanvasController>()
-    fun get(id: String): AnnieCanvasController = sessions.getOrPut(id) { AnnieCanvasController(id) }
+    // The WebView is destroyed when LazyColumn evicts a message. An explicit
+    // user Close must NOT silently reopen on scrolling back. Keep only tiny
+    // bounded flags, never live WebViews, for closed chat message instances.
+    private val closedIds = LinkedHashSet<String>()
+    private const val MAX_CLOSED_IDS = 384
+
+    fun get(id: String): AnnieCanvasController = sessions.getOrPut(id) {
+        AnnieCanvasController(id, synchronized(closedIds) { id in closedIds })
+    }
     fun find(id: String): AnnieCanvasController? = sessions[id]
-    fun remove(id: String, controller: AnnieCanvasController) { sessions.remove(id, controller) }
+    fun remove(id: String, controller: AnnieCanvasController) {
+        sessions.remove(id, controller)
+    }
+    fun rememberClosed(id: String, closed: Boolean) {
+        synchronized(closedIds) {
+            closedIds.remove(id)
+            if (closed) {
+                closedIds.add(id)
+                while (closedIds.size > MAX_CLOSED_IDS) {
+                    closedIds.remove(closedIds.first())
+                }
+            }
+        }
+    }
 }
 
 @Composable
