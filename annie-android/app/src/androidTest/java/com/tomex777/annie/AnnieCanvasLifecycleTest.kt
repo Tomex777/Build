@@ -7,6 +7,14 @@ import android.view.ViewGroup
 import android.webkit.WebView
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
@@ -218,6 +226,35 @@ class AnnieCanvasLifecycleTest {
         }
         assertTrue("Foreground restoration should retain its Canvas WebView",
             allCanvasWebViews().single() === view)
+    }
+
+    @Test fun canvasClippedByComposeViewportPausesWithoutBeingDestroyed() {
+        val shifted = mutableStateOf(false)
+        compose.setContent {
+            AnnieTheme {
+                Box(Modifier.fillMaxWidth().height(260.dp).clipToBounds()) {
+                    Box(Modifier.offset(y = if (shifted.value) 300.dp else 0.dp)) {
+                        AnnieCanvasMessage(document("Viewport clipping"))
+                    }
+                }
+            }
+        }
+        compose.waitUntil(10_000) { allCanvasWebViews().size == 1 }
+        val view = allCanvasWebViews().single()
+        compose.waitUntil(10_000) { eval(view, "window.ticks || 0").toInt() > 3 }
+        compose.runOnIdle { shifted.value = true }
+        compose.waitUntil(10_000) { eval(view, "window.__annieCanvasHost.paused") == "true" }
+        val frozen = eval(view, "window.ticks").toInt()
+        SystemClock.sleep(160)
+        assertEquals("Canvas clipped by Compose must freeze its JS timers",
+            frozen, eval(view, "window.ticks").toInt())
+        assertTrue("Clipping should not destroy the WebView",
+            allCanvasWebViews().single() === view)
+        compose.runOnIdle { shifted.value = false }
+        compose.waitUntil(10_000) {
+            eval(view, "window.__annieCanvasHost.paused") == "false" &&
+                eval(view, "window.ticks").toInt() > frozen
+        }
     }
 
 }
