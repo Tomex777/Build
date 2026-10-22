@@ -53,6 +53,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
@@ -143,11 +144,12 @@ fun FanHome(player: FanPlayer = viewModel()) {
             }
             item {
                 LazyRow(
+                    modifier = Modifier.testTag("moods"),
                     contentPadding = PaddingValues(horizontal = 22.dp, vertical = 15.dp),
                     horizontalArrangement = Arrangement.spacedBy(11.dp)
                 ) {
                     items(
-                        listOf(Mood.ALL, Mood.FAVORITES, Mood.LOVE, Mood.SAD, Mood.HEARTBREAK, Mood.HYPE, Mood.CHILL),
+                        listOf(Mood.ALL, Mood.LOVE, Mood.SAD, Mood.HEARTBREAK, Mood.HYPE, Mood.CHILL, Mood.FAVORITES),
                         key = { it.name }
                     ) { item ->
                         FeelingCard(
@@ -398,7 +400,7 @@ private fun moodColors(mood: Mood): List<Color> = when (mood) {
 @Composable
 private fun FeelingCard(mood: Mood, selected: Boolean, count: Int, onClick: () -> Unit) {
     Box(
-        Modifier.width(135.dp).height(112.dp).clip(RoundedCornerShape(18.dp))
+        Modifier.width(115.dp).height(107.dp).clip(RoundedCornerShape(18.dp))
             .background(Brush.linearGradient(moodColors(mood)))
             .clickable(onClick = onClick)
     ) {

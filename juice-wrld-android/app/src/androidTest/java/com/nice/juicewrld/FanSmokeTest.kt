@@ -5,6 +5,9 @@ import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.assertDoesNotExist
 import androidx.compose.ui.test.assertExists
 import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
@@ -37,7 +40,8 @@ class FanSmokeTest {
         rule.onAllNodesWithText("Love")[0].performClick()
         rule.onNodeWithText("Love songs").assertExists()
         screenshot("love")
-        rule.onAllNodesWithText("Sad")[0].performClick()
+        rule.onNodeWithTag("moods").performScrollToNode(hasText("Sad"))
+        rule.onNodeWithText("Sad").performClick()
         rule.onNodeWithText("Sad songs").assertExists()
         screenshot("sad")
     }
