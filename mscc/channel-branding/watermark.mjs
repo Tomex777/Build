@@ -180,7 +180,11 @@ function chooseCorner(data,channels,w,h,layerRatioWidth,layerRatioHeight){
     let busy=0,total=0,count=0;
     for(let y=y0;y<y1-1;y+=2)for(let x=x0;x<x1-1;x+=2){
       const l=lum(x,y);total+=l;count++;
-      busy+=Math.abs(l-lum(x+1,y))+Math.abs(l-lum(x,y+1));
+      // Multi-scale edge probes prevent sampling aliasing: a 4px checker
+      // can look perfectly flat when tested only at even sampling centers.
+      busy+=Math.abs(l-lum(x+1,y))+Math.abs(l-lum(x,y+1))+
+        Math.abs(l-lum(Math.min(x+2,x1-1),y))+
+        Math.abs(l-lum(x,Math.min(y+2,y1-1)));
     }
     tones[part]=count&&total/count>145?'dark':'light';
     scores[part]=count?busy/count:Infinity;
