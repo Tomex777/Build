@@ -538,10 +538,12 @@ private fun SongRow(
 }
 
 private fun albumArt(album: String): String? = when (album) {
-    "Goodbye & Good Riddance" -> "https://coverartarchive.org/release/e129a939-e8df-45b6-a04c-a2bd6bf992d7/front-250"
+    "Goodbye & Good Riddance" -> "https://coverartarchive.org/release/5d4d8364-f9fa-4744-bec3-ba9f2b46fb39/front-250"
     "Death Race for Love" -> "https://coverartarchive.org/release/c89c95de-e9b6-453a-a593-45e3a28eb256/front-250"
     "Legends Never Die" -> "https://coverartarchive.org/release/a9820d2a-86f3-44c8-82d7-e05e28d4a5f2/front-250"
     "Fighting Demons" -> "https://coverartarchive.org/release/1900e0cf-4cd9-4681-93d3-0c71bf88771f/front-250"
+    "WRLD ON DRUGS" -> "https://coverartarchive.org/release/b40009d1-0993-4328-b6ac-c848a980e2b1/front-250"
+    "The Party Never Ends" -> "https://coverartarchive.org/release/454e3e80-b263-4604-ad79-693f2fde37b0/front-250"
     else -> null
 }
 
@@ -576,8 +578,24 @@ private fun CoverPlaceholder(album: String, modifier: Modifier) {
         modifier.background(Brush.linearGradient(tone)),
         contentAlignment = Alignment.Center
     ) {
-        Text("999", fontSize = 30.sp, fontWeight = FontWeight.Black,
-            color = White.copy(alpha = 0.43f), letterSpacing = (-1.6).sp)
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                when (album) {
+                    "Goodbye & Good Riddance" -> "GBGR"
+                    "Death Race for Love" -> "DRFL"
+                    "Legends Never Die" -> "LND"
+                    "Fighting Demons" -> "FD"
+                    "The Party Never Ends" -> "TPNE"
+                    "WRLD ON DRUGS" -> "WRLD"
+                    else -> "999"
+                },
+                fontSize = 26.sp, fontWeight = FontWeight.Black,
+                color = White.copy(alpha = 0.68f), letterSpacing = (-1.3).sp
+            )
+            Spacer(Modifier.height(2.dp))
+            Text("999", fontSize = 9.sp, color = White.copy(alpha = 0.63f),
+                fontWeight = FontWeight.ExtraBold, letterSpacing = 1.8.sp)
+        }
     }
 }
 
