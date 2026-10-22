@@ -1,12 +1,12 @@
 # NIGHT Channels — Agent D: captions and branding
 
-This directory is a **standalone, server-side component**, deliberately not wired into the live MSCC router or NIGHT Play UI. See \`night-play/channels/AGENTS.md\` and coordination [#568](https://github.com/Tomex777/Build/issues/568). It is **not live** and must not be treated as an authorization layer.
+This directory is a **standalone, server-side component**, deliberately not wired into the live MSCC router or NIGHT Play UI. See `night-play/channels/AGENTS.md` and coordination [#568](https://github.com/Tomex777/Build/issues/568). It is **not live** and must not be treated as an authorization layer.
 
 ## Contracts to Agent A / Agent C
 
 Each verified channel may opt in to branding independently. Suggested server-side revisioned fields (all OFF by default):
 
-\`\`\`json
+```json
 {
   "branding": {
     "captionReplacementsEnabled": false,
@@ -19,25 +19,25 @@ Each verified channel may opt in to branding independently. Suggested server-sid
     "watermarkStyleVersion": 1
   }
 }
-\`\`\`
+```
 
 A must never describe local-only options as saved. C must validate values against verified, owner+channel+bot-account-scoped durable storage before enqueue AND final send. An image processing success is not proof a WhatsApp Channel post was delivered.
 
-Caption: \`composeChannelCaption({text,replacements:{enabled,rules},poster:{enabled,name},maxUtf8Bytes})\`. The poster is the actual person/pseudonym explicitly specified by the poster (or an explicitly configured automatic-content persona); it is **not** the channel display name. Output signature uses a WhatsApp-text \`> PERSON\` line. WhatsApp's actual rendering must be tested on the **approved beta fork/test channel** before production, and a fallback must be verified if blockquotes differ.
+Caption: `composeChannelCaption({text,replacements:{enabled,rules},poster:{enabled,name},maxUtf8Bytes})`. The poster is the actual person/pseudonym explicitly specified by the poster (or an explicitly configured automatic-content persona); it is **not** the channel display name. Output signature uses a WhatsApp-text `> PERSON` line. WhatsApp's actual rendering must be tested on the **approved beta fork/test channel** before production, and a fallback must be verified if blockquotes differ.
 
-Watermark: \`makeReusableWatermark({channelId,displayName,tone,opacity,styleVersion,cache,...})\` returns PNG bytes with the same verified channel name (without NFC/ASCII/emoji/ZWJ transformations); \`watermarkStaticImage({input,channelId,displayName,cache,opacity,position,...})\` composes JPEG/PNG/WebP. \`WatermarkCache.invalidateChannel(jid)\` on rename, unlink, revocation or transfer. Do not trust a client-supplied channel name: take it from the server's original verified WhatsApp metadata, and ensure the upstream \`mscc/night-play-channels.js\` sanitiser is corrected — its reported \`\p{Cf}\` removal currently breaks U+200D emoji and surrogate-pair truncation. **Do not silently watermark with a corrupted name.**
+Watermark: `makeReusableWatermark({channelId,displayName,tone,opacity,styleVersion,cache,...})` returns PNG bytes with the same verified channel name (without NFC/ASCII/emoji/ZWJ transformations); `watermarkStaticImage({input,channelId,displayName,cache,opacity,position,...})` composes JPEG/PNG/WebP. `WatermarkCache.invalidateChannel(jid)` on rename, unlink, revocation or transfer. Do not trust a client-supplied channel name: take it from the server's original verified WhatsApp metadata, and ensure the upstream `mscc/night-play-channels.js` sanitiser is corrected — its reported `\p{Cf}` removal currently breaks U+200D emoji and surrogate-pair truncation. **Do not silently watermark with a corrupted name.**
 
 ## Security / memory / visual notes
 
 - Exported media transformations **do not post** or schedule anything. Agent C owns SQLite config/queue/permissions, final-send recheck and fork-specific media upload.
 - Text replacements are opt-in, one-pass, phrase/Unicode word-boundary aware; do not advertise them as evading WhatsApp moderation. No OCR or in-image language recognition.
-- Render name with existing \`@napi-rs/canvas\` Skia engine. On the deployment host register licensed, appropriate Unicode + color emoji fonts using \`GlobalFonts.registerFromPath(...)\` as required; no font files should be attached to users. Sharp's SVG text path was **visually observed** producing monochrome/missing emojis, so this implementation deliberately does not use it for text shaping.
-- **Fail closed for emoji names** until actual server-side color-emoji/RTL/ZWJ screenshots have been reviewed and the caller explicitly sets \`colorEmojiVerified:true\`. A user-approved transparent PNG overlay is available as a controlled fallback. The fallback image must visually correspond to the channel's exact name; software cannot infer this just from PNG pixels.
-- Uniform final-layer alpha \`0.15–0.30\` dims **both text and colored emoji**, not just the SVG fill. Asset key includes exact full channel name, channel JID, tone, dimensions, style revision and opacity; no cross-channel reuse.
+- Render name with existing `@napi-rs/canvas` Skia engine. On the deployment host register licensed, appropriate Unicode + color emoji fonts using `GlobalFonts.registerFromPath(...)` as required; no font files should be attached to users. Sharp's SVG text path was **visually observed** producing monochrome/missing emojis, so this implementation deliberately does not use it for text shaping.
+- **Fail closed for emoji names** until actual server-side color-emoji/RTL/ZWJ screenshots have been reviewed and the caller explicitly sets `colorEmojiVerified:true`. A user-approved transparent PNG overlay is available as a controlled fallback. The fallback image must visually correspond to the channel's exact name; software cannot infer this just from PNG pixels.
+- Uniform final-layer alpha `0.15–0.30` dims **both text and colored emoji**, not just the SVG fill. Asset key includes exact full channel name, channel JID, tone, dimensions, style revision and opacity; no cross-channel reuse.
 - Single bounded image worker is required in C. Max input 8 MiB, 12 MP, source types JPEG/PNG/static WebP, max reusable layer 1024×256 (~1 MiB raw RGBA), output <= 8 MiB; GIF/video/multipage rejection. Native memory and real Azure+multi-account RSS require independent measurement. Quiet-corner positioning is a *heuristic*, not OCR or punchline detection; review mode still gives human placement control.
-- \`sharp\` is **not yet in** \`mscc/package.json\` at the inspected head. The isolated module intentionally does not modify C's package/lock files. C/maintainer must install, pin, budget and check Sharp under the protected MSCC release workflow before integrating.
-- Recommended tests after the dependency exists: \`node mscc/channel-branding/caption.test.mjs\` and \`node mscc/channel-branding/watermark.test.mjs\` (the latter requires \`sharp\`). Development-only visual evidence using Chromium+Noto Color Emoji does **not** certify Skia on the Azure bot host or a WhatsApp-published media item.
+- `sharp` is **not yet in** `mscc/package.json` at the inspected head. The isolated module intentionally does not modify C's package/lock files. C/maintainer must install, pin, budget and check Sharp under the protected MSCC release workflow before integrating.
+- Recommended tests after the dependency exists: `node mscc/channel-branding/caption.test.mjs` and `node mscc/channel-branding/watermark.test.mjs` (the latter requires `sharp`). Development-only visual evidence using Chromium+Noto Color Emoji does **not** certify Skia on the Azure bot host or a WhatsApp-published media item.
 
 ## Acceptance before release
 
-Validate nickname \`NIGHT 👩🏽‍💻\`, mixed RTL/Latin, stylized combining marks, flags, skin tones and long names on the exact host font set. Inspect actual transparent PNG and composited JPEG/PNG/WebP, opacity and position on both dark and light busy images. Check 320/360/390/412 phone preview layouts with A and the real main combined-preview URL after integration. C must test owner separation, OFF/revoke, upload/retry, 1 GB RSS, and unauthorized-channel refusal, then stage separate protected Azure release only with approval.
+Validate nickname `NIGHT 👩🏽‍💻`, mixed RTL/Latin, stylized combining marks, flags, skin tones and long names on the exact host font set. Inspect actual transparent PNG and composited JPEG/PNG/WebP, opacity and position on both dark and light busy images. Check 320/360/390/412 phone preview layouts with A and the real main combined-preview URL after integration. C must test owner separation, OFF/revoke, upload/retry, 1 GB RSS, and unauthorized-channel refusal, then stage separate protected Azure release only with approval.
