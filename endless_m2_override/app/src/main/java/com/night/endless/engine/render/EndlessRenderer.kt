@@ -1549,14 +1549,14 @@ class EndlessRenderer(
                     GiantSatelliteOrbit.polyline(body.orbitRadius, parentTilt, segments)
                 }
                 else -> {
-                jpl ?: FloatArray(segments * 3).also { out ->
-                    for (i in 0 until segments) {
-                        val angle = i.toDouble() / segments * 2.0 * PI
-                        out[i * 3] = (cos(angle) * body.orbitRadius).toFloat()
-                        out[i * 3 + 1] = 0f
-                        out[i * 3 + 2] = (sin(angle) * body.orbitRadius).toFloat()
+                    jpl ?: FloatArray(segments * 3).also { out ->
+                        for (i in 0 until segments) {
+                            val angle = i.toDouble() / segments * 2.0 * PI
+                            out[i * 3] = (cos(angle) * body.orbitRadius).toFloat()
+                            out[i * 3 + 1] = 0f
+                            out[i * 3 + 2] = (sin(angle) * body.orbitRadius).toFloat()
+                        }
                     }
-                }
                 }
             }
             orbitBuffers[body.id] = floatBuffer(values)
