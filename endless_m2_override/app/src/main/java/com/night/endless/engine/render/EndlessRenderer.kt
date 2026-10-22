@@ -1767,7 +1767,14 @@ class EndlessRenderer(
         GLES30.glUniform1f(uniformLocation(starProgram, "uPointSize"), 2.0f)
         GLES30.glUniform4f(uniformLocation(starProgram, "uColor"), 0.82f, 0.88f, 1.0f, 0.72f)
 
-        val buffer = starBuffer ?: return
+        // An interrupted EGL/context rebuild may temporarily have no star
+        // vertex buffer. Restore GL state before continuing with planets:
+        // leaving the depth mask off makes near/far sphere occlusion wrong.
+        val buffer = starBuffer
+        if (buffer == null) {
+            GLES30.glDepthMask(true)
+            return
+        }
         buffer.position(0)
 
         GLES30.glEnableVertexAttribArray(0)
