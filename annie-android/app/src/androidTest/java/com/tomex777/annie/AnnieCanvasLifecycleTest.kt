@@ -23,6 +23,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.test.assertExists
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
@@ -289,6 +290,28 @@ class AnnieCanvasLifecycleTest {
         assertTrue("Explicit Resume must clear the retained pause preference",
             !resumed.pausedByUser)
         resumed.destroy()
+    }
+
+    @Test fun closeCardRemainsClosedAfterComposeSavedStateRestoration() {
+        val tester = StateRestorationTester(compose)
+        compose.setContent {
+            tester.setContent {
+                AnnieTheme { AnnieCanvasMessage(document("Saved close")) }
+            }
+        }
+        compose.waitUntil(10_000) { allCanvasWebViews().size == 1 }
+        compose.onNodeWithTag("annie_canvas_close").performClick()
+        compose.onNodeWithTag("annie_canvas_closed").assertIsDisplayed()
+        assertEquals(0, allCanvasWebViews().size)
+
+        // A real Activity process restart restores visible LazyColumn Saveable
+        // state; this test explicitly exercises the same Compose save/restore.
+        tester.emulateSavedInstanceStateRestore()
+        compose.onNodeWithTag("annie_canvas_closed").assertIsDisplayed()
+        assertEquals("A closed Canvas must not allocate a WebView on restore",
+            0, allCanvasWebViews().size)
+        compose.onNodeWithTag("annie_canvas_reopen").performClick()
+        compose.waitUntil(10_000) { allCanvasWebViews().size == 1 }
     }
 
 }
