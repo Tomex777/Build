@@ -657,6 +657,28 @@ class Device:
         self.click("Dismiss preview")
         return "Long-press opened disposable preview and dismissed it"
 
+    def external_link_intent(self):
+        """Android ACTION_VIEW enters a new regular Gecko tab even from private browsing."""
+        self.click("Tabs")
+        before = self.regular_count()
+        private = next((n for n in self.ui() if re.search(
+            r"\\bPrivate\\s+\\d+\\b",
+            n.get("text", "") or n.get("content-desc", ""))), None)
+        if private is None:
+            raise AssertionError("Private filter unavailable for external intent isolation")
+        self.click(private.get("text", "") or private.get("content-desc", ""))
+        self.click("New private tab")
+        before_hit = hits("/branch/b")
+        shell("am", "start", "-W", "-a", "android.intent.action.VIEW",
+              "-d", URL + "/branch/b", "-n", PKG + "/.MainActivity")
+        wait_hit("/branch/b", before_hit)
+        self.verify_title("NIGHT QA BRANCH B")
+        self.click("Tabs")
+        after = self.regular_count()
+        if after != before + 1:
+            raise AssertionError("External app link was not opened in a separate regular tab")
+        return "Android VIEW delivered into existing Activity and isolated from prior private tab"
+
     def find_in_page(self):
         """Search real Gecko document text with native per-tab result controls."""
         self.ensure_regular()
@@ -851,6 +873,8 @@ class Device:
                   prerequisites=("C01",), screenshot=True)
         self.test("C45", "Find text in a real Gecko page", self.find_in_page,
                   prerequisites=("C04",), screenshot=True)
+        self.test("C46", "Outside-app link opens normal Gecko tab",
+                  self.external_link_intent, prerequisites=("C01",), screenshot=True)
         self.test("C28", "Offline Home interactive", self.offline_home,
                   prerequisites=("C01",))
         self.test("C29", "Live process PSS captured", self.mem, prerequisites=("C01",))
