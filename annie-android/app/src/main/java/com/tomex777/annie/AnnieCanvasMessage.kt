@@ -43,6 +43,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -197,6 +198,12 @@ internal class AnnieCanvasController(private val id: String) {
 
     fun setInlineForeground(value: Boolean) {
         inlineForeground = value
+        if (!expanded) syncSuspension()
+    }
+
+    fun onInlineGeometryChanged() {
+        // A Compose LazyColumn can scroll without sending Android ViewTreeObserver
+        // scroll events. Placement callbacks capture this reliably for AndroidView.
         if (!expanded) syncSuspension()
     }
 
@@ -442,6 +449,7 @@ internal fun AnnieCanvasMessage(payload: JSONObject) {
                     factory = { FrameLayout(it).also { host -> controller.attachInline(it, host, doc) } },
                     update = { host -> controller.attachInline(host.context, host, doc) },
                     modifier = Modifier.fillMaxWidth().height(doc.heightDp.dp)
+                        .onGloballyPositioned { controller.onInlineGeometryChanged() }
                         .testTag("annie_canvas_webview"),
                 )
             } else {
