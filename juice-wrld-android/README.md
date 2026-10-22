@@ -49,3 +49,22 @@ This is an **unofficial** fan project, not endorsed by Juice WRLD's estate or hi
 - Favorites and private song memories persist; scan your own music folder through SAF (manual song import also available).
 - Do not consider the fan app production-ready until the latest branch is compiled and tested on API 26/35 emulators, the screenshots are visually inspected, imported audio is actually played, and owner-controlled release signing is configured.
 - GitHub Actions debug APKs use runner debug certificates; they are test builds and are **not guaranteed to update** an APK built on a different runner without uninstalling. Never mistake these artifacts for a signed production release.
+
+## 2026-10-22 ABR implementation / release gate
+
+The fan-first mood card layout has been visually inspected on real API 26/35 startup
+screenshots. The previous 110-song and 999 text duplication in the hero, footer
+and section has been removed. Song search accepts apostrophe/ampersand variants
+and word prefixes; Import is separate from playback. The separate companion
+audio and search patches were reconciled into the same feature branch, including
+WAV playback smoke, favorites persistence, safer filename matching, audio focus,
+headphone-unplug handling and URI replacement.
+
+**Do not claim release-complete from APK compilation alone.** Remaining acceptance
+evidence must come from an *uncancelled* full Android workflow run, on **both**
+API 26 and API 35, with verified installation, all instrumentation tests green,
+five genuine full-screen PNGs from each emulator, visual inspection of
+every page, and no relevant ANRs/crashes in logcat. Also verify the Android
+document picker's real persistable URI grant and audio playback on a phone
+before shipping a signed production APK. Current GitHub Actions debug APKs
+are test builds and are not guaranteed to update each other in place.

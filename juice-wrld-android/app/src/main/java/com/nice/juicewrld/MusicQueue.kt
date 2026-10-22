@@ -12,6 +12,10 @@ enum class RepeatMode(val label: String) {
 
 /** Pure song queue: no network, platform clock, UI, or Android dependency. */
 object MusicQueue {
+    /** The queue must reflect the current feeling even when the selected track is unchanged. */
+    fun hasSameSongs(queue: List<String>, songs: List<String>): Boolean =
+        queue.isNotEmpty() && queue.size == songs.distinct().size && queue.toSet() == songs.toSet()
+
     fun build(songIds: List<String>, current: String, shuffled: Boolean): List<String> {
         val unique = songIds.distinct()
         if (current !in unique) return emptyList()

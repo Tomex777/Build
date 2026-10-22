@@ -152,10 +152,7 @@ object FanSongs {
             (mood == Mood.ALL ||
                 (mood == Mood.FAVORITES && song.id in favorites) ||
                 mood in song.moods) &&
-                (search.isBlank() ||
-                    song.title.contains(search, ignoreCase = true) ||
-                    song.album.contains(search, ignoreCase = true) ||
-                    song.year.contains(search, ignoreCase = true))
+                (search.isBlank() || SongSearch.matches(song, search))
         }
     }
 
@@ -182,12 +179,21 @@ object SongFileMatcher {
         if (parts.isEmpty() || parts.any { it in rejected }) return null
         val identifiesArtist = parts.windowed(2).any { it == listOf("juice", "wrld") } ||
             "juicewrld" in parts
-        // A lone generic title (e.g. Fast.mp3) could belong to any artist.
-        // Require an artist marker before assigning single-word files automatically.
-        if (parts.size == 1 && !identifiesArtist) return null
+        // Uncredited filenames should match an entire multiword title, not a
+        // coincidental phrase inside another recording's name. A leading track
+        // number is harmless. Single-word titles still require artist credits.
+        // Credited filenames may include common album/featured-artist metadata.
+        val uncreditedTitle = if (parts.firstOrNull()?.all(Char::isDigit) == true) {
+            parts.drop(1)
+        } else parts
         return FanSongs.all.filter { song ->
             val title = tokens(song.title)
-            title.isNotEmpty() && parts.windowed(title.size).any { it == title }
+            title.isNotEmpty() &&
+                if (identifiesArtist) {
+                    parts.windowed(title.size).any { it == title }
+                } else {
+                    title.size >= 2 && uncreditedTitle == title
+                }
         }.maxByOrNull { it.title.length }
     }
 }

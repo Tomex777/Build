@@ -1,8 +1,11 @@
 package com.nice.juicewrld
 
 import android.app.Application
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
+import androidx.core.content.ContextCompat
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
@@ -46,11 +49,17 @@ class FanPlayer(app: Application) : AndroidViewModel(app) {
         .setUsage(AudioAttributes.USAGE_MEDIA)
         .build()
     private val audioManager = app.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+    // Restore interrupted tracks after temporary focus loss; never restart one
+    // that the listener intentionally paused. Duck under navigation prompts.
+    private var resumeOnFocusGainSongId: String? = null
+    private val headphonesUnplugged = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == AudioManager.ACTION_AUDIO_BECOMING_NOISY) pause()
+        }
+    }
     private val focusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
         .setAudioAttributes(attrs)
-        .setOnAudioFocusChangeListener { focus ->
-            if (focus <= 0) pause()
-        }
+        .setOnAudioFocusChangeListener(::onAudioFocusChange)
         .build()
     private val files = mutableMapOf<String, String>()
     private var mediaPlayer: MediaPlayer? = null
@@ -61,6 +70,13 @@ class FanPlayer(app: Application) : AndroidViewModel(app) {
     val state: StateFlow<FanPlayerState> = _state
 
     init {
+        // Stop music when wired/Bluetooth headphones disconnect: do not blast
+        // the next track through the phone speaker unexpectedly.
+        ContextCompat.registerReceiver(
+            app, headphonesUnplugged,
+            IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY),
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
         for (song in FanSongs.all) {
             val uri = prefs.getString("file:" + song.id, null)
             if (uri != null) files[song.id] = uri
@@ -208,6 +224,17 @@ class FanPlayer(app: Application) : AndroidViewModel(app) {
             )
             files[songId] = uri.toString()
             prefs.edit().putString("file:" + songId, uri.toString()).apply()
+            // Replacing an already-opened track must recreate the MediaPlayer.
+            // Otherwise play(songId) treats the same song ID as a play/pause
+            // toggle and keeps decoding the *previous* file URI.
+            if (_state.value.activeSongId == songId) {
+                generation++
+                releaseCurrentPlayer()
+                _state.update { it.copy(
+                    activeSongId = null, isPreparing = false, isPlaying = false,
+                    durationMs = 0, positionMs = 0
+                ) }
+            }
             _state.update { it.copy(attached = files.keys.toSet(), error = null) }
             play(songId)
         } catch (_: Exception) {
@@ -223,9 +250,12 @@ class FanPlayer(app: Application) : AndroidViewModel(app) {
             _state.update { it.copy(error = "Import music for this feeling first.") }
             return
         }
-        val queue = MusicQueue.build(ids, ids.first(), _state.value.shuffle)
+        val first = ids.first()
+        val queue = MusicQueue.build(ids, first, _state.value.shuffle)
         _state.update { it.copy(queueIds = queue) }
-        play(ids.first())
+        // A button labeled "Play mood" must never pause an already playing
+        // track merely because the user selected the same feeling twice.
+        if (first != _state.value.activeSongId || !_state.value.isPlaying) play(first)
     }
 
     fun playInMood(songId: String, mood: Mood) {
@@ -235,7 +265,8 @@ class FanPlayer(app: Application) : AndroidViewModel(app) {
             play(songId)
             return
         }
-        if (songId != _state.value.activeSongId || _state.value.queueIds.isEmpty()) {
+        if (songId != _state.value.activeSongId ||
+            !MusicQueue.hasSameSongs(_state.value.queueIds, ids)) {
             _state.update { it.copy(
                 queueIds = MusicQueue.build(ids, songId, _state.value.shuffle)
             ) }
@@ -356,11 +387,46 @@ class FanPlayer(app: Application) : AndroidViewModel(app) {
     private fun requestFocus(): Boolean =
         audioManager.requestAudioFocus(focusRequest) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
 
-    fun pause() {
+    private fun onAudioFocusChange(focus: Int) {
+        when (focus) {
+            AudioManager.AUDIOFOCUS_GAIN -> {
+                try { mediaPlayer?.setVolume(1f, 1f) } catch (_: IllegalStateException) {}
+                val toResume = resumeOnFocusGainSongId
+                resumeOnFocusGainSongId = null
+                if (toResume != null && _state.value.activeSongId == toResume &&
+                    !_state.value.isPlaying && !_state.value.isPreparing) {
+                    try {
+                        mediaPlayer?.start()
+                        _state.update { it.copy(isPlaying = mediaPlayer?.isPlaying == true) }
+                    } catch (_: IllegalStateException) {}
+                }
+            }
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
+                try { mediaPlayer?.setVolume(0.25f, 0.25f) }
+                catch (_: IllegalStateException) {}
+            }
+            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
+                resumeOnFocusGainSongId = if (_state.value.isPlaying)
+                    _state.value.activeSongId else null
+                pausePlayer()
+            }
+            AudioManager.AUDIOFOCUS_LOSS -> {
+                resumeOnFocusGainSongId = null
+                pausePlayer()
+            }
+        }
+    }
+
+    private fun pausePlayer() {
         try {
             mediaPlayer?.let { if (it.isPlaying) it.pause() }
-            _state.update { it.copy(isPlaying = false) }
         } catch (_: IllegalStateException) {}
+        _state.update { it.copy(isPlaying = false) }
+    }
+
+    fun pause() {
+        resumeOnFocusGainSongId = null
+        pausePlayer()
     }
 
     fun seekTo(fraction: Float) {
@@ -398,15 +464,22 @@ class FanPlayer(app: Application) : AndroidViewModel(app) {
     }
 
     private fun releaseCurrentPlayer() {
+        resumeOnFocusGainSongId = null
         val old = mediaPlayer
         mediaPlayer = null
-        try { old?.reset(); old?.release() } catch (_: Exception) {}
+        try { old?.reset() } catch (_: Exception) {}
+        // Release must run even if reset() fails, otherwise decoders/audio
+        // resources are leaked when skipping or replacing corrupt recordings.
+        try { old?.release() } catch (_: Exception) {}
         audioManager.abandonAudioFocusRequest(focusRequest)
     }
 
     override fun onCleared() {
         generation++
         releaseCurrentPlayer()
+        try {
+            getApplication<Application>().unregisterReceiver(headphonesUnplugged)
+        } catch (_: IllegalArgumentException) {}
         super.onCleared()
     }
 }

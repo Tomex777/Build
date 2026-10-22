@@ -23,6 +23,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowForward
@@ -53,6 +55,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -60,6 +63,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -195,8 +199,13 @@ fun FanHome(player: FanPlayer = viewModel()) {
                                 fontSize = 21.sp, letterSpacing = (-0.7).sp,
                                 color = White, fontWeight = FontWeight.ExtraBold
                             )
-                            Spacer(Modifier.height(4.dp))
-                            Text("${songs.size} songs", fontSize = 12.sp, color = Gray)
+                            if (search.isNotBlank()) {
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    "${songs.size} " + if (songs.size == 1) "match" else "matches",
+                                    fontSize = 12.sp, color = Gray
+                                )
+                            }
                         }
                         if (songs.any { it.id in state.attached }) {
                             IconButton(
@@ -278,9 +287,6 @@ fun FanHome(player: FanPlayer = viewModel()) {
                 ) {
                     HorizontalDivider(color = Hairline, thickness = 1.dp)
                     Spacer(Modifier.height(21.dp))
-                    Text("999 FOREVER", color = Lavender, fontWeight = FontWeight.Black,
-                        letterSpacing = 3.sp, fontSize = 11.sp)
-                    Spacer(Modifier.height(5.dp))
                     Text("An unofficial fan-made collection.", color = Gray, fontSize = 11.sp)
                     Spacer(Modifier.height(8.dp))
                     Text(
@@ -395,15 +401,7 @@ private fun FanHero() {
                     color = White, fontWeight = FontWeight.Black, fontSize = 24.sp,
                     lineHeight = 27.sp, letterSpacing = (-1).sp
                 )
-                Spacer(Modifier.height(7.dp))
-                Text("From heartbreak to pure hype.", color = Color(0xFFDDD0EB),
-                    fontSize = 11.sp, lineHeight = 16.sp)
-                Spacer(Modifier.height(9.dp))
-                Text(
-                    FanSongs.all.size.toString() + " SONGS · 999 FOREVER",
-                    color = Lavender, fontSize = 9.sp,
-                    fontWeight = FontWeight.Black, letterSpacing = 1.2.sp
-                )
+                // Keep the hero editorial, not a second catalogue statistics block.
             }
             ArtistPortrait(
                 Modifier.width(103.dp).height(137.dp).clip(RoundedCornerShape(14.dp))
@@ -450,6 +448,9 @@ private fun moodColors(mood: Mood): List<Color> = when (mood) {
     else -> listOf(Color(0xFF6F5187), Color(0xFF241D34))
 }
 
+private fun songCountLabel(count: Int): String =
+    if (count == 1) "1 song" else "${count} songs"
+
 @Composable
 private fun FeelingCard(mood: Mood, selected: Boolean, count: Int, onClick: () -> Unit) {
     val shape = RoundedCornerShape(17.dp)
@@ -491,7 +492,7 @@ private fun FeelingCard(mood: Mood, selected: Boolean, count: Int, onClick: () -
         )
         Spacer(Modifier.height(3.dp))
         Text(
-            "${count} songs", color = White.copy(alpha = .77f),
+            songCountLabel(count), color = White.copy(alpha = .77f),
             fontSize = 11.sp, maxLines = 1
         )
     }
@@ -499,6 +500,7 @@ private fun FeelingCard(mood: Mood, selected: Boolean, count: Int, onClick: () -
 
 @Composable
 private fun FanSearch(text: String, onTextChange: (String) -> Unit, modifier: Modifier = Modifier) {
+    val keyboardController = LocalSoftwareKeyboardController.current
     Row(
         modifier.height(50.dp).clip(RoundedCornerShape(14.dp))
             .background(Panel)
@@ -511,6 +513,8 @@ private fun FanSearch(text: String, onTextChange: (String) -> Unit, modifier: Mo
         Spacer(Modifier.width(12.dp))
         BasicTextField(
             value = text, onValueChange = onTextChange, singleLine = true,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            keyboardActions = KeyboardActions(onSearch = { keyboardController?.hide() }),
             modifier = Modifier.weight(1f).semantics { contentDescription = "Search Juice WRLD songs" },
             cursorBrush = SolidColor(Lavender),
             textStyle = TextStyle(fontSize = 14.sp, color = White),
