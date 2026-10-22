@@ -20,8 +20,8 @@ class SurfaceControlEvidenceTest(unittest.TestCase):
             "touchEvents=19\ntouchDispatchMedianMs=4.2\ntouchDispatchMaxMs=11.5\n"
             "method=Android GLES runtime; includes waits; not a benchmark\n"
         )
-        (self.root / "controls-meminfo-active.txt").write_text("TOTAL PSS: 100000\n")
-        (self.root / "controls-gfxinfo-active.txt").write_text("Profile data in ms\n")
+        (self.root / "controls-meminfo-active.txt").write_text("Applications Memory Usage (KiB): TOTAL PSS 100000\n")
+        (self.root / "controls-gfxinfo-active.txt").write_text("Graphics Profile data in milliseconds\n")
 
     def test_valid(self):
         self.assertEqual(dimensions(self.root / "controls-two-thumb-moon.png"), (2400, 1080))
