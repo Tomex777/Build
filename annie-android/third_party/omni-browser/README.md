@@ -24,7 +24,7 @@ Pinned upstream Git SHA: `9de84cc0d4c7cce32c7052e6d7a8ceab4bdc6d16` (reviewed 20
 - Upstream AndroidManifest declares capabilities outside Annie's current permissions (VPN/Tor/network/media, foreground services, notifications, camera). No wholesale permission merge. Review each by feature and least privilege.
 - Upstream third-party libraries cover GeckoView, SQLCipher/Room, ZXing, WorkManager, Tor, WireGuard, jlibtorrent, and optional model/media/translation integrations; don't add a huge dependency graph unreviewed.
 - Private browser session bytes and URLs must never enter the durable JSON store; guard remains at bridge and persistence layers. Session crash/rotation, concurrent writes, stale IDs, and URL restoration need API26/API36 instrumented tests.
-- No attribution screen, native UI, source release path, full browser source, or API26/API36 emulator acceptance is claimed yet.
+- Annie's About screen now gives the required visible, clickable RebelRoot upstream credit and the imported GPLv3 text is bundled in the APK; root README also links to upstream. End-to-end corresponding-source obligations, full upstream browser features, and API26/API36 emulator acceptance are **not** complete or claimed.
 
 ## Engine ↔ UI contract for Agent 2
 
@@ -45,4 +45,4 @@ Instantiate `AnnieBrowserEngineBridge(context, AnnieGeckoRuntime.get(context))` 
 
 ## Acceptance remaining
 
-Gradle compilation, GeckoView API smoke, source test, extension toggle behavior, page load/back/forward, private data isolation, session restore after OS process death, API26/API36 emulators, screenshots, clean APK install/reinstall and credit/source obligations. **Do not mark ready before verification.**
+Gradle compilation, GeckoView API smoke, source test, extension toggle behavior, page load/back/forward, private data isolation, session restore after OS process death, API26/API36 emulators, screenshots, clean APK install/reinstall and complete corresponding-source obligations. **Do not mark ready before verification.**
