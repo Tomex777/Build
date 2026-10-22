@@ -3,6 +3,9 @@ package com.tomex777.annie
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.graphics.Rect
+import android.view.View
+import android.view.ViewTreeObserver
 import android.view.ViewGroup
 import android.view.MotionEvent
 import android.webkit.PermissionRequest
@@ -23,12 +26,18 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,6 +48,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import java.io.ByteArrayInputStream
 import java.util.concurrent.ConcurrentHashMap
 import org.json.JSONObject
@@ -55,7 +66,7 @@ internal data class AnnieCanvasDocument(
     val javascript: String,
     val heightDp: Int,
 ) {
-    fun page(): String {
+    fun page(initiallyPaused: Boolean = false): String {
         // Do not let inline JS or CSS close their containing tag accidentally.
         val safeCss = css.replace(Regex("</style", RegexOption.IGNORE_CASE)) { "<\\/" + it.value.substring(2) }
         val safeJs = javascript.replace(Regex("</script", RegexOption.IGNORE_CASE)) { "<\\/" + it.value.substring(2) }
@@ -67,6 +78,8 @@ internal data class AnnieCanvasDocument(
               <meta http-equiv="Content-Security-Policy"
                     content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; media-src data: blob:; connect-src 'none'; form-action 'none'; base-uri 'none'; object-src 'none'">
               <style>
+                html.annie-host-paused *, html.annie-host-paused *::before,
+                html.annie-host-paused *::after { animation-play-state: paused !important; }
                 :root { color-scheme: dark; }
                 html, body { box-sizing:border-box; padding:0; margin:0; background:#0b1828; color:#eef5ff; font-family:system-ui,sans-serif; }
                 *, *::before, *::after { box-sizing:inherit; }
@@ -74,6 +87,8 @@ internal data class AnnieCanvasDocument(
                 button, input { font:inherit; }
                 $safeCss
               </style>
+              <script>window.__annieCanvasInitiallyPaused = ${if (initiallyPaused) "true" else "false"}; 
+              $CANVAS_LIFECYCLE_BOOTSTRAP</script>
             </head><body>$html<script>$safeJs</script></body></html>
         """.trimIndent()
     }
@@ -98,24 +113,110 @@ internal data class AnnieCanvasDocument(
 internal class AnnieCanvasController(private val id: String) {
     private var web: WebView? = null
     private var inlineHost: FrameLayout? = null
+    private var fullscreenHost: FrameLayout? = null
     private var document: AnnieCanvasDocument? = null
+    private var inlineForeground = false
+    private var fullscreenForeground = false
+    private var suspended: Boolean? = null
+    private var observedHost: FrameLayout? = null
+    private var observedTree: ViewTreeObserver? = null
+    var pausedByUser by mutableStateOf(false)
+        private set
+    var isClosed by mutableStateOf(false)
+        private set
     var expanded: Boolean = false
         private set
 
     internal val webView: WebView? get() = web
 
+    private val onScroll = ViewTreeObserver.OnScrollChangedListener { syncSuspension() }
+    private val onLayout = View.OnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> syncSuspension() }
+    private val onAttach = object : View.OnAttachStateChangeListener {
+        override fun onViewAttachedToWindow(v: View) {
+            // A ViewTreeObserver may be replaced when an AndroidView is attached.
+            bindTree(v.viewTreeObserver)
+            syncSuspension()
+        }
+        override fun onViewDetachedFromWindow(v: View) { syncSuspension() }
+    }
+
+    private fun bindTree(next: ViewTreeObserver?) {
+        observedTree?.takeIf { it.isAlive }?.removeOnScrollChangedListener(onScroll)
+        observedTree = next?.takeIf { it.isAlive }
+        observedTree?.addOnScrollChangedListener(onScroll)
+    }
+
+    private fun observe(host: FrameLayout?) {
+        if (observedHost === host) {
+            syncSuspension()
+            return
+        }
+        observedHost?.removeOnLayoutChangeListener(onLayout)
+        observedHost?.removeOnAttachStateChangeListener(onAttach)
+        bindTree(null)
+        observedHost = host
+        if (host != null) {
+            host.addOnLayoutChangeListener(onLayout)
+            host.addOnAttachStateChangeListener(onAttach)
+            bindTree(host.viewTreeObserver)
+        }
+        syncSuspension()
+    }
+
+    private fun surfaceVisible(): Boolean {
+        val host = if (expanded) fullscreenHost else inlineHost
+        if (host == null || !host.isAttachedToWindow || !host.isShown) return false
+        val visible = Rect()
+        return host.getGlobalVisibleRect(visible) && visible.width() > 0 && visible.height() > 0
+    }
+
+    private fun shouldSuspend() = pausedByUser ||
+        !(if (expanded) fullscreenForeground else inlineForeground) || !surfaceVisible()
+
+    private fun syncSuspension(force: Boolean = false) {
+        val view = web ?: return
+        val stop = shouldSuspend()
+        if (!force && suspended == stop) return
+        suspended = stop
+        if (stop) {
+            // evaluateJavascript is scoped to this WebView. Never call the static
+            // WebView.pauseTimers(): it pauses unrelated WebViews and Gecko tabs.
+            view.evaluateJavascript("window.__annieCanvasHost && window.__annieCanvasHost.pause()", null)
+            view.evaluateJavascript("true") {
+                if (web === view && shouldSuspend()) view.onPause()
+            }
+        } else {
+            view.onResume()
+            view.evaluateJavascript("window.__annieCanvasHost && window.__annieCanvasHost.resume()", null)
+        }
+    }
+
+    fun setInlineForeground(value: Boolean) {
+        inlineForeground = value
+        if (!expanded) syncSuspension()
+    }
+
+    fun setFullscreenForeground(value: Boolean) {
+        fullscreenForeground = value
+        if (expanded) syncSuspension()
+    }
+
+    fun togglePause() {
+        if (isClosed) return
+        pausedByUser = !pausedByUser
+        syncSuspension()
+    }
+
     private fun prepare(context: Context, next: AnnieCanvasDocument): WebView {
         val current = web ?: WebView(context).apply {
             setBackgroundColor(android.graphics.Color.rgb(11, 24, 40))
-            // Games own gestures inside the Canvas surface. Prevent the surrounding
-            // chat LazyColumn from stealing a vertical or diagonal finger swipe.
             setOnTouchListener { view, event ->
                 when (event.actionMasked) {
                     MotionEvent.ACTION_DOWN -> view.parent?.requestDisallowInterceptTouchEvent(true)
                     MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL ->
                         view.parent?.requestDisallowInterceptTouchEvent(false)
                 }
-                false // WebView still receives every touch/pointer event normally.
+                false
             }
             settings.apply {
                 javaScriptEnabled = true
@@ -136,6 +237,10 @@ internal class AnnieCanvasController(private val id: String) {
                 override fun shouldOverrideUrlLoading(view: WebView?, url: String?) = true
                 override fun shouldInterceptRequest(view: WebView?, request: WebResourceRequest?): WebResourceResponse =
                     WebResourceResponse("text/plain", "UTF-8", ByteArrayInputStream(ByteArray(0)))
+                override fun onPageFinished(view: WebView?, url: String?) {
+                    super.onPageFinished(view, url)
+                    if (view === web) syncSuspension(force = true)
+                }
             }
             webChromeClient = object : WebChromeClient() {
                 override fun onPermissionRequest(request: PermissionRequest?) { request?.deny() }
@@ -143,11 +248,10 @@ internal class AnnieCanvasController(private val id: String) {
                     callback?.invoke(origin, false, false)
                 }
             }
-        }.also { web = it }
+        }.also { web = it; suspended = null }
         if (document != next) {
             document = next
-            // null base URL is about:blank, not a network origin; CSP disables fetch and embeds.
-            current.loadDataWithBaseURL(null, next.page(), "text/html", "UTF-8", null)
+            current.loadDataWithBaseURL(null, next.page(shouldSuspend()), "text/html", "UTF-8", null)
         }
         return current
     }
@@ -160,29 +264,58 @@ internal class AnnieCanvasController(private val id: String) {
     }
 
     fun attachInline(context: Context, host: FrameLayout, next: AnnieCanvasDocument) {
+        if (isClosed) return
         inlineHost = host
         val view = prepare(context, next)
-        if (!expanded) reparent(view, host)
+        if (!expanded) {
+            reparent(view, host)
+            observe(host)
+        }
     }
 
     fun beginFullscreen() {
+        if (isClosed || expanded) return
         expanded = true
+        observe(null)
         web?.let { (it.parent as? ViewGroup)?.removeView(it) }
+        syncSuspension()
     }
 
     fun attachFullscreen(host: FrameLayout) {
+        if (isClosed || !expanded) return
+        fullscreenHost = host
         web?.let { reparent(it, host) }
+        observe(host)
     }
 
     fun restart() {
-        document?.let { web?.loadDataWithBaseURL(null, it.page(), "text/html", "UTF-8", null) }
+        if (isClosed) return
+        document?.let {
+            web?.loadDataWithBaseURL(null, it.page(shouldSuspend()), "text/html", "UTF-8", null)
+        }
+    }
+
+    fun close() {
+        isClosed = true
+        releaseWebView()
+        // Preserve the message and controller: the chat card offers Open again.
+    }
+
+    fun reopen() {
+        if (!isClosed) return
+        isClosed = false
+        pausedByUser = false
+        // AndroidView is mounted again by Compose and loads the same document.
     }
 
     fun returnToInline() {
         expanded = false
+        fullscreenHost = null
+        fullscreenForeground = false
         val host = inlineHost
         if (host != null && host.isAttachedToWindow) {
-            web?.let { reparent(it, host) }
+            if (!isClosed) web?.let { reparent(it, host) }
+            observe(host)
         } else {
             destroy()
         }
@@ -190,18 +323,27 @@ internal class AnnieCanvasController(private val id: String) {
 
     fun inlineDisposed() {
         inlineHost = null
+        inlineForeground = false
         if (!expanded) destroy()
     }
 
-    fun destroy() {
+    private fun releaseWebView() {
+        observe(null)
         web?.let {
             (it.parent as? ViewGroup)?.removeView(it)
             it.stopLoading()
+            it.onPause()
             it.destroy()
         }
         web = null
-        inlineHost = null
+        suspended = null
         document = null
+    }
+
+    fun destroy() {
+        releaseWebView()
+        inlineHost = null
+        fullscreenHost = null
         expanded = false
         AnnieCanvasSessions.remove(id, this)
     }
@@ -224,9 +366,24 @@ internal fun AnnieCanvasMessage(payload: JSONObject) {
         return
     }
     val context = androidx.compose.ui.platform.LocalContext.current
+    val owner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     val id = rememberAnnieBrowserInstanceId()
     val controller = remember(id) { AnnieCanvasSessions.get(id) }
-    DisposableEffect(controller) { onDispose { controller.inlineDisposed() } }
+    DisposableEffect(controller, owner) {
+        controller.setInlineForeground(owner.lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED))
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_START -> controller.setInlineForeground(true)
+                Lifecycle.Event.ON_STOP -> controller.setInlineForeground(false)
+                else -> Unit
+            }
+        }
+        owner.lifecycle.addObserver(observer)
+        onDispose {
+            owner.lifecycle.removeObserver(observer)
+            controller.inlineDisposed()
+        }
+    }
 
     Surface(
         color = BrowserBubble,
@@ -236,23 +393,47 @@ internal fun AnnieCanvasMessage(payload: JSONObject) {
         Column(Modifier.fillMaxWidth().padding(8.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(doc.title, color = BrowserBrightText, fontWeight = FontWeight.SemiBold,
-                    maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f).padding(start = 7.dp))
-                TextButton(onClick = controller::restart, modifier = Modifier.testTag("annie_canvas_restart")) {
-                    Text("Restart", color = BrowserSoftText, fontSize = 12.sp)
-                }
-                TextButton(onClick = {
-                    controller.beginFullscreen()
-                    context.startActivity(AnnieCanvasActivity.intent(context, id))
-                }, modifier = Modifier.testTag("annie_canvas_fullscreen")) {
-                    Text("Expand ⛶", color = BrowserTeal, fontSize = 12.sp)
+                    maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f).padding(start = 7.dp))
+                if (controller.isClosed) {
+                    TextButton(onClick = controller::reopen, modifier = Modifier.testTag("annie_canvas_reopen")) {
+                        Text("Open", color = BrowserTeal)
+                    }
+                } else {
+                    TextButton(onClick = controller::restart, modifier = Modifier.testTag("annie_canvas_restart")) {
+                        Text("Restart", color = BrowserSoftText, fontSize = 12.sp)
+                    }
+                    IconButton(onClick = controller::togglePause,
+                        modifier = Modifier.size(48.dp).testTag("annie_canvas_pause")) {
+                        Icon(if (controller.pausedByUser) AnnieIcons.Play else AnnieIcons.Pause,
+                            contentDescription = if (controller.pausedByUser) "Resume Canvas" else "Pause Canvas",
+                            tint = BrowserTeal, modifier = Modifier.size(21.dp))
+                    }
+                    IconButton(onClick = controller::close,
+                        modifier = Modifier.size(48.dp).testTag("annie_canvas_close")) {
+                        Icon(AnnieCanvasIcons.Close, contentDescription = "Close Canvas",
+                            tint = BrowserSoftText, modifier = Modifier.size(21.dp))
+                    }
+                    IconButton(onClick = {
+                        controller.beginFullscreen()
+                        context.startActivity(AnnieCanvasActivity.intent(context, id))
+                    }, modifier = Modifier.size(48.dp).testTag("annie_canvas_fullscreen")) {
+                        Icon(AnnieCanvasIcons.Expand, contentDescription = "Expand Canvas",
+                            tint = BrowserTeal, modifier = Modifier.size(21.dp))
+                    }
                 }
             }
-            AndroidView(
-                factory = { FrameLayout(it).also { host -> controller.attachInline(it, host, doc) } },
-                update = { host -> controller.attachInline(host.context, host, doc) },
-                modifier = Modifier.fillMaxWidth().height(doc.heightDp.dp)
-                    .testTag("annie_canvas_webview"),
-            )
+            if (!controller.isClosed) {
+                AndroidView(
+                    factory = { FrameLayout(it).also { host -> controller.attachInline(it, host, doc) } },
+                    update = { host -> controller.attachInline(host.context, host, doc) },
+                    modifier = Modifier.fillMaxWidth().height(doc.heightDp.dp)
+                        .testTag("annie_canvas_webview"),
+                )
+            } else {
+                Text("Canvas closed", color = BrowserSoftText, fontSize = 13.sp,
+                    modifier = Modifier.padding(start = 8.dp, bottom = 10.dp).testTag("annie_canvas_closed"))
+            }
         }
     }
 }
@@ -262,14 +443,13 @@ internal class AnnieCanvasActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // An expanded Canvas is immersive; keep system bars out of the playing surface.
         androidx.core.view.WindowCompat.getInsetsController(window, window.decorView).apply {
             hide(androidx.core.view.WindowInsetsCompat.Type.statusBars())
             systemBarsBehavior =
                 androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         }
         controller = intent.getStringExtra(EXTRA_ID)?.let(AnnieCanvasSessions::find)
-        if (controller == null) { finish(); return }
+        if (controller == null || controller?.isClosed == true) { finish(); return }
         setContent {
             AnnieTheme {
                 Column(
@@ -282,9 +462,24 @@ internal class AnnieCanvasActivity : ComponentActivity() {
                         Text(controller?.label ?: "Canvas", color = BrowserBrightText,
                             fontSize = 18.sp, fontWeight = FontWeight.SemiBold,
                             modifier = Modifier.weight(1f))
+                        IconButton(onClick = { controller?.togglePause() },
+                            modifier = Modifier.size(48.dp).testTag("annie_canvas_fullscreen_pause")) {
+                            Icon(if (controller?.pausedByUser == true) AnnieIcons.Play else AnnieIcons.Pause,
+                                contentDescription = if (controller?.pausedByUser == true) "Resume Canvas" else "Pause Canvas",
+                                tint = BrowserTeal)
+                        }
                         TextButton(onClick = { controller?.restart() }) { Text("Restart") }
-                        TextButton(onClick = ::finish, modifier = Modifier.testTag("annie_canvas_close")) {
-                            Text("Close")
+                        IconButton(onClick = {
+                            controller?.close()
+                            finish()
+                        }, modifier = Modifier.size(48.dp).testTag("annie_canvas_fullscreen_close")) {
+                            Icon(AnnieCanvasIcons.Close, contentDescription = "Close Canvas",
+                                tint = BrowserSoftText)
+                        }
+                        IconButton(onClick = ::finish,
+                            modifier = Modifier.size(48.dp).testTag("annie_canvas_collapse")) {
+                            Icon(AnnieIcons.ArrowBack, contentDescription = "Return to chat",
+                                tint = BrowserTeal)
                         }
                     }
                     AndroidView(
@@ -297,8 +492,18 @@ internal class AnnieCanvasActivity : ComponentActivity() {
         }
     }
 
+    override fun onStart() {
+        super.onStart()
+        controller?.setFullscreenForeground(true)
+    }
+
+    override fun onStop() {
+        controller?.setFullscreenForeground(false)
+        super.onStop()
+    }
+
     override fun onDestroy() {
-        controller?.returnToInline()
+        if (!isChangingConfigurations) controller?.returnToInline()
         controller = null
         super.onDestroy()
     }
