@@ -430,3 +430,17 @@ test('four preview cards are atomic and cannot repeat an approved candidate ID',
  assert.throws(()=>toReviewBatch([items[0],items[0],items[2],items[3]],media),/must be distinct/);
  assert.throws(()=>toReviewBatch(items,Object.fromEntries(Object.entries(media).slice(1))),/missing a server-owned preview/);
 });
+
+test('cached story arrays are immutable across feed refreshes and consumers',async()=>{
+ const xml='<rss><item><title>Aurora official renewal announced</title><link>https://studio.example/story</link>'+
+ '<pubDate>Wed, 21 Oct 2026 12:00:00 GMT</pubDate></item></rss>';
+ let calls=0;
+ const feed=rssNewsAdapter({id:'studio',name:'Studio',url:'https://studio.example/rss',official:true,now:()=>NOW,
+  fetchImpl:async()=>{calls++;return new Response(xml)},
+  interpreter:()=>({show:'Aurora',event:'renewals',tags:['renewals'],confirmed:true})});
+ const one=await feed.discover();
+ assert(Object.isFrozen(one));assert(Object.isFrozen(one.items));assert(Object.isFrozen(one.source));
+ assert.throws(()=>one.items.push({kind:'news',autoEligible:true}),TypeError);
+ assert.throws(()=>{one.source.official=false},TypeError);
+ assert.equal((await feed.discover()).items.length,1);assert.equal(calls,1);
+});
