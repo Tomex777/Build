@@ -48,6 +48,11 @@ class FanAudioSmokeTest {
             assertTrue("Expected a decoded WAV duration", current.state.value.durationMs >= 3_000)
             assertEquals(listOf("lucid-dreams", "robbery"), current.state.value.queueIds)
 
+            // Clicking "Play mood" again should leave audio playing, not act
+            // like a hidden pause toggle.
+            instrumentation.runOnMainSync { current.playMood(Mood.SAD) }
+            assertTrue("Play mood unexpectedly paused audio", current.state.value.isPlaying)
+
             instrumentation.runOnMainSync {
                 current.seekTo(0.5f)
                 current.pause()
