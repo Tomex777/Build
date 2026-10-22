@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Needed only to download selected curated photographs; native gameplay stays offline. -->
+    <uses-permission android:name="android.permission.INTERNET" />
     <application android:theme="@android:style/Theme.Material.Light.NoActionBar"
         android:label="Jigsaw" android:allowBackup="false"
         android:supportsRtl="true" android:usesCleartextTraffic="false">
