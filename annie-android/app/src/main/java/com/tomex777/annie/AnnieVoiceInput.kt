@@ -13,6 +13,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -38,6 +39,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.semantics.Role
 import kotlinx.coroutines.delay
 
 /**
@@ -175,7 +177,7 @@ internal fun VoiceHoldButton(
     Surface(
         color = if (controller.recording) Color(0xFFFF4D4D) else Color(0xFF168EEA),
         shape = CircleShape,
-        modifier = modifier.size(46.dp).testTag("composer_voice_hold").pointerInteropFilter { event ->
+        modifier = modifier.size(48.dp).testTag("composer_voice_hold").pointerInteropFilter { event ->
             // Compose represents ACTION_CANCEL as unpressed pointers. Keep the
             // native distinction: only ACTION_UP may send an unlocked draft.
             when (event.actionMasked) {
@@ -235,16 +237,22 @@ private class VoiceHoldGesture {
 internal fun VoiceRecordingBar(controller: VoiceNoteController, modifier: Modifier = Modifier) {
     Row(
         modifier.clip(RoundedCornerShape(28.dp)).background(Color(0xFF102139))
-            .padding(horizontal = 10.dp, vertical = 10.dp).testTag("voice_recording_bar"),
+            .padding(horizontal = 6.dp, vertical = 2.dp).testTag("voice_recording_bar"),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(7.dp),
     ) {
         if (controller.locked) {
-            Icon(
-                AnnieIcons.Close, contentDescription = "Delete recording", tint = Color(0xFFFF8A80),
-                modifier = Modifier.size(23.dp).clip(CircleShape).clickable { controller.cancel() }
+            Box(
+                Modifier.size(48.dp).clip(CircleShape)
+                    .clickable(role = Role.Button, onClickLabel = "Delete recording") { controller.cancel() }
                     .testTag("voice_delete"),
-            )
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    AnnieIcons.Close, contentDescription = null,
+                    tint = Color(0xFFFF8A80), modifier = Modifier.size(23.dp),
+                )
+            }
         } else {
             VoiceRecordingDot()
         }
@@ -252,21 +260,29 @@ internal fun VoiceRecordingBar(controller: VoiceNoteController, modifier: Modifi
         VoiceWaveform(
             samples = controller.waveformPeaks.toList().takeLast(40),
             progress = 1f,
-            width = if (controller.locked) 60.dp else 139.dp,
+            width = if (controller.locked) 32.dp else 139.dp,
         )
         if (controller.locked) {
-            Text(
-                if (controller.paused) "Resume" else "Pause", color = Color.White, fontSize = 13.sp,
-                modifier = Modifier.clip(RoundedCornerShape(14.dp))
-                    .clickable { controller.togglePause() }.padding(horizontal = 5.dp, vertical = 6.dp)
+            Box(
+                Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .clickable(role = Role.Button, onClickLabel = if (controller.paused) "Resume recording" else "Pause recording") {
+                        controller.togglePause()
+                    }
                     .testTag("voice_pause_resume"),
-            )
-            Text(
-                "Send", color = Color.White, fontSize = 13.sp,
-                modifier = Modifier.clip(RoundedCornerShape(14.dp)).background(Color(0xFF168EEA))
-                    .clickable { controller.finish() }.padding(horizontal = 9.dp, vertical = 6.dp)
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(if (controller.paused) "Resume" else "Pause", color = Color.White, fontSize = 13.sp)
+            }
+            Box(
+                Modifier.size(48.dp).clip(RoundedCornerShape(14.dp))
+                    .background(Color(0xFF168EEA))
+                    .clickable(role = Role.Button, onClickLabel = "Send recording") { controller.finish() }
                     .testTag("voice_send"),
-            )
+                contentAlignment = Alignment.Center,
+            ) {
+                Text("Send", color = Color.White, fontSize = 13.sp)
+            }
         } else if (controller.cancelling) {
             Text("Cancel", color = Color(0xFFFF8A80), fontSize = 11.sp)
         }
