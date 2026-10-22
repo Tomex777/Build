@@ -7,6 +7,7 @@ import org.junit.Test
 import com.night.endless.engine.math.Vec3d
 import kotlin.math.PI
 import kotlin.math.abs
+import kotlin.math.cos
 import kotlin.math.sin
 
 /** The same oblate ray test used by the on-GPU Saturn ring fragment shader. */
