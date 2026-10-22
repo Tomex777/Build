@@ -1509,7 +1509,9 @@
             yPos: [100, 75, 50], // Variable height.
             yPosMobile: [100, 50], // Variable height mobile.
             multipleSpeed: 999,
-            minSpeed: 8.5,
+            // NIGHT level pacing: reveal the aerial sentry before long sessions.
+            // Original Chromium generator, collision boxes and flight animation.
+            minSpeed: 4.4,
             minGap: 150,
             collisionBoxes: [
                 new CollisionBox(15, 15, 16, 5),
