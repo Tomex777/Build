@@ -56,8 +56,9 @@ try{
   assert.ok(Math.abs(arena.height-reference.height)<=4,'Dino and Fruit Slice heights align at '+width+
     ': Dino='+arena.height+', Slice='+reference.height);
   await other.close();
-  assert.ok(Math.abs(rect.height-(arena.height-34))<=3,
-    'Chromium canvas must fill the real arena above the track at '+width);
+  assert.ok(Math.abs(rect.height-arena.height)<=3,
+    'the full Chromium canvas, not a short 150px strip, must fill the game height at '+width);
+  assert.ok(initial.zoom>=1.3,'uniform camera zoom keeps sprites legible in tall arena');
   assert.ok(rect.width>290&&rect.width<=600,'Chromium native game width');
   assert.equal(initial.groundY,93,'physics coordinates remain original 150px world despite tall rendering');
   await page.locator('#overlayAction').click();
@@ -107,7 +108,7 @@ try{
    assert.ok((await snap(page)).distanceRan<200,'new round resets distance');
   }
   assert.deepEqual(errors,[],'no browser exceptions at '+width);
-  console.log('PASS',width,{overflow,arenaHeight:arena.height,canvasHeight:rect.height,referenceHeight:reference.height,originalJumpVelocity:initial.jumpVelocity,canvasWidth:rect.width,skin:'NIGHT'});
+  console.log('PASS',width,{overflow,arenaHeight:arena.height,canvasHeight:rect.height,zoom:initial.zoom,referenceHeight:reference.height,originalJumpVelocity:initial.jumpVelocity,canvasWidth:rect.width,skin:'NIGHT'});
   await page.close();
  }
 }finally{if(browser)await browser.close();await new Promise(done=>server.close(done));}
