@@ -119,19 +119,24 @@ function pulse(){
 }
 window.addEventListener('load',async()=>{
  if(typeof window.Runner!=='function'){overlay('UNAVAILABLE','Game did not load','Refresh to try again.','Retry');return}
- // Keep Chromium's untouched 150px physics world and jump arc, while its
- // *rendering canvas* occupies the complete height of the shared NIGHT arena.
- // Pixel sprites stay 1:1: the additional height is transparent world sky.
- // Wrapping native scaling also handles high-DPI buffers and resize repaint.
- const scaleNativeCanvas=window.Runner.updateCanvasScaling;
- window.Runner.updateCanvasScaling=function(canvas,logicalWidth){
-  const nativeHeight=window.Runner.defaultDimensions.HEIGHT; // 150 gameplay units
-  const fullHeight=Math.max(nativeHeight,Math.round($('stage').clientHeight-33));
-  canvas.height=fullHeight; // clear/reset pixel buffer before upstream scales it
-  const scaled=scaleNativeCanvas.call(this,canvas,logicalWidth,fullHeight);
-  canvas.style.height=fullHeight+'px';
-  canvas.getContext('2d').translate(0,fullHeight-nativeHeight);
-  return scaled;
+ // One game footprint for every NIGHT action game: the display canvas fills
+ // the full 390:550 arena. Render Chromium's ORIGINAL 150-unit gameplay world
+ // uniformly zoomed (both axes) so the character and hazards no longer occupy
+ // a tiny strip at the bottom. Physics/collision remain in native coordinates.
+ window.NIGHT_DINO_ZOOM=window.innerWidth<700?1.45:1.34;
+ window.Runner.updateCanvasScaling=function(canvas){
+  const zoom=window.NIGHT_DINO_ZOOM;
+  const stage=$('stage');
+  const displayWidth=Math.max(1,stage.clientWidth);
+  const displayHeight=Math.max(1,stage.clientHeight);
+  const dpr=Math.min(2,Math.max(1,window.devicePixelRatio||1));
+  canvas.width=Math.round(displayWidth*dpr);
+  canvas.height=Math.round(displayHeight*dpr);
+  canvas.style.width=displayWidth+'px';
+  canvas.style.height=displayHeight+'px';
+  canvas.getContext('2d').setTransform(dpr*zoom,0,0,dpr*zoom,0,
+    dpr*(displayHeight-window.Runner.defaultDimensions.HEIGHT*zoom));
+  return true;
  };
  try{await window.NightDinoSkin.install()}catch(e){
   console.error('Unable to install NIGHT game artwork',e);
@@ -151,7 +156,7 @@ window.addEventListener('load',async()=>{
   jumping:runner.tRex?.jumping,ducking:runner.tRex?.ducking,
   obstacles:runner.horizon?.obstacles?.map(o=>({type:o.typeConfig?.type,x:o.xPos,y:o.yPos,w:o.width})),
   speed:runner.currentSpeed,score,best,distanceRan:runner.distanceRan,
-  canvasHeight:runner.canvas?.getBoundingClientRect().height,
+  zoom:window.NIGHT_DINO_ZOOM,canvasHeight:runner.canvas?.getBoundingClientRect().height,
   arenaHeight:$('stage').getBoundingClientRect().height,
   gravity:runner.tRex?.config.GRAVITY,jumpVelocity:runner.tRex?.config.INIITAL_JUMP_VELOCITY
  }),jump:jumpStart,release:jumpEnd,pause,start};
