@@ -116,7 +116,7 @@ internal class AnnieCanvasController(private val id: String) {
     private var fullscreenHost: FrameLayout? = null
     private var document: AnnieCanvasDocument? = null
     private var inlineForeground = false
-    private var fullscreenForeground = false
+    private val fullscreenForegroundOwners = mutableSetOf<Any>()
     private var suspended: Boolean? = null
     private var observedHost: FrameLayout? = null
     private var observedTree: ViewTreeObserver? = null
@@ -175,7 +175,7 @@ internal class AnnieCanvasController(private val id: String) {
     }
 
     private fun shouldSuspend() = pausedByUser ||
-        !(if (expanded) fullscreenForeground else inlineForeground) || !surfaceVisible()
+        !(if (expanded) fullscreenForegroundOwners.isNotEmpty() else inlineForeground) || !surfaceVisible()
 
     private fun syncSuspension(force: Boolean = false) {
         val view = web ?: return
@@ -200,8 +200,11 @@ internal class AnnieCanvasController(private val id: String) {
         if (!expanded) syncSuspension()
     }
 
-    fun setFullscreenForeground(value: Boolean) {
-        fullscreenForeground = value
+    fun setFullscreenForeground(owner: Any, value: Boolean) {
+        // During rotation the old Activity may stop after a new fullscreen
+        // Activity starts. A Boolean would let that stale STOP pause the new UI.
+        if (value) fullscreenForegroundOwners.add(owner)
+        else fullscreenForegroundOwners.remove(owner)
         if (expanded) syncSuspension()
     }
 
@@ -321,7 +324,7 @@ internal class AnnieCanvasController(private val id: String) {
     fun returnToInline() {
         expanded = false
         fullscreenHost = null
-        fullscreenForeground = false
+        fullscreenForegroundOwners.clear()
         val host = inlineHost
         if (host != null && host.isAttachedToWindow) {
             if (!isClosed) web?.let { reparent(it, host) }
@@ -354,6 +357,7 @@ internal class AnnieCanvasController(private val id: String) {
         releaseWebView()
         inlineHost = null
         fullscreenHost = null
+        fullscreenForegroundOwners.clear()
         expanded = false
         AnnieCanvasSessions.remove(id, this)
     }
@@ -504,11 +508,11 @@ internal class AnnieCanvasActivity : ComponentActivity() {
 
     override fun onStart() {
         super.onStart()
-        controller?.setFullscreenForeground(true)
+        controller?.setFullscreenForeground(this, true)
     }
 
     override fun onStop() {
-        controller?.setFullscreenForeground(false)
+        controller?.setFullscreenForeground(this, false)
         super.onStop()
     }
 
