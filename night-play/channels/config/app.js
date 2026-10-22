@@ -6,6 +6,7 @@ const channelId=params.get('channel')||'';
 const MODULES=['memes','news','anonymous','ai'];
 const CATEGORIES=new Set(['relatable','wholesome','anime','nigerian','animals','relationships','dark']);
 const INTERESTS=new Set(['casting','releases','trailers','renewals','romance','platforms']);
+const MAX_APPROVED=10; // Agent C's bounded durable queue contract.
 let channel=null,config=null,batch=null,selection=null,selectionUncertain=false,trayEditing=false,reviewBusy=false,configBusy=false,loadEpoch=0;
 const decisions=new Map(),captionDirty=new Set();
 const jid=/^\d{8,25}@newsletter$/;
@@ -116,9 +117,9 @@ async function changeConfig(patch,control){
  try{
    const result=await api('channel:config:update',{expectedRevision:config.revision,patch});
    if(!validSettings(result))throw Error('The bot did not confirm the settings. Refresh before changing anything else.');
-   config=result;paintConfig();note('Settings saved to NIGHT for this channel.');
+   config=result;paintConfig();updateReview();note('Settings saved to NIGHT for this channel.');
  }catch(error){
-   config=prior;paintConfig();note(errorMessage(error)+' Save not confirmed. Reload to check actual settings.',true);
+   config=prior;paintConfig();updateReview();note(errorMessage(error)+' Save not confirmed. Reload to check actual settings.',true);
  }finally{
    configBusy=false;paintConfig();
    for(const id of ['saveMemes','saveNews','saveBranding'])setBusy($(id),false);
@@ -208,7 +209,7 @@ const licensable=c=>c?.publishable===true&&c?.rightsStatus==='verified'&&c?.revi
 const validSelection=value=>{
  if(!value||typeof value!=='object'||typeof value.id!=='string'
     ||!/^[A-Za-z0-9_-]{8,96}$/.test(value.id)||!Number.isInteger(value.revision)||value.revision<0
-    ||!Array.isArray(value.items)||value.items.length>32)return false;
+    ||!Array.isArray(value.items)||value.items.length>MAX_APPROVED)return false;
  const seen=new Set();
  return value.items.every(item=>{
    if(!item||typeof item.batchId!=='string'||!/^[A-Za-z0-9_-]{8,96}$/.test(item.batchId)
@@ -229,13 +230,27 @@ const approved=()=>selection?.items||[];
 function updateReview(){
  const count=approved().length;
  $('reviewSummary').hidden=!batch&&!count;
- $('approvedCount').textContent=count+' approved';
+ $('approvedCount').textContent=count+' approved'+(count===MAX_APPROVED?' · selection full':'');
  $('publishApproved').disabled=!count||reviewBusy||selectionUncertain||trayEditing||captionDirty.size>0||config?.modules?.memes!==true;
  $('scheduleButton').disabled=!count||reviewBusy||selectionUncertain||trayEditing||captionDirty.size>0||config?.modules?.memes!==true;
  $('nextBatch').disabled=reviewBusy||selectionUncertain||trayEditing||captionDirty.size>0;
  $('findMemes').disabled=reviewBusy||selectionUncertain||trayEditing||captionDirty.size>0;
  for(const button of document.querySelectorAll('#selectedPosts button.selected-action'))
-   button.disabled=reviewBusy||selectionUncertain||trayEditing;
+   button.disabled=reviewBusy||selectionUncertain||trayEditing||config?.modules?.memes!==true;
+ for(const card of document.querySelectorAll('.review-card')){
+   const candidateId=card.dataset.candidate;
+   const c=batch?.candidates?.find(item=>item.id===candidateId);
+   const selectedAlready=approved().some(item=>item.batchId===batch?.batchId&&item.candidateId===candidateId);
+   for(const button of card.querySelectorAll('[data-review-action]')){
+     const act=button.dataset.reviewAction;
+     button.disabled=reviewBusy||selectionUncertain||trayEditing||config?.modules?.memes!==true
+       ||(act==='approved'&&(!licensable(c)||card.dataset.previewFailed==='true'||(count>=MAX_APPROVED&&!selectedAlready)));
+   }
+   if(c&&count>=MAX_APPROVED&&!selectedAlready&&licensable(c)){
+     const status=card.querySelector('.decision');
+     if(status&&!status.textContent)status.textContent='Selection full — post or remove one before approving';
+   }
+ }
 }
 function paintSelection(){
  const list=$('selectedPosts');
@@ -270,7 +285,7 @@ function paintSelection(){
  }
 }
 async function updateSelectedCaption(item,caption){
- if(reviewBusy||!trayEditing||selectionUncertain||!selection)return;
+ if(reviewBusy||!trayEditing||selectionUncertain||!selection||config?.modules?.memes!==true)return;
  reviewBusy=true;updateReview();
  try{
    const result=await api('channel:memes:review',{batchId:item.batchId,candidateId:item.candidateId,decision:'approved',caption,expectedSelectionRevision:selection.revision});
@@ -287,7 +302,7 @@ async function updateSelectedCaption(item,caption){
  }finally{reviewBusy=false;trayEditing=false;paintSelection();updateReview();}
 }
 async function removeSelected(item,button){
- if(reviewBusy||trayEditing||selectionUncertain||!selection)return;
+ if(reviewBusy||trayEditing||selectionUncertain||!selection||config?.modules?.memes!==true)return;
  reviewBusy=true;setBusy(button,true);updateReview();
  try{
    const result=await api('channel:memes:review',{batchId:item.batchId,candidateId:item.candidateId,decision:'skipped',caption:item.caption,expectedSelectionRevision:selection.revision});
@@ -326,6 +341,8 @@ function reviewCard(c){
  status.setAttribute('aria-live','polite');
  const actions=make('div','action-row');
  const approve=make('button','btn primary','Approve'),decline=make('button','btn','Decline'),skip=make('button','btn','Skip'),preview=make('button','btn','Preview post');
+ approve.dataset.reviewAction='approved';
+ decline.dataset.reviewAction='declined';skip.dataset.reviewAction='skipped';
  if(!licensable(c)){approve.disabled=true;status.textContent='Review only · Media reuse rights not verified';}
  approve.type=decline.type=skip.type=preview.type='button';
  caption.addEventListener('input',()=>{
@@ -386,7 +403,9 @@ async function previewPost(candidate,caption,batchId=batch?.batchId){
  }
 }
 async function decide(candidate,decision,caption,card,status,actions){
- if(reviewBusy||trayEditing||selectionUncertain||!batch||!selection||(decision==='approved'&&!licensable(candidate)))return;
+ if(reviewBusy||trayEditing||selectionUncertain||!batch||!selection||config?.modules?.memes!==true
+    ||(decision==='approved'&&(!licensable(candidate)
+      ||(approved().length>=MAX_APPROVED&&!approved().some(i=>i.batchId===batch.batchId&&i.candidateId===candidate.id)))))return;
  reviewBusy=true;
  for(const btn of actions.querySelectorAll('button'))setBusy(btn,true);
  updateReview();
