@@ -388,6 +388,16 @@ class Device:
         if self.find(filename, partial=True) is None:
             raise Blocked("Android SAF chooser could not locate synthetic Downloads test file")
         self.click(filename, partial=True, timeout=15)
+        # Android returns from DocumentsUI before Gecko has necessarily
+        # attached the content URI to the DOM file input. Submitting during
+        # that transition produces an empty multipart file part (SHA e3b0...).
+        # Demand an actual visible selected filename in the webpage, not just
+        # that the system picker closed, before sending the request.
+        until = time.monotonic() + 16
+        while self.find(filename, partial=True) is None:
+            if time.monotonic() >= until:
+                raise AssertionError("SAF returned but Gecko file input never displayed selected filename")
+            time.sleep(.6)
         self.click("Upload test file", partial=True, timeout=15)
         wait_hit("/upload/submit", before)
         expected_sha = hashlib.sha256(UPLOAD_BYTES).hexdigest()
