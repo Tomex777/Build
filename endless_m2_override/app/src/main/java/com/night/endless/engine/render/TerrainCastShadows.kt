@@ -30,7 +30,8 @@ internal object TerrainCastShadows {
         require(vertices.size == side * side * STRIDE)
         require(edgeFadeCells > 0)
         val horizontal = hypot(sunX, sunZ)
-        if (horizontal < 1e-9 || sunY <= 0.0 || !sunY.isFinite()) {
+        if (!sunX.isFinite() || !sunY.isFinite() || !sunZ.isFinite() ||
+            horizontal < 1e-9 || sunY <= 0.0) {
             for (index in 0 until side * side) vertices[index * STRIDE + 6] = 1f
             return
         }
