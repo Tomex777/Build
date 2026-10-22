@@ -14,6 +14,7 @@ import com.night.endless.engine.scene.AsteroidBeltModel
 import com.night.endless.engine.scene.CelestialBody
 import com.night.endless.engine.scene.DeepTimeHistory
 import com.night.endless.engine.scene.KeplerEphemeris
+import com.night.endless.engine.scene.GiantSatelliteOrbit
 import com.night.endless.engine.scene.UniverseClock
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -1196,12 +1197,16 @@ class EndlessRenderer(
                 // based on NASA/JPL Small-Body Database elements. The orbit
                 // is approximate and not a high-precision SPICE trajectory.
                 body.id == "europa" || body.id == "titan" -> {
-                    // Circular parent-relative moon orbits are illustrative.
-                    val angle = body.phaseRad + 2.0*PI*days/body.orbitPeriodDays
-                    (map[body.parentId]?.position ?: Vec3d.ZERO) +
-                        Vec3d(cos(angle)*body.orbitRadius,
-                            sin(angle*.47)*body.orbitRadius*.013,
-                            sin(angle)*body.orbitRadius)
+                    // The moon's orbital plane is aligned with the
+                    // giant's actual rendered equator (and Saturn's rings).
+                    // Former sin(angle*.47) vertical wobble did not close
+                    // each orbit and diverged from the flat drawn orbit line.
+                    val angle = body.phaseRad + 2.0 * PI * days / body.orbitPeriodDays
+                    val parent = map[body.parentId]
+                    (parent?.position ?: Vec3d.ZERO) +
+                        GiantSatelliteOrbit.position(
+                            body.orbitRadius, angle, parent?.axialTiltDeg ?: 0.0
+                        )
                 }
                 body.id == "moon" -> {
                     // Elliptical (e=0.0549), 5.145° inclined approximation.
@@ -1539,12 +1544,20 @@ class EndlessRenderer(
             val jpl = KeplerEphemeris.orbitPoints(
                 body.id, clock.currentTimeMillis(), body.orbitRadius, segments
             )
-            val values = jpl ?: FloatArray(segments * 3).also { out ->
-                for (i in 0 until segments) {
-                    val angle = i.toDouble() / segments * 2.0 * PI
-                    out[i * 3] = (cos(angle) * body.orbitRadius).toFloat()
-                    out[i * 3 + 1] = 0f
-                    out[i * 3 + 2] = (sin(angle) * body.orbitRadius).toFloat()
+            val values = if (body.id == "europa" || body.id == "titan") {
+                // A real inclined orbit line must match the displayed
+                // satellite at every phase, especially Titan relative to
+                // Saturn's equally tilted rings.
+                val parentTilt = body.parentId?.let { byId[it]?.axialTiltDeg } ?: 0.0
+                GiantSatelliteOrbit.polyline(body.orbitRadius, parentTilt, segments)
+            } else {
+                jpl ?: FloatArray(segments * 3).also { out ->
+                    for (i in 0 until segments) {
+                        val angle = i.toDouble() / segments * 2.0 * PI
+                        out[i * 3] = (cos(angle) * body.orbitRadius).toFloat()
+                        out[i * 3 + 1] = 0f
+                        out[i * 3 + 2] = (sin(angle) * body.orbitRadius).toFloat()
+                    }
                 }
             }
             orbitBuffers[body.id] = floatBuffer(values)
