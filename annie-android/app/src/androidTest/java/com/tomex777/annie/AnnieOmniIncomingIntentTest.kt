@@ -45,6 +45,26 @@ class AnnieOmniIncomingIntentTest {
         ))
     }
 
+    @Test fun exportedAnnieBrowserOffersOnlyWebAndTextShareTargets() {
+        val context = androidx.test.platform.app.InstrumentationRegistry
+            .getInstrumentation().targetContext
+        val pm = context.packageManager
+        val component = android.content.ComponentName(context, AnnieBrowserTabsActivity::class.java)
+        val info = pm.getActivityInfo(component, 0)
+        org.junit.Assert.assertTrue("Annie Browser should be a real web handler", info.exported)
+        fun handles(intent: Intent): Boolean {
+            intent.setPackage(context.packageName)
+            return pm.resolveActivity(intent, 0)?.activityInfo?.name ==
+                AnnieBrowserTabsActivity::class.java.name
+        }
+        org.junit.Assert.assertTrue(handles(Intent(Intent.ACTION_VIEW,
+            android.net.Uri.parse("https://example.org")).addCategory(Intent.CATEGORY_BROWSABLE)))
+        org.junit.Assert.assertTrue(handles(Intent(Intent.ACTION_SEND)
+            .setType("text/plain").putExtra(Intent.EXTRA_TEXT, "https://example.org")))
+        org.junit.Assert.assertFalse(handles(Intent(Intent.ACTION_VIEW,
+            android.net.Uri.parse("file:///sdcard/private")).addCategory(Intent.CATEGORY_BROWSABLE)))
+    }
+
     @Test fun noUnexpectedActionOrDefaultSearchWhenExternalIntentIsEmpty() {
         assertNull(IntentUrlParser.parseIntent(Intent()))
         assertNull(IntentUrlParser.parseIntent(null))
