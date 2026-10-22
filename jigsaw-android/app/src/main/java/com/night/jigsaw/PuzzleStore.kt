@@ -19,7 +19,8 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.roundToInt
 
-data class SavedPuzzlePhoto(val key: String, val title: String)
+data class SavedPuzzlePhoto(val key: String, val title: String,
+                            val source: String = "Personal")
 data class ImportedPuzzlePhoto(val photo: SavedPuzzlePhoto, val bitmap: Bitmap)
 
 /** Atomic app-private progress and multi-photo storage; no storage permissions. */
@@ -45,7 +46,8 @@ class PuzzleStore(private val context: Context) {
                 val key=item.getString("key")
                 val saved=imageFile(key)
                 if(saved?.isFile==true)results.add(
-                    SavedPuzzlePhoto(key,item.optString("title","My photo").take(70)))
+                    SavedPuzzlePhoto(key,item.optString("title","My photo").take(70),
+                        item.optString("source","Personal").take(30)))
             }
         }
         results
@@ -55,7 +57,8 @@ class PuzzleStore(private val context: Context) {
         val previous=if(photoIndex.exists())runCatching{
             JSONArray(photoIndex.readText())
         }.getOrElse{JSONArray()} else JSONArray()
-        previous.put(JSONObject().put("key",photo.key).put("title",photo.title))
+        previous.put(JSONObject().put("key",photo.key).put("title",photo.title)
+            .put("source",photo.source))
         val tmp=File(context.filesDir,"saved-photos.json.tmp")
         tmp.writeText(previous.toString())
         if(!tmp.renameTo(photoIndex)) {
@@ -110,7 +113,8 @@ class PuzzleStore(private val context: Context) {
     }
 
     /** Resize/crop the selected local photo before storing it; do not retain a fragile gallery URI. */
-    fun importPhoto(uri: Uri, titleOverride: String?=null): ImportedPuzzlePhoto {
+    fun importPhoto(uri: Uri, titleOverride: String?=null,
+                    source: String="Personal"): ImportedPuzzlePhoto {
         val resolver=context.contentResolver
         val probe=BitmapFactory.Options().apply { inJustDecodeBounds=true }
         resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it,null,probe) }
@@ -151,7 +155,7 @@ class PuzzleStore(private val context: Context) {
                 if(cursor.moveToFirst())cursor.getString(0) else null
             }
         }.getOrNull()?.substringBeforeLast(".")?.take(70)?.ifBlank{null} ?: "My photo"
-        val item=SavedPuzzlePhoto(key,title)
+        val item=SavedPuzzlePhoto(key,title,source.take(30))
         val destination=checkNotNull(imageFile(key))
         val tmp=File(photoDirectory,key+".tmp")
         tmp.outputStream().use { stream ->
