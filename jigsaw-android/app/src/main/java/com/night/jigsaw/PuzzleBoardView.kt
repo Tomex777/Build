@@ -207,12 +207,10 @@ class PuzzleBoardView(context: Context) : View(context) {
             g.boardTop + PuzzleGame.BOARD_HEIGHT)
         paper.color = Color.rgb(252, 250, 246)
         canvas.drawRect(board, paper)
-        if (g.preview) {
-            // The Memory peek must briefly show the actual complete picture,
-            // not the faint ghost guide used by Relaxed/Challenge.
-            paint.alpha = if(g.mode==PuzzleMode.MEMORY) 255 else 64
-            canvas.drawBitmap(photo!!, null, board, paint)
-            paint.alpha = 255
+        if (g.peekActive || g.preview) {
+            paint.alpha=if(g.peekActive)255 else 64
+            canvas.drawBitmap(photo!!,null,board,paint)
+            paint.alpha=255
         }
         stroke.style = Paint.Style.STROKE
         stroke.color = Color.rgb(176, 169, 154)
@@ -333,6 +331,8 @@ class PuzzleBoardView(context: Context) : View(context) {
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         if (game == null) return false
+        // Do not allow placing pieces while the full image is temporarily shown.
+        if (game?.peekActive==true)return true
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 lastX=event.x;lastY=event.y
