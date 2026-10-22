@@ -1,5 +1,25 @@
 # MISE — Live 10-agent completion backlog
 
+## ACTIVE CHECKPOINT — 2026-10-22 (supersedes historical table below)
+
+**Integration**: `integrate/mise-studio-completion-20261020`, latest coordinated source at `9c70c3d478184a20caa94a7be8e06b3c0f2a46bf` when this was written. **Never merge to production `main` without the user's approval.** All earlier specialist PRs #443–#458 were merged into integration on October 20, contrary to the old launch snapshot below. Issue #440 is the authoritative agent message stream.
+
+### Tested versus not yet verified
+- **Actually verified earlier:** API26 and API36 real under-tree Android render suites passed on `9b623c57`; many fresh-editor API26/36 object/rig tests and independent humanoid/bicycle frame checks passed. This is not a final quality sign-off.
+- **Existing confirmed release P0/P1:** APK candidate staging failed because `android.injected.build.abi` did not remove x86/x86_64 libraries from the ARM64 variant; real API26/36 anime hair/skirt frame comparison fails, and Android 16's system immersive confirmation obscured PNG controls on first use. Old API26 SAF test looked in the pre-seeded under-tree scene file, not the newly created scene.
+- **Coordinator fixes now committed to integration (not yet re-verified):** `192ff53` explicit Gradle `ndk.abiFilters` for `-Pmise.arm64Only=true`; `49bf504` CI builds deterministic ARM64 APK and inspects native ZIP ABIs; `9c70c3d` smoke test identifies actual newly created saved project using file-list delta and clicks the real OS first-use fullscreen dialog; earlier `194d8c1` strengthens PNG-export and imported-character persisted actor-ID checks; `9b623c57` merged checksum-preserving CC0 CDN retries (#507). Do not weaken any pixel, persistence or ARM64 assertions.
+- **Existing PR #504 — open, not landed**: true VRM hair physics fix branch `fix/mise-hair-physics-rig-20261020`, current head `fde6376c2f840f1c0edaaff4031d6f01a7f8116f`. Resolves actual authored glTF spring joints, avoids slow-emulator-frame resets, separates hair/fabric controls, restores disabled springs to rig bind pose, uses `rememberUpdatedState(actor)` for the SceneView native onFrame closure and logs real changes to wind/gravity. **This MUST pass actual API26/36 hair >30-pixel motion and stationary-skirt proof and Agent10 independent review before merge.**
+- **Real pixel evidence:** An unpacked October 22 API26 failing screenshot artifact showed **0 hair-region changed pixels** under the earlier spring code, despite 7 bound hair roots and actual Inspector clicks; no claim that current fix works until a new rendered screenshot confirms it. Extracted bundled female GLB from earlier passing release APK; at least 7 authentic HairJoint roots are in the skin GPU palette and some have hundreds of weighted vertices. Do not substitute a fake sprite wiggle.
+
+### Next executable, unblocked engineering actions
+1. A1/A9: inspect `9c70c3d` combined run `39827482887` after jobs complete. For ABI staging, confirm exact arm64-only and universal native ZIP entries, APK QA signing only and actual release-install API26/36. For smoke, verify two Android fullscreen controls and the imported actor persists to the exact newly-created project, with real pose/force-stop/PNG export proof.
+2. A3/A4/A7: inspect #504 run `39827886295` and `39827886332`. If the live hair value logs update but hair pixels remain static, debug Filament skin matrix lifetime/animation frames against weighted HairJoint nodes and do **not** lower thresholds. A1 coordinates SceneViewport ownership and merges only proven changes.
+3. A10: independently critique and capture full API26/API36 **real APK** frames: two independently posed anime classmates, hair silhouette and face visibility, jacket/skirt, real terrain sculpt, directional shadows and sun disk, frame size, modal touch targets, autosave/reopen, live rig/picker, orientation and PNG. Flag visually ugly but compiling outputs.
+4. A5/A6/A8: fix whichever first Android device acceptance failure remains after first integration run. Keep authentic licensed art, scene schema/IDs, undoable terrain changes and stable project files.
+5. Coordinator: once checks actually prove the PR, merge #504 to integration only, repeat the full combined build/install/gesture/visual screenshot test, then move to next open P0/P1. **Release gate NO-GO until documented interactive visual and API26/API36 passes**; production signing not configured.
+
+Historical notes and task assignments below are retained for provenance but must not override this dated checkpoint.
+
 Updated 2026-10-20 (A1 startup audit). Canonical integration: `integrate/mise-studio-completion-20261020`. **Communication hub: issue #440 (https://github.com/Tomex777/Build/issues/440).**
 
 **State: launch instructions prepared; not evidence that 10 autonomous workers are running.** Project owner must open separate coding chats. Each agent claims a task and posts a GitHub comment; Agent 1 owns integration. No "done" until code is merged, built, installed and interaction-tested.
