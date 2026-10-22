@@ -37,9 +37,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
       - run: npm install -g typescript@5.9.3
       - name: Validate Android integration and Canvas build
         run: |
+          node annie-android/scripts/test-canvas-runtime.mjs
           python3 annie-android/scripts/test-repair-contract.py
           python3 annie-android/ci/check-abr.py
           python3 annie-android/scripts/repair-m0b-merge.py
