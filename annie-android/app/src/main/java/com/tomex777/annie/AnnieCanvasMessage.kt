@@ -465,7 +465,7 @@ internal object AnnieCanvasSessions {
 }
 
 @Composable
-internal fun AnnieCanvasMessage(payload: JSONObject) {
+internal fun AnnieCanvasMessage(payload: JSONObject, stableMessageId: String? = null) {
     val doc = remember(payload.toString()) { AnnieCanvasDocument.from(payload) }
     if (doc == null) {
         Text("Canvas content is missing or exceeds the message size limit.", color = Color(0xFFFF9B91))
@@ -473,7 +473,12 @@ internal fun AnnieCanvasMessage(payload: JSONObject) {
     }
     val context = androidx.compose.ui.platform.LocalContext.current
     val owner = androidx.lifecycle.compose.LocalLifecycleOwner.current
-    val id = rememberAnnieBrowserInstanceId()
+    val fallbackId = rememberAnnieBrowserInstanceId()
+    // MainActivity/other owners can supply the persisted chat message ID to
+    // retain explicit Pause/Close preferences even when chat navigation removes
+    // the whole LazyColumn. The fallback preserves existing preview callers.
+    val id = stableMessageId?.takeIf(String::isNotBlank)?.let { "canvas-message:$it" }
+        ?: fallbackId
     // Compose saves this boolean with the chat item's stable LazyColumn key.
     // Restoring a closed message must not allocate/render its WebView first.
     var closedAcrossRestore by rememberSaveable(id) { mutableStateOf(false) }
