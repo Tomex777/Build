@@ -32,6 +32,8 @@ class PuzzleBoardView(context: Context) : View(context) {
     private var photo: Bitmap? = null
     private var renderedZone: Int = -1
     private var renderedEdges: Boolean = false
+    private var renderedLandscape: Boolean = false
+    private var renderedIds: Set<Int> = emptySet()
     private var nextPiecePile: Int = 0
     private var notifyChange: () -> Unit = {}
     private val sprites = mutableMapOf<Int, Sprite>()
@@ -82,19 +84,25 @@ class PuzzleBoardView(context: Context) : View(context) {
     }
 
     fun bind(newGame: PuzzleGame, newPhoto: Bitmap, onChange: () -> Unit) {
-        notifyChange = onChange
-        if (game === newGame && photo === newPhoto &&
+        notifyChange=onChange
+        val visibleIds=newGame.pieces.asSequence().filter{newGame.visible(it)}
+            .map{it.id}.toSet()
+        val cameraUnchanged=game === newGame && photo === newPhoto &&
             renderedZone==newGame.activeZone &&
-            renderedEdges==newGame.edgesOnly && sprites.isNotEmpty()) {
+            renderedLandscape==newGame.landscapeMode
+        if(cameraUnchanged && renderedEdges==newGame.edgesOnly &&
+            renderedIds==visibleIds && sprites.isNotEmpty()) {
             invalidate();return
         }
         snapAnimator?.cancel()
         snapAnimator=null
-        game = newGame
-        photo = newPhoto
+        game=newGame
+        photo=newPhoto
         renderedZone=newGame.activeZone
         renderedEdges=newGame.edgesOnly
-        sprites.values.forEach { it.bitmap.recycle() }
+        renderedLandscape=newGame.landscapeMode
+        renderedIds=visibleIds
+        sprites.values.forEach {it.bitmap.recycle()}
         sprites.clear()
         drawOrder.clear()
         drawOrder.addAll(newGame.pieces.indices)
@@ -104,11 +112,13 @@ class PuzzleBoardView(context: Context) : View(context) {
             (PuzzleGame.BOARD_HEIGHT*quality).toInt(), true)
         // At 600 pieces, render at most 100 unplaced pieces and the already
         // completed board. Inactive zones consume no per-piece bitmap memory.
-        newGame.pieces.filter{ newGame.visible(it) }.forEach {
+        newGame.pieces.filter{ it.id in visibleIds }.forEach {
             sprites[it.id] = makeSprite(newGame,it,scaled,quality)
         }
         if (scaled !== newPhoto) scaled.recycle()
-        if(newGame.zoneCount>1) focusZone() else centerBoard()
+        if(cameraUnchanged) invalidate()
+        else if(newGame.zoneCount>1) focusZone()
+        else centerBoard()
     }
 
     /** For 240+ pieces, a zone is a real section of the finished photo.
