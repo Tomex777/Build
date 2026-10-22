@@ -270,6 +270,19 @@ async function main(){
    assert.equal(await page.getByRole('button',{name:'Find memes'}).isDisabled(),true,'Cannot discard uncertain review state');
    await page.reload();await page.locator('#configUI').waitFor({state:'visible'});
    assert.equal(await page.getByRole('button',{name:'Find memes'}).isEnabled(),true,'Reload restores authoritative snapshot');
+   // Server cap is 10, and the UI must not offer an eleventh approval.
+   selection={...selection,revision:selection.revision+1,items:Array.from({length:10},(_,i)=>({
+     batchId:'batch_cap_00001',candidateId:'cap_candidate_'+i,title:'Selected cap '+i,
+     caption:'Owner approved '+i,rightsStatus:'verified',publishable:true,reviewOnly:false,previewData:fixtures[i%4]
+   }))};
+   await page.reload();await page.locator('#configUI').waitFor({state:'visible'});
+   assert.match(await page.locator('#approvedCount').textContent(),/10 approved · selection full/);
+   assert.equal(await page.locator('.review-card').first().getByRole('button',{name:'Approve'}).isDisabled(),true,'Eleventh approval disabled');
+   await page.getByRole('button',{name:'Remove Selected cap 0 from approved selection'}).click();
+   await page.getByText('9 approved',{exact:true}).waitFor();
+   assert.equal(await page.locator('.review-card').first().getByRole('button',{name:'Approve'}).isEnabled(),true,'Approve restored after removing a selected post');
+   selection={...selection,revision:selection.revision+1,items:[]};
+   await page.reload();await page.locator('#configUI').waitFor({state:'visible'});
    const before=publishAttempts;
    await page.goto(base+'/channels/config/?channel='+encodeURIComponent(other));
    await page.getByText('Access unavailable',{exact:true}).waitFor();
