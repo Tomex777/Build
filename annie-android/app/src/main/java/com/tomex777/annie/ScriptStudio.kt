@@ -1798,32 +1798,32 @@ private fun ScriptCodeEditor(
             // per-language tokenizer is bundled.
             val syntaxLanguage = if (fileType in setOf("js", "ts")) {
                 val registry = MonarchGrammarRegistry()
-            registry.loadGrammars(
-                monarchLanguages {
-                    language("typescript") {
-                        monarchLanguage = TypescriptLanguage
-                        defaultScopeName()
-                        languageConfiguration = "textmate/javascript/language-configuration.json"
+                registry.loadGrammars(
+                    monarchLanguages {
+                        language("typescript") {
+                            monarchLanguage = TypescriptLanguage
+                            defaultScopeName()
+                            languageConfiguration = "textmate/javascript/language-configuration.json"
+                        }
                     }
-                }
-            )
-            val grammar = registry.findGrammar("source.typescript")
-                ?: registry.findGrammar("typescript")
-                ?: error("Could not load JavaScript syntax grammar")
-            val language = MonarchLanguage(grammar, registry.findLanguageConfiguration("source.typescript"), registry, true).apply {
-                setCompleterKeywords(
-                    arrayOf(
-                        "annie.commands", "annie.commands.register",
-                        "annie.actions", "annie.sessions",
-                        "annie.http", "annie.http.request", "annie.browser",
-                        "annie.storage", "annie.storage.get", "annie.storage.set",
-                        "annie.env", "annie.env.define", "annie.env.get", "annie.env.set", "annie.env.secret", "annie.env.values",
-                        "annie.schedule", "annie.schedule.create", "annie.schedule.list", "annie.schedule.cancel", "annie.schedule.enable", "annie.schedule.disable",
-                        "annie.tasks", "annie.tasks.start", "annie.tasks.list", "annie.tasks.cancel", "annie.tasks.retry",
-                        "annie.messages", "annie.messages.form", "annie.messages.canvas", "annie.files", "annie.log",
-                    )
                 )
-            }
+                val grammar = registry.findGrammar("source.typescript")
+                    ?: registry.findGrammar("typescript")
+                    ?: error("Could not load JavaScript syntax grammar")
+                val language = MonarchLanguage(grammar, registry.findLanguageConfiguration("source.typescript"), registry, true).apply {
+                    setCompleterKeywords(
+                        arrayOf(
+                            "annie.commands", "annie.commands.register",
+                            "annie.actions", "annie.sessions",
+                            "annie.http", "annie.http.request", "annie.browser",
+                            "annie.storage", "annie.storage.get", "annie.storage.set",
+                            "annie.env", "annie.env.define", "annie.env.get", "annie.env.set", "annie.env.secret", "annie.env.values",
+                            "annie.schedule", "annie.schedule.create", "annie.schedule.list", "annie.schedule.cancel", "annie.schedule.enable", "annie.schedule.disable",
+                            "annie.tasks", "annie.tasks.start", "annie.tasks.list", "annie.tasks.cancel", "annie.tasks.retry",
+                            "annie.messages", "annie.messages.form", "annie.messages.canvas", "annie.files", "annie.log",
+                        )
+                    )
+                }
                 language
             } else null
             AnnieScriptCodeEditor(context).apply {
@@ -1836,8 +1836,8 @@ private fun ScriptCodeEditor(
                 // Monarch emits dynamic foreground ids after async tokenization. A regular
                 // EditorColorScheme (including SchemeDarcula) does not resolve those ids,
                 // which can make the code turn transparent while the caret still works.
-                // Keep the language and color scheme paired so document, spans and paint
-                // always describe the same visible editor state.
+                // Keep syntax and theme paired for JS/TS. Other document types
+                // use Sora's plain language with the same visible dark palette.
                 val annieTheme = ensureAnnieMonarchTheme(context)
                 setColorScheme(MonarchColorScheme.create(annieTheme))
                 syntaxLanguage?.let { setEditorLanguage(it) }
