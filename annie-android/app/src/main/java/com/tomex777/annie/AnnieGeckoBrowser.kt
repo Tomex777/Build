@@ -92,6 +92,7 @@ import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
 import com.tomex777.annie.browser.engine.AnnieBrowserEngineBridge
+import com.tomex777.annie.browser.engine.AnnieBrowserFindController
 import com.tomex777.annie.browser.engine.tabs.BrowserTab
 import com.tomex777.annie.browser.engine.tabs.SmartTabManager
 import com.tomex777.annie.browser.engine.tabs.TabGroup
@@ -448,6 +449,7 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
     // Original Omni per-site UA settings, separated from Gecko session identities.
     private val userAgentManager = UserAgentManager(context.applicationContext)
     private val smartTabManager = SmartTabManager()
+    val findController = AnnieBrowserFindController()
     private val library = AnnieBrowserLibrary(context)
     private val prefs = context.applicationContext.getSharedPreferences("annie_gecko_tabs_v1", Context.MODE_PRIVATE)
     val tabs = mutableStateListOf<AnnieGeckoTab>()
@@ -524,9 +526,9 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
         // same active CPU/memory priority as the visible tab. Gecko also flushes
         // its SessionState on deactivation, improving crash recovery.
         val previouslySelected = active
-        if (previouslySelected != null && previouslySelected.id != tab.id &&
-            previouslySelected.session.isOpen) {
-            previouslySelected.session.setActive(false)
+        if (previouslySelected != null && previouslySelected.id != tab.id) {
+            findController.close(previouslySelected.session)
+            if (previouslySelected.session.isOpen) previouslySelected.session.setActive(false)
         }
         if (tab.needsRestoration) {
             tab.needsRestoration = false
@@ -693,6 +695,14 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
         tab.session.settings.viewportMode = if (tab.desktopMode)
             GeckoSessionSettings.VIEWPORT_MODE_DESKTOP else GeckoSessionSettings.VIEWPORT_MODE_MOBILE
     }
+
+    // A single original-Omni-derived Gecko finder; Agent 2 renders its sole
+    // custom search bar. The search state never enters normal/private history.
+    fun openFindInPage() = findController.open()
+    fun updateFindInPage(query: String) = findController.update(active?.session, query)
+    fun findNext() = findController.next(active?.session)
+    fun findPrevious() = findController.previous(active?.session)
+    fun closeFindInPage() = findController.close(active?.session)
 
     /** Hook for Agent 2's opt-in page tool; never enable content injection by default. */
     fun setUniversalCopy(enabled: Boolean, onFinished: () -> Unit = {}) =
