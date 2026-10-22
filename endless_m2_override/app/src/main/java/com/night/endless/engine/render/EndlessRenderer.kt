@@ -1034,12 +1034,13 @@ class EndlessRenderer(
     @Synchronized
     fun focus(id: String) {
         val body = bodies.firstOrNull { it.id == id } ?: return
+        val alreadyFocused = !overview && selectedId == id
         navigationRevision++
         overview = false
         selectedId = id
 
         targetDistance = max(body.radius * 7.5, 2.0)
-        if (id == "jupiter" || id == "saturn") {
+        if (!alreadyFocused && (id == "jupiter" || id == "saturn")) {
             // The previous focused Saturn screenshot showed a nearly black
             // disc despite correctly loaded NASA cloud textures: the camera
             // was simply behind the night hemisphere. Fly smoothly around
