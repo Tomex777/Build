@@ -5,7 +5,7 @@ const JID=/^\d{8,25}@newsletter$/;
 const MAX_INPUT=8*1024*1024, MAX_PIXELS=12_000_000;
 const MAX_RENDER_PIXELS=1024*256, MAX_LAYER_FILE=2*1024*1024;
 const POSITIONS=new Set(['auto','top-left','top-right','bottom-left','bottom-right']);
-const hasEmoji=text=>/\p{Extended_Pictographic}|\p{Regional_Indicator}/u.test(text);
+const hasEmoji=text=>/\p{Extended_Pictographic}|\p{Regional_Indicator}|\u20e3|\uFE0F/u.test(text);
 const hash=value=>createHash('sha256').update(value).digest('hex');
 const getSharp=async provided=>provided||(await import('sharp')).default;
 const warmedFonts=new WeakSet();
@@ -70,6 +70,9 @@ export async function renderUnicodeTextLayer({displayName,width,height,tone,canv
   const canvas=lib.createCanvas(width,height),ctx=canvas.getContext('2d');
   ctx.clearRect(0,0,width,height);ctx.fillStyle=tone==='dark'?'#141d20':'#f7f9f6';
   ctx.textAlign='center';ctx.textBaseline='middle';
+  // First strong directional character governs mixed LTR/RTL layout.
+  const firstStrong=[...displayName].find(ch=>/[\\p{Script=Arabic}\\p{Script=Hebrew}\\p{L}]/u.test(ch));
+  ctx.direction=firstStrong&&/[\\p{Script=Arabic}\\p{Script=Hebrew}]/u.test(firstStrong)?'rtl':'ltr';
   const family='"Noto Sans", "Noto Color Emoji", sans-serif';
   let px=Math.min(72,Math.floor(height*.59));
   for(;px>=16;px-=2){
@@ -177,7 +180,7 @@ export async function watermarkStaticImage({
     throw new Error('Only bounded static JPEG/PNG/WebP images. Animated/video requires another pipeline.');
   const rotated=[5,6,7,8].includes(meta.orientation);
   const w=rotated?meta.height:meta.width,h=rotated?meta.width:meta.height;
-  if(w<200||h<140)throw new Error('Image too small for a legible watermark.');
+  if(w<240||h<140)throw new Error('Image too small for a legible watermark with edge padding.');
   const thumb=await sharp(input,{limitInputPixels:MAX_PIXELS}).rotate()
     .resize(64,64,{fit:'fill'}).removeAlpha().raw().toBuffer({resolveWithObject:true});
   const decision=chooseCorner(thumb.data,thumb.info.channels,thumb.info.width,thumb.info.height);
