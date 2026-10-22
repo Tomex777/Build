@@ -92,6 +92,8 @@ import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
 import com.tomex777.annie.browser.engine.AnnieBrowserEngineBridge
+import com.tomex777.annie.browser.engine.useragent.UserAgentManager
+import com.tomex777.annie.browser.engine.useragent.UserAgentPreset
 import org.mozilla.geckoview.GeckoResult
 import org.mozilla.geckoview.GeckoRuntime
 import org.mozilla.geckoview.GeckoSession
@@ -437,6 +439,8 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
     private val runtime = AnnieGeckoRuntime.get(context)
     // Engine services ported from actual Omni Browser source (GPLv3).
     private val upstreamEngine = AnnieBrowserEngineBridge(context, runtime)
+    // Original Omni per-site UA settings, separated from Gecko session identities.
+    private val userAgentManager = UserAgentManager(context.applicationContext)
     private val library = AnnieBrowserLibrary(context)
     private val prefs = context.applicationContext.getSharedPreferences("annie_gecko_tabs_v1", Context.MODE_PRIVATE)
     val tabs = mutableStateListOf<AnnieGeckoTab>()
@@ -518,6 +522,7 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
         val tab = AnnieGeckoTab(stableId, privateMode, session, url)
         tab.desktopMode = desktopMode
         applyDesktopSettings(tab)
+        applyUserAgentSettings(tab, url)
         session.navigationDelegate = object : GeckoSession.NavigationDelegate {
             override fun onNewSession(session: GeckoSession, uri: String): org.mozilla.geckoview.GeckoResult<GeckoSession>? {
                 if (tabs.size >= 20 || AnnieBrowserAddress.resolve(uri) != uri) return null
@@ -532,6 +537,7 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
                 hasUserGesture: Boolean,
             ) {
                 if (!url.isNullOrBlank()) {
+                    applyUserAgentSettings(tab, url)
                     tab.url = url
                     if (!tab.privateMode) { library.visit(tab.title, url); persistTabs() }
                 }
@@ -623,6 +629,7 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
         tab.progress = 0
         // Address-bar navigation carries the original input into Gecko's load
         // handling, including URI fixup and the user-entered navigation source.
+        applyUserAgentSettings(tab, url)
         tab.session.load(GeckoSession.Loader().uri(url).originalInput(address))
         return true
     }
@@ -635,6 +642,7 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
     fun toggleDesktop(tab: AnnieGeckoTab) {
         tab.desktopMode = !tab.desktopMode
         applyDesktopSettings(tab)
+        applyUserAgentSettings(tab, tab.url)
         persistTabs()
         tab.session.reload()
     }
@@ -649,6 +657,27 @@ internal class AnnieGeckoBrowserModel(private val context: Context) {
     /** Hook for Agent 2's opt-in page tool; never enable content injection by default. */
     fun setUniversalCopy(enabled: Boolean, onFinished: () -> Unit = {}) =
         upstreamEngine.setUniversalCopy(enabled, onFinished)
+
+    // These model APIs are the single canonical engine contract for Agent 2's
+    // eventual custom Annie Browser settings UI. No duplicate UA controls.
+    fun setGlobalUserAgent(preset: UserAgentPreset, custom: String = "") {
+        userAgentManager.setGlobalPreset(preset, custom)
+        tabs.forEach { applyUserAgentSettings(it, it.url) }
+    }
+
+    fun setSiteUserAgent(domain: String, preset: UserAgentPreset, custom: String = "") {
+        userAgentManager.addOrUpdateSiteRule(domain, preset, custom)
+        tabs.forEach { applyUserAgentSettings(it, it.url) }
+    }
+
+    fun removeSiteUserAgent(domain: String) {
+        userAgentManager.removeSiteRulesForDomain(domain)
+        tabs.forEach { applyUserAgentSettings(it, it.url) }
+    }
+
+    private fun applyUserAgentSettings(tab: AnnieGeckoTab, url: String) {
+        tab.session.settings.userAgentOverride = userAgentManager.resolveUserAgent(url)
+    }
 
     fun toggleBookmark(tab: AnnieGeckoTab) {
         if (!tab.privateMode) library.bookmark(tab.title, tab.url)
