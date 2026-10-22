@@ -10,6 +10,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.By
 import androidx.test.uiautomator.UiDevice
 import com.night.endless.engine.render.EndlessGLView
+import com.night.endless.engine.render.ExtendedLandingSites
 import java.io.File
 import java.io.FileOutputStream
 import java.util.concurrent.atomic.AtomicReference
@@ -34,14 +35,19 @@ class ExtendedSurfaceRuntimeTest {
             await("Initial GL rendering", 45_000) { renderer.completedFrameCount() > 4L }
             for (id in listOf("mercury", "ceres", "europa", "titan")) {
                 val baseline = renderer.completedFrameCount()
+                // Capture the *real user landing*, not a zero-centred
+                // terrain test angle that hides Mercury/Ceres crater rims.
+                val landing = ExtendedLandingSites.forBody(id)
                 val state = renderer.snapshotState().copy(
                     selectedId = id,
                     overview = false,
+                    yaw = landing.yaw,
+                    pitch = landing.pitch,
                     marsSurfaceMode = false,
                     moonSurfaceMode = false,
                     extendedSurfaceId = id,
-                    extendedSurfaceX = 0.0,
-                    extendedSurfaceZ = 0.0
+                    extendedSurfaceX = landing.x,
+                    extendedSurfaceZ = landing.z
                 )
                 renderer.restoreState(state)
                 await("Rendered ${id} landscape", 45_000) {
