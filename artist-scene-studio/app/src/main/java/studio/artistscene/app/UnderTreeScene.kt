@@ -42,7 +42,7 @@ object UnderTreeScene {
             id = FIRST_STUDENT_ID,
             name = "Classmate A",
             transform = Transform(
-                position = Vec3(-0.52f, 0f, -0.13f),
+                position = Vec3(-0.65f, 0f, -0.13f),
                 rotationEulerDegrees = Vec3(y = 197f),
             ),
             appearance = CharacterAppearanceSettings(
@@ -78,7 +78,7 @@ object UnderTreeScene {
             id = SECOND_STUDENT_ID,
             name = "Classmate B",
             transform = Transform(
-                position = Vec3(0.52f, 0f, -0.09f),
+                position = Vec3(0.63f, 0f, -0.09f),
                 rotationEulerDegrees = Vec3(y = 163f),
             ),
             appearance = CharacterAppearanceSettings(
