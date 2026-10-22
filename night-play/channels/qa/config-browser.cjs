@@ -147,7 +147,8 @@ async function main(){
   const ctx=await context(browser,'A',390,844),page=await ctx.newPage();
   await page.goto(base+'/channels/config/?channel='+encodeURIComponent(A));
   await page.locator('#configUI:visible').waitFor();
-  await page.locator('[data-module="memes"]').check();
+  // Exercise the actual visible custom switch, not its 1px accessible input.
+  await page.locator('label.switch').filter({has:page.locator('[data-module="memes"]')}).click();
   await page.waitForFunction(()=>document.querySelector('[data-module="memes"]').checked &&
     !document.querySelector('[data-module="memes"]').disabled);
   assert.equal(configs.get('A').modules.memes,true,'Settings confirmed by fixture');
