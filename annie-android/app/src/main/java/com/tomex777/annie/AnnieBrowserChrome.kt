@@ -271,6 +271,7 @@ internal fun AnnieBrowserChrome(
                 .statusBarsPadding().navigationBarsPadding().imePadding())
             .testTag("annie_gecko_browser"),
     ) {
+        if (!active.fullscreen) {
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 5.dp, vertical = 5.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -346,8 +347,9 @@ internal fun AnnieBrowserChrome(
                 }
             }
         }
+        }
 
-        if (find?.visible == true) {
+        if (!active.fullscreen && find?.visible == true) {
             Row(
                 Modifier.fillMaxWidth().background(ChromeSurface)
                     .padding(horizontal = 6.dp, vertical = 3.dp)
@@ -393,14 +395,14 @@ internal fun AnnieBrowserChrome(
             }
         }
 
-        if (active.loading) {
+        if (!active.fullscreen && active.loading) {
             LinearProgressIndicator(
                 progress = { (active.progress.coerceIn(0, 100)) / 100f },
                 modifier = Modifier.fillMaxWidth().height(2.dp),
                 color = BrowserTeal,
                 trackColor = ChromeSurface,
             )
-        } else {
+        } else if (!active.fullscreen) {
             Spacer(Modifier.height(2.dp))
         }
 
@@ -564,6 +566,7 @@ internal fun AnnieBrowserChrome(
                 }
             }
         }
+        if (!active.fullscreen) {
         Row(
             Modifier.fillMaxWidth().background(ChromeSurface).height(54.dp)
                 .padding(horizontal = 4.dp),
@@ -635,6 +638,7 @@ internal fun AnnieBrowserChrome(
                 }
             }
         }
+        }
     }
 }
 
@@ -651,6 +655,8 @@ internal fun AnnieLegacyGeckoBrowserChrome(
     /** Pass model::setUniversalCopy only after the actual Omni engine PR is integrated. */
     universalCopy: ((Boolean) -> Unit)? = null,
     find: AnnieBrowserChromeFind? = null,
+    fullscreen: Boolean = false,
+    exitFullscreen: (() -> Unit)? = null,
 ) {
     val tab = model.active ?: return
     val state = AnnieBrowserChromeState(
@@ -660,6 +666,7 @@ internal fun AnnieLegacyGeckoBrowserChrome(
                 loading = item.loading, progress = item.progress, canBack = item.canBack,
                 canForward = item.canForward, bookmarked = model.isBookmarked(item),
                 error = item.error,
+                fullscreen = item.id == tab.id && fullscreen,
             )
         },
         activeId = tab.id,
@@ -681,6 +688,7 @@ internal fun AnnieLegacyGeckoBrowserChrome(
             openSaved = { address -> model.load(tab, address) },
             toggleDesktop = { model.toggleDesktop(tab) },
             share = { model.share(tab) },
+            exitFullscreen = exitFullscreen,
             universalCopy = universalCopy,
         )
     }
