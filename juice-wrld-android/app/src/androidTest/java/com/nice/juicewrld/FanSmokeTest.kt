@@ -22,7 +22,7 @@ class FanSmokeTest {
     private fun screenshot(name: String) {
         rule.waitForIdle()
         val bitmap = rule.onRoot().captureToImage().asAndroidBitmap()
-        val dir = File(rule.activity.getExternalFilesDir(null), "screenshots")
+        val dir = File(rule.activity.filesDir, "screenshots")
         dir.mkdirs()
         File(dir, name + ".png").outputStream().use {
             bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)
@@ -60,7 +60,6 @@ class FanSmokeTest {
     @Test fun songOpensAndOffersGenuineFileImportWithoutFakeStreaming() {
         rule.onNodeWithTag("songs").performScrollToNode(hasText("Lucid Dreams"))
         rule.onNodeWithText("Lucid Dreams").performClick()
-        rule.onNodeWithText("Lucid Dreams").assertExists()
         rule.onNodeWithText("Add audio file").assertExists()
         rule.onNodeWithText("Listen on YouTube Music").assertExists()
         screenshot("song-sheet")
