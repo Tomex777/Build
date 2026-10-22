@@ -32,20 +32,34 @@ for(let i=0;i<raw.length;i+=4){
   }
 }
 const colorEmojiProbe=colored>=15;
-const background=Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="680"><rect width="100%" height="100%" fill="#28404f"/><path d="M0 680L500 190L800 580L1050 310L1200 680Z" fill="#122b35"/><text x="500" y="90" fill="#fafafa" font-family="Noto Sans" font-size="33">Original demo image — NOT posted</text></svg>');
-const image=await sharp(background).png().toBuffer();
+// Inspect both contrast modes using the actual server-side renderer, never
+// a Chromium substitute. The source remains synthetic and is NOT a post.
+const backgrounds=[
+  {name:'dark',base:'#28404f',hill:'#122b35',ink:'#fafafa',position:'bottom-right'},
+  {name:'light',base:'#e8efed',hill:'#c1d3c9',ink:'#24333b',position:'top-left'}
+];
+const savedFiles=['native-transparent-watermark.png'];
 if(colorEmojiProbe){
-  const result=await watermarkStaticImage({input:image,channelId:'120363456789012345@newsletter',
-    displayName:exact,position:'bottom-right',opacity:.25,colorEmojiVerified:true,
-    canvasLibrary:canvas,sharpLibrary:sharp});
-  writeFileSync(join(output,'native-composited-preview.png'),result.buffer);
+  for(const sample of backgrounds){
+    const background=Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="680">'+
+      '<rect width="100%" height="100%" fill="'+sample.base+'"/>'+
+      '<path d="M0 680L500 190L800 580L1050 310L1200 680Z" fill="'+sample.hill+'"/>'+
+      '<text x="500" y="90" fill="'+sample.ink+'" font-family="Noto Sans" font-size="33">Original demo image — NOT posted</text></svg>');
+    const image=await sharp(background).png().toBuffer();
+    const result=await watermarkStaticImage({input:image,channelId:'120363456789012345@newsletter',
+      displayName:exact,position:sample.position,opacity:.25,colorEmojiVerified:true,
+      canvasLibrary:canvas,sharpLibrary:sharp});
+    const filename='native-composited-'+sample.name+'.png';
+    writeFileSync(join(output,filename),result.buffer);
+    savedFiles.push(filename);
+  }
 }
 const report={
   exactUnicode:exact, codepoints:[...exact].map(ch=>ch.codePointAt(0).toString(16)),
   nativeColorPixels:colored,nontransparentPixels:ink,
   colorEmojiProbe:colorEmojiProbe?'LIKELY_COLOR':'FAILED_OR_MISSING',
   note:'A color-pixel test is not full glyph/ZWJ/RTL visual acceptance. Inspect both PNGs on exact host and get authorized WhatsApp test before enabling.',
-  files:colorEmojiProbe?['native-transparent-watermark.png','native-composited-preview.png']:['native-transparent-watermark.png']
+  files:savedFiles
 };
 writeFileSync(join(output,'font-probe-report.json'),JSON.stringify(report,null,2));
 console.log(JSON.stringify(report,null,2));
