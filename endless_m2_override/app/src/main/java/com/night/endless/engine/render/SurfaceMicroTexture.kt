@@ -10,6 +10,9 @@ internal object SurfaceMicroTexture {
     fun create(context: Context, planet: String): Int {
         require(planet in setOf("mars", "moon", "mercury", "ceres", "europa", "titan"))
         val atlas = SurfaceMicroMaterial.pixels()
+        // World-specific impact regolith, ice micro-fractures or aeolian fines.
+        // The additions are deterministic illustrations, NOT imaged landing sites.
+        PlanetaryGrainTreatment.apply(planet, atlas)
         val referenceId = context.resources.getIdentifier(
             planet + "_surface_grit", "drawable", context.packageName
         )
