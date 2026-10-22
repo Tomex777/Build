@@ -42,3 +42,31 @@ jobs:
           node-version: '22'
       - name: Exact WhatsApp name and emoji grapheme release gate
         run: node night-play/channels/qa/exact-channel-name.mjs
+
+  cross-agent-a-config-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/checkout@v5
+        with:
+          ref: agentA/channels-controls-review-20261022
+          path: agentA
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install browser test harness
+        run: npm install --no-save playwright@1.56.1
+      - name: Independently exercise Agent A config in real Chrome
+        run: node night-play/channels/qa/config-browser.cjs
+        env:
+          NIGHT_SOURCE_ROOT: agentA/night-play
+      - name: Preserve five-size and review-flow screenshots, even on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: channels-agent-e-config-branch-visuals
+          path: night-play/visual-output/channels-agent-e/config/
+          if-no-files-found: warn
+          retention-days: 14
