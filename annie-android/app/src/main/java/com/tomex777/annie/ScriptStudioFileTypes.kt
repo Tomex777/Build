@@ -27,6 +27,27 @@ internal fun studioNewFileName(input: String, selectedType: String): String {
 }
 
 
+/**
+ * HTML/CSS/JSON/Markdown/TXT are documents, not JavaScript commands.
+ * Create a visible document-only project without a fabricated main.js.
+ * Roll back an empty container if validating/creating its first file fails.
+ */
+internal fun studioCreateStandaloneDocument(files: ScriptFiles, name: String): java.io.File {
+    require('/' !in name && '\\' !in name) {
+        "Open a project folder before creating a nested document"
+    }
+    require(name.substringAfterLast('.', "").lowercase() in StudioFileTypes - setOf("js", "ts", "py", "lua")) {
+        "Choose a supported document extension"
+    }
+    val folder = files.createDocumentProject(name.substringBeforeLast('.'))
+    return try {
+        files.createFile(folder.name, name)
+    } catch (failure: Throwable) {
+        runCatching { files.deleteProject(folder.name) }
+        throw failure
+    }
+}
+
 internal fun studioReadTextImport(input: java.io.InputStream): String {
     val limit = 2 * 1024 * 1024
     val output = java.io.ByteArrayOutputStream()
