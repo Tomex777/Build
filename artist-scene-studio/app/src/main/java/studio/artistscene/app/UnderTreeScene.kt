@@ -238,16 +238,36 @@ object UnderTreeScene {
                 if (id == "figure/head") Vec3(y = originalHead.yaw, z = originalHead.z)
                 else rotation
             }
-            if (pose.joints.size != baseline.size ||
-                pose.joints.values.toSet() != baseline.values.toSet()
-            ) return scene
-            val headId = when {
-                "figure/head" in pose.joints -> "figure/head"
-                else -> actor.rigDefinition?.bones?.firstOrNull {
-                    it.name == "J_Bip_C_Head"
-                }?.id ?: return scene
+            // Reject even *swapped* arm/head rotations. Comparing sets alone
+            // loses joint identity and could overwrite an artist-authored
+            // expression or a deliberately changed head pose.
+            val sourceBonesBySemanticId = mapOf(
+                "figure/spine" to "J_Bip_C_Spine",
+                "figure/head" to "J_Bip_C_Head",
+                "figure/upperarm-l" to "J_Bip_L_UpperArm",
+                "figure/lowerarm-l" to "J_Bip_L_LowerArm",
+                "figure/upperarm-r" to "J_Bip_R_UpperArm",
+                "figure/lowerarm-r" to "J_Bip_R_LowerArm",
+                "figure/thigh-l" to "J_Bip_L_UpperLeg",
+                "figure/thigh-r" to "J_Bip_R_UpperLeg",
+            )
+            val discoveredBones = actor.rigDefinition?.bones.orEmpty()
+            val expectedRigById = mutableMapOf<String, Vec3>()
+            baseline.forEach { (semanticId, rotation) ->
+                val rigId = when {
+                    semanticId in pose.joints -> semanticId
+                    else -> discoveredBones.firstOrNull {
+                        it.name == sourceBonesBySemanticId[semanticId]
+                    }?.id ?: return scene
+                }
+                if (expectedRigById.put(rigId, rotation) != null) return scene
             }
-            if (headId !in pose.joints) return scene
+            if (pose.joints != expectedRigById) return scene
+            val headId = expectedRigById.keys.firstOrNull {
+                it == "figure/head" || discoveredBones.any { bone ->
+                    bone.id == it && bone.name == "J_Bip_C_Head"
+                }
+            } ?: return scene
             replacement[actorId] = actor.copy(
                 transform = target.transform,
                 rig = pose.copy(joints = pose.joints +
