@@ -19,7 +19,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -132,10 +131,10 @@ fun FanHome(player: FanPlayer = viewModel()) {
             }
             item {
                 Row(
-                    Modifier.fillMaxWidth().padding(start = 22.dp, end = 22.dp, top = 30.dp),
+                    Modifier.fillMaxWidth().padding(start = 22.dp, end = 22.dp, top = 14.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Pick a feeling", fontSize = 23.sp, letterSpacing = (-0.7).sp,
+                    Text("Pick a feeling", fontSize = 20.sp, letterSpacing = (-0.7).sp,
                         color = White, fontWeight = FontWeight.ExtraBold)
                     Spacer(Modifier.weight(1f))
                     Text("999", color = Lavender, fontSize = 15.sp,
@@ -145,7 +144,7 @@ fun FanHome(player: FanPlayer = viewModel()) {
             item {
                 LazyRow(
                     modifier = Modifier.testTag("moods"),
-                    contentPadding = PaddingValues(horizontal = 22.dp, vertical = 15.dp),
+                    contentPadding = PaddingValues(horizontal = 22.dp, vertical = 9.dp),
                     horizontalArrangement = Arrangement.spacedBy(11.dp)
                 ) {
                     items(
@@ -162,7 +161,7 @@ fun FanHome(player: FanPlayer = viewModel()) {
                 }
             }
             item {
-                Column(Modifier.padding(horizontal = 22.dp, vertical = 7.dp)) {
+                Column(Modifier.padding(horizontal = 22.dp, vertical = 3.dp)) {
                     Text("THE MUSIC", color = Lavender, fontSize = 10.sp,
                         fontWeight = FontWeight.Bold, letterSpacing = 3.sp)
                     Spacer(Modifier.height(7.dp))
@@ -173,13 +172,13 @@ fun FanHome(player: FanPlayer = viewModel()) {
                                 Mood.FAVORITES -> "Your favorites"
                                 else -> mood.label + " songs"
                             },
-                            fontSize = 23.sp, letterSpacing = (-0.7).sp,
+                            fontSize = 19.sp, letterSpacing = (-0.6).sp,
                             color = White, fontWeight = FontWeight.ExtraBold,
                             modifier = Modifier.weight(1f)
                         )
                         Text(songs.size.toString() + " songs", fontSize = 12.sp, color = Gray)
                     }
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(11.dp))
                     FanSearch(
                         text = search,
                         onTextChange = { search = it }
@@ -301,20 +300,20 @@ fun FanHome(player: FanPlayer = viewModel()) {
 @Composable
 private fun FanHeader() {
     Row(
-        Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = 16.dp),
+        Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
-            Modifier.size(45.dp).clip(RoundedCornerShape(15.dp))
+            Modifier.size(38.dp).clip(RoundedCornerShape(12.dp))
                 .background(Brush.linearGradient(listOf(Lavender, Color(0xFF7850B8)))),
             contentAlignment = Alignment.Center
         ) {
-            Text("9", color = Night, fontSize = 28.sp, fontWeight = FontWeight.Black)
+            Text("9", color = Night, fontSize = 24.sp, fontWeight = FontWeight.Black)
         }
         Spacer(Modifier.width(11.dp))
         Column {
-            Text("JUICE WRLD", color = White, fontSize = 18.sp,
-                letterSpacing = 2.sp, fontWeight = FontWeight.Black)
+            Text("JUICE WRLD", color = White, fontSize = 17.sp,
+                letterSpacing = 1.6.sp, fontWeight = FontWeight.Black)
             Spacer(Modifier.height(2.dp))
             Text("THE 999 FAN SPACE", color = Gray, fontSize = 9.sp,
                 letterSpacing = 2.sp, fontWeight = FontWeight.Bold)
@@ -326,7 +325,7 @@ private fun FanHeader() {
 private fun FanHero() {
     Box(
         Modifier.fillMaxWidth().padding(horizontal = 17.dp, vertical = 5.dp)
-            .heightIn(min = 226.dp).clip(RoundedCornerShape(25.dp))
+            .heightIn(min = 160.dp).clip(RoundedCornerShape(20.dp))
             .background(
                 Brush.linearGradient(
                     listOf(Color(0xFF42235C), Color(0xFF251936), Color(0xFF151121))
@@ -334,27 +333,27 @@ private fun FanHero() {
             )
     ) {
         Text("999",
-            fontSize = 132.sp, fontWeight = FontWeight.Black,
+            fontSize = 112.sp, fontWeight = FontWeight.Black,
             color = White.copy(alpha = 0.055f), letterSpacing = (-7).sp,
             modifier = Modifier.align(Alignment.TopEnd).offset(x = 10.dp, y = (-18).dp)
         )
         Row(
-            Modifier.fillMaxWidth().padding(start = 20.dp, end = 13.dp, top = 20.dp, bottom = 20.dp),
+            Modifier.fillMaxWidth().padding(start = 17.dp, end = 12.dp, top = 14.dp, bottom = 14.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(Modifier.weight(1f)) {
                 Text("999 FOREVER", color = Rose, fontWeight = FontWeight.ExtraBold,
                     letterSpacing = 2.1.sp, fontSize = 10.sp)
-                Spacer(Modifier.height(11.dp))
+                Spacer(Modifier.height(8.dp))
                 Text(
                     "Songs for\nevery feeling.",
-                    color = White, fontWeight = FontWeight.Black, fontSize = 29.sp,
-                    lineHeight = 32.sp, letterSpacing = (-1).sp
+                    color = White, fontWeight = FontWeight.Black, fontSize = 24.sp,
+                    lineHeight = 27.sp, letterSpacing = (-1).sp
                 )
-                Spacer(Modifier.height(11.dp))
+                Spacer(Modifier.height(7.dp))
                 Text("From heartbreak to pure hype.", color = Color(0xFFDDD0EB),
                     fontSize = 11.sp, lineHeight = 16.sp)
-                Spacer(Modifier.height(15.dp))
+                Spacer(Modifier.height(9.dp))
                 Text(
                     FanSongs.all.size.toString() + " SONGS · 999 FOREVER",
                     color = Lavender, fontSize = 9.sp,
@@ -362,7 +361,7 @@ private fun FanHero() {
                 )
             }
             ArtistPortrait(
-                Modifier.width(130.dp).height(170.dp).clip(RoundedCornerShape(17.dp))
+                Modifier.width(103.dp).height(137.dp).clip(RoundedCornerShape(14.dp))
             )
         }
     }
@@ -372,7 +371,7 @@ private fun FanHero() {
 @Composable
 private fun ArtistPortrait(modifier: Modifier) {
     SubcomposeAsyncImage(
-        model = "https://commons.wikimedia.org/wiki/Special:FilePath/Juice_WRLD_-_Les_Ardentes_2019_%28cropped_2%29.jpg?width=480",
+        model = "https://upload.wikimedia.org/wikipedia/commons/3/33/Juice_WRLD_-_Les_Ardentes_2019_%28cropped_2%29.jpg",
         contentDescription = "Juice WRLD performing in 2019, photo by Lexiou WesCudi",
         modifier = modifier,
         contentScale = ContentScale.Crop,
@@ -400,18 +399,18 @@ private fun moodColors(mood: Mood): List<Color> = when (mood) {
 @Composable
 private fun FeelingCard(mood: Mood, selected: Boolean, count: Int, onClick: () -> Unit) {
     Box(
-        Modifier.width(115.dp).height(107.dp).clip(RoundedCornerShape(18.dp))
+        Modifier.width(108.dp).height(79.dp).clip(RoundedCornerShape(14.dp))
             .background(Brush.linearGradient(moodColors(mood)))
             .clickable(onClick = onClick)
     ) {
-        Text("9", fontSize = 112.sp, fontWeight = FontWeight.Black,
+        Text("9", fontSize = 81.sp, fontWeight = FontWeight.Black,
             color = White.copy(alpha = 0.09f),
             modifier = Modifier.align(Alignment.CenterEnd).offset(x = 12.dp, y = (-23).dp))
         Column(
-            Modifier.fillMaxSize().padding(14.dp), verticalArrangement = Arrangement.Bottom
+            Modifier.fillMaxSize().padding(11.dp), verticalArrangement = Arrangement.Bottom
         ) {
-            Text(mood.label, color = White, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold)
-            Spacer(Modifier.height(4.dp))
+            Text(mood.label, color = White, fontSize = 16.sp, fontWeight = FontWeight.ExtraBold)
+            Spacer(Modifier.height(2.dp))
             Text(count.toString() + " songs", color = White.copy(alpha = .75f), fontSize = 11.sp)
         }
         if (selected) {
