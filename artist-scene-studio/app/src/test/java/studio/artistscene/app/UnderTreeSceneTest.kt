@@ -71,10 +71,10 @@ class UnderTreeSceneTest {
             gazeZ(firstGaze) > .8 && gazeZ(secondGaze) > .8)
 
         val camera = scene.cameras.single()
-        assertTrue("Keep the default sample camera closer than the old 6m shot",
-            camera.position.z in 4.7f..5.5f)
-        assertTrue("Frame the characters rather than mostly empty sky",
-            camera.target.y in .9f..1.45f)
+        assertTrue("Keep both posed VRoid arms in the portrait frame rather than zooming too close",
+            camera.position.z in 5.8f..6.2f)
+        assertTrue("Keep real oak crown, both classmates and ground framed",
+            camera.target.y in 1.45f..1.75f)
         // At the original 320x640 portrait ratio, this is the view width at
         // student depth. It is a guardrail, not a substitute for device PNG QA.
         val depth = camera.position.z - minOf(
@@ -82,9 +82,9 @@ class UnderTreeSceneTest {
         val portraitWidthAtStudents = 2.0 * depth *
             kotlin.math.tan(Math.toRadians(camera.verticalFovDegrees.toDouble() / 2.0)) * .5
         assertTrue("Clipping both characters defeats a tighter portrait shot",
-            portraitWidthAtStudents >= 2.2)
-        assertTrue("The classmate pair should no longer be tiny in a wide frame",
-            portraitWidthAtStudents < 2.9)
+            portraitWidthAtStudents >= 3.0)
+        assertTrue("Real-model portrait staging must not turn into an overly distant panorama",
+            portraitWidthAtStudents < 3.65)
     }
 
     private fun earlierClassmatesScene(): studio.artistscene.core.SceneProject {
@@ -94,6 +94,7 @@ class UnderTreeSceneTest {
                 when (actor.id) {
                     UnderTreeScene.FIRST_STUDENT_ID -> actor.copy(
                         transform = actor.transform.copy(
+                            position = studio.artistscene.core.Vec3(-0.73f, 0f, -0.13f),
                             rotationEulerDegrees = studio.artistscene.core.Vec3(y = 164f),
                         ),
                         rig = actor.rig!!.copy(joints = actor.rig.joints +
@@ -101,6 +102,7 @@ class UnderTreeSceneTest {
                     )
                     UnderTreeScene.SECOND_STUDENT_ID -> actor.copy(
                         transform = actor.transform.copy(
+                            position = studio.artistscene.core.Vec3(0.70f, 0f, -0.09f),
                             rotationEulerDegrees = studio.artistscene.core.Vec3(y = 198f),
                         ),
                         rig = actor.rig!!.copy(joints = actor.rig.joints +
