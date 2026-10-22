@@ -109,4 +109,18 @@ const fallbackAsset=await makeReusableWatermark({
 assert.equal(fallbackAsset.glyphsVerified,true,'Fallback is explicitly owner-reviewed');
 assert.ok(fallbackAsset.buffer.length>0);
 assert.notEqual(fallbackAsset.key,asset.key,'Fallback content and exact Unicode name contribute to key');
+// A white-only fallback loses contrast on pale memes. Approved contrast-specific
+// PNG assets select by the measured destination tone without recoloring emoji.
+const darkInkFallback=await sharp({create:{width:320,height:80,channels:4,background:'#00000000'}})
+  .composite([{input:Buffer.from('<svg width="320" height="80" xmlns="http://www.w3.org/2000/svg"><text x="20" y="45" font-size="28" fill="#151b20">OWNER REVIEWED</text></svg>')}])
+  .png().toBuffer();
+const contrastPair={light:transparentFallback,dark:darkInkFallback};
+const lightInk=await makeReusableWatermark({channelId:a,displayName:zwjName,
+  approvedFallbackPng:contrastPair,tone:'light',sharpLibrary:sharp});
+const darkInk=await makeReusableWatermark({channelId:a,displayName:zwjName,
+  approvedFallbackPng:contrastPair,tone:'dark',sharpLibrary:sharp});
+assert.notEqual(lightInk.key,darkInk.key,'Tone and selected approved asset cannot reuse wrong cache');
+assert.notDeepEqual(lightInk.buffer,darkInk.buffer,'The approved contrasting ink is actually selected');
+await assert.rejects(()=>makeReusableWatermark({channelId:a,displayName:zwjName,
+  approvedFallbackPng:{light:transparentFallback},sharpLibrary:sharp}),/light and dark PNG Buffers/);
 console.log('Channel watermark: PASS — isolation, size limits, Unicode, alpha, cache, JPEG/PNG/WebP, animated rejection');
