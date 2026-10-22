@@ -361,8 +361,11 @@ internal class AnnieDictation(
         }
     }
 
-    /** Cancel the microphone immediately, keeping any words already inserted into the draft. */
-    fun stop() = release()
+    /** End active dictation and allow Android to return its final recognised words. */
+    fun stop() {
+        val active = recognizer ?: return
+        runCatching { active.stopListening() }.onFailure { release() }
+    }
 
     fun release() {
         generation++
