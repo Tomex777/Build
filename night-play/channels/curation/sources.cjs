@@ -32,6 +32,7 @@ async function boundedGet(url,{fetchImpl=globalThis.fetch,headers={},allowedHost
 }
 function redditAdapter({tokenProvider,fetchImpl,claimQuota,userAgent,subreddits=[]}={}){
  if(typeof tokenProvider!=='function')throw new TypeError('An approved Reddit OAuth token provider is required.');
+ if(typeof claimQuota!=='function')throw new TypeError('A shared app-wide Reddit API quota claim function is required.');
  // Reddit requires an accurately registered app identifier and accountable operator.
  // Never invent a production username or use an anonymous/generic crawler identity.
  if(typeof userAgent!=='string'||!/^(?:web|android|ios):[A-Za-z0-9_.-]{3,100}:v?\d+(?:\.\d+){0,2} \(by \/u\/[A-Za-z0-9_-]{3,20}\)$/.test(userAgent))
@@ -41,7 +42,7 @@ function redditAdapter({tokenProvider,fetchImpl,claimQuota,userAgent,subreddits=
  return Object.freeze({async discover({subreddit,category='other',limit=25,after=null,now=Date.now()}={}){
   if(!approved.has(String(subreddit).toLowerCase()))throw new SourceError('Subreddit not authorized for discovery.');
   if(now<nextAllowedAt)throw new SourceError('Source polling too frequent.',{status:429,retryAfterSeconds:Math.ceil((nextAllowedAt-now)/1000)});
-  if(claimQuota&&await claimQuota({provider:'reddit',subreddit,now})!==true)throw new SourceError('Reddit API quota exhausted.',{status:429,retryAfterSeconds:60});
+  if(await claimQuota({provider:'reddit',subreddit,now})!==true)throw new SourceError('Reddit API quota exhausted.',{status:429,retryAfterSeconds:60});
   const token=await tokenProvider();if(typeof token!=='string'||token.length<12)throw new SourceError('Missing authorized Reddit OAuth token.');
   const params=new URLSearchParams({t:'all',limit:String(Math.max(1,Math.min(50,Math.trunc(limit))))});
   if(after&&/^t3_[A-Za-z0-9]{3,20}$/.test(after))params.set('after',after);
