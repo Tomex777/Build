@@ -229,24 +229,71 @@ class PuzzleGame private constructor(
         return if ((h and 1L) == 0L) 1 else -1
     }
 
+    fun groupMembers(id: Int): List<PuzzlePiece> {
+        val p=pieces.getOrNull(id) ?: return emptyList()
+        if(p.placed)return listOf(p)
+        return pieces.filter{!it.placed && it.groupId==p.groupId}
+    }
+
+    /** Dragging any piece in a joined assembly translates all its members. */
     fun movePiece(id: Int, x: Float, y: Float) {
-        val p = pieces.getOrNull(id) ?: return
-        if (!p.placed && x.isFinite() && y.isFinite()) {
-            p.x = x.coerceIn(-250f, worldWidth + 250f)
-            p.y = y.coerceIn(-250f, worldHeight + 250f)
+        val p=pieces.getOrNull(id) ?: return
+        if(p.placed || !x.isFinite() || !y.isFinite())return
+        val group=groupMembers(id)
+        val dx=x-p.x
+        val dy=y-p.y
+        if(group.any{
+            it.x+dx !in -250f..(worldWidth+250f) ||
+            it.y+dy !in -250f..(worldHeight+250f)
+        }) return
+        for(member in group) {
+            member.x+=dx
+            member.y+=dy
         }
     }
 
-    /** A piece is committed only when its intended position is near enough. */
+    /** Returns true for an actual board placement. Joining loose pieces
+     * also updates the model but returns false (they remain draggable). */
     fun release(id: Int): Boolean {
-        val p = pieces.getOrNull(id) ?: return false
-        if (p.placed) return false
+        val p=pieces.getOrNull(id) ?: return false
+        if(p.placed) return false
         moves++
-        val tolerance = (min(pieceWidth, pieceHeight) * 0.33f).coerceIn(7f, 26f)
-        if (hypot((p.x - targetX(p)).toDouble(),
-                  (p.y - targetY(p)).toDouble()) > tolerance) return false
-        p.x = targetX(p); p.y = targetY(p); p.placed = true
-        return true
+        val members=groupMembers(id)
+        val tolerance=(min(pieceWidth,pieceHeight)*.33f).coerceIn(7f,26f)
+        val px=p.x-targetX(p)
+        val py=p.y-targetY(p)
+        // Prevent malformed/inconsistent groups from jumping to the board.
+        val relativeOk=members.all{
+            hypot(((it.x-targetX(it))-px).toDouble(),
+                ((it.y-targetY(it))-py).toDouble()) < 1.25
+        }
+        if(relativeOk && hypot(px.toDouble(),py.toDouble())<=tolerance) {
+            for(piece in members) {
+                piece.x=targetX(piece)
+                piece.y=targetY(piece)
+                piece.placed=true
+                piece.groupId=piece.id
+            }
+            return true
+        }
+        // Exact row/column neighbor matches, regardless of group size.
+        // This lets a 600-piece jigsaw be assembled a section at a time.
+        for(member in members) for(other in pieces) {
+            if(other.placed || other.groupId==p.groupId ||
+                !visible(other))continue
+            if(abs(member.row-other.row)+abs(member.col-other.col)!=1)continue
+            val offsetX=other.x-member.x-(other.col-member.col)*pieceWidth
+            val offsetY=other.y-member.y-(other.row-member.row)*pieceHeight
+            if(hypot(offsetX.toDouble(),offsetY.toDouble())>tolerance)continue
+            val targetGroup=other.groupId
+            for(piece in members){
+                piece.x+=offsetX
+                piece.y+=offsetY
+                piece.groupId=targetGroup
+            }
+            return false
+        }
+        return false
     }
 
     fun hint(): Boolean {
