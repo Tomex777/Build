@@ -209,10 +209,16 @@ private class AnnieBrowserLibrary(context: Context) {
         }
     }.getOrDefault(emptyList())
 
-    private fun save(name: String, entries: List<AnnieBrowserVisit>) {
+    private fun save(name: String, entries: List<AnnieBrowserVisit>): Boolean {
         val array = JSONArray()
-        entries.forEach { array.put(org.json.JSONObject().put("title", it.title).put("url", it.url)) }
-        prefs.edit().putString(name, array.toString()).apply()
+        entries.forEach { array.put(JSONObject().put("title", it.title).put("url", it.url)) }
+        val editor = prefs.edit().putString(name, array.toString())
+        // Bookmarks represent deliberate user saves/imports: report disk failures
+        // rather than updating the visible list and losing it on process death.
+        return if (name == "bookmarks") editor.commit() else {
+            editor.apply()
+            true
+        }
     }
 
     fun visit(title: String, url: String) {
@@ -223,9 +229,10 @@ private class AnnieBrowserLibrary(context: Context) {
 
     fun bookmark(title: String, url: String) {
         if (AnnieBrowserAddress.resolve(url) != url) return
-        bookmarks = if (bookmarks.any { it.url == url }) bookmarks.filterNot { it.url == url }
+        val next = if (bookmarks.any { it.url == url }) bookmarks.filterNot { it.url == url }
         else listOf(AnnieBrowserVisit(title.take(150), url)) + bookmarks
-        save("bookmarks", bookmarks)
+        check(save("bookmarks", next)) { "Bookmark could not be saved to storage" }
+        bookmarks = next
     }
 
     /** One atomic preferences transaction per imported HTML collection, not N toggles. */
@@ -238,8 +245,9 @@ private class AnnieBrowserLibrary(context: Context) {
             "Import exceeds 5,000 bookmarks; the existing library was not changed"
         }
         if (additions.isNotEmpty()) {
-            bookmarks = bookmarks + additions
-            save("bookmarks", bookmarks)
+            val next = bookmarks + additions
+            check(save("bookmarks", next)) { "Imported bookmarks could not be saved" }
+            bookmarks = next
         }
         return additions.size
     }
