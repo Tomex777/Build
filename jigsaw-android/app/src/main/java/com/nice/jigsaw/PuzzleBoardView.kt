@@ -46,14 +46,17 @@ class PuzzleBoardView(context: Context) : View(context) {
 
     fun bind(newGame: PuzzleGame, newPhoto: Bitmap, onChange: () -> Unit) {
         notifyChange = onChange
-        if (game === newGame && photo === newPhoto) return
+        if (game === newGame && photo === newPhoto) { invalidate(); return }
         game = newGame
         photo = newPhoto
         sprites.values.forEach { it.bitmap.recycle() }
         sprites.clear()
         drawOrder.clear()
         drawOrder.addAll(newGame.pieces.indices)
-        newGame.pieces.forEach { sprites[it.id] = makeSprite(newGame, it) }
+        val scaled = Bitmap.createScaledBitmap(newPhoto,
+            PuzzleGame.BOARD_WIDTH.toInt(), PuzzleGame.BOARD_HEIGHT.toInt(), true)
+        newGame.pieces.forEach { sprites[it.id] = makeSprite(newGame, it, scaled) }
+        if (scaled !== newPhoto) scaled.recycle()
         centerBoard()
     }
 
@@ -121,7 +124,7 @@ class PuzzleBoardView(context: Context) : View(context) {
         }
     }
 
-    private fun makeSprite(g: PuzzleGame, p: PuzzlePiece): Sprite {
+    private fun makeSprite(g: PuzzleGame, p: PuzzlePiece, scaled: Bitmap): Sprite {
         val cw = g.pieceWidth
         val ch = g.pieceHeight
         val margin = min(cw, ch) * 0.38f + 4f
@@ -145,7 +148,7 @@ class PuzzleBoardView(context: Context) : View(context) {
         val target = RectF(-p.col * cw, -p.row * ch,
             g.pieceWidth * g.cols - p.col * cw,
             g.pieceHeight * g.rows - p.row * ch)
-        c.drawBitmap(photo!!, null, target, Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG))
+        c.drawBitmap(scaled, null, target, Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG))
         c.restore()
         val line = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             style = Paint.Style.STROKE
@@ -215,6 +218,7 @@ class PuzzleBoardView(context: Context) : View(context) {
                 invalidate()
             }
             MotionEvent.ACTION_POINTER_DOWN -> {
+                if (activePiece>=0) notifyChange()
                 activePiece=-1
                 if (event.pointerCount >= 2) {
                     lastX=(event.getX(0)+event.getX(1))/2f
