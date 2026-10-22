@@ -257,7 +257,7 @@ internal fun AnnieChat() {
     // Keep unsent text isolated per conversation. Switching personas or reopening an
     // existing chat must not erase the draft or show another chat's private text.
     val chatDrafts = remember { mutableStateMapOf<String, TextFieldValue>() }
-    val chatDrafts[activeChatId] = chatDrafts[activeChatId] ?: TextFieldValue("")
+    val draft = chatDrafts[activeChatId] ?: TextFieldValue("")
     var lastSentMessageId by remember { mutableStateOf<Long?>(null) }
     val animatedMessageIds = remember { mutableStateMapOf<Long, Boolean>() }
     var activeSheet by remember { mutableStateOf<String?>(null) }
