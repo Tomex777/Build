@@ -110,4 +110,14 @@ assert.equal(sent[0].caption,'One publishable example\n> TOMEX')
 assert.equal(reloaded.jobs(alice,channelId).jobs.find(j=>j.id===liveJob.id).status,'sent')
 assert.equal((await reloaded.drain(accounts,{prepare:fakePrepare,allowedChannelIds:[channelId]})).sent,0)
 assert.equal(sent.length,1,'A completed job must never send twice.')
+// Old approved selections expire without deleting queued/sent posts or losing revision safety.
+const oldBatch=reloaded.registerBatch(alice,channelId,[meme(1),meme(2),meme(3),meme(4)])
+const oldCards=reloaded.batch(alice,channelId,oldBatch)
+const oldSelection=reloaded.review(alice,channelId,{batchId:oldBatch,candidateId:oldCards.candidates[1].id,decision:'approved',caption:'Unused old approval',expectedSelectionRevision:9}).selection
+assert.equal(oldSelection.items.length,1)
+time+=15*86400000
+reloaded.cleanup()
+assert.equal(reloaded.selection(alice,channelId).items.length,0)
+assert.ok(reloaded.selection(alice,channelId).revision>oldSelection.revision)
+assert.equal(reloaded.jobs(alice,channelId).jobs.find(j=>j.id===liveJob.id).status,'sent','Cleanup may not remove recent delivered audit records')
 console.log('NIGHT Channels publisher selftest passed: owner isolation, exact Unicode metadata, fail-closed module controls, rights, revisioned cross-batch tray, durability, scheduling, cancellation, admin revocation, no send without permission.')
