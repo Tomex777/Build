@@ -236,6 +236,40 @@ class ScriptStudioFileCreationTest {
         }
     }
 
+    @Test fun enablingOrDisablingOtherProjectNeverSwitchesTheFocusedFolder() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val workspace = ScriptWorkspace(context)
+        val suffix = System.nanoTime().toString().takeLast(8)
+        val focused = workspace.files.createFolder("focus$suffix")
+        val another = workspace.files.createFolder("toggle$suffix")
+        val shown = mutableStateOf(true)
+        try {
+            compose.setContent { AnnieTheme {
+                if (shown.value) ScriptStudioSheet(workspace, {})
+            } }
+            compose.onNodeWithTag("script_file_search").performTextInput(focused.name)
+            closeSoftKeyboard()
+            compose.onNodeWithText(focused.name, substring = false).performClick()
+            compose.onNodeWithTag("script_file_search").performTextClearance()
+            compose.onNodeWithTag("script_file_search").performTextInput(another.name)
+            closeSoftKeyboard()
+            // B is visible while A remains the deliberately focused project.
+            compose.onNodeWithContentDescription("File actions").performClick()
+            compose.onNodeWithText("Disable", substring = false).performClick()
+            compose.waitUntil(8_000) { workspace.files.isEnabled(another.name).not() }
+            compose.onNodeWithText(focused.name, substring = false).assertExists()
+            compose.onNodeWithTag("script_selected_file").assertDoesNotExist()
+            compose.onNodeWithTag("script_file_search").performTextClearance()
+            compose.onNodeWithText("main.js", substring = false).assertExists()
+        } finally {
+            compose.runOnIdle { shown.value = false }
+            compose.waitForIdle()
+            workspace.close()
+            workspace.files.deleteProject(focused.name)
+            workspace.files.deleteProject(another.name)
+        }
+    }
+
     @Test fun typeSelectionCreatesHtmlAndExplicitCssExtensionOverridesIt() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val workspace = ScriptWorkspace(context)
