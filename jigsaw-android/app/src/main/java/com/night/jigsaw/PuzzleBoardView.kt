@@ -96,6 +96,27 @@ class PuzzleBoardView(context: Context) : View(context) {
         centerBoard()
     }
 
+    /** For 240+ pieces, a zone is a real section of the finished photo.
+     * Zoom enough to make the 600-piece tabs touchable on smaller phones. */
+    fun focusZone() {
+        val g=game ?: return
+        if(g.zoneCount==1){ centerBoard(); return }
+        baseScale = width.coerceAtLeast(1).toFloat()/g.worldWidth
+        val regionWidth=PuzzleGame.BOARD_WIDTH/g.zonesAcross
+        val regionHeight=PuzzleGame.BOARD_HEIGHT/g.zonesDown
+        val fit=min(
+            width.coerceAtLeast(1)*.88f/regionWidth,
+            height.coerceAtLeast(1)*.82f/regionHeight)
+        zoom=(fit/baseScale).coerceIn(.75f,5f)
+        val col=g.activeZone%g.zonesAcross
+        val row=g.activeZone/g.zonesAcross
+        val targetX=g.boardLeft+regionWidth*(col+.5f)
+        val targetY=g.boardTop+regionHeight*(row+.5f)
+        panX=width/2f-targetX*baseScale*zoom
+        panY=height/2f-targetY*baseScale*zoom
+        invalidate()
+    }
+
     fun centerBoard() {
         val g=game
         baseScale = width.coerceAtLeast(1).toFloat() /
@@ -143,7 +164,8 @@ class PuzzleBoardView(context: Context) : View(context) {
         for (p in g.pieces) if (p.placed) renderPiece(canvas, p, false)
         for (id in drawOrder) {
             val p = g.pieces[id]
-            if (!p.placed) renderPiece(canvas, p, id == activePiece)
+            if (!p.placed && g.visible(p))
+                renderPiece(canvas, p, id == activePiece)
         }
         canvas.restore()
     }
@@ -238,7 +260,7 @@ class PuzzleBoardView(context: Context) : View(context) {
         val g = game ?: return -1
         for (id in drawOrder.asReversed()) {
             val p = g.pieces[id]
-            if (p.placed) continue
+            if (p.placed || !g.visible(p)) continue
             val s = sprites[id] ?: continue
             if (s.hitRegion.contains((wx-p.x).roundToInt(),(wy-p.y).roundToInt())) return id
         }
