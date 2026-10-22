@@ -359,3 +359,18 @@ test('corrupt persisted batch history and optional scorer inputs fail closed wit
  assert.deepEqual(chooseFourMemes([first,second],{enabled:true,used:[null,undefined,{},first.id],now:NOW}).map(x=>x.id),[second.id]);
  assert.doesNotThrow(()=>memeScore(second,{categories:{invalid:true},feedback:null,now:NOW}));
 });
+
+test('region targeting requires verified show availability, not an outlet guess',()=>{
+ const official={id:'pressroom',trustedHost:'studio.example',official:true};
+ const outlet={id:'newsroom',trustedHost:'paper.example',official:false};
+ const base={title:'Aurora official season launch announcement',publishedAt:new Date(NOW).toISOString(),show:'Aurora',event:'releases',tags:['releases'],
+  genre:'Romance, Suspense',platform:'Viki',availabilityRegion:'Nigeria, Ghana',confirmed:true};
+ const confirmed=normalizeNews({...base,url:'https://studio.example/launch'},official,{now:NOW});
+ const unconfirmed=normalizeNews({...base,url:'https://paper.example/launch'},outlet,{now:NOW});
+ assert.equal(unconfirmed.verification,'unverified');assert.equal(unconfirmed.platform,'');
+ assert.equal(unconfirmed.genre,'');assert.equal(unconfirmed.availabilityRegion,'');
+ assert.deepEqual(chooseNews([unconfirmed,confirmed],{enabled:true,mode:'automatic',genres:['romance'],regions:['nigeria'],now:NOW}),[confirmed]);
+ assert.deepEqual(chooseNews([confirmed],{enabled:true,genres:['suspense'],platforms:['viki'],regions:['ghana'],now:NOW}),[confirmed]);
+ assert.equal(chooseNews([confirmed],{enabled:true,regions:['United States'],now:NOW}).length,0);
+ assert.equal(chooseNews([unconfirmed],{enabled:true,regions:['nigeria'],now:NOW}).length,0);
+});
