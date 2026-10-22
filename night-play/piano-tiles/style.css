@@ -54,3 +54,9 @@ body.is-playing .game-tools{width:min(100%,510px);padding-top:4px}
   body.is-playing .night-hud-value strong{font-size:18px}
 }
 @media(min-width:700px){body.is-playing .board-shell{height:clamp(250px,calc(100dvh - 184px),840px)}}
+
+/* A genuine recording attribution without another persistent game control. */
+.piano-attribution{margin:9px auto 0;max-width:520px;color:#87948e;font-size:10px;line-height:1.5;text-align:center}
+.piano-attribution a{color:#566f65;text-decoration:underline;text-underline-offset:2px}
+body.is-playing .piano-attribution{display:none}
+.cover-action:disabled{opacity:.62;cursor:progress}
