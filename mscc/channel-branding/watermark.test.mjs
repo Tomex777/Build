@@ -91,6 +91,14 @@ await assert.rejects(()=>makeReusableWatermark({
   channelId:a,displayName:zwjName,approvedFallbackPng:opaqueFallback,
   sharpLibrary:sharp
 }),/alpha channel/);
+// Reject a PNG which technically has glyph pixels, but is too faint to survive
+// applying uniform whole-layer opacity (would silently skip the watermark).
+const faintFallback=await sharp(Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="320" height="80">'+
+  '<text x="20" y="45" font-size="28" fill="#ffffff" fill-opacity="0.05">INVISIBLE</text></svg>')).png().toBuffer();
+await assert.rejects(()=>makeReusableWatermark({
+  channelId:a,displayName:zwjName,approvedFallbackPng:faintFallback,
+  sharpLibrary:sharp
+}),/practically invisible/);
 const transparentFallback=await sharp({create:{width:320,height:80,channels:4,background:'#00000000'}})
   .composite([{input:Buffer.from('<svg width="320" height="80" xmlns="http://www.w3.org/2000/svg"><text x="20" y="45" font-size="28" fill="#ffffff">OWNER REVIEWED</text></svg>')}])
   .png().toBuffer();
