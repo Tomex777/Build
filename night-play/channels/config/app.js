@@ -121,7 +121,7 @@ async function changeConfig(patch,control){
  }catch(error){
    config=prior;paintConfig();updateReview();note(errorMessage(error)+' Save not confirmed. Reload to check actual settings.',true);
  }finally{
-   configBusy=false;paintConfig();
+   configBusy=false;paintConfig();updateReview();
    for(const id of ['saveMemes','saveNews','saveBranding'])setBusy($(id),false);
    if(control)setBusy(control,false);
  }
