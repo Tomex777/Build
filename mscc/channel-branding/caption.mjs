@@ -1,6 +1,7 @@
 // NIGHT Channels — opt-in text-only caption transforms. Not a platform-moderation bypass.
 const WORD_CHAR = '[\\p{L}\\p{N}\\p{M}_]';
 const CONTROL = /[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/gu;
+const UNSAFE_RULE_TEXT = /[\u0000-\u001f\u007f-\u009f\u202a-\u202e\u2066-\u2069]/u;
 const escapeRegex = value => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const bytes = value => Buffer.byteLength(value, 'utf8');
 
@@ -14,7 +15,7 @@ export function replaceCaptionWords(input, { enabled = false, rules = [] } = {})
     if (typeof rule?.from !== 'string' || typeof rule?.to !== 'string') throw new TypeError('Invalid replacement.');
     const from = rule.from.trim().normalize('NFC');
     if (!from || from.length > 80 || rule.to.length > 120 || /[\r\n]/u.test(from) ||
-        CONTROL.test(rule.to)) throw new RangeError('Invalid replacement length or phrase.');
+        UNSAFE_RULE_TEXT.test(rule.to)) throw new RangeError('Invalid replacement length or phrase.');
     if (seen.has(from.toLocaleLowerCase('en'))) throw new Error('Duplicate replacement phrase.');
     seen.add(from.toLocaleLowerCase('en'));
     const pattern = escapeRegex(from).replace(/\s+/gu, '\\s+');
