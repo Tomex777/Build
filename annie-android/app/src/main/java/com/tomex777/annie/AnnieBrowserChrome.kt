@@ -198,7 +198,11 @@ internal fun AnnieBrowserChrome(
     // The page tool injects a WebExtension into sites. It is explicitly opt-in
     // and must be disabled when the user leaves this browser UI.
     DisposableEffect(actions.universalCopy) {
-        onDispose { actions.universalCopy?.invoke(false) }
+        // Do not instantiate/install an extension just because the browser UI
+        // was first shown or disposed. Only disable one explicitly enabled.
+        onDispose {
+            if (universalCopyEnabled) actions.universalCopy?.invoke(false)
+        }
     }
     BackHandler(enabled = menuOpen || panel != null || tabsOpen || editing || active.canBack) {
         when {
