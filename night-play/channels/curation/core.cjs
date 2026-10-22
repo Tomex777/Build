@@ -60,13 +60,17 @@ function chooseFourMemes(items,{enabled=false,categories=[],allowDark=false,used
  (i.category!=='dark'||allowDark===true)&&!blocked.has(i.id)&&!previouslyUsed.some(prev=>isDuplicate(i,prev)));
  const ranked=candidates.map(i=>({...i,score:memeScore(i,{categories:selected,feedback,now})})).sort((a,b)=>b.score-a.score||a.id.localeCompare(b.id));
  const out=[],categoryCount=new Map(),sourceCount=new Map();
- for(const item of ranked){
- if(out.some(other=>isDuplicate(item,other)))continue;
- if((categoryCount.get(item.category)||0)>=2||(sourceCount.get(item.source.id)||0)>=2)continue;
- out.push(item);categoryCount.set(item.category,(categoryCount.get(item.category)||0)+1);
- sourceCount.set(item.source.id,(sourceCount.get(item.source.id)||0)+1);
- if(out.length===4)break;
- }
+ const select=strict=>{
+  for(const item of ranked){
+   if(out.length===4)break;
+   if(out.some(other=>isDuplicate(item,other)))continue;
+   if(strict&&((categoryCount.get(item.category)||0)>=2||(sourceCount.get(item.source.id)||0)>=2))continue;
+   out.push(item);categoryCount.set(item.category,(categoryCount.get(item.category)||0)+1);
+   sourceCount.set(item.source.id,(sourceCount.get(item.source.id)||0)+1);
+  }
+ };
+ // Prefer diversity, but always fill four from a single selected category when possible.
+ select(true);select(false);
  return out;
 }
 function normalizeNews(record,source,{now=Date.now(),maxAgeDays=14}={}){
