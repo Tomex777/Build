@@ -5,7 +5,7 @@ const root=path.join(__dirname,'../..');
 const output=path.join(root,'visual-output');
 fs.mkdirSync(output,{recursive:true});
 const chan='120363282083849178@newsletter',other='120363282083849179@newsletter';
-let linked=false,connected=false,down=false,configUnavailable=false,batchNumber=0,publishAttempts=0;
+let linked=false,connected=false,down=false,configUnavailable=false,rawNameVerified=true,batchNumber=0,publishAttempts=0;
 let settings={revision:1,modules:{memes:false,news:false,anonymous:false,ai:false},
  memes:{mode:'review',categories:[],dailyLimit:1},news:{mode:'review',interests:[],spoilers:'avoid'},branding:{captionReplacementsEnabled:false,captionReplacements:[],signatureEnabled:false,posterName:'',watermarkEnabled:false,watermarkOpacity:0.22,watermarkPosition:'auto'},capabilities:{ai:false}};
 let decisions={},jobs=[];
@@ -38,7 +38,7 @@ const server=http.createServer(async(req,res)=>{
    let raw='';for await(const part of req)raw+=part;
    let q;try{q=JSON.parse(raw)}catch{return send(res,400,{error:'Invalid JSON'})}
    const requested=q.channelId,action=q.action;
-   if(action==='channel:list')return send(res,200,{channels:linked?[{id:chan,name:'K-Drama 🌙 Zone',verifiedDisplayName:'K-Drama 🌙 Zone',verifiedNameSource:'whatsapp-raw',status:connected?'connected':'awaiting_admin',anonymousStartEnabled:false,proof:'NIGHT-TEST-1234'}]:[]});
+   if(action==='channel:list')return send(res,200,{channels:linked?[{id:chan,name:'K-Drama 🌙 Zone',verifiedDisplayName:'K-Drama 🌙 Zone',verifiedNameSource:rawNameVerified?'whatsapp-raw':'unverified',status:connected?'connected':'awaiting_admin',anonymousStartEnabled:false,proof:'NIGHT-TEST-1234'}]:[]});
    if(!linked||!connected||requested!==chan)return send(res,403,{error:'Channel ownership not verified'});
    if(configUnavailable&&action==='channel:config:get')return send(res,503,{error:'Configuration service unavailable'});
    if(action==='channel:config:get')return send(res,200,settings);
@@ -204,6 +204,9 @@ async function main(){
    assert.equal(await page.locator('.selected-item').count(),1,'Prior image stays in approved tray');
    await page.locator('.review-card').nth(1).getByRole('button',{name:'Skip'}).click();
    await page.locator('.review-card').nth(1).getByText('Skipped',{exact:true}).waitFor();
+   await page.locator('.review-card').nth(3).getByRole('button',{name:'Decline'}).click();
+   await page.locator('.review-card').nth(3).getByText('Declined',{exact:true}).waitFor();
+   assert.equal(await page.locator('.review-card').nth(3).getByRole('button',{name:'Approve'}).isDisabled(),true,'Rights-unknown approval stays disabled after review action');
    await page.locator('.review-card').first().getByRole('button',{name:'Approve'}).click();
    await page.getByText('2 approved',{exact:true}).waitFor();
    await page.reload();
@@ -255,6 +258,16 @@ async function main(){
    await page.getByText('Configuration unavailable',{exact:true}).waitFor();
    assert.equal(await page.locator('#configUI').isVisible(),false,'Outage is not fake OFF defaults');
    await page.screenshot({path:path.join(output,'channels-A-unavailable.jpg'),fullPage:true});
+   configUnavailable=false;rawNameVerified=false;
+   await page.reload();await page.locator('#configUI').waitFor({state:'visible'});
+   await page.getByText('Exact channel name not yet verified').waitFor();
+   assert.equal(await page.locator('#watermarkEnabled').isChecked(),true,'Existing legacy watermark is shown honestly when identity proof is lost');
+   await page.locator('#watermarkEnabled').uncheck({force:true});
+   await page.getByRole('button',{name:'Save branding'}).click();
+   await page.waitForFunction(()=>document.querySelector('#saveBranding')?.disabled===false);
+   assert.equal(settings.branding.watermarkEnabled,false,'Owner can disable legacy watermark even without raw-name proof');
+   assert.equal(await page.locator('#watermarkEnabled').isDisabled(),true,'Cannot enable watermark with unverified raw identity');
+   await page.screenshot({path:path.join(output,'channels-A-unverified-watermark.jpg'),fullPage:false});
    assert.deepEqual(errors,[],'No browser JS exceptions');
    console.log('PASS Channel A: owner gate, defaults OFF, update, four-card review, decline guard, scheduling, cancellation, OFF block, 5 sizes & screenshots');
  }finally{await browser.close();server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}
