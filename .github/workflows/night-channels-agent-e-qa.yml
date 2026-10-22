@@ -160,3 +160,27 @@ jobs:
         env:
           NIGHT_A_SOURCE_ROOT: agentA/night-play
           NIGHT_C_SOURCE_ROOT: agentC/mscc
+
+  cross-agent-c-d-poster-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/checkout@v5
+        with:
+          ref: agentC/channels-publisher-security-20261022
+          path: agentC
+          persist-credentials: false
+      - uses: actions/checkout@v5
+        with:
+          ref: agentD/channels-captions-branding-20261022
+          path: agentD
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Reject publisher personas that D would reject at final-send formatting
+        run: node night-play/channels/qa/c-d-poster-contract.mjs
+        env:
+          NIGHT_C_SOURCE_ROOT: agentC/mscc
+          NIGHT_D_SOURCE_ROOT: agentD/mscc/channel-branding
