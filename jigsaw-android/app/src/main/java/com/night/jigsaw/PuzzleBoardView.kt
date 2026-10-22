@@ -12,6 +12,7 @@ import android.graphics.Path
 import android.graphics.RectF
 import android.graphics.Region
 import android.view.HapticFeedbackConstants
+import android.view.SoundEffectConstants
 import android.view.MotionEvent
 import android.view.animation.DecelerateInterpolator
 import android.view.View
@@ -221,7 +222,8 @@ class PuzzleBoardView(context: Context) : View(context) {
         for (id in drawOrder) {
             val p = g.pieces[id]
             if (!p.placed && sprites.containsKey(id))
-                renderPiece(canvas, p, id == activePiece)
+                renderPiece(canvas, p, activePiece>=0 &&
+                    g.pieces[activePiece].groupId==p.groupId)
         }
         canvas.restore()
     }
@@ -334,7 +336,12 @@ class PuzzleBoardView(context: Context) : View(context) {
                 lastX=event.x;lastY=event.y
                 activePiece=hitTest(worldX(event.x),worldY(event.y))
                 if (activePiece >= 0) {
-                    drawOrder.remove(activePiece);drawOrder.add(activePiece)
+                    // Keep the entire joined group above other loose pieces
+                    // while dragging, not merely the touched member.
+                    val members=game?.groupMembers(activePiece)?.map{it.id}
+                        ?: listOf(activePiece)
+                    drawOrder.removeAll(members.toSet())
+                    drawOrder.addAll(members)
                     removeCallbacks(edgeScroller)
                     postOnAnimation(edgeScroller)
                 }
@@ -390,6 +397,7 @@ class PuzzleBoardView(context: Context) : View(context) {
                     val g=game!!
                     val members=g.groupMembers(id)
                     val before=members.associate{it.id to (it.x to it.y)}
+                    val oldGroup=p.groupId
                     if (event.actionMasked==MotionEvent.ACTION_UP && g.release(id)) {
                         // Animate the entire joined assembly, not only the
                         // piece under the finger.
@@ -399,6 +407,7 @@ class PuzzleBoardView(context: Context) : View(context) {
                             piece.x=start.first;piece.y=start.second
                         }
                         performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                        playSoundEffect(SoundEffectConstants.CLICK)
                         snapAnimator?.cancel()
                         snapAnimator=ValueAnimator.ofFloat(0f,1f).apply {
                             duration=170L
@@ -426,8 +435,9 @@ class PuzzleBoardView(context: Context) : View(context) {
                             start()
                         }
                     } else {
-                        if (members.size>1) {
-                            performHapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                        if (oldGroup!=p.groupId) {
+                            performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
+                            playSoundEffect(SoundEffectConstants.CLICK)
                         }
                         notifyChange()
                     }
