@@ -667,7 +667,9 @@ private fun ScriptStudioContent(
                         else -> status = "Preview supports JavaScript commands and offline HTML/CSS documents."
                     }
                 },
-                enabled = !saving && selectedProject != null && selectedPath != null,
+                enabled = !saving && selectedProject != null &&
+                    selectedPath?.substringAfterLast('.', "")?.lowercase() in
+                        setOf("js", "ts", "py", "lua", "html", "css"),
             )
             Spacer(Modifier.width(8.dp))
             StudioIconAction(StudioGlyph.CLOSE, "Close Script Studio", onClick = { if (saveBeforeNavigation()) onClose() })
