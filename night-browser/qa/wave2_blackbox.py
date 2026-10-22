@@ -487,6 +487,28 @@ class Device:
         return ("Original Gecko response bytes verified SHA256; Library shows "
                 + filename + " (" + str(observed[1]) + " bytes)")
 
+    def open_downloaded_pdf_offline(self):
+        """Open the just-SHA-verified Library PDF in NIGHT's native viewer offline."""
+        if self.find("night-qa.pdf", partial=True) is None:
+            raise AssertionError("Expected downloaded PDF row to remain visible")
+        shell("svc", "wifi", "disable", check=False)
+        shell("svc", "data", "disable", check=False)
+        try:
+            # Download rows are newest first. C25 is the immediately preceding
+            # prerequisite and left its byte-verified PDF at the top of Library.
+            self.click("Open", timeout=15)
+            until = time.monotonic() + 25
+            while self.find("Saved PDF page 1") is None:
+                if time.monotonic() >= until:
+                    raise AssertionError("Downloaded PDF did not render first-page pixels offline")
+                time.sleep(.7)
+            self.img("C43-download-pdf-rendered")
+            self.click("Close saved PDF")
+            return "Byte-verified downloaded PDF decoded to pixels offline in native reader"
+        finally:
+            shell("svc", "wifi", "enable", check=False)
+            shell("svc", "data", "enable", check=False)
+
     def authenticated_download(self):
         """Cookie-bearing Gecko original-response bytes, never a bare GET pass."""
         before = fixture()["secure_download_ok"]
@@ -782,6 +804,8 @@ class Device:
                   prerequisites=("C01",), screenshot=True)
         self.test("C25", "PDF response bytes and Library entry", lambda: self.download("/file.pdf"),
                   prerequisites=("C01",), screenshot=True)
+        self.test("C43", "Open downloaded PDF in native reader offline",
+                  self.open_downloaded_pdf_offline, prerequisites=("C25",), screenshot=True)
         self.test("C40", "Repeat PNG download confirmation and cancel",
                   self.duplicate_download, prerequisites=("C24",))
         self.test("C41", "Repeat warning survives application restart",
