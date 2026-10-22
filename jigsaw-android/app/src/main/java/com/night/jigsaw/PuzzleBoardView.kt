@@ -26,7 +26,8 @@ import kotlin.math.roundToInt
  * dragging only composites cached bitmaps and never rescales the source 144 times/frame.
  */
 class PuzzleBoardView(context: Context) : View(context) {
-    private data class Sprite(val bitmap: Bitmap, val silhouette: Path, val margin: Float)
+    private data class Sprite(val bitmap: Bitmap, val silhouette: Path,
+                              val hitRegion: Region, val margin: Float)
     private var game: PuzzleGame? = null
     private var photo: Bitmap? = null
     private var notifyChange: () -> Unit = {}
@@ -96,11 +97,14 @@ class PuzzleBoardView(context: Context) : View(context) {
     }
 
     fun centerBoard() {
-        baseScale = (width.coerceAtLeast(1)).toFloat() / PuzzleGame.WORLD_WIDTH
-        zoom = 1f
-        panX = (width - PuzzleGame.WORLD_WIDTH * baseScale) / 2f
+        val g=game
+        baseScale = width.coerceAtLeast(1).toFloat() /
+            (g?.worldWidth ?: PuzzleGame.WORLD_WIDTH)
+        zoom = if(g?.landscapeMode==true) 1.25f else 1f
+        panX = width / 2f -
+            ((g?.boardLeft ?: PuzzleGame.BOARD_LEFT) + PuzzleGame.BOARD_WIDTH/2f) * baseScale * zoom
         panY = height / 2f -
-            ((game?.boardTop ?: 640f) + PuzzleGame.BOARD_HEIGHT / 2f) * baseScale
+            ((g?.boardTop ?: 640f) + PuzzleGame.BOARD_HEIGHT / 2f) * baseScale * zoom
         invalidate()
     }
 
@@ -118,9 +122,10 @@ class PuzzleBoardView(context: Context) : View(context) {
         canvas.scale(baseScale * zoom, baseScale * zoom)
 
         paper.color = Color.rgb(224, 219, 208)
-        canvas.drawRoundRect(RectF(30f, 25f, 970f, g.worldHeight), 18f, 18f, paper)
-        val board = RectF(PuzzleGame.BOARD_LEFT, g.boardTop,
-            PuzzleGame.BOARD_LEFT + PuzzleGame.BOARD_WIDTH,
+        canvas.drawRoundRect(RectF(16f,25f,g.worldWidth-16f,g.worldHeight),
+            18f,18f,paper)
+        val board = RectF(g.boardLeft, g.boardTop,
+            g.boardLeft + PuzzleGame.BOARD_WIDTH,
             g.boardTop + PuzzleGame.BOARD_HEIGHT)
         paper.color = Color.rgb(252, 250, 246)
         canvas.drawRect(board, paper)
@@ -191,7 +196,10 @@ class PuzzleBoardView(context: Context) : View(context) {
             strokeWidth = 1.35f
         }
         c.drawPath(path, line)
-        return Sprite(bitmap, path, margin)
+        val clip=Region(-256,-256,cw.toInt()+256,ch.toInt()+256)
+        val hit=Region()
+        hit.setPath(path,clip)
+        return Sprite(bitmap,path,hit,margin)
     }
 
     private fun piecePath(g: PuzzleGame, p: PuzzlePiece): Path {
@@ -232,10 +240,7 @@ class PuzzleBoardView(context: Context) : View(context) {
             val p = g.pieces[id]
             if (p.placed) continue
             val s = sprites[id] ?: continue
-            val clip = Region(-256, -256, g.pieceWidth.toInt()+256, g.pieceHeight.toInt()+256)
-            val shape = Region()
-            shape.setPath(s.silhouette,clip)
-            if (shape.contains((wx-p.x).roundToInt(),(wy-p.y).roundToInt())) return id
+            if (s.hitRegion.contains((wx-p.x).roundToInt(),(wy-p.y).roundToInt())) return id
         }
         return -1
     }
@@ -257,6 +262,7 @@ class PuzzleBoardView(context: Context) : View(context) {
             MotionEvent.ACTION_POINTER_DOWN -> {
                 if (activePiece>=0) notifyChange()
                 activePiece=-1
+                removeCallbacks(edgeScroller)
                 if (event.pointerCount >= 2) {
                     lastX=(event.getX(0)+event.getX(1))/2f
                     lastY=(event.getY(0)+event.getY(1))/2f
@@ -296,6 +302,7 @@ class PuzzleBoardView(context: Context) : View(context) {
                 pinchDistance=0f
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                removeCallbacks(edgeScroller)
                 if (activePiece>=0) {
                     val id=activePiece
                     val g=game!!
