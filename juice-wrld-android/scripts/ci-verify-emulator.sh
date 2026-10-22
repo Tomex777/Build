@@ -18,8 +18,10 @@ for page in home love sad favorites song-sheet; do
     echo "::error::Unable to export Android ${api} screenshot: ${page}"
     rm -f "$out"
     missing=$((missing + 1))
-  elif [[ ! -s "$out" ]]; then
-    echo "::error::Exported Android ${api} screenshot is empty: ${page}"
+  elif [[ $(wc -c < "$out") -lt 1024 ]] || [[ $(od -An -tx1 -N8 "$out" | tr -d ' \\n') != "89504e470d0a1a0a" ]]; then
+    # adb run-as can print "unknown package" or another text error on stdout
+    # while returning exit 0. Never publish a 44-byte text file as a PNG.
+    echo "::error::Android ${api} screenshot is not a real PNG: ${page}"
     rm -f "$out"
     missing=$((missing + 1))
   else
