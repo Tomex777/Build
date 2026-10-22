@@ -18,15 +18,34 @@ const branding={
   signatureEnabled:true,posterName:'TOMEX',
   watermarkEnabled:true,watermarkOpacity:.25,watermarkPosition:'bottom-left'
 };
+const previewCache=new WatermarkCache({maxEntries:6,maxBytes:2*1024*1024});
 const first=await prepareChannelContent({
   text:'Not bullshit.',mediaBuffer:jpg,channelId:'120363456789012345@newsletter',
   verifiedDisplayName:'NIGHT 👩🏽‍💻',branding,sourceKind:'automation',rendererVerifiedEmoji:true,
-  watermarkCache:new WatermarkCache(),sharpLibrary:sharp,transform:render
+  watermarkCache:previewCache,sharpLibrary:sharp,transform:render
 });
 assert.equal(first.caption,'Not BS.\n\n> TOMEX');
 assert.equal(first.watermarked,true);assert.equal(first.imageFormat,'jpeg');
 assert.notDeepEqual(first.mediaBuffer,jpg,'Real image pixels changed');
 assert.equal((await sharp(first.mediaBuffer).metadata()).format,'jpeg');
+// The exact approved/revisioned content must render byte-for-byte identically
+// in an authorized preview and the later send when source+assets are frozen.
+const laterSend=await prepareChannelContent({
+  text:'Not bullshit.',mediaBuffer:jpg,channelId:'120363456789012345@newsletter',
+  verifiedDisplayName:'NIGHT 👩🏽‍💻',branding,sourceKind:'automation',rendererVerifiedEmoji:true,
+  watermarkCache:previewCache,sharpLibrary:sharp,transform:render
+});
+assert.equal(laterSend.caption,first.caption,'Reviewed caption and send agree');
+assert.equal(laterSend.watermarkAssetKey,first.watermarkAssetKey,'Reviewed channel identity and layer agree');
+assert.deepEqual(laterSend.mediaBuffer,first.mediaBuffer,'Reviewed output media is deterministic');
+const changedStyle=await prepareChannelContent({
+  text:'Not bullshit.',mediaBuffer:jpg,channelId:'120363456789012345@newsletter',
+  verifiedDisplayName:'NIGHT 👩🏽‍💻',branding:{...branding,watermarkOpacity:.3},
+  sourceKind:'automation',rendererVerifiedEmoji:true,
+  watermarkCache:previewCache,sharpLibrary:sharp,transform:render
+});
+assert.notEqual(changedStyle.watermarkAssetKey,first.watermarkAssetKey,
+  'An altered branding revision cannot reuse the reviewed visual asset');
 const other=await prepareChannelContent({
   text:'Not bullshit.',mediaBuffer:jpg,channelId:'120363456789012346@newsletter',
   verifiedDisplayName:'NIGHT 👩🏽‍💻',branding,sourceKind:'automation',rendererVerifiedEmoji:true,
