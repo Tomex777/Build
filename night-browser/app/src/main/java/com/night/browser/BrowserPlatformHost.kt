@@ -62,12 +62,24 @@ class BrowserPlatformHost(private val activity: ComponentActivity) :
                 clip.getItemAt(index).uri?.let { if (it !in uris) uris.add(it) }
             }
         }
-        if (reply.resultCode != android.app.Activity.RESULT_OK || uris.isEmpty()) {
-            result.complete(prompt.dismiss())
-        } else if (prompt.type == GeckoSession.PromptDelegate.FilePrompt.Type.MULTIPLE) {
-            result.complete(prompt.confirm(activity.applicationContext, uris.toTypedArray()))
-        } else {
-            result.complete(prompt.confirm(activity.applicationContext, uris.first()))
+        // ACTION_OPEN_DOCUMENT returns delegated content:// URIs. Never
+        // manufacture a file:// path or trust a non-document scheme from an
+        // untrusted provider, and never let a malformed provider reply crash
+        // the entire browsing Activity.
+        val selected = uris.filter { it.scheme.equals("content", ignoreCase = true) }
+        if (reply.resultCode != android.app.Activity.RESULT_OK || selected.isEmpty()) {
+            runCatching { result.complete(prompt.dismiss()) }
+            return@registerForActivityResult
+        }
+        try {
+            val confirmation = if (
+                prompt.type == GeckoSession.PromptDelegate.FilePrompt.Type.MULTIPLE
+            ) prompt.confirm(activity.applicationContext, selected.toTypedArray())
+            else prompt.confirm(activity.applicationContext, selected.first())
+            result.complete(confirmation)
+        } catch (_: RuntimeException) {
+            // Gecko may reject a provider that disappeared before its copy.
+            runCatching { result.complete(prompt.dismiss()) }
         }
     }
 
