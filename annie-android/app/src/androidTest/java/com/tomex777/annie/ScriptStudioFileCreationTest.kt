@@ -60,6 +60,38 @@ class ScriptStudioFileCreationTest {
         }
     }
 
+    @Test fun tappingFolderDoesNotSilentlyOpenItsEntryFile() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val workspace = ScriptWorkspace(context)
+        val folder = workspace.files.createFolder("folderfocus" + System.nanoTime().toString().takeLast(8))
+        workspace.files.writeFile(folder.name, "main.js", "const stillUntouched = true;")
+        val shown = mutableStateOf(true)
+        try {
+            compose.setContent { AnnieTheme {
+                if (shown.value) ScriptStudioSheet(workspace, {})
+            } }
+            compose.onNodeWithText(folder.name, substring = false).performClick()
+            compose.onNodeWithTag("script_editor").assertDoesNotExist()
+            compose.onNodeWithText("${folder.name} · main.js").assertDoesNotExist()
+            compose.onNodeWithText("main.js", substring = false).performClick()
+            compose.onNodeWithTag("script_editor").assertExists()
+            onView(isAssignableFrom(CodeEditor::class.java)).check { view, failure ->
+                if (failure != null) throw failure
+                assertTrue((view as CodeEditor).text.toString().contains("stillUntouched"))
+            }
+            compose.onNodeWithText("Files", substring = false).performClick()
+            compose.onNodeWithText("ENV", substring = false).performClick()
+            compose.onNodeWithTag("script_tab_env").assertExists()
+            compose.onNodeWithText("API", substring = false).performClick()
+            compose.onNodeWithTag("script_tab_api").assertExists()
+        } finally {
+            compose.runOnIdle { shown.value = false }
+            compose.waitForIdle()
+            workspace.close()
+            workspace.files.deleteProject(folder.name)
+        }
+    }
+
     @Test fun typeSelectionCreatesHtmlAndExplicitCssExtensionOverridesIt() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val workspace = ScriptWorkspace(context)
@@ -120,12 +152,15 @@ class ScriptStudioFileCreationTest {
             compose.onNodeWithTag("script_replace_text").performTextInput("retained")
             compose.onNodeWithTag("Replace all matches").performClick()
             compose.onNodeWithTag("script_find_query").performTextClearance()
+            // All three top-level tab transitions must save or remain in the editor
+            // when storage is unavailable; otherwise the unsaved draft is stranded.
             compose.onNodeWithText("Files", substring = false).performClick()
-            compose.onNodeWithTag("script_file_search").performTextInput(otherName)
-            closeSoftKeyboard()
-            compose.waitForIdle()
-            compose.onNodeWithText(other.name, substring = false).performClick()
+            compose.onNodeWithTag("script_editor").assertExists()
             compose.onNodeWithText("Could not save previous file:", substring = true).assertExists()
+            compose.onNodeWithText("ENV", substring = false).performClick()
+            compose.onNodeWithTag("script_editor").assertExists()
+            compose.onNodeWithText("API", substring = false).performClick()
+            compose.onNodeWithTag("script_editor").assertExists()
             compose.onNodeWithText("$name · ${file.name}").assertExists()
             compose.onNodeWithTag("Close Script Studio").performClick()
             assertFalse("Failed save must keep Studio open", closed)
@@ -133,11 +168,15 @@ class ScriptStudioFileCreationTest {
             compose.waitForIdle()
             assertFalse("System Back must preserve a draft after failed save", closed)
             compose.onNodeWithText("Could not save previous file:", substring = true).assertExists()
-            // Recover storage, then navigation must write the retained draft.
+            // Recover storage, then changing Files must first persist the draft.
             assertTrue(file.delete())
             file.writeText("const value = 'needle';")
-            compose.onNodeWithText(other.name, substring = false).performClick()
+            compose.onNodeWithText("Files", substring = false).performClick()
             compose.waitUntil(8_000) { file.isFile && file.readText().contains("retained") }
+            compose.onNodeWithTag("script_file_search").performTextInput(otherName)
+            closeSoftKeyboard()
+            compose.waitForIdle()
+            compose.onNodeWithText(other.name, substring = false).performClick()
             assertTrue(file.readText().contains("retained"))
             compose.onNodeWithText("Files", substring = false).performClick()
             compose.onNodeWithTag("script_file_search").performTextClearance()
