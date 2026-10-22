@@ -17,7 +17,7 @@ class VisualContactSheetTest(unittest.TestCase):
             with Image.open(result) as image:
                 self.assertEqual((310, 530), image.size)
             (root / "extended-titan.png").unlink()
-            with self.assertRaisesRegex(FileNotFoundError, "Titan"):
+            with self.assertRaisesRegex(FileNotFoundError, "extended-titan.png"):
                 assemble(root, result, tile_width=128)
 
     def test_rejects_too_small_screenshot(self):
