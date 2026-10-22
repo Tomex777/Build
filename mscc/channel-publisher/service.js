@@ -143,8 +143,8 @@ export class ChannelPublisher {
     this.claim(userId,channelId)
     this.db.prepare('INSERT INTO play_channel_selection VALUES (?,?,?,0) ON CONFLICT(user_id,channel_id) DO NOTHING').run(userId,channelId,randomUUID().replaceAll('-','_'))
     const row=this.db.prepare('SELECT * FROM play_channel_selection WHERE user_id=? AND channel_id=?').get(userId,channelId)
-    const cs=this.db.prepare("SELECT c.*,r.caption AS reviewed_caption FROM play_channel_reviews r JOIN play_channel_candidates c ON c.id=r.candidate_id LEFT JOIN play_channel_jobs j ON j.candidate_id=c.id WHERE r.user_id=? AND r.channel_id=? AND r.decision='approved' AND j.id IS NULL ORDER BY r.updated_at,c.rowid LIMIT 33").all(userId,channelId)
-    if(cs.length>32) fail(409,'Approved tray exceeded its safe capacity.')
+    const cs=this.db.prepare("SELECT c.*,r.caption AS reviewed_caption FROM play_channel_reviews r JOIN play_channel_candidates c ON c.id=r.candidate_id LEFT JOIN play_channel_jobs j ON j.candidate_id=c.id WHERE r.user_id=? AND r.channel_id=? AND r.decision='approved' AND j.id IS NULL ORDER BY r.updated_at,c.rowid LIMIT 11").all(userId,channelId)
+    if(cs.length>10) fail(409,'Approved tray exceeded its safe capacity.')
     return {id:row.id,revision:row.revision,items:cs.map(c=>({
       batchId:c.batch_id,candidateId:c.id,caption:c.reviewed_caption,title:c.title,
       publishable:c.rights_verified===1,rightsStatus:c.rights_verified===1?'verified':'unverified',reviewOnly:c.rights_verified!==1,
@@ -204,7 +204,7 @@ export class ChannelPublisher {
     if(!cfg.modules.memes) fail(403,'Enable channel memes before reviewing for publication.')
     this.play.transaction(()=>{
       const selected=this.selectionCheck(userId,channelId,expectedSelectionRevision)
-      if(decision==='approved' && selected.items.length>=32 && !selected.items.some(i=>i.candidateId===candidateId))fail(409,'Approved tray is full. Publish or remove a post first.')
+      if(decision==='approved' && selected.items.length>=10 && !selected.items.some(i=>i.candidateId===candidateId))fail(409,'Approved tray is full. Publish or remove a post first.')
       if(this.db.prepare('SELECT 1 FROM play_channel_jobs WHERE candidate_id=?').get(candidateId)) fail(409,'This post was already queued. A review cannot rewrite the sent snapshot.')
       this.db.prepare('INSERT INTO play_channel_reviews VALUES (?,?,?,?,?,?) ON CONFLICT(candidate_id) DO UPDATE SET decision=excluded.decision,caption=excluded.caption,updated_at=excluded.updated_at').run(candidateId,userId,channelId,decision,caption,this.now())
       this.db.prepare('UPDATE play_channel_selection SET revision=revision+1 WHERE user_id=? AND channel_id=? AND revision=?').run(userId,channelId,selected.revision)
