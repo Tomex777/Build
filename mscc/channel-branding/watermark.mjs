@@ -71,8 +71,8 @@ export async function renderUnicodeTextLayer({displayName,width,height,tone,canv
   ctx.clearRect(0,0,width,height);ctx.fillStyle=tone==='dark'?'#141d20':'#f7f9f6';
   ctx.textAlign='center';ctx.textBaseline='middle';
   // First strong directional character governs mixed LTR/RTL layout.
-  const firstStrong=[...displayName].find(ch=>/[\\p{Script=Arabic}\\p{Script=Hebrew}\\p{L}]/u.test(ch));
-  ctx.direction=firstStrong&&/[\\p{Script=Arabic}\\p{Script=Hebrew}]/u.test(firstStrong)?'rtl':'ltr';
+  const firstStrong=[...displayName].find(ch=>/[\p{Script=Arabic}\p{Script=Hebrew}\p{L}]/u.test(ch));
+  ctx.direction=firstStrong&&/[\p{Script=Arabic}\p{Script=Hebrew}]/u.test(firstStrong)?'rtl':'ltr';
   const family='"Noto Sans", "Noto Color Emoji", sans-serif';
   let px=Math.min(72,Math.floor(height*.59));
   for(;px>=16;px-=2){
