@@ -49,6 +49,44 @@ class PuzzleEngineTest {
             assertEquals(g.worldWidth,restored.worldWidth)
         }
     }
+
+    @Test fun sixWorkZonesBound600PiecesAndKeepProgress() {
+        for ((cols,rows,expected) in listOf(
+            Triple(20,12,4), Triple(24,16,6), Triple(30,20,6)
+        )) {
+            val game=PuzzleGame.fresh(cols,rows,seed=238)
+            assertEquals(expected,game.zoneCount)
+            assertEquals(game.count, (0 until game.zoneCount).sumOf{zone->
+                game.zoneRemaining(zone)})
+            val remaining=(0 until game.zoneCount).map{zone->game.zoneRemaining(zone)}
+            assertTrue(remaining.all{it in 1..100})
+            for(zone in 0 until game.zoneCount) {
+                game.selectZone(zone)
+                val visible=game.pieces.filter{ !it.placed && game.visible(it) }
+                assertEquals(game.zoneRemaining(zone),visible.size)
+                val depth=kotlin.math.min(game.pieceWidth,game.pieceHeight)*.30f
+                for(i in visible.indices)for(j in i+1 until visible.size) {
+                    val a=visible[i];val b=visible[j]
+                    assertTrue("Zone scatter overlaps",kotlin.math.abs(a.x-b.x)>=
+                        game.pieceWidth+2f*depth ||
+                        kotlin.math.abs(a.y-b.y)>=game.pieceHeight+2f*depth)
+                }
+            }
+            game.selectZone(1)
+            assertTrue(game.hint())
+            assertEquals(1,game.completed)
+            assertEquals(game.count-1,(0 until game.zoneCount).sumOf{game.zoneRemaining(it)})
+            val positions=game.pieces.map {Triple(it.x,it.y,it.placed)}
+            val restored=PuzzleGame.restore(cols,rows,game.seed,game.imageKey,positions,
+                game.hintsRemaining,game.moves,game.preview,game.landscapeMode,game.activeZone)!!
+            assertEquals(1,restored.activeZone)
+            assertEquals(1,restored.completed)
+            assertTrue(restored.setLandscape(true))
+            assertEquals(1,restored.completed)
+            assertEquals(expected,restored.zoneCount)
+        }
+    }
+
     @Test fun neighborTabsAreComplementaryAndEdgesFlat() {
         val g = PuzzleGame.fresh(12, 12, seed = 782)
         for (r in 0 until 12) for (c in 0 until 12) {
