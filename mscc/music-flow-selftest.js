@@ -266,7 +266,45 @@ if (progressStatus.some(row => row.startsWith('done:'))) {
 }
 canSend = true
 await runSongCommand(retryCtx, { args:['~numbers'] })
-if (retrySession || !progressStatus.some(row => row.startsWith('done:'))) {
-  throw new Error('Successful retry must report delivery and clear numeric selection')
+if (!retrySession?.lastSentAt || !progressStatus.some(row => row.startsWith('done:'))) {
+  throw new Error('Successful send must retain a brief retry session and report WhatsApp send, not recipient delivery')
+}
+if (!progressStatus.some(row => row.includes('Audio sent to WhatsApp'))) {
+  throw new Error('Music send confirmation must not claim the recipient received the track')
 }
 console.log('PASS silent-music failure reporting and selection retry')
+
+// Regression: an accidental spelling of the Pitch Perfect 2 song must not
+// produce 25 unrelated adult-toy/movie results or rank a lyric upload above
+// an official Jessie J recording.
+let correctedQuery = ''
+const rankedReplies = []
+let rankedSession = null
+await runSongCommand({
+  publicPrefix:'.',
+  reply:async value => { rankedReplies.push(String(value)); return value },
+  setCommandReplySession:value => { rankedSession = value },
+  executeSource:async ({ payload }) => {
+    if (payload.action !== 'search') throw new Error('Unexpected music action')
+    correctedQuery = payload.query
+    return { status:'ok', source:{ id:'youtube', name:'YouTube' }, result:{ items:[
+      { id:'a', title:'Jessie J - Flashlight (from Pitch Perfect 2) (Lyrics)', artist:'HopeLyrics' },
+      { id:'b', title:'Jessie J - Flashlight (from Pitch Perfect 2) (Official Video)', artist:'Jessie J' },
+      { id:'c', title:'The Best Fleshlight Reviewed', artist:'Unrelated uploader' },
+      { id:'d', title:'Flashlight (from Pitch Perfect 2) live cover', artist:'Fan Channel' },
+    ] } }
+  },
+}, { args:['fleshlight','by','pitch','perfect','2'] })
+if (correctedQuery !== 'Flashlight by pitch perfect 2') {
+  throw new Error('Pitch Perfect 2 track spelling was not normalized')
+}
+if (rankedSession?.entries?.[0]?.id !== 'b') {
+  throw new Error('The official song did not outrank a lyrics repost')
+}
+if (rankedSession.entries.some(row => row.id === 'c')) {
+  throw new Error('Unrelated explicit search result was not filtered')
+}
+if (!rankedReplies[0]?.includes('Showing matches for: *Flashlight by pitch perfect 2*')) {
+  throw new Error('Search correction was not disclosed in the song menu')
+}
+console.log('PASS soundtrack typo, official recording ranking and unrelated-result pruning')
