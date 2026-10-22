@@ -94,6 +94,33 @@ function releaseTouch(e){
 $('touchPad').addEventListener('pointerup',releaseTouch);
 $('touchPad').addEventListener('pointercancel',releaseTouch);
 $('touchPad').addEventListener('lostpointercapture',releaseTouch);
+
+// The surrounding page is part of the jump input, as on Chrome Dino.
+// Do not install an overlay over the whole site: navigation, pause, settings,
+// links, browser scrolling and selectable interface controls remain usable.
+// Arena taps are handled by the existing jump/swipe gesture recognizer.
+let outerPointer=null;
+function isOuterJumpTarget(target){
+ return target instanceof Element &&
+  !target.closest('#stage,header,nav,footer,dialog,a,button,input,select,textarea,label,summary,[role="button"],[contenteditable]:not([contenteditable="false"]),#offline-resources');
+}
+document.addEventListener('pointerdown',e=>{
+ if(!e.isPrimary||e.button!==0||outerPointer!==null||!isOuterJumpTarget(e.target))return;
+ if($('settingsDialog').open||paused||!runner?.canvas)return;
+ if(!started||dead)start();
+ if(!started||paused||dead)return;
+ outerPointer=e.pointerId;
+ jumpStart();
+},true);
+function releaseOuterPointer(e){
+ if(outerPointer!==e.pointerId)return;
+ outerPointer=null;
+ jumpEnd();
+}
+document.addEventListener('pointerup',releaseOuterPointer,true);
+document.addEventListener('pointercancel',releaseOuterPointer,true);
+window.addEventListener('blur',()=>{if(outerPointer!==null){outerPointer=null;jumpEnd()}});
+
 window.addEventListener('keydown',e=>{
  if(['Space','ArrowDown','ArrowUp'].includes(e.code))e.preventDefault();
  if($('settingsDialog').open||!$('overlay').hidden){
@@ -119,8 +146,8 @@ function pulse(){
 }
 window.addEventListener('load',async()=>{
  if(typeof window.Runner!=='function'){overlay('UNAVAILABLE','Game did not load','Refresh to try again.','Retry');return}
- // One game footprint for every NIGHT action game: the display canvas fills
- // the full 390:550 arena. Render Chromium's ORIGINAL 150-unit gameplay world
+ // Compact full-width runner arena: the canvas follows its measured height.
+ // Render Chromium's ORIGINAL 150-unit gameplay world
  // uniformly zoomed (both axes) so the character and hazards no longer occupy
  // a tiny strip at the bottom. Physics/collision remain in native coordinates.
  window.NIGHT_DINO_ZOOM=window.innerWidth<700?1.45:1.34;
