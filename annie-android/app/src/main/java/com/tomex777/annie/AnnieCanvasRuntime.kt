@@ -22,6 +22,38 @@ internal val CANVAS_LIFECYCLE_BOOTSTRAP = """
   var frameOffset = 0;
   var suspendedMedia = [];
   var suspendedAnimations = [];
+  var deferredMedia = new Set();
+  var audioContexts = new Set();
+  var suspendedAudioContexts = [];
+
+  // Media created while paused must not bypass the host-level suspension.
+  if (window.HTMLMediaElement && window.HTMLMediaElement.prototype) {
+    var nativePlay = window.HTMLMediaElement.prototype.play;
+    window.HTMLMediaElement.prototype.play = function () {
+      if (!paused) return nativePlay.apply(this, arguments);
+      deferredMedia.add(this);
+      return Promise.resolve();
+    };
+  }
+
+  function trackAudioConstructor(name) {
+    var NativeAudio = window[name];
+    if (typeof NativeAudio !== 'function') return;
+    function TrackedAudioContext() {
+      var context = Reflect.construct(NativeAudio, arguments, NativeAudio);
+      audioContexts.add(context);
+      if (paused && context.state === 'running') {
+        var action = context.suspend();
+        if (action && action.catch) action.catch(function () {});
+      }
+      return context;
+    }
+    TrackedAudioContext.prototype = NativeAudio.prototype;
+    Object.setPrototypeOf(TrackedAudioContext, NativeAudio);
+    window[name] = TrackedAudioContext;
+  }
+  trackAudioConstructor('AudioContext');
+  trackAudioConstructor('webkitAudioContext');
 
   function invoke(job, timestamp) {
     if (!jobs.has(job.id) || paused) return;
@@ -99,6 +131,14 @@ internal val CANVAS_LIFECYCLE_BOOTSTRAP = """
     document.querySelectorAll('audio,video').forEach(function (media) {
       if (!media.paused) { suspendedMedia.push(media); media.pause(); }
     });
+    suspendedAudioContexts = [];
+    audioContexts.forEach(function (context) {
+      if (context.state === 'running') {
+        suspendedAudioContexts.push(context);
+        var action = context.suspend();
+        if (action && action.catch) action.catch(function () {});
+      }
+    });
     suspendedAnimations = [];
     if (document.getAnimations) document.getAnimations().forEach(function (animation) {
       if (animation.playState === 'running') {
@@ -118,6 +158,15 @@ internal val CANVAS_LIFECYCLE_BOOTSTRAP = """
       if (animation.playState === 'paused') animation.play();
     });
     suspendedAnimations = [];
+    suspendedAudioContexts.forEach(function (context) {
+      if (context.state === 'suspended') {
+        var action = context.resume();
+        if (action && action.catch) action.catch(function () {});
+      }
+    });
+    suspendedAudioContexts = [];
+    deferredMedia.forEach(function (media) { suspendedMedia.push(media); });
+    deferredMedia.clear();
     suspendedMedia.forEach(function (media) {
       if (media.isConnected && media.paused) {
         var promise = media.play();
