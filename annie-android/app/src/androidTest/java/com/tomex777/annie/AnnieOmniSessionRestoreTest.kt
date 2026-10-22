@@ -40,6 +40,7 @@ class AnnieOmniSessionRestoreTest {
         val originalBackup = backup.takeIf { it.exists() }?.readBytes()
         val server = GeckoLocalFixture()
         lateinit var model: AnnieGeckoBrowserModel
+        var initialized = false
         lateinit var normalId: String
         lateinit var privateId: String
         val uiSession = mutableStateOf<GeckoSession?>(null)
@@ -48,6 +49,7 @@ class AnnieOmniSessionRestoreTest {
                 // Unit-test navigation must not inherit previously saved network tabs.
                 prefs.edit().clear().commit()
                 model = AnnieGeckoBrowserModel(context)
+                initialized = true
                 val oldTabs = model.tabs.toList()
                 val normal = model.newTab(address = server.baseUrl + "/one", autoLoad = false)
                 oldTabs.forEach(model::close)
@@ -110,7 +112,7 @@ class AnnieOmniSessionRestoreTest {
         } finally {
             compose.runOnUiThread {
                 uiSession.value = null
-                if (::model.isInitialized) model.destroy()
+                if (initialized) model.destroy()
                 val edit = prefs.edit().clear()
                 originalPrefs.forEach { (key, value) ->
                     when (value) {
