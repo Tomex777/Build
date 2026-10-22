@@ -14,9 +14,12 @@ node night-play/channels/qa/exact-channel-name.mjs
 NIGHT_SOURCE_ROOT=agentA/night-play node night-play/channels/qa/config-browser.cjs
 NIGHT_CURATION_ROOT=agentB/night-play/channels/curation node night-play/channels/qa/curation-contract.cjs
 NIGHT_BRANDING_ROOT=agentD/mscc/channel-branding node night-play/channels/qa/branding-contract.mjs
+NIGHT_A_SOURCE_ROOT=agentA/night-play NIGHT_C_SOURCE_ROOT=agentC/mscc node night-play/channels/qa/a-c-config-contract.cjs
+NIGHT_MSCC_SOURCE_ROOT=agentC/mscc node night-play/channels/qa/exact-channel-name.mjs
+node agentC/mscc/channel-publisher/selftest.js
 ```
 
-For the cross-agent lines, check out the actual respective **branches** under `agentA/`, `agentB/`, `agentD/` at the repository root first. They are not part of E's source branch. E's workflow `.github/workflows/night-channels-agent-e-qa.yml` automates the checkouts and the Chrome screenshots.
+For the cross-agent lines, check out the actual respective **branches** under `agentA/`, `agentB/`, `agentC/`, `agentD/` at the repository root first. They are not part of E's source branch. E's workflow `.github/workflows/night-channels-agent-e-qa.yml` automates the checkouts and the Chrome screenshots.
 
 ## Acceptance matrix — default blocked until real proof
 
