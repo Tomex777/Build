@@ -118,12 +118,18 @@ export async function makeReusableWatermark({
   if(raw.info.channels!==4||raw.info.width!==width||raw.info.height!==height)
     throw new Error('Incorrect RGBA layer dimensions.');
   // Apply opacity AFTER rasterizing, to ALL glyph pixels including colored emoji.
-  let ink=0;for(let i=3;i<raw.data.length;i+=4){
+  let ink=0,visibleInk=0,maxAppliedAlpha=0;
+  for(let i=3;i<raw.data.length;i+=4){
     if(raw.data[i]>0)ink++;
     raw.data[i]=Math.round(raw.data[i]*opacity);
+    if(raw.data[i]>0)visibleInk++;
+    maxAppliedAlpha=Math.max(maxAppliedAlpha,raw.data[i]);
   }
-  if(ink===0||ink>width*height*.85)
-    throw new Error('Watermark is empty or insufficiently transparent; request a new owner overlay.');
+  // A nearly invisible user PNG can round every alpha to zero after the
+  // requested 15–30% blend. Never mark an empty-looking layer as watermarked.
+  if(ink===0||ink>width*height*.85||visibleInk<Math.max(8,Math.floor(width*height*.0002))||
+    maxAppliedAlpha<12)
+    throw new Error('Watermark is empty, practically invisible or too opaque; request a new owner overlay.');
   const png=await sharp(raw.data,{raw:{width,height,channels:4}}).png({compressionLevel:8}).toBuffer();
   if(png.length>MAX_LAYER_FILE)throw new Error('Encoded watermark exceeds budget.');
   const asset=Object.freeze({channelId,displayName,styleVersion,tone,opacity,width,height,key,buffer:png,
