@@ -21,6 +21,7 @@ let brokenConfig=false,ownerARevoked=false,nextBatchCounter=0;
 function candidates(batch) {return Array.from({length:4},(_,i)=>({
  id:'fixture_'+batch+'_'+(i+1),title:['Relatable','Old but funny','Anime','Animals'][i]+' sample '+batch,
  category:'relatable',caption:'Editable caption '+(i+1),previewData:giflessPNG,
+ publishable:i!==3,reviewOnly:i===3,publishBlockedReason:i===3?'rights_unverified':null,
  sourceName:'Offline fixture, not a live licensed feed',
  sourceUrl:'https://example.org/fixture/'+batch+'/'+i
 }));}
@@ -156,6 +157,9 @@ async function main(){
   await page.locator('.review-card').first().waitFor();
   assert.equal(await page.locator('.review-card').count(),4);
   await page.screenshot({path:path.join(output,'review-four-candidates.png'),fullPage:true});
+  const blockedCard=page.locator('.review-card').nth(3);
+  assert.equal(await blockedCard.getByRole('button',{name:'Approve'}).isEnabled(),false,
+    'Rights-unverified review-only meme cannot be approved for publishing');
   await page.locator('.review-card').first().getByRole('button',{name:'Approve'}).click();
   await page.locator('.review-card').first().getByText('Approved',{exact:true}).waitFor();
   assert.match(await page.locator('#approvedCount').innerText(),/^1 approved/);
