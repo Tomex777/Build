@@ -620,7 +620,16 @@ private fun ScriptStudioContent(
         ) {
             Column(Modifier.weight(1f)) {
                 Text("Script Studio", color = StudioText, fontSize = 21.sp, fontWeight = FontWeight.Bold)
-                Text(selectedProject?.let { project -> selectedPath?.let { "${project.name} · $it" } ?: project.name } ?: "Your JavaScript workspace", color = StudioMuted, fontSize = 12.sp, maxLines = 1)
+                Text(
+                    selectedProject?.let { project ->
+                        when {
+                            selectedPath != null -> "${project.name} · $selectedPath"
+                            currentDirectory.isNotBlank() -> "${project.name} / $currentDirectory"
+                            else -> project.name
+                        }
+                    } ?: "Your JavaScript workspace",
+                    color = StudioMuted, fontSize = 12.sp, maxLines = 1,
+                )
             }
             StudioAction("Host AI", onClick = { hostAiSettings = true })
             StudioAction(
@@ -724,10 +733,10 @@ private fun ScriptStudioContent(
                                 item(key = "project:${project.id}") {
                                     ScriptFileRow(
                                         name = shown,
-                                        subtitle = if (isFolder) "Folder · ${project.files.size} ${if (project.files.size == 1) "file" else "files"}" else "JavaScript",
+                                        subtitle = if (isFolder) "Folder · ${project.files.size} ${if (project.files.size == 1) "file" else "files"}" else "${project.entryPath.substringAfterLast('.', "js").uppercase()} script",
                                         isFolder = isFolder,
                                         isEntry = !isFolder,
-                                        selected = selectedProjectId == project.id && (if (isFolder) selectedPath == null else selectedPath == project.entryPath),
+                                        selected = selectedProjectId == project.id && (if (isFolder) selectedPath == null && currentDirectory.isBlank() else selectedPath == project.entryPath),
                                         onClick = { if (isFolder) focusDirectory(project, "") else selectFile(project, project.entryPath) },
                                         actions = listOf(
                                             FileAction.RENAME,
@@ -751,6 +760,8 @@ private fun ScriptStudioContent(
                                                         runCatching { workspace.files.deleteProject(project.id) }
                                                             .onSuccess {
                                                                 refreshProjects(null, null)
+                                                                currentDirectory = ""
+                                                                page = StudioPage.FILES
                                                                 scope.launch { onCommandsReloaded(workspace.reload()) }
                                                                 status = "Project deleted"
                                                             }
@@ -803,7 +814,21 @@ private fun ScriptStudioContent(
                                         childFiles += path
                                     }
                                 }
-                                childDirectories.filter { projectMatches || it.contains(query, true) }.forEach { child ->
+                                // Source snapshots list files, not empty folders. Include the
+                                // actual directories so a newly created folder remains visible
+                                // before its first document is added.
+                                val rootDirectory = File(workspace.files.root, project.id).canonicalFile
+                                val browsedDirectory = File(rootDirectory, normalizedDirectory).canonicalFile
+                                if (browsedDirectory.toPath().startsWith(rootDirectory.toPath())) {
+                                    browsedDirectory.listFiles().orEmpty()
+                                        .filter { it.isDirectory && it.canonicalFile.toPath().startsWith(rootDirectory.toPath()) }
+                                        .forEach { childDirectories += it.name }
+                                }
+                                childDirectories.filter { child ->
+                                    val childPath = if (normalizedDirectory.isBlank()) child else "$normalizedDirectory/$child"
+                                    projectMatches || child.contains(query, true) ||
+                                        project.files.keys.any { path -> path.startsWith("$childPath/") && path.contains(query, true) }
+                                }.forEach { child ->
                                     val childPath = if (normalizedDirectory.isBlank()) child else "$normalizedDirectory/$child"
                                     item(key = "dir:" + project.id + ":" + childPath) {
                                         ScriptFileRow(
@@ -854,7 +879,7 @@ private fun ScriptStudioContent(
                                                         if (confirmation == path.substringAfterLast('/')) {
                                                             runCatching { workspace.files.deleteFile(project.id, path) }
                                                                 .onSuccess {
-                                                                    refreshProjects(project.id, null)
+                                                                    refreshProjects(project.id, selectedPath.takeUnless { it == path })
                                                                     currentDirectory = normalizedDirectory
                                                                     status = "Deleted $path"
                                                                 }.onFailure { status = it.message ?: "Delete failed" }
