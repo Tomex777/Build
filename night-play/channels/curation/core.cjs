@@ -108,4 +108,20 @@ function chooseNews(items,{enabled=false,interests=[],shows=[],includeSpoilers=f
  }
  return [...unique.values()].sort((a,b)=>b.publishedAt.localeCompare(a.publishedAt)||a.id.localeCompare(b.id)).slice(0,Math.min(20,Math.max(1,limit)));
 }
-module.exports={CATEGORIES,SIMPLE_TAGS,safeUrl,normalizeMeme,normalizeNews,memeScore,chooseFourMemes,chooseNews,isDuplicate,hashNear};
+
+function deriveHumanFeedback(reviewHistory){
+ const counters=Object.create(null),feedback=Object.create(null);
+ for(const record of (Array.isArray(reviewHistory)?reviewHistory:[]).slice(-5000)){
+  const category=record?.category,decision=record?.decision;
+  if(!CATEGORIES.includes(category)||!['approved','declined'].includes(decision))continue;
+  if(!counters[category])counters[category]={approved:0,declined:0};
+  counters[category][decision]++;
+ }
+ for(const category of Object.keys(counters)){
+  const {approved,declined}=counters[category];
+  // Neutral Bayesian prior: a few clicks should not erase good but unexplored categories.
+  feedback[category]=(approved+3)/(approved+declined+6);
+ }
+ return Object.freeze(feedback);
+}
+module.exports={deriveHumanFeedback,CATEGORIES,SIMPLE_TAGS,safeUrl,normalizeMeme,normalizeNews,memeScore,chooseFourMemes,chooseNews,isDuplicate,hashNear};
