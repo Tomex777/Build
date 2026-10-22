@@ -91,9 +91,12 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        WindowCompat.setDecorFitsSystemWindows(window,true)
-        WindowInsetsControllerCompat(window,window.decorView)
-            .hide(WindowInsetsCompat.Type.statusBars())
+        WindowCompat.setDecorFitsSystemWindows(window,false)
+        WindowInsetsControllerCompat(window,window.decorView).apply {
+            systemBarsBehavior =
+                WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            hide(WindowInsetsCompat.Type.systemBars())
+        }
         store=PuzzleStore(this)
         game=store.load() ?: PuzzleGame.fresh(6,4)
         val restoredPhoto=if(game.imageKey=="custom") store.loadPhoto() else null
