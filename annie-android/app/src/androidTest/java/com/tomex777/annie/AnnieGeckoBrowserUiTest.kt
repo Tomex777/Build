@@ -46,9 +46,8 @@ class AnnieGeckoBrowserUiTest {
                 AnnieTheme { if (shown.value) AnnieGeckoStandaloneBrowser(onExit = {}, onOwn = {}, onRelease = {}) }
             }
             compose.onNodeWithTag("annie_gecko_browser").assertIsDisplayed()
-            compose.waitUntil(30_000) {
-                compose.onAllNodesWithText("Gecko one", substring = true).fetchSemanticsNodes().isNotEmpty()
-            }
+            // Native page pixels assert that Gecko actually navigated and rendered;
+            // this compact chrome intentionally does not duplicate the title strip.
             waitForNativePageColor(32, 48, 64)
             val address = compose.onNodeWithTag("annie_browser_tabs_address")
             val back = compose.onNodeWithTag("annie_browser_back")
@@ -66,9 +65,6 @@ class AnnieGeckoBrowserUiTest {
             address.performTextReplacement(fixture.baseUrl + "/two")
             address.performImeAction()
             address.assertIsNotFocused()
-            compose.waitUntil(30_000) {
-                compose.onAllNodesWithText("Gecko two", substring = true).fetchSemanticsNodes().isNotEmpty()
-            }
             waitForNativePageColor(48, 64, 32)
             compose.waitUntil(8_000) {
                 var hidden = false
@@ -86,9 +82,6 @@ class AnnieGeckoBrowserUiTest {
             address.performTextReplacement(fixture.baseUrl + "/one")
             compose.onNodeWithTag("annie_browser_go").performClick()
             address.assertIsNotFocused()
-            compose.waitUntil(30_000) {
-                compose.onAllNodesWithText("Gecko one", substring = true).fetchSemanticsNodes().isNotEmpty()
-            }
             compose.onNodeWithTag("annie_browser_tabs_webview").assertIsDisplayed()
             waitForNativePageColor(32, 48, 64)
             saveEmulatorScreenshot("annie-gecko-system-bars-and-keyboard")
