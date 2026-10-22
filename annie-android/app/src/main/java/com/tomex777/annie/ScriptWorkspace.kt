@@ -460,7 +460,10 @@ internal class ScriptFiles(context: Context) : PackageAssetResolver {
     fun renameFile(projectId: String, relativePath: String, newRelativePath: String): String {
         val project = resolveProjectContainer(projectId)
         require(project.isDirectory) { "Rename the standalone project instead" }
-        require(relativePath != readProject(project)?.entryPath) { "$relativePath is the folder entry point and cannot be moved" }
+        val entry = readProject(project)?.entryPath
+        require(relativePath != entry || !isExecutableScript(relativePath)) {
+            "$relativePath is the runnable entry point and cannot be moved"
+        }
         val source = resolveProjectFile(projectId, relativePath)
         require(source.isFile) { "Script file does not exist" }
         val safeTarget = validateProjectTextPath(newRelativePath)
@@ -474,9 +477,18 @@ internal class ScriptFiles(context: Context) : PackageAssetResolver {
     fun deleteFile(projectId: String, relativePath: String) {
         val project = resolveProjectContainer(projectId)
         require(project.isDirectory) { "Delete the standalone project instead" }
-        require(relativePath != readProject(project)?.entryPath) { "$relativePath is the folder entry point and cannot be deleted" }
+        val entry = readProject(project)?.entryPath
+        require(relativePath != entry || !isExecutableScript(relativePath)) {
+            "$relativePath is the runnable entry point and cannot be deleted"
+        }
         val target = resolveProjectFile(projectId, relativePath)
         require(target.isFile && target.delete()) { "Could not delete script file" }
+        // Imported document-only projects can remove their sole entry file.
+        // Remove an empty project container so it cannot become a hidden,
+        // non-editable orphan after deleting its final document.
+        if (relativePath == entry && project.listFiles().orEmpty().isEmpty()) {
+            deleteProject(projectId)
+        }
     }
 
     private fun projectNameExists(id: String, except: File? = null): Boolean =
