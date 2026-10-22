@@ -12,7 +12,9 @@ Pinned upstream Git SHA: `9de84cc0d4c7cce32c7052e6d7a8ceab4bdc6d16` (reviewed 20
 - `app/src/main/assets/web_extensions/universal_copy/override.js` (`9cf39e24992462033e65b73c46accfa0dfbb2a77`) → `annie-android/app/src/main/assets/web_extensions/annie_universal_copy/override.js`
 - `app/src/main/assets/web_extensions/universal_copy/override.css` (`8c4fd0e515ffcbcafde788721f440520d52ea30e`) → `annie-android/app/src/main/assets/web_extensions/annie_universal_copy/override.css`
 
-**Adaptations:** source packages relocated into Annie's internal engine to avoid shipping upstream trademarks as an Android package ID. `OmniSessionState` renamed `AnnieSessionState`; state format preserved. A cancellation guard stops closed-tab debounce jobs from resurrecting removed state. A logged URL was removed. The built-in extension's manifest/name/ID and JS diagnostic label are Annie-branded. Upstream copyright headers remain on original Kotlin sources. No upstream logos are imported. The JS/CSS and manifest derive from the upstream `universal_copy` extension.
+- `app/src/main/java/com/rebelroot/omni/browser/useragent/UserAgentManager.kt` (`f3d1f7e29fd38af97e21d4c9d55d50b1b2826fdc`) → `annie-android/app/src/main/java/com/tomex777/annie/browser/engine/useragent/UserAgentManager.kt`
+
+**Adaptations:** source packages relocated into Annie's internal engine to avoid shipping upstream trademarks as an Android package ID. `OmniSessionState` renamed `AnnieSessionState`; state format preserved. A cancellation guard stops closed-tab debounce jobs from resurrecting removed state. A logged URL was removed. The upstream user-agent preference manager is relocated, uses a new Annie preference namespace, and fixes overly broad parent-domain rule matching. Its preset strings are retained as upstream historical versions, never silently advertised as current. The built-in extension's manifest/name/ID and JS diagnostic label are Annie-branded. Upstream copyright headers remain on original Kotlin sources. No upstream logos are imported. The JS/CSS and manifest derive from the upstream `universal_copy` extension.
 
 `AnnieBrowserEngineBridge` is Annie-native glue, not a replacement browser. It exposes Gecko SessionState recovery/checkpoint and optional Universal Copy WebExtension control to the existing Annie GeckoRuntime (never to script/automation WebView profiles). The extension is **OFF by default** and only installed when a real user-facing control calls the bridge. Its script intercepts page input events, so it should be opt-in and disabled for normal browsing. Agent 2 owns this UI.
 
@@ -38,6 +40,7 @@ Instantiate `AnnieBrowserEngineBridge(context, AnnieGeckoRuntime.get(context))` 
 | Durable Gecko session-state serialization | Actual upstream classes ported; behavioral integration and tests ongoing |
 | Built-in WebExtension management / Universal Copy | Actual upstream manager + scripts imported; explicit opt-in hook pending UI |
 | Bookmarks/history/search/downloads | Annie baseline; upstream implementations **not** ported |
+| Upstream per-site/global User-Agent preferences | Original upstream manager ported and wired to Gecko session settings; Agent 2 user controls pending | 
 | Third-party WebExtensions, ad/tracker blockers, privacy controls | Not ported / not validated |
 | Media download/grabber, player, PDF, QR, translator | Not ported / not validated |
 | Vault/SQLCipher, local models/AI, Tor/VPN, sync | Not ported; dependency, entitlement, privacy and security audits required |
