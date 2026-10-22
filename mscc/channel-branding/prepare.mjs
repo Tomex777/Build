@@ -5,7 +5,7 @@ import {watermarkStaticImage} from './watermark.mjs';
 
 export async function prepareChannelContent({
   text='',mediaBuffer=null,channelId,verifiedDisplayName,
-  posterName='',branding={},maxUtf8Bytes=2048,
+  posterName='',sourceKind='manual',branding={},maxUtf8Bytes=2048,
   rendererVerifiedEmoji=false,watermarkCache=null,
   sharpLibrary=null,canvasLibrary=null,
   transform=watermarkStaticImage
@@ -13,11 +13,13 @@ export async function prepareChannelContent({
   if(typeof text!=='string')throw new TypeError('Post caption must be text.');
   if(mediaBuffer!==null&&!Buffer.isBuffer(mediaBuffer))throw new TypeError('Post media must be a Buffer.');
   if(branding===null||typeof branding!=='object'||Array.isArray(branding))throw new TypeError('Invalid branding config.');
+  if(!['manual','automation'].includes(sourceKind))throw new Error('Invalid content authorship mode.');
   const caption=composeChannelCaption({
     text,maxUtf8Bytes,
     replacements:{enabled:branding.captionReplacementsEnabled===true,
       rules:Array.isArray(branding.captionReplacements)?branding.captionReplacements:[]},
-    poster:{enabled:branding.signatureEnabled===true,name:posterName||branding.signaturePosterName||''}
+    poster:{enabled:branding.signatureEnabled===true,
+      name:sourceKind==='manual'?posterName:(branding.signaturePosterName||'')}
   });
   if(branding.watermarkEnabled!==true||mediaBuffer===null){
     // Avoid touching binary data for OFF modules; identity of media remains intact.
