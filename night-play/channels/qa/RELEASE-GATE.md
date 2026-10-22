@@ -29,7 +29,7 @@ For the cross-agent lines, check out the actual respective **branches** under `a
 | Rights safe and provenance | `publishable:false` review-only preview, not approvable; immutable media rights evidence | C denies unlicensed media at approve, enqueue **and** final send | B source updated; A UI/ C server gate not verified |
 | News | Verified sources, K-drama interests, rumor not auto, spoilers default withheld, stale-story dedupe | Actual signed feed time/provenance check and posting outcome | B core source smoke; live NOT_RUN |
 | Poster vs channel identity | Exact WhatsApp channel name watermark; `> Person` explicit caption signer; Unicode ZWJ retained | Same real channel metadata at ownership and send; color emoji pixel inspection | D code smoke; baseline MSCC strips U+200D, P1 |
-| Watermark performance | Static media <=8 MiB, 12 MP source, bounded cache, bytes/CPU | PNG transparency, correct original emoji, mobile bandwidth and <=1GB RAM server measurement | D source guard checked; live metrics NOT_RUN |
+| Watermark performance | Static media <=8 MiB, D's revised <=6 MP source cap, bounded cache, bytes/CPU | PNG transparency, correct original emoji, mobile bandwidth and <=1GB RAM server measurement | D source guard checked; live metrics NOT_RUN |
 | Job queue / delivery | Schedule, retry, idempotency, multi-poster room, auto OFF, cancel on unlink / lost admin | Real authorized test channel, two distinct bot accounts, message IDs, sent-media proof | C publisher integration not present; NOT_RUN |
 | Deployment truth | Alias's real deployment ID and Git commit SHA, live route and console | Exactly integrated SHA served on canonical combined preview | 18:15 UTC alias points to READY `ef72438e`, older than integration `fb28b2f` |
 
