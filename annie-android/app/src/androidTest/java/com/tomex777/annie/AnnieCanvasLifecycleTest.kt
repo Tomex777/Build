@@ -393,4 +393,31 @@ class AnnieCanvasLifecycleTest {
         }
     }
 
+    @Test fun stableChatMessageIdPreservesExplicitCloseAcrossWholeChatNavigation() {
+        val showingChat = mutableStateOf(true)
+        val stableMessageId = "native-chat-" + SystemClock.uptimeMillis()
+        compose.setContent {
+            AnnieTheme {
+                if (showingChat.value) {
+                    AnnieCanvasMessage(document("Navigate away"), stableMessageId)
+                } else {
+                    Box(Modifier.height(64.dp))
+                }
+            }
+        }
+        compose.waitUntil(10_000) { allCanvasWebViews().size == 1 }
+        compose.onNodeWithTag("annie_canvas_close").performClick()
+        compose.onNodeWithTag("annie_canvas_closed").assertIsDisplayed()
+        compose.runOnIdle { showingChat.value = false }
+        compose.waitForIdle()
+        assertEquals(0, allCanvasWebViews().size)
+
+        compose.runOnIdle { showingChat.value = true }
+        compose.onNodeWithTag("annie_canvas_closed").assertIsDisplayed()
+        assertEquals("Chat navigation must retain the explicit Close preference",
+            0, allCanvasWebViews().size)
+        compose.onNodeWithTag("annie_canvas_reopen").performClick()
+        compose.waitUntil(10_000) { allCanvasWebViews().size == 1 }
+    }
+
 }
