@@ -3,7 +3,8 @@
     <!-- Needed only to download selected curated photographs; native gameplay stays offline. -->
     <uses-permission android:name="android.permission.INTERNET" />
     <application android:theme="@android:style/Theme.Material.Light.NoActionBar"
-        android:label="Jigsaw" android:allowBackup="false"
+        android:label="NIGHT Jigsaw" android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher" android:allowBackup="false"
         android:supportsRtl="true" android:usesCleartextTraffic="false">
         <activity android:name=".MainActivity" android:exported="true"
             android:screenOrientation="unspecified" android:configChanges="keyboardHidden|orientation|screenSize">
