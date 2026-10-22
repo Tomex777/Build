@@ -133,6 +133,25 @@ internal val CANVAS_LIFECYCLE_BOOTSTRAP = """
   trackAudioConstructor('AudioContext');
   trackAudioConstructor('webkitAudioContext');
 
+  // A Web Animations API animation created from a Promise while the document
+  // is paused must not bypass the snapshot of running animations.
+  if (window.Element && window.Element.prototype.animate) {
+    var nativeAnimate = window.Element.prototype.animate;
+    try {
+      window.Element.prototype.animate = function () {
+        var animation = nativeAnimate.apply(this, arguments);
+        if (paused && animation) {
+          animation.pause();
+          suspendedAnimations.push(animation);
+        }
+        return animation;
+      };
+    } catch (_) {
+      // The CSS pause rule and document.getAnimations still cover animations
+      // on engines that disallow patching Element.prototype.animate.
+    }
+  }
+
   function invoke(job, timestamp) {
     if (!jobs.has(job.id) || paused) return;
     if (job.kind === 'frame') {
