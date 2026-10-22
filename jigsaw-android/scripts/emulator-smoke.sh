@@ -66,4 +66,29 @@ adb exec-out screencap -p > jigsaw-android/qa-screenshots/05-restored-144-390.pn
 adb shell wm size 360x740
 sleep 2
 adb exec-out screencap -p > jigsaw-android/qa-screenshots/06-144-360.png
+# Landscape visual proof: rotate the emulated Android display, not just the web viewport.
+adb shell settings put system accelerometer_rotation 0
+adb shell settings put system user_rotation 1
+adb shell wm size 844x390
+sleep 4
+adb shell pidof com.night.jigsaw >/dev/null
+adb exec-out screencap -p > jigsaw-android/qa-screenshots/07-landscape-144-844x390.png
+adb shell run-as com.night.jigsaw cat files/active-jigsaw.json > /tmp/jigsaw-landscape.json
+python3 - <<'PY'
+import json
+saved=json.load(open("/tmp/jigsaw-landscape.json"))
+assert saved["cols"]==12 and saved["rows"]==12, saved
+assert saved["landscape"] is True, "The Activity must preserve and switch its tabletop mode."
+print("PASS: 144-piece landscape board recorded in saved state.")
+PY
+tap_label "New puzzle"
+tap_label "240"
+adb exec-out screencap -p > jigsaw-android/qa-screenshots/08-landscape-240-844x390.png
+tap_label "New puzzle"
+tap_label "600"
+adb exec-out screencap -p > jigsaw-android/qa-screenshots/09-landscape-600-844x390.png
+adb shell settings put system user_rotation 0
+adb shell wm size 390x844
+sleep 3
+adb exec-out screencap -p > jigsaw-android/qa-screenshots/10-portrait-600-390x844.png
 echo "Native standalone Jigsaw device smoke: PASS"
