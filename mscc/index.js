@@ -72,6 +72,7 @@ import {
   warningState,
 } from './group-policy.js'
 import { looksLikeNumberSelection } from './number-selection.js'
+import { musicFollowupReply } from './music-chat-context.js'
 import { createInboundMessageGuard, matchesDisplayedChoice } from './inbound-message-guard.js'
 import { createCommandTiming } from './command-performance.js'
 import { createMessageScheduler } from './command-scheduler.js'
@@ -2932,6 +2933,15 @@ async function processInboundMessage(account, msg) {
       })
       probe?.mark('command')
       if (commandHandled) return
+
+      // If the user is asking about a pending music choice, give grounded
+      // command feedback. A personality must never claim that a non-existent
+      // audio attachment was sent or invent a recording.
+      const musicGuidance = musicFollowupReply(text, pendingReply, { prefix:publicPrefix })
+      if (musicGuidance) {
+        await sendCommandReply(account, msg, musicGuidance)
+        return
+      }
 
       if (await handleProfileAssistant(account, msg, authority, text)) return
 
