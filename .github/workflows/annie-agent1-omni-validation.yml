@@ -43,6 +43,7 @@ jobs:
           set -euo pipefail
           npm install -g typescript@5.9.3
           python3 annie-android/ci/check-abr.py
+          python3 annie-android/ci/check-omni-provenance.py
           python3 annie-android/scripts/test-repair-contract.py
           python3 annie-android/scripts/repair-m0b-merge.py
           sh annie-android/scripts/check-annie-types.sh
@@ -69,7 +70,7 @@ jobs:
           script: |
             set -euo pipefail
             mkdir -p annie-android/build/agent1-omni-evidence
-            for klass in AnnieGeckoTabRestoreTest AnnieOmniExtensionTest AnnieOmniPersistenceSecurityTest AnnieOmniUserAgentTest AnnieOmniSmartTabsTest AnnieOmniFindInPageTest AnnieOmniSitePermissionTest AnnieOmniSessionRestoreTest AnnieGeckoBrowserEndToEndTest AnnieGeckoBrowserUiTest; do
+            for klass in AnnieGeckoTabRestoreTest AnnieOmniExtensionTest AnnieOmniPersistenceSecurityTest AnnieOmniUserAgentTest AnnieOmniSmartTabsTest AnnieOmniFindInPageTest AnnieOmniSitePermissionTest AnnieOmniBookmarkStorageTest AnnieOmniBookmarkImportBridgeTest AnnieOmniSessionRestoreTest AnnieGeckoBrowserEndToEndTest AnnieGeckoBrowserUiTest; do
               timeout --signal=TERM --kill-after=20s 480s gradle --no-daemon --stacktrace -p annie-android :app:connectedDebugAndroidTest "-Pandroid.testInstrumentationRunnerArguments.class=com.tomex777.annie.$klass"
               mkdir -p "annie-android/build/agent1-omni-evidence/$klass"
               cp -R annie-android/app/build/outputs/androidTest-results "annie-android/build/agent1-omni-evidence/$klass/outputs"
