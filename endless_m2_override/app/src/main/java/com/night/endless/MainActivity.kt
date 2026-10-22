@@ -374,6 +374,17 @@ private fun EndlessApp(
     MaterialTheme(colorScheme = darkColorScheme(background = Bg, surface = PanelStrong)) {
         BoxWithConstraints(Modifier.fillMaxSize().background(Bg)) {
             val density = LocalDensity.current
+            // A close gas-giant flyby should show cloud bands and Saturn's
+            // rings unobstructed. Keep details available explicitly, not
+            // pinned over one third of the visible planet.
+            val focusedGasGiant = cosmicScale == CosmicScale.SOLAR_SYSTEM &&
+                !overview && landedBody == null &&
+                selected in setOf("jupiter", "saturn")
+            val hiddenFlybyLabels = when (selected) {
+                "jupiter" -> setOf("jupiter", "europa")
+                "saturn" -> setOf("saturn", "titan")
+                else -> emptySet()
+            }
 
             AndroidView(
                 modifier = Modifier.fillMaxSize(),
@@ -382,7 +393,9 @@ private fun EndlessApp(
                         selected = id
                         if (id != null) {
                             overview = false
-                            if (landedBody == null && !historyOpen) infoVisible = true
+                            if (landedBody == null && !historyOpen) {
+                                infoVisible = id !in setOf("jupiter", "saturn")
+                            }
                         } else {
                             // Renderer overview is the source of truth. Clear any stale
                             // focused-body card so it cannot cover or steal taps from
@@ -430,7 +443,7 @@ private fun EndlessApp(
                         else -> when {
                             historyOpen -> "SPACE & TIME EXPLORER"
                             cosmicScale != CosmicScale.SOLAR_SYSTEM -> "COSMIC SCALE EXPLORER"
-                            else -> "SOLAR SYSTEM EXPLORER"
+                            else -> ""
                         }
                     },
                     color = Muted, fontSize = 9.sp, letterSpacing = 1.3.sp
@@ -454,7 +467,8 @@ private fun EndlessApp(
 
             // Never overlay cached orbital body labels over a landing scene.
             if (cosmicScale == CosmicScale.SOLAR_SYSTEM && labelsOn && landedBody == null) {
-                snapshots.filter { it.visible && it.id != "sun" }.forEach { label ->
+                snapshots.filter { it.visible && it.id != "sun" &&
+                    !(focusedGasGiant && it.id in hiddenFlybyLabels) }.forEach { label ->
                     key(label.id) {
                     val xDp = with(density) { label.xPx.toDp() }
                     val yDp = with(density) { label.yPx.toDp() }
@@ -467,7 +481,7 @@ private fun EndlessApp(
                                 glView?.endlessRenderer?.focus(label.id)
                                 selected = label.id
                                 overview = false
-                                infoVisible = true
+                                infoVisible = label.id !in setOf("jupiter", "saturn")
                             }
                             .semantics(mergeDescendants = true) { contentDescription = "Focus ${label.name}" },
                         contentAlignment = Alignment.Center
@@ -519,7 +533,7 @@ private fun EndlessApp(
                 modifier = Modifier.align(Alignment.BottomStart).padding(start = 16.dp, bottom = 14.dp),
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                Text(
+                if (!focusedGasGiant) Text(
                     if (selected == null) "OVERVIEW · SUN-CENTERED" else "FOCUSED · ${bodyInfo[selected]?.name?.uppercase() ?: selected!!.uppercase()}",
                     color = Color(0x99BEC6DC), fontSize = 8.sp, letterSpacing = 1.1.sp
                 )
@@ -809,6 +823,11 @@ private fun EndlessApp(
                             orbitsOn = glView?.endlessRenderer?.toggleOrbits() ?: orbitsOn
                         }
                         ControlButton("Labels", icon = R.drawable.ic_endless_labels, active = labelsOn) { labelsOn = !labelsOn }
+                        if (focusedGasGiant && !infoVisible) {
+                            ControlButton("Details", icon = R.drawable.ic_endless_details) {
+                                infoVisible = true
+                            }
+                        }
                     }
                     DividerPill()
                     ControlButton("Scale", icon = R.drawable.ic_endless_scale, active = scalePickerOpen) {
