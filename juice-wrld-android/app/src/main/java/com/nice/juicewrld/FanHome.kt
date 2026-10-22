@@ -179,7 +179,24 @@ fun FanHome(player: FanPlayer = viewModel()) {
                             color = White, fontWeight = FontWeight.ExtraBold,
                             modifier = Modifier.weight(1f)
                         )
-                        Text(songs.size.toString() + " songs", fontSize = 12.sp, color = Gray)
+                        if (songs.any { it.id in state.attached }) {
+                            FilledTonalButton(
+                                onClick = { player.playMood(mood) },
+                                modifier = Modifier.heightIn(min = 40.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp),
+                                shape = RoundedCornerShape(13.dp),
+                                colors = ButtonDefaults.filledTonalButtonColors(
+                                    containerColor = Panel2, contentColor = White
+                                )
+                            ) {
+                                Icon(Icons.Filled.PlayArrow, contentDescription = null,
+                                    modifier = Modifier.size(18.dp), tint = Lavender)
+                                Spacer(Modifier.width(3.dp))
+                                Text("Play mood", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            }
+                        } else {
+                            Text(songs.size.toString() + " songs", fontSize = 12.sp, color = Gray)
+                        }
                     }
                     Spacer(Modifier.height(10.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -234,7 +251,7 @@ fun FanHome(player: FanPlayer = viewModel()) {
                         playing = song.id == state.activeSongId && state.isPlaying,
                         onFavorite = { player.toggleFavorite(song.id) },
                         onOpen = { openedId = song.id },
-                        onPlay = { player.play(song.id) }
+                        onPlay = { player.playInMood(song.id, mood) }
                     )
                 }
             }
@@ -287,10 +304,14 @@ fun FanHome(player: FanPlayer = viewModel()) {
             attached = selected.id in state.attached,
             playing = selected.id == state.activeSongId && state.isPlaying,
             preparing = selected.id == state.activeSongId && state.isPreparing,
+            shuffle = state.shuffle,
+            repeat = state.repeat,
+            onShuffle = player::toggleShuffle,
+            onRepeat = player::toggleRepeat,
             memory = state.memories[selected.id].orEmpty(),
             onDismiss = { openedId = null },
             onFavorite = { player.toggleFavorite(selected.id) },
-            onPlay = { player.play(selected.id); openedId = null },
+            onPlay = { player.playInMood(selected.id, mood); openedId = null },
             onSaveMemory = { player.saveMemory(selected.id, it) },
             onShare = { shareSong(context, selected) },
             onPickFile = {
@@ -646,7 +667,8 @@ private fun MiniPlayer(
 @Composable
 private fun SongSheet(
     song: FanSong, favorite: Boolean, attached: Boolean,
-    playing: Boolean, preparing: Boolean, memory: String,
+    playing: Boolean, preparing: Boolean, shuffle: Boolean, repeat: RepeatMode,
+    onShuffle: () -> Unit, onRepeat: () -> Unit, memory: String,
     onDismiss: () -> Unit, onFavorite: () -> Unit,
     onPlay: () -> Unit, onPickFile: () -> Unit, onOfficial: () -> Unit,
     onSaveMemory: (String) -> Unit, onShare: () -> Unit
@@ -719,6 +741,32 @@ private fun SongSheet(
                         contentDescription = if (favorite) "Remove favorite" else "Add favorite",
                         tint = if (favorite) Rose else White
                     )
+                }
+            }
+            if (attached) {
+                Spacer(Modifier.height(9.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(9.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onShuffle, modifier = Modifier.weight(1f).height(40.dp),
+                        border = BorderStroke(1.dp, if (shuffle) Lavender else Hairline),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = if (shuffle) Lavender else Gray
+                        )
+                    ) {
+                        Text(if (shuffle) "Shuffle on" else "Shuffle", fontSize = 12.sp)
+                    }
+                    OutlinedButton(
+                        onClick = onRepeat, modifier = Modifier.weight(1f).height(40.dp),
+                        border = BorderStroke(1.dp, if (repeat != RepeatMode.OFF) Lavender else Hairline),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = if (repeat != RepeatMode.OFF) Lavender else Gray
+                        )
+                    ) {
+                        Text(repeat.label, fontSize = 12.sp)
+                    }
                 }
             }
             Spacer(Modifier.height(11.dp))
