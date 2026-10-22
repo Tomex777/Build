@@ -9,6 +9,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.Modifier
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performTouchInput
@@ -150,6 +151,44 @@ class AnnieVoiceGestureTest {
             compose.runOnIdle { controller.cancel() }
             sent.get()?.first?.let { File("$it.wave").delete(); File(it).delete() }
         }
+    }
+
+    @Test fun switchingChatsDisposesLockedRecordingWithoutSendingOrLeavingAudio() {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val context = instrumentation.targetContext
+        instrumentation.uiAutomation.executeShellCommand(
+            "pm grant ${context.packageName} ${Manifest.permission.RECORD_AUDIO}"
+        ).use { descriptor ->
+            android.os.ParcelFileDescriptor.AutoCloseInputStream(descriptor).use { it.readBytes() }
+        }
+        val dir = File(context.filesDir, AnnieVoiceRecorder.VOICE_DIR)
+        val originalFiles = dir.list()?.toSet().orEmpty()
+        val key = mutableStateOf("chat-first")
+        var sends = 0
+        lateinit var current: VoiceNoteController
+        compose.setContent {
+            AnnieTheme {
+                current = rememberVoiceNoteController({ _, _ -> sends++ }, sessionKey = key.value)
+                Box(Modifier.fillMaxSize()) {
+                    VoiceHoldButton(current, onNeedPermission = { error("Microphone permission was granted") })
+                }
+            }
+        }
+        lateinit var previous: VoiceNoteController
+        compose.runOnIdle {
+            previous = current
+            assertTrue(previous.begin())
+            previous.locked = true
+            key.value = "chat-second"
+        }
+        compose.waitForIdle()
+        compose.runOnIdle {
+            assertTrue("Previous chat microphone was not released", !previous.recording)
+            assertTrue("New chat inherited an active microphone", !current.recording)
+            assertTrue("Chat switch must replace the active controller", current !== previous)
+            assertEquals("A cancelled recording leaked into a different chat", 0, sends)
+        }
+        assertEquals("Switching chats left a partial audio file", originalFiles, dir.list()?.toSet().orEmpty())
     }
 
 }
