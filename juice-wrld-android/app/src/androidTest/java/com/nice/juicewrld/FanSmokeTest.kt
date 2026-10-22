@@ -35,7 +35,8 @@ class FanSmokeTest {
         rule.onNodeWithText("Discover").assertDoesNotExist()
         rule.onNodeWithText("Saved").assertDoesNotExist()
         screenshot("home")
-        rule.onAllNodesWithText("Love")[0].performClick()
+        rule.onNodeWithTag("moods").performScrollToNode(hasText("Love"))
+        rule.onNodeWithText("Love").performClick()
         rule.onNodeWithText("Love songs").assertExists()
         screenshot("love")
         rule.onNodeWithTag("moods").performScrollToNode(hasText("Sad"))
@@ -45,7 +46,8 @@ class FanSmokeTest {
     }
 
     @Test fun songOpensAndOffersGenuineFileImportWithoutFakeStreaming() {
-        rule.onNodeWithText("Lucid Dreams").performScrollTo().performClick()
+        rule.onNodeWithTag("songs").performScrollToNode(hasText("Lucid Dreams"))
+        rule.onNodeWithText("Lucid Dreams").performClick()
         rule.onNodeWithText("Lucid Dreams").assertExists()
         rule.onNodeWithText("Add audio file").assertExists()
         rule.onNodeWithText("Listen on YouTube Music").assertExists()
