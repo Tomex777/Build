@@ -44,6 +44,8 @@ class ScriptStudioFileCreationTest {
             compose.onNodeWithTag("script_tab_env").assertExists()
             compose.onNodeWithTag("script_tab_api").assertExists()
             saveEmulatorScreenshot("annie-agent3-studio-no-file-selected")
+            compose.onNodeWithTag("script_file_search").performTextInput(name)
+            closeSoftKeyboard()
             compose.onNodeWithText(file.name, substring = false).performClick()
             onView(isAssignableFrom(CodeEditor::class.java)).check { view, failure ->
                 if (failure != null) throw failure
@@ -71,6 +73,8 @@ class ScriptStudioFileCreationTest {
             compose.setContent { AnnieTheme {
                 if (shown.value) ScriptStudioSheet(workspace, {})
             } }
+            compose.onNodeWithTag("script_file_search").performTextInput(folder.name)
+            closeSoftKeyboard()
             compose.onNodeWithText(folder.name, substring = false).performClick()
             compose.onNodeWithTag("script_editor").assertDoesNotExist()
             saveEmulatorScreenshot("annie-agent3-studio-folder-focus")
