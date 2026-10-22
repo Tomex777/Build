@@ -84,4 +84,21 @@ await makeReusableWatermark({channelId:a,displayName:longName,colorEmojiVerified
 assert.deepEqual(exact,[rtlName,longName],
   'Renderer receives full Unicode/RTL/grapheme sequence, not sanitised/truncated metadata');
 
+// An owner-uploaded fallback is an actual transparent overlay, never a solid PNG
+// turned into a translucent rectangular obstruction over meme content.
+const opaqueFallback=await sharp({create:{width:320,height:80,channels:3,background:'#ffffff'}}).png().toBuffer();
+await assert.rejects(()=>makeReusableWatermark({
+  channelId:a,displayName:zwjName,approvedFallbackPng:opaqueFallback,
+  sharpLibrary:sharp
+}),/alpha channel/);
+const transparentFallback=await sharp({create:{width:320,height:80,channels:4,background:'#00000000'}})
+  .composite([{input:Buffer.from('<svg width="320" height="80" xmlns="http://www.w3.org/2000/svg"><text x="20" y="45" font-size="28" fill="#ffffff">OWNER REVIEWED</text></svg>')}])
+  .png().toBuffer();
+const fallbackAsset=await makeReusableWatermark({
+  channelId:a,displayName:zwjName,approvedFallbackPng:transparentFallback,
+  sharpLibrary:sharp,colorEmojiVerified:false
+});
+assert.equal(fallbackAsset.glyphsVerified,true,'Fallback is explicitly owner-reviewed');
+assert.ok(fallbackAsset.buffer.length>0);
+assert.notEqual(fallbackAsset.key,asset.key,'Fallback content and exact Unicode name contribute to key');
 console.log('Channel watermark: PASS — isolation, size limits, Unicode, alpha, cache, JPEG/PNG/WebP, animated rejection');
