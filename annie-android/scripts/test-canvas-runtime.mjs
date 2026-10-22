@@ -18,6 +18,16 @@ const embedded = kotlin.match(/CANVAS_LIFECYCLE_BOOTSTRAP\s*=\s*"""([\s\S]*?)"""
 assert.ok(embedded, 'The Canvas runtime must remain a pre-HTML JS bootstrap');
 const runtime = embedded[1].trim();
 assert.doesNotMatch(runtime, /addJavascriptInterface\s*\(/, 'No privileged bridge allowed');
+const nativeHost = fs.readFileSync(
+  path.join(root, 'app/src/main/java/com/tomex777/annie/AnnieCanvasMessage.kt'), 'utf8');
+const codeLines = nativeHost.split('\n').filter((line) => !/^\s*(?:\/\/|\*)/.test(line)).join('\n');
+assert.doesNotMatch(codeLines, /\b(?:WebView|web|view)\s*\.\s*pauseTimers\s*\(/,
+  'No Canvas action may pause global WebView timers');
+assert.match(nativeHost, /blockNetworkLoads\s*=\s*true/,
+  'Canvas must still disable network traffic');
+assert.match(nativeHost, /allowFileAccess\s*=\s*false/,
+  'Canvas must still disable filesystem access');
+
 
 function realm(initiallyPaused = false) {
   let clock = 0;
@@ -110,6 +120,19 @@ a.window.requestAnimationFrame(function frame(t) {
   frameTime = t;
   a.window.requestAnimationFrame(frame);
 });
+const cancellation = a.window.setTimeout(() => { throw Error('Canceled timeout executed'); }, 40);
+a.window.clearTimeout(cancellation);
+const frameCancellation = a.window.requestAnimationFrame(
+  () => { throw Error('Canceled rAF executed'); });
+a.window.cancelAnimationFrame(frameCancellation);
+let intervalCalls = 0;
+const canceledInterval = a.window.setInterval(() => {
+  intervalCalls++;
+  if (intervalCalls === 2) a.window.clearInterval(canceledInterval);
+}, 10);
+let forwardedArgs = 0;
+a.window.setTimeout((x, y) => { forwardedArgs = x + y; }, 12, 3, 4);
+
 const sound = new a.window.HTMLMediaElement();
 sound.play(); // Sound created but never inserted in the document.
 const audio = new a.window.AudioContext();
@@ -120,6 +143,8 @@ a.animations.push(animation);
 a.advance(200);
 b.advance(200);
 const before = { ticksA, ticksB, framesA, frameTime };
+assert.equal(intervalCalls, 2, 'Cleared interval should stop after its callback');
+assert.equal(forwardedArgs, 7, 'Timeout argument forwarding must be preserved');
 a.window.__annieCanvasHost.pause();
 assert.equal(a.window.__annieCanvasHost.paused, true);
 assert.ok(a.css.has('annie-host-paused'));
