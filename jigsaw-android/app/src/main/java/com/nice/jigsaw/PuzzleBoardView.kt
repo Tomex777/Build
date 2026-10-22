@@ -73,7 +73,7 @@ class PuzzleBoardView(context: Context) : View(context) {
 
     fun bind(newGame: PuzzleGame, newPhoto: Bitmap, onChange: () -> Unit) {
         notifyChange = onChange
-        if (game === newGame && photo === newPhoto) { invalidate(); return }
+        if (game === newGame && photo === newPhoto && sprites.isNotEmpty()) { invalidate(); return }
         game = newGame
         photo = newPhoto
         sprites.values.forEach { it.bitmap.recycle() }
@@ -92,7 +92,7 @@ class PuzzleBoardView(context: Context) : View(context) {
         zoom = 1f
         panX = (width - PuzzleGame.WORLD_WIDTH * baseScale) / 2f
         panY = height / 2f -
-            (PuzzleGame.BOARD_TOP + PuzzleGame.BOARD_HEIGHT / 2f) * baseScale
+            ((game?.boardTop ?: 640f) + PuzzleGame.BOARD_HEIGHT / 2f) * baseScale
         invalidate()
     }
 
@@ -110,10 +110,10 @@ class PuzzleBoardView(context: Context) : View(context) {
         canvas.scale(baseScale * zoom, baseScale * zoom)
 
         paper.color = Color.rgb(224, 219, 208)
-        canvas.drawRoundRect(RectF(30f, 25f, 970f, 1900f), 18f, 18f, paper)
-        val board = RectF(PuzzleGame.BOARD_LEFT, PuzzleGame.BOARD_TOP,
+        canvas.drawRoundRect(RectF(30f, 25f, 970f, g.worldHeight), 18f, 18f, paper)
+        val board = RectF(PuzzleGame.BOARD_LEFT, g.boardTop,
             PuzzleGame.BOARD_LEFT + PuzzleGame.BOARD_WIDTH,
-            PuzzleGame.BOARD_TOP + PuzzleGame.BOARD_HEIGHT)
+            g.boardTop + PuzzleGame.BOARD_HEIGHT)
         paper.color = Color.rgb(252, 250, 246)
         canvas.drawRect(board, paper)
         if (g.preview) {
