@@ -276,3 +276,14 @@ test('K-pop-only feed entry is not pushed as a K-drama',async()=>{
  const adapter=createKDramaFeed('soompi',{operatorApproved:true,now,showAliases:['Aurora'],fetchImpl:async()=>new Response(xml)});
  assert.equal((await adapter.discover()).items.length,0);
 });
+
+test('only persisted human approve/decline events influence ranking feedback',()=>{
+ const {deriveHumanFeedback}=require('./core.cjs');
+ const approvals=Array.from({length:12},()=>({category:'animals',decision:'approved'}));
+ const rejects=Array.from({length:12},()=>({category:'relatable',decision:'declined'}));
+ const feedback=deriveHumanFeedback([...approvals,...rejects,{category:'dark',decision:'skipped'},{category:'evil',decision:'approved'}]);
+ assert(feedback.animals>.7);assert(feedback.relatable<.3);assert.equal(feedback.dark,undefined);
+ assert.equal(feedback.evil,undefined);assert.equal(Object.isFrozen(feedback),true);
+ const animal=meme('favAnimal',{category:'animals',upvotes:90});const relatable=meme('notFunny',{category:'relatable',upvotes:90});
+ assert(memeScore(animal,{categories:['animals','relatable'],feedback,now:NOW})>memeScore(relatable,{categories:['animals','relatable'],feedback,now:NOW}));
+});
