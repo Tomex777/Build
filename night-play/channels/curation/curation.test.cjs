@@ -106,3 +106,8 @@ test('OAuth is mandatory; silent fallback to scraping is prohibited',async()=>{
  const adapter=redditAdapter({subreddits:['funny'],tokenProvider:async()=>''});
  await assert.rejects(adapter.discover({subreddit:'funny',now:NOW}),/Missing authorized/);
 });
+
+test('single selected humour category still fills four distinct review cards',()=>{
+ const cards=Array.from({length:7},(_,i)=>meme('only'+i));
+ assert.equal(chooseFourMemes(cards,{enabled:true,categories:['relatable'],now:NOW}).length,4);
+});
