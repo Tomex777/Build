@@ -58,6 +58,11 @@ export class WatermarkCache {
 export async function renderUnicodeTextLayer({displayName,width,height,tone,canvasLibrary}){
   const lib=canvasLibrary||(await import('@napi-rs/canvas'));
   if(typeof lib.createCanvas!=='function')throw new Error('Native Unicode canvas unavailable.');
+  // Native Skia supports color fonts, but the image depends on the fonts
+  // installed/registered on the actual bot host. Callers can register an
+  // approved Noto Color Emoji font via lib.GlobalFonts.registerFromPath(...)
+  // before starting the worker. Never silently substitute ASCII for emoji.
+  lib.GlobalFonts?.loadSystemFonts?.();
   const canvas=lib.createCanvas(width,height),ctx=canvas.getContext('2d');
   ctx.clearRect(0,0,width,height);ctx.fillStyle=tone==='dark'?'#141d20':'#f7f9f6';
   ctx.textAlign='center';ctx.textBaseline='middle';
@@ -92,11 +97,11 @@ export async function makeReusableWatermark({
   const sharp=await getSharp(sharpLibrary);
   const source=approvedFallbackPng||await renderText({displayName,width,height,tone,canvasLibrary});
   if(!Buffer.isBuffer(source)||source.length>MAX_LAYER_FILE)throw new Error('Watermark source exceeds asset budget.');
-  const meta=await sharp(source,{limitInputPixels:MAX_RENDER_PIXELS}).metadata();
+  const meta=await sharp(source,{limitInputPixels:approvedFallbackPng?2_000_000:MAX_RENDER_PIXELS}).metadata();
   if(meta.format!=='png'||(meta.pages??1)>1)throw new Error('Watermark must be static transparent PNG.');
   // A manually supplied owner-approved fallback can be larger; resize/letterbox.
   const layer=approvedFallbackPng&& (meta.width!==width||meta.height!==height)
-    ?await sharp(source,{limitInputPixels:MAX_RENDER_PIXELS})
+    ?await sharp(source,{limitInputPixels:2_000_000})
       .resize(width,height,{fit:'contain',background:'#00000000'}).png().toBuffer()
     :source;
   if(!approvedFallbackPng&&(meta.width!==width||meta.height!==height))
