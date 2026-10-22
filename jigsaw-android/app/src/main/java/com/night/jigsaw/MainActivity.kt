@@ -38,7 +38,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -62,6 +65,15 @@ private val forest=Color(0xFF254C39)
 private val bg=Color(0xFFF7F5F0)
 private val muted=Color(0xFF6F756E)
 
+private fun clockText(seconds: Int): String {
+    val safe=seconds.coerceAtLeast(0)
+    val hours=safe/3600
+    val mins=(safe%3600)/60
+    val secs=safe%60
+    return if(hours>0)"%d:%02d:%02d".format(hours,mins,secs)
+           else "%02d:%02d".format(mins,secs)
+}
+
 class MainActivity : ComponentActivity() {
     private lateinit var store: PuzzleStore
     private lateinit var game: PuzzleGame
@@ -69,6 +81,7 @@ class MainActivity : ComponentActivity() {
     private var refresh: () -> Unit = {}
     private var openLibrary: () -> Unit = {}
     private var board: PuzzleBoardView? = null
+    private var isAppForeground by mutableStateOf(true)
 
     private val difficulties=listOf(
         Triple(3,2,"6 · Beginner"),
@@ -125,13 +138,21 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        isAppForeground=true
+    }
+
     override fun onPause() {
-        super.onPause()
+        isAppForeground=false
         if (::store.isInitialized) store.save(game)
+        super.onPause()
     }
 
     @Composable
-    private fun PuzzleBoard(modifier: Modifier, solved: Boolean, onNewPuzzle: () -> Unit) {
+    private fun PuzzleBoard(modifier: Modifier, solved: Boolean,
+                            paused: Boolean, onResume: () -> Unit,
+                            onNewPuzzle: () -> Unit) {
         Box(modifier=modifier.border(1.dp,Color(0xFFD5D2C9),
             RoundedCornerShape(12.dp)),contentAlignment=Alignment.Center) {
             AndroidView(
@@ -154,9 +175,22 @@ class MainActivity : ComponentActivity() {
                         horizontalAlignment=Alignment.CenterHorizontally) {
                         Text("Beautifully done.",fontSize=21.sp,fontWeight=FontWeight.Bold)
                         Spacer(Modifier.height(4.dp))
-                        Text("Every piece found its place.",color=muted,fontSize=13.sp)
+                        Text("${game.count} pieces · ${clockText(game.elapsedSeconds)} · ${game.moves} moves",
+                            color=muted,fontSize=13.sp)
                         Spacer(Modifier.height(8.dp))
                         Button(onClick=onNewPuzzle) { Text("Play again") }
+                    }
+                }
+            }
+            if(paused && !solved) {
+                Surface(shape=RoundedCornerShape(16.dp),color=Color(0xFFF7F5F0)) {
+                    Column(Modifier.padding(22.dp),
+                        horizontalAlignment=Alignment.CenterHorizontally) {
+                        Text("Paused",fontWeight=FontWeight.Bold,fontSize=22.sp)
+                        Spacer(Modifier.height(8.dp))
+                        Text(clockText(game.elapsedSeconds),color=muted)
+                        Spacer(Modifier.height(10.dp))
+                        Button(onClick=onResume) {Text("Resume")}
                     }
                 }
             }
@@ -165,10 +199,14 @@ class MainActivity : ComponentActivity() {
 
     @Composable
     private fun GameActions(revision: Int, wide: Boolean,
-                            update: () -> Unit, chooseZone: () -> Unit) {
+                            update: () -> Unit, chooseZone: () -> Unit,
+                            onGuide: () -> Unit, onPause: () -> Unit) {
         val solved=revision.let { game.solved }
         if(wide) {
             Column(verticalArrangement=Arrangement.spacedBy(6.dp)) {
+                OutlinedButton(onClick=onPause,modifier=Modifier.fillMaxWidth()) {
+                    Text("Pause · ${clockText(game.elapsedSeconds)}",fontSize=12.sp)
+                }
                 OutlinedButton(onClick=openLibrary,
                     modifier=Modifier.fillMaxWidth()) { Text("Pictures",fontSize=12.sp) }
                 OutlinedButton(onClick={update()},
@@ -178,9 +216,13 @@ class MainActivity : ComponentActivity() {
                     Text("Zone ${game.activeZone+1}/${game.zoneCount}",fontSize=12.sp)
                 }
                 OutlinedButton(
-                    onClick={game.preview=!game.preview;store.save(game);refresh()},
+                    onClick=onGuide,
+                    enabled=!solved && (game.mode!=PuzzleMode.MEMORY ||
+                        game.previewsRemaining>0 || game.preview),
                     modifier=Modifier.fillMaxWidth()) {
-                    Text(if(game.preview)"Hide guide" else "Guide",fontSize=12.sp)
+                    Text(if(game.mode==PuzzleMode.MEMORY)
+                        "Peek · ${game.previewsRemaining}" else
+                        if(game.preview)"Hide guide" else "Guide",fontSize=12.sp)
                 }
                 if(game.count>=72) {
                     OutlinedButton(onClick={
@@ -221,9 +263,14 @@ class MainActivity : ComponentActivity() {
             }
             Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(6.dp)) {
                 OutlinedButton(
-                    onClick={game.preview=!game.preview;store.save(game);refresh()},
+                    onClick=onGuide,
+                    enabled=!solved && (game.mode!=PuzzleMode.MEMORY ||
+                        game.previewsRemaining>0 || game.preview),
                     modifier=Modifier.weight(1f)) {
-                    Text(if(game.preview)"Hide guide" else "Guide",fontSize=12.sp,maxLines=1)
+                    Text(if(game.mode==PuzzleMode.MEMORY)
+                        "Peek · ${game.previewsRemaining}" else
+                        if(game.preview)"Hide guide" else "Guide",
+                        fontSize=12.sp,maxLines=1)
                 }
                 Button(
                     onClick={if(game.hint()){store.save(game);refresh();board?.invalidate()}},
@@ -289,6 +336,9 @@ class MainActivity : ComponentActivity() {
         var libraryPicker by remember { mutableStateOf(false) }
         var onlinePicker by remember { mutableStateOf(false) }
         var downloading by remember { mutableStateOf<String?>(null) }
+        var paused by remember { mutableStateOf(false) }
+        var peekNonce by remember { mutableIntStateOf(0) }
+        var newPuzzleMode by remember { mutableStateOf(PuzzleMode.RELAXED) }
         openLibrary={libraryPicker=true}
         refresh={ revision++ }
         val landscape=LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
@@ -297,13 +347,42 @@ class MainActivity : ComponentActivity() {
             board?.centerBoard()
         }
         val solved=revision.let { game.solved }
+        LaunchedEffect(game, paused, isAppForeground, solved) {
+            while(isActive && !paused && isAppForeground && !solved) {
+                delay(1000)
+                if(!paused && isAppForeground && !game.solved) {
+                    game.elapsedSeconds++
+                    revision++
+                    if(game.elapsedSeconds%5==0)store.save(game)
+                }
+            }
+        }
+        LaunchedEffect(game, peekNonce) {
+            if(game.mode==PuzzleMode.MEMORY && game.preview) {
+                delay(game.mode.peekMillis)
+                game.preview=false
+                store.save(game)
+                revision++
+            }
+        }
+        val onGuide: () -> Unit = {
+            if(game.mode==PuzzleMode.MEMORY) {
+                if(!game.preview && game.usePreview()) {
+                    game.preview=true
+                    peekNonce++
+                }
+            } else game.preview=!game.preview
+            store.save(game)
+            revision++
+        }
 
         Surface(color=bg,modifier=Modifier.fillMaxSize()) {
             if(landscape) {
                 Row(Modifier.fillMaxSize().padding(8.dp),
                     horizontalArrangement=Arrangement.spacedBy(10.dp)) {
-                    PuzzleBoard(Modifier.weight(1f).fillMaxHeight(),solved) {
-                        difficultyPicker=true
+                    PuzzleBoard(Modifier.weight(1f).fillMaxHeight(),solved,paused,
+                        {paused=false}) {
+                        newPuzzleMode=game.mode;difficultyPicker=true
                     }
                     Column(Modifier.width(166.dp).fillMaxHeight().verticalScroll(
                         rememberScrollState()),
@@ -314,7 +393,9 @@ class MainActivity : ComponentActivity() {
                             else "Mountain · illustration",fontSize=11.sp,
                             color=muted,maxLines=1,overflow=TextOverflow.Ellipsis)
                         Progress(revision)
-                        GameActions(revision,true,{difficultyPicker=true},{zonePicker=true})
+                        GameActions(revision,true,
+                            {newPuzzleMode=game.mode;difficultyPicker=true},
+                            {zonePicker=true},onGuide,{paused=true})
                         Text("Drag · Zoom · Pan",fontSize=11.sp,color=muted)
                     }
                 }
@@ -337,21 +418,34 @@ class MainActivity : ComponentActivity() {
                         horizontalArrangement=Arrangement.SpaceBetween) {
                         Text(if(solved)"Completed!" else "${game.completed} / ${game.count} pieces",
                             fontWeight=FontWeight.SemiBold,fontSize=14.sp)
-                        TextButton(onClick={difficultyPicker=true}) {
-                            Text("New puzzle")
-                        }
+                        TextButton(onClick={
+                            newPuzzleMode=game.mode;difficultyPicker=true
+                        }) {Text("New puzzle")}
                     }
                     LinearProgressIndicator(progress={game.completed.toFloat()/game.count},
                         modifier=Modifier.fillMaxWidth().height(4.dp),
                         color=forest,trackColor=Color(0xFFDBDDD3))
-                    Spacer(Modifier.height(8.dp))
-                    PuzzleBoard(Modifier.weight(1f).fillMaxWidth(),solved) {
-                        difficultyPicker=true
+                    Spacer(Modifier.height(3.dp))
+                    Row(Modifier.fillMaxWidth(),
+                        verticalAlignment=Alignment.CenterVertically,
+                        horizontalArrangement=Arrangement.SpaceBetween) {
+                        Text("${game.mode.label} · ${clockText(game.elapsedSeconds)} · ${game.moves} moves",
+                            color=muted,fontSize=11.sp)
+                        TextButton(onClick={paused=!paused}) {
+                            Text(if(paused)"Resume" else "Pause",fontSize=12.sp)
+                        }
+                    }
+                    PuzzleBoard(Modifier.weight(1f).fillMaxWidth(),solved,paused,
+                        {paused=false}) {
+                        newPuzzleMode=game.mode;difficultyPicker=true
                     }
                     Spacer(Modifier.height(8.dp))
-                    GameActions(revision,false,{difficultyPicker=true},{zonePicker=true})
+                    GameActions(revision,false,
+                        {newPuzzleMode=game.mode;difficultyPicker=true},
+                        {zonePicker=true},onGuide,{paused=true})
                     Spacer(Modifier.height(4.dp))
-                    Text("Drag pieces · Pinch to zoom · Pan empty space",
+                    Text(if(game.zoneCount>1)
+                        "Drag · Zoom · Sort sections" else "Drag · Zoom · Pan",
                         color=muted,fontSize=11.sp,
                         modifier=Modifier.fillMaxWidth())
                 }
