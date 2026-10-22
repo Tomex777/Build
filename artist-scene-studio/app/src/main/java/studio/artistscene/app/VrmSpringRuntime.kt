@@ -32,6 +32,9 @@ internal class VrmSpringRuntime private constructor(
         val restTip: Vec3,
         val motion: SpringMotion,
         val category: String,
+        // A disabled spring must restore its actual bind transform once.
+        // Otherwise the last simulated angle remains frozen on the skinned mesh.
+        var wasEnabled: Boolean = false,
     )
 
     private var lastFrameNs = 0L
@@ -79,7 +82,25 @@ internal class VrmSpringRuntime private constructor(
             val isHair = root.category == "hair"
             val enabled = if (isHair) appearance.hairPhysicsEnabled
                 else appearance.fabricPhysicsEnabled
-            if (!enabled) return@forEach
+            if (!enabled) {
+                // The other category may still be playing, so the global
+                // suspend branch is not entered. Restore this spring's joint
+                // exactly once rather than leaving a bent strand/skirt frozen.
+                if (root.wasEnabled && manager.hasComponent(root.entity)) {
+                    val matrix = root.scratch
+                    System.arraycopy(root.restMatrix, 0, matrix, 0, 16)
+                    val authored = root.boundPoseId?.let { actor.rig?.joints?.get(it) } ?: Vec3()
+                    Matrix.rotateM(matrix, 0, authored.x, 1f, 0f, 0f)
+                    Matrix.rotateM(matrix, 0, authored.y, 0f, 1f, 0f)
+                    Matrix.rotateM(matrix, 0, authored.z, 0f, 0f, 1f)
+                    manager.setTransform(root.instance, matrix)
+                    root.motion.reset()
+                    changed = true
+                }
+                root.wasEnabled = false
+                return@forEach
+            }
+            root.wasEnabled = true
             if (!manager.hasComponent(root.parentEntity) ||
                 !manager.hasComponent(root.entity)) return@forEach
             // The parent includes current head/chest/body rotation. Converting
