@@ -180,6 +180,11 @@ object SongFileMatcher {
         if (ext !in setOf("mp3", "m4a", "flac", "ogg", "wav", "aac", "opus")) return null
         val parts = tokens(filename.substringBeforeLast('.', filename))
         if (parts.isEmpty() || parts.any { it in rejected }) return null
+        val identifiesArtist = parts.windowed(2).any { it == listOf("juice", "wrld") } ||
+            "juicewrld" in parts
+        // A lone generic title (e.g. Fast.mp3) could belong to any artist.
+        // Require an artist marker before assigning single-word files automatically.
+        if (parts.size == 1 && !identifiesArtist) return null
         return FanSongs.all.filter { song ->
             val title = tokens(song.title)
             title.isNotEmpty() && parts.windowed(title.size).any { it == title }
