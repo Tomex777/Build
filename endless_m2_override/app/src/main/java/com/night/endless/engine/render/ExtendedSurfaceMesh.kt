@@ -21,13 +21,8 @@ internal object ExtendedSurfaceMesh {
     fun isSupported(id: String): Boolean = id in supported
 
     private fun crater(x: Double, z: Double, cx: Double, cz: Double,
-                       radius: Double, depth: Double): Double {
-        val d = sqrt((x-cx)*(x-cx)+(z-cz)*(z-cz))
-        val bowl = -depth * exp(-d*d/(radius*radius*.55))
-        val rim = depth * .34 * exp(-((d-radius)*(d-radius))/
-            (radius*radius*.027))
-        return bowl + rim
-    }
+                       radius: Double, depth: Double): Double =
+        WorldGeomorphology.impactCrater(x, z, cx, cz, radius, depth)
 
     private fun hash2(x: Int, z: Int): Double {
         var h = (x * 374761393) xor (z * 668265263)
@@ -80,28 +75,23 @@ internal object ExtendedSurfaceMesh {
                 crater(x,z,3.6,-1.4,1.1,.11) +
                 crater(x,z,.8,4.1,.65,.042) +
                 crater(x,z,-.7,-3.3,.49,.038) +
-                .006 * sin(x*7.7+z*3.1) * cos(z*5.4-x*2.4)
+                .006 * sin(x*7.7+z*3.1) * cos(z*5.4-x*2.4) +
+                WorldGeomorphology.mercuryScarp(x,z)
             "ceres" -> .58*broad +
                 crater(x,z,-3.2,2.3,2.5,.19) +
                 crater(x,z,3.1,-2.2,1.0,.08) +
-                .025 * sin(x*1.3+z*.3) * cos(z*.9)
+                .025 * sin(x*1.3+z*.3) * cos(z*.9) +
+                WorldGeomorphology.ceresSlump(x,z)
             "europa" -> .62*broad +
-                // Domain-warped cross-cutting kilometer-scale ice ridges.
-                // Synthetic and deliberately not a claimed Galileo DEM.
-                .035 * exp(-sin(xx*2.22+zz*.49).let { it*it } / .055) +
-                .018 * exp(-sin(zz*2.85-xx*.82).let { it*it } / .13) -
-                .019 * exp(-sin(xx*1.26+zz*.32).let { it*it } / .037) +
+                // Double-ridge lips and troughs break up basic sine stripes;
+                // synthetic illustration, emphatically NOT a Galileo DEM.
+                WorldGeomorphology.europaDoubleRidges(x,z,warpX,warpZ) +
                 .025 * fractal(xx*3.1, zz*3.1) +
                 crater(x,z,2.4,-3.6,.65,.026)
             else -> .45*broad +
-                // Titan's wind-aligned organic dunes, tens of metres
-                // tall; their placement is an illustrative approximation.
-                .016 * sin(xx*2.9+zz*5.9+.8*fractal(xx*.7,zz*.7)) +
-                // Secondary wind-aligned dune sets resolve at the NASA-map
-                // raster scale (~510m samples), unlike sub-grid pinstripes.
-                // 1.5-3km spacing; height in the tens of metres on Titan.
-                .008 * sin(xx*7.8+zz*2.7+.42*fractal(xx*1.5,zz*1.5)) +
-                .006 * sin(xx*5.9+zz*11.7+.8*fractal(xx*1.4,zz*1.4)) +
+                // Variable longitudinal/secondary organic dune morphology;
+                // illustrative, not georeferenced Cassini topography.
+                WorldGeomorphology.titanDunes(x,z,warpX,warpZ) +
                 .016 * fractal(xx*.42,zz*.42)
         }
     }
