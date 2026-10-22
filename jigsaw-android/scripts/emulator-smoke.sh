@@ -117,6 +117,35 @@ tap_label "Edges"
 adb exec-out screencap -p > jigsaw-android/qa-screenshots/13-edge-only-600.png
 tap_label "Pictures"
 adb exec-out screencap -p > jigsaw-android/qa-screenshots/14-saved-photo-gallery.png
+tap_label "Continue saved puzzles"
+adb exec-out screencap -p > jigsaw-android/qa-screenshots/15-multiple-resumable-puzzles.png
+tap_label "Close"
+tap_label "New puzzle"
+tap_label "Memory"
+tap_label "12"
+adb shell run-as com.night.jigsaw cat files/active-jigsaw.json > /tmp/jigsaw-memory.json
+python3 - <<'PY'
+import json
+data=json.load(open("/tmp/jigsaw-memory.json"))
+assert data["mode"]=="MEMORY" and data["hints"]==0, data
+assert data["previewsRemaining"]==1, data
+assert len(data["pieces"])==12, data
+print("PASS: Memory mode applies native difficulty/hint budgets")
+PY
+tap_label "Picture"
+adb exec-out screencap -p > jigsaw-android/qa-screenshots/16-reference-options.png
+tap_label "Peek at full photo"
+adb exec-out screencap -p > jigsaw-android/qa-screenshots/17-memory-timed-preview.png
+sleep 6
+adb shell run-as com.night.jigsaw cat files/active-jigsaw.json > /tmp/jigsaw-peek-used.json
+python3 - <<'PY'
+import json
+data=json.load(open("/tmp/jigsaw-peek-used.json"))
+assert data["previewsRemaining"]==0, data
+assert data["mode"]=="MEMORY", data
+assert data["preview"] is False, data
+print("PASS: Memory mode's single limited full-photo peek is consumed")
+PY
 
 adb logcat -d -s AndroidRuntime:E > /tmp/jigsaw-crashlog.txt
 if grep -q 'FATAL EXCEPTION' /tmp/jigsaw-crashlog.txt; then
