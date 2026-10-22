@@ -4,6 +4,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.assertExists
 import androidx.compose.ui.test.assertDoesNotExist
+import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.graphics.asAndroidBitmap
@@ -103,6 +106,46 @@ class AnnieBrowserChromeUiTest {
         }
         rule.onNodeWithTag("annie_browser_tab_private").performClick()
         rule.runOnIdle { assertEquals("private", selected) }
+    }
+
+    @Test
+    fun selectingPrivateTabRebindsOmniboxWithoutReusingRegularTabAddress() {
+        val selection = mutableStateOf("regular")
+        val tabs = state("https://example.com")
+        rule.setContent {
+            AnnieBrowserChrome(
+                tabs.copy(activeId = selection.value),
+                actions(select = { selection.value = it }),
+                webContent = { Box(it) },
+                downloadsContent = { Box(it) },
+            )
+        }
+        rule.onNodeWithTag("annie_browser_tabs_address").assertTextEquals("https://example.com")
+        rule.onNodeWithTag("annie_browser_tab_switcher").performClick()
+        rule.onNodeWithTag("annie_browser_tab_private").performClick()
+        rule.onNodeWithTag("annie_browser_tabs_address").assertTextEquals("https://example.org")
+    }
+
+    @Test
+    fun bookmarksPanelDispatchesSavedUrlWithoutFakeNavigation() {
+        var opened = ""
+        val base = actions()
+        val handlers = AnnieBrowserChromeActions(
+            exit = base.exit, navigate = base.navigate,
+            back = base.back, forward = base.forward, reload = base.reload,
+            newTab = base.newTab, selectTab = base.selectTab, closeTab = base.closeTab,
+            toggleBookmark = base.toggleBookmark,
+            openSaved = { opened = it },
+            toggleDesktop = base.toggleDesktop, share = base.share,
+        )
+        rule.setContent {
+            AnnieBrowserChrome(state("https://example.net"), handlers,
+                webContent = { Box(it) }, downloadsContent = { Box(it) })
+        }
+        rule.onNodeWithContentDescription("Browser menu").performClick()
+        rule.onNodeWithText("Bookmarks").performClick()
+        rule.onNodeWithText("Example").assertIsDisplayed().performClick()
+        rule.runOnIdle { assertEquals("https://example.com", opened) }
     }
 
     @Test
