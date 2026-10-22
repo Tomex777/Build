@@ -10,9 +10,6 @@ internal object SurfaceMicroTexture {
     fun create(context: Context, planet: String): Int {
         require(planet in setOf("mars", "moon", "mercury", "ceres", "europa", "titan"))
         val atlas = SurfaceMicroMaterial.pixels()
-        // World-specific impact regolith, ice micro-fractures or aeolian fines.
-        // The additions are deterministic illustrations, NOT imaged landing sites.
-        PlanetaryGrainTreatment.apply(planet, atlas)
         val referenceId = context.resources.getIdentifier(
             planet + "_surface_grit", "drawable", context.packageName
         )
@@ -42,6 +39,10 @@ internal object SurfaceMicroTexture {
                 }
             }
         }
+        // Apply geology-dependent treatment after optional high-pass photo grain
+        // so the same generic source photo cannot erase body-specific patterns.
+        // These structures are simulated, never labelled as a landing photograph.
+        PlanetaryGrainTreatment.apply(planet, atlas)
         val pixels = ByteBuffer.allocateDirect(atlas.size)
             .apply { put(atlas); position(0) }
         val names = IntArray(1)
