@@ -143,7 +143,7 @@ class PuzzleGame private constructor(
         val p = pieces.getOrNull(id) ?: return false
         if (p.placed) return false
         moves++
-        val tolerance = min(pieceWidth, pieceHeight) * 0.32f
+        val tolerance = maxOf(min(pieceWidth, pieceHeight) * 0.38f, 28f)
         if (hypot((p.x - targetX(p)).toDouble(),
                   (p.y - targetY(p)).toDouble()) > tolerance) return false
         p.x = targetX(p); p.y = targetY(p); p.placed = true
