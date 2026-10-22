@@ -587,13 +587,15 @@ private fun CoverPlaceholder(album: String, modifier: Modifier) {
                     "Fighting Demons" -> "FD"
                     "The Party Never Ends" -> "TPNE"
                     "WRLD ON DRUGS" -> "WRLD"
+                    "Juice WRLD" -> "JW"
                     else -> "999"
                 },
                 fontSize = 26.sp, fontWeight = FontWeight.Black,
                 color = White.copy(alpha = 0.68f), letterSpacing = (-1.3).sp
             )
             Spacer(Modifier.height(2.dp))
-            Text("999", fontSize = 9.sp, color = White.copy(alpha = 0.63f),
+            Text(if (album == "Juice WRLD") "999 FOREVER" else "999",
+                fontSize = 9.sp, color = White.copy(alpha = 0.63f),
                 fontWeight = FontWeight.ExtraBold, letterSpacing = 1.8.sp)
         }
     }
@@ -857,7 +859,7 @@ private fun SongSheet(
                 }
             } else {
                 Text(
-                    "Add your own audio to listen inside the app. No copyrighted recordings are included.",
+                    "Import audio from your device to play this song.",
                     color = Gray, fontSize = 11.sp, lineHeight = 16.sp,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.padding(start = 15.dp, end = 15.dp, top = 11.dp)
