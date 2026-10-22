@@ -134,8 +134,9 @@ class ScriptChatFlowTest {
                     else androidx.compose.material3.Text("Test finished")
                 }
             }
-            compose.onNodeWithText(file.name, substring = false).performClick()
+            compose.onNodeWithTag("script_file_search").performTextInput(name)
             hideKeyboardAndWaitForWindowFocus()
+            compose.onNodeWithText(file.name, substring = false).performClick()
             compose.onNodeWithTag("script_editor").assertIsDisplayed()
             onView(isAssignableFrom(CodeEditor::class.java)).perform(insertCodeEditorText("\n//caret-proof"))
             // Debounced persistence requires no Save button.
@@ -198,9 +199,10 @@ class ScriptChatFlowTest {
                     else androidx.compose.material3.Text("Test finished")
                 }
             }
+            compose.onNodeWithTag("script_file_search").performTextInput(name)
+            hideKeyboardAndWaitForWindowFocus()
             compose.onNodeWithText("$name.js", substring = false).performClick()
             compose.waitForIdle()
-            hideKeyboardAndWaitForWindowFocus()
             onView(allOf(isAssignableFrom(CodeEditor::class.java), isDisplayed()))
                 .perform(verifyEditorSelectionAndClipboardSemantics())
         } finally {
