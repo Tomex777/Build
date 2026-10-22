@@ -200,12 +200,18 @@ class PuzzleGame private constructor(
         val replacement = fresh(cols, rows, imageKey, seed, enabled)
         landscapeMode=enabled
         layout=scatterLayout(cols,rows,enabled)
-        for (p in pieces) {
-            if (p.placed) {
-                p.x=targetX(p);p.y=targetY(p)
-            } else {
-                p.x=replacement.pieces[p.id].x
-                p.y=replacement.pieces[p.id].y
+        pieces.filter{it.placed}.forEach{p->
+            p.x=targetX(p);p.y=targetY(p)
+        }
+        // Retain connected assemblies when rotating, instead of splitting
+        // all loose groups into unrelated pieces.
+        val groups=pieces.filter{!it.placed}.groupBy{it.groupId}
+        for(group in groups.values) {
+            val anchor=group.first()
+            val proposed=replacement.pieces[anchor.id]
+            for(p in group) {
+                p.x=proposed.x+(p.col-anchor.col)*pieceWidth
+                p.y=proposed.y+(p.row-anchor.row)*pieceHeight
             }
         }
         return true
