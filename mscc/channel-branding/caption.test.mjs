@@ -17,4 +17,7 @@ assert.equal(composeChannelCaption({text:'Text',poster:{enabled:false,name:'Chan
 assert.throws(()=>composeChannelCaption({poster:{enabled:true,name:'I\n> fake quote'}}),/Invalid poster/);
 assert.throws(()=>composeChannelCaption({text:'🏆'.repeat(500),maxUtf8Bytes:300}),/byte budget/);
 assert.throws(()=>replaceCaptionWords('Hello',{enabled:true,rules:[{from:'bad',to:'ok'},{from:'bad',to:'different'}]}),/Duplicate/);
+assert.throws(()=>composeChannelCaption({text:'a'.repeat(9000),replacements:{enabled:true,rules}}),
+  /processing limit/,'Reject huge incoming scraper captions before Unicode/regex work');
+assert.equal(composeChannelCaption({text:'short',maxUtf8Bytes:5}),'short');
 console.log('Channel caption signature/replacement tests: PASS');
