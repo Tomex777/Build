@@ -75,6 +75,7 @@ class PuzzleStore(private val context: Context) {
         root.put("preview",g.preview)
         root.put("landscape",g.landscapeMode)
         root.put("zone",g.activeZone)
+        root.put("edgesOnly",g.edgesOnly)
         root.put("groups",JSONArray().also{group->
             g.pieces.forEach{piece->group.put(piece.groupId)}
         })
@@ -108,7 +109,8 @@ class PuzzleStore(private val context: Context) {
         PuzzleGame.restore(obj.getInt("cols"),obj.getInt("rows"),obj.getLong("seed"),
             image, positions, obj.optInt("hints",3),
             obj.optInt("moves",0),obj.optBoolean("preview",false),
-            obj.optBoolean("landscape",false),obj.optInt("zone",0),groups)
+            obj.optBoolean("landscape",false),obj.optInt("zone",0),groups,
+            obj.optBoolean("edgesOnly",false))
     }.getOrNull()
 
     fun loadPhoto(key: String="custom"): Bitmap? =
