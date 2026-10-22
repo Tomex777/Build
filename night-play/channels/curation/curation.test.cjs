@@ -166,3 +166,16 @@ test('malformed RSS tags and interests never abort whole news selection',()=>{
  assert.deepEqual(item.tags,[]);
  assert.deepEqual(chooseNews([item],{enabled:true,interests:'renewals',shows:null}),[item]);
 });
+
+test('corrupt Reddit post timestamps skip one post without failing entire batch',async()=>{
+ const raw={data:{after:null,children:[
+ {data:{name:'t3_a',created_utc:99999999999999999,permalink:'/r/funny/a',url_overridden_by_dest:'https://i.redd.it/a.jpg'}},
+ {data:{name:'t3_b',created_utc:NOW/1000,permalink:'/r/funny/b',url_overridden_by_dest:'https://i.redd.it/b.jpg'}}]}};
+ const source=redditAdapter({subreddits:['funny'],tokenProvider:async()=> 'authorized-access-token',
+ fetchImpl:async()=>new Response(JSON.stringify(raw))});
+ assert.equal((await source.discover({subreddit:'funny',now:NOW})).items.length,1);
+});
+test('external app-wide quota hook can deny outbound Reddit API requests',async()=>{
+ const source=redditAdapter({subreddits:['funny'],tokenProvider:async()=> 'authorized-access-token',claimQuota:async()=>false});
+ await assert.rejects(source.discover({subreddit:'funny',now:NOW}),e=>e.status===429);
+});
