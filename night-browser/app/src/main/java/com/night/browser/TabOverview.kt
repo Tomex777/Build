@@ -7,6 +7,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.res.painterResource
@@ -47,6 +48,14 @@ internal fun TabPanel(
     val normalCount = browser.tabs.count { !it.isPrivate }
     val privateCount = browser.tabs.size - normalCount
     val shown = browser.tabs.filter { it.isPrivate == privateGrid }
+    val gridState = rememberLazyGridState()
+    // Opening Tabs after browsing a newer tab must reveal its selected card;
+    // otherwise ten restored tabs leave the current page hidden offscreen.
+    // Do not scroll a different profile's tab into view.
+    LaunchedEffect(privateGrid, browser.activeId, shown.size) {
+        val activeIndex = shown.indexOfFirst { it.id == browser.activeId }
+        if (activeIndex >= 0) gridState.scrollToItem(activeIndex)
+    }
     // Only real Gecko pixel captures enter the grid. Evict oldest previews as soon
     // as the overview opens; do not retain 30+ large Bitmaps on modest devices.
     LaunchedEffect(browser.tabs.size, browser.activeId, privateGrid) {
@@ -134,6 +143,7 @@ internal fun TabPanel(
                 }
                 LazyVerticalGrid(
                     columns = GridCells.Fixed(columns),
+                    state = gridState,
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(start = 14.dp, end = 14.dp, bottom = 18.dp),
                     horizontalArrangement = Arrangement.spacedBy(11.dp),
