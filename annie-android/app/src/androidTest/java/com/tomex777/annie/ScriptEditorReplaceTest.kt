@@ -29,7 +29,7 @@ class ScriptEditorReplaceTest {
                 if (showStudio.value) ScriptStudioSheet(workspace, {}, initialProjectId = name)
                 else androidx.compose.material3.Text("Test finished")
             } }
-            compose.onNodeWithTag("script_tab_editor").performClick()
+            compose.onNodeWithText(file.name, substring = false).performClick()
             compose.onNodeWithTag("Find and replace").performClick()
             compose.onNodeWithTag("script_find_query").performTextInput("needle")
             compose.onNodeWithTag("script_replace_text").performTextInput("\$saved")
