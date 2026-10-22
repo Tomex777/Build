@@ -305,6 +305,51 @@ internal fun AnnieBrowserChrome(
             }
         }
 
+        if (find?.visible == true) {
+            Row(
+                Modifier.fillMaxWidth().background(ChromeSurface)
+                    .padding(horizontal = 6.dp, vertical = 3.dp)
+                    .testTag("annie_browser_find_bar"),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                BasicTextField(
+                    value = find.query,
+                    onValueChange = { find.update(it.take(1024)) },
+                    modifier = Modifier.weight(1f).height(48.dp)
+                        .padding(horizontal = 10.dp).testTag("annie_browser_find_input"),
+                    textStyle = TextStyle(color = BrowserBrightText, fontSize = 14.sp),
+                    cursorBrush = SolidColor(BrowserTeal),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    keyboardActions = KeyboardActions(onSearch = { find.next() }),
+                    singleLine = true,
+                    decorationBox = { inner ->
+                        Box(contentAlignment = Alignment.CenterStart) {
+                            if (find.query.isEmpty()) Text(
+                                "Find in page", color = BrowserSoftText, fontSize = 13.sp)
+                            inner()
+                        }
+                    },
+                )
+                if (find.query.isNotBlank()) {
+                    Text(if (!find.found) "0" else "${find.current}/${find.total}",
+                        color = BrowserSoftText, fontSize = 12.sp,
+                        modifier = Modifier.padding(horizontal = 4.dp))
+                }
+                IconButton(onClick = find.previous, modifier = Modifier.size(48.dp)) {
+                    Icon(AnnieIcons.ArrowBack, contentDescription = "Previous match",
+                        tint = BrowserBrightText)
+                }
+                IconButton(onClick = find.next, modifier = Modifier.size(48.dp)) {
+                    Icon(AnnieIcons.ArrowForward, contentDescription = "Next match",
+                        tint = BrowserBrightText)
+                }
+                IconButton(onClick = find.close, modifier = Modifier.size(48.dp)) {
+                    Icon(AnnieIcons.Close, contentDescription = "Close find in page",
+                        tint = BrowserBrightText)
+                }
+            }
+        }
+
         if (active.loading) {
             LinearProgressIndicator(
                 progress = { (active.progress.coerceIn(0, 100)) / 100f },
