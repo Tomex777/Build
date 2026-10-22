@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { ChannelError } from '../night-play-channels.js'
+import { prepareApprovedChannelContent, invalidateChannelWatermarkCache } from './format.js'
 
 // Backend-only candidates: the browser never supplies images or licensing evidence.
 // Publishing stays disabled until a trusted source registers a licensed batch.
@@ -116,7 +117,10 @@ export class ChannelPublisher {
     catch { fail(503,'Unable to recheck current WhatsApp Channel permissions.') }
     if (!meta || String(meta.id||meta.jid)!==channelId || !admin(meta)) fail(403,'This NIGHT account is no longer a channel admin.')
     const name=exactName(meta)
-    if (name!==claim.name) this.db.prepare('UPDATE play_channel_claims SET name=? WHERE user_id=? AND channel_id=?').run(name,userId,channelId)
+    if (name!==claim.name) {
+      this.db.prepare('UPDATE play_channel_claims SET name=? WHERE user_id=? AND channel_id=?').run(name,userId,channelId)
+      invalidateChannelWatermarkCache(channelId)
+    }
     return {account,name}
   }
   async update(userId,channelId,revision,patch,accounts) {
@@ -132,6 +136,7 @@ export class ChannelPublisher {
     if(!changed.changes) fail(409,'Channel settings changed. Refresh first.')
     // Revocation invalidates pending jobs, including jobs queued by a second device.
     if (patch.modules?.memes===false || patch.branding) this.db.prepare("UPDATE play_channel_jobs SET state='cancelled',last_error='Publishing settings changed; fresh approval required' WHERE user_id=? AND channel_id=? AND state='queued'").run(userId,channelId)
+    if(patch.branding) invalidateChannelWatermarkCache(channelId)
     return this.config(userId,channelId)
   }
   selection(userId,channelId) {
@@ -242,6 +247,21 @@ export class ChannelPublisher {
     if(!changed.changes) fail(409,'This pending channel post cannot be cancelled.')
     return {cancelled:true}
   }
+  async preview(userId,channelId,{batchId,candidateId,caption},accounts) {
+    if(!text(caption,1800))fail(400,'Invalid caption preview.')
+    const cfg=this.config(userId,channelId)
+    if(!cfg.modules.memes)fail(403,'Enable memes to preview this post.')
+    const c=this.db.prepare('SELECT * FROM play_channel_candidates WHERE id=? AND batch_id=? AND user_id=? AND channel_id=?').get(candidateId,batchId,userId,channelId)
+    if(!c)fail(404,'This post does not belong to your verified channel.')
+    const {name}=await this.permission(userId,channelId,accounts)
+    const formatted=await prepareApprovedChannelContent({
+      text:caption,mediaBuffer:Buffer.from(c.image),channelId,verifiedDisplayName:name,
+      branding:cfg.branding,sourceKind:'automation'
+    })
+    const image='data:'+c.mime+';base64,'+formatted.mediaBuffer.toString('base64')
+    if(image.length>1_750_000)fail(413,'Image is too large for a safe on-screen preview.')
+    return {previewData:image,formattedCaption:formatted.caption}
+  }
   async handle(action,body,userId,accounts) {
     const id=body.channelId
     if (action==='channel:config:get') return this.config(userId,id)
@@ -255,13 +275,14 @@ export class ChannelPublisher {
     }
     if (action==='channel:memes:review') { await this.permission(userId,id,accounts); return this.review(userId,id,body,accounts) }
     if (action==='channel:memes:publish') { await this.permission(userId,id,accounts); return this.enqueue(userId,id,body,accounts) }
+    if (action==='channel:post:preview') return this.preview(userId,id,body,accounts)
     if (action==='channel:jobs:list') return this.jobs(userId,id)
     if (action==='channel:jobs:cancel') return this.cancel(userId,id,body.jobId)
     fail(503,'This channel operation is not ready for publication.')
   }
   // Explicit worker; caller must wire a bounded scheduler before auto sending.
   // A stale 'sending' job remains unresolved: NEVER blindly retry an ambiguous send.
-  async drain(accounts,{limit=2,prepare=null,allowedChannelIds=[]}={}) {
+  async drain(accounts,{limit=2,prepare=prepareApprovedChannelContent,allowedChannelIds=[]}={}) {
     let sent=0
     const due=this.db.prepare("SELECT * FROM play_channel_jobs WHERE state='queued' AND scheduled_at<=? ORDER BY scheduled_at LIMIT ?").all(this.now(),Math.min(2,Math.max(1,limit)))
     for(const j of due){
