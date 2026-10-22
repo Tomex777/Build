@@ -348,6 +348,10 @@ jobs:
         shell: bash
         run: python3 endless_ci/check_titan_foreground_seam.py artifacts/endless-m5-runtime/screenshots
 
+      - name: Prove gas-giant image gate rejects flat simulated disks
+        shell: bash
+        run: python3 -m unittest discover -s endless_ci -p 'test_gas_giant_image_quality.py' -v
+
       - name: Validate real Jupiter and Saturn orbital renders
         shell: bash
         run: python3 endless_ci/check_gas_giant_visuals.py artifacts/endless-m5-runtime/screenshots
