@@ -83,6 +83,41 @@ class DownloadDuplicatePolicyTest {
             requested, "video.mp4", listOf(pending, failed)) { true })
     }
 
+    @Test fun concurrentSameSiteNamedTransferWarnsWithoutOverwritingOriginal() {
+        val source = "https://example.org/files/archive.zip?token=one"
+        val inProgress = LibraryDownload(
+            id = 9L, url = GeckoDownloadNames.redactUrl(source),
+            fileName = "archive.zip", mimeType = "application/zip",
+            createdAt = 10L, status = DownloadManager.STATUS_RUNNING
+        )
+        val requested = "https://example.org/files/archive.zip?token=two"
+        assertEquals(inProgress, DownloadDuplicatePolicy.findInProgress(
+            requested, "archive.zip", listOf(inProgress)
+        ))
+        assertNull(DownloadDuplicatePolicy.findInProgress(
+            requested, "different.zip", listOf(inProgress)
+        ))
+        assertNull(DownloadDuplicatePolicy.findInProgress(
+            "https://another.example/files/archive.zip", "archive.zip", listOf(inProgress)
+        ))
+    }
+
+    @Test fun completedAndFailedItemsAreNotSimultaneousDownloads() {
+        val source = "https://example.org/song.mp3"
+        val row = LibraryDownload(
+            id = 17L, url = source, fileName = "song.mp3",
+            mimeType = "audio/mpeg", createdAt = 0L,
+            status = DownloadManager.STATUS_FAILED
+        )
+        assertNull(DownloadDuplicatePolicy.findInProgress(source, "song.mp3", listOf(row)))
+        assertNull(DownloadDuplicatePolicy.findInProgress(source, "song.mp3",
+            listOf(row.copy(status = DownloadManager.STATUS_SUCCESSFUL))))
+        assertEquals(17L, DownloadDuplicatePolicy.findInProgress(source, "song.mp3",
+            listOf(row.copy(status = DownloadManager.STATUS_PAUSED)))?.id)
+        assertEquals(17L, DownloadDuplicatePolicy.findInProgress(source, "song.mp3",
+            listOf(row.copy(status = DownloadManager.STATUS_PENDING)))?.id)
+    }
+
     @Test fun mediaAndArchivesUseTheSameWarningRule() {
         listOf("movie.mp4", "song.mp3", "photo.webp", "notes.pdf", "assets.zip").forEach { name ->
             assertTrue(DownloadDuplicatePolicy.matches(
