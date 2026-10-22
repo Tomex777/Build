@@ -248,6 +248,14 @@ async function main(){
    await page.locator('.review-card').first().waitFor();
    await page.locator('.review-card').first().getByRole('button',{name:'Approve'}).click();
    assert.equal(await page.getByRole('button',{name:'Publish approved'}).isDisabled(),true,'Cannot publish while OFF');
+   // Another authenticated tab changes the server-owned selection revision.
+   selection={...selection,revision:selection.revision+1};
+   await page.locator('.review-card').first().getByRole('button',{name:'Skip'}).click();
+   await page.getByText('Selection changed elsewhere').waitFor();
+   assert.equal(await page.getByRole('button',{name:'Next four'}).isDisabled(),true,'Stale state forbids further selections until verified refresh');
+   assert.equal(await page.getByRole('button',{name:'Find memes'}).isDisabled(),true,'Cannot discard uncertain review state');
+   await page.reload();await page.locator('#configUI').waitFor({state:'visible'});
+   assert.equal(await page.getByRole('button',{name:'Find memes'}).isEnabled(),true,'Reload restores authoritative snapshot');
    const before=publishAttempts;
    await page.goto(base+'/channels/config/?channel='+encodeURIComponent(other));
    await page.getByText('Access unavailable',{exact:true}).waitFor();
