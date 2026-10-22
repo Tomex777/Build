@@ -46,6 +46,202 @@ class UnderTreeSceneTest {
         assertEquals(scene, SceneProjectCodec.decode(SceneProjectCodec.encode(scene)))
     }
 
+    @Test fun actualVroidFacingDirectionsShowBothFacesAndInviteConversation() {
+        // The bundled VRoid faces local -Z, verified by the front-camera
+        // anime-pose study. Use real authored yaw and head joint angles:
+        // don't replace these skinned figures with cosmetic face decals.
+        val scene = UnderTreeScene.create()
+        val first = scene.actors.single { it.id == UnderTreeScene.FIRST_STUDENT_ID }
+        val second = scene.actors.single { it.id == UnderTreeScene.SECOND_STUDENT_ID }
+        val firstGaze = first.transform.rotationEulerDegrees.y +
+            first.rig!!.joints.getValue("figure/head").y
+        val secondGaze = second.transform.rotationEulerDegrees.y +
+            second.rig!!.joints.getValue("figure/head").y
+
+        fun gazeX(yawDegrees: Float): Double =
+            -kotlin.math.sin(Math.toRadians(yawDegrees.toDouble()))
+        fun gazeZ(yawDegrees: Float): Double =
+            -kotlin.math.cos(Math.toRadians(yawDegrees.toDouble()))
+
+        assertTrue("Classmate A should turn inward toward B on her right",
+            first.transform.position.x < second.transform.position.x && gazeX(firstGaze) > .25)
+        assertTrue("Classmate B should turn inward toward A on his left",
+            gazeX(secondGaze) < -.25)
+        assertTrue("Both modeled faces must stay visible from the front +Z camera",
+            gazeZ(firstGaze) > .8 && gazeZ(secondGaze) > .8)
+
+        val camera = scene.cameras.single()
+        assertTrue("Keep both posed VRoid arms in the portrait frame rather than zooming too close",
+            camera.position.z in 5.8f..6.2f)
+        assertTrue("Keep real oak crown, both classmates and ground framed",
+            camera.target.y in 1.45f..1.75f)
+        // At the original 320x640 portrait ratio, this is the view width at
+        // student depth. It is a guardrail, not a substitute for device PNG QA.
+        val depth = camera.position.z - minOf(
+            first.transform.position.z, second.transform.position.z)
+        val portraitWidthAtStudents = 2.0 * depth *
+            kotlin.math.tan(Math.toRadians(camera.verticalFovDegrees.toDouble() / 2.0)) * .5
+        assertTrue("Clipping both characters defeats a tighter portrait shot",
+            portraitWidthAtStudents >= 3.0)
+        assertTrue("Real-model portrait staging must not turn into an overly distant panorama",
+            portraitWidthAtStudents < 3.65)
+    }
+
+    private fun earlierClassmatesScene(): studio.artistscene.core.SceneProject {
+        val fresh = UnderTreeScene.create()
+        return fresh.copy(
+            actors = fresh.actors.map { actor ->
+                when (actor.id) {
+                    UnderTreeScene.FIRST_STUDENT_ID -> actor.copy(
+                        transform = actor.transform.copy(
+                            position = studio.artistscene.core.Vec3(-0.73f, 0f, -0.13f),
+                            rotationEulerDegrees = studio.artistscene.core.Vec3(y = 164f),
+                        ),
+                        rig = actor.rig!!.copy(joints = actor.rig.joints +
+                            ("figure/head" to studio.artistscene.core.Vec3(y = -18f, z = 4f))),
+                    )
+                    UnderTreeScene.SECOND_STUDENT_ID -> actor.copy(
+                        transform = actor.transform.copy(
+                            position = studio.artistscene.core.Vec3(0.70f, 0f, -0.09f),
+                            rotationEulerDegrees = studio.artistscene.core.Vec3(y = 198f),
+                        ),
+                        rig = actor.rig!!.copy(joints = actor.rig.joints +
+                            ("figure/head" to studio.artistscene.core.Vec3(y = 18f, z = -3f))),
+                    )
+                    else -> actor
+                }
+            },
+            cameras = listOf(studio.artistscene.core.SceneCamera(
+                id = "camera-main", name = "Under the tree",
+                position = studio.artistscene.core.Vec3(0.14f, 1.82f, 6f),
+                target = studio.artistscene.core.Vec3(0f, 1.60f, -0.35f),
+                verticalFovDegrees = 55f,
+            )),
+        )
+    }
+
+    @Test fun legacyDemoCompositionMigratesOnlyIfEntireStockPairAndCameraAreUntouched() {
+        val legacy = earlierClassmatesScene()
+        assertEquals(UnderTreeScene.create(),
+            UnderTreeScene.upgradeUntouchedDemoComposition(legacy))
+        assertEquals(legacy.copy(id = "my-other-project"),
+            UnderTreeScene.upgradeUntouchedDemoComposition(legacy.copy(id = "my-other-project")))
+
+        // Artists must not lose any of their authored poses, camera work,
+        // changed tree, custom appearance, or saved animation and poses.
+        val changedArm = legacy.copy(actors = legacy.actors.map {
+            if (it.id == UnderTreeScene.FIRST_STUDENT_ID)
+                it.copy(rig = it.rig!!.copy(joints = it.rig.joints +
+                    ("figure/upperarm-l" to studio.artistscene.core.Vec3(z = 43f))))
+            else it
+        })
+        assertEquals(changedArm,
+            UnderTreeScene.upgradeUntouchedDemoComposition(changedArm))
+        // A swap keeps the same unordered set of rotations. Migration still
+        // must reject it because exact bone-to-rotation identity is edited.
+        val oldFemale = legacy.actors.first { it.id == UnderTreeScene.FIRST_STUDENT_ID }
+        val oldJoints = oldFemale.rig!!.joints
+        val swappedJoints = oldJoints.toMutableMap().apply {
+            val leftArm = getValue("figure/upperarm-l")
+            val rightArm = getValue("figure/upperarm-r")
+            put("figure/upperarm-l", rightArm)
+            put("figure/upperarm-r", leftArm)
+        }
+        val swappedArms = legacy.copy(actors = legacy.actors.map {
+            if (it.id == UnderTreeScene.FIRST_STUDENT_ID)
+                it.copy(rig = it.rig!!.copy(joints = swappedJoints))
+            else it
+        })
+        assertEquals(swappedArms,
+            UnderTreeScene.upgradeUntouchedDemoComposition(swappedArms))
+        val changedCamera = legacy.copy(cameras = legacy.cameras.map {
+            it.copy(position = it.position.copy(z = 5.75f))
+        })
+        assertEquals(changedCamera,
+            UnderTreeScene.upgradeUntouchedDemoComposition(changedCamera))
+        val movedTree = legacy.copy(actors = legacy.actors.map {
+            if (it.id == UnderTreeScene.TREE_ID)
+                it.copy(transform = it.transform.copy(
+                    position = studio.artistscene.core.Vec3(-4f, 0f, -2f)))
+            else it
+        })
+        assertEquals(movedTree,
+            UnderTreeScene.upgradeUntouchedDemoComposition(movedTree))
+        val editedSun = legacy.copy(actors = legacy.actors.map {
+            if (it.id == "schoolyard-sun")
+                it.copy(light = it.light!!.copy(intensity = 56_000f))
+            else it
+        })
+        assertEquals(editedSun,
+            UnderTreeScene.upgradeUntouchedDemoComposition(editedSun))
+        val editedWorld = legacy.copy(world = legacy.world.copy(groundTileCount = 14))
+        assertEquals(editedWorld,
+            UnderTreeScene.upgradeUntouchedDemoComposition(editedWorld))
+        val editedBodyMaterial = legacy.copy(actors = legacy.actors.map {
+            if (it.id == UnderTreeScene.SECOND_STUDENT_ID)
+                it.copy(material = studio.artistscene.core.MaterialSettings(
+                    baseColorHex = "#CCAA88"))
+            else it
+        })
+        assertEquals(editedBodyMaterial,
+            UnderTreeScene.upgradeUntouchedDemoComposition(editedBodyMaterial))
+        val changedDescription = legacy.copy(metadata = legacy.metadata.copy(
+            description = "My graduation memories"))
+        assertEquals(changedDescription,
+            UnderTreeScene.upgradeUntouchedDemoComposition(changedDescription))
+        val withCustomObject = legacy.copy(actors = legacy.actors + legacy.actors[0].copy(id = "my-prop"))
+        assertEquals(withCustomObject,
+            UnderTreeScene.upgradeUntouchedDemoComposition(withCustomObject))
+        val customHair = legacy.copy(actors = legacy.actors.map {
+            if (it.id == UnderTreeScene.SECOND_STUDENT_ID)
+                it.copy(appearance = it.appearance.copy(animeHairTintHex = "#B97744"))
+            else it
+        })
+        assertEquals(customHair,
+            UnderTreeScene.upgradeUntouchedDemoComposition(customHair))
+    }
+
+    @Test fun poseUpgradeKeepsDiscoveredRealSkinIdsAndSavedFaceMorphs() {
+        val legacy = earlierClassmatesScene()
+        val modelNames = mapOf(
+            "spine" to "J_Bip_C_Spine",
+            "head" to "J_Bip_C_Head",
+            "upperarm-l" to "J_Bip_L_UpperArm",
+            "lowerarm-l" to "J_Bip_L_LowerArm",
+            "upperarm-r" to "J_Bip_R_UpperArm",
+            "lowerarm-r" to "J_Bip_R_LowerArm",
+            "thigh-l" to "J_Bip_L_UpperLeg",
+            "thigh-r" to "J_Bip_R_UpperLeg",
+        )
+        val retargeted = legacy.copy(actors = legacy.actors.map { actor ->
+            if (actor.kind != ActorKind.CHARACTER) actor
+            else {
+                val discovered = RigDefinition(
+                    bones = modelNames.entries.mapIndexed { idx, (_, name) ->
+                        RigBone(id = "real-skin/$idx", name = name)
+                    },
+                    morphTargets = listOf(studio.artistscene.core.RigMorphTarget(
+                        "morph/face/joy-3", "Joy", "Face")),
+                )
+                // StudioScreen.withDiscoveredRig stores the source bone
+                // dictionary before semantic remapping; match that lifecycle.
+                PrototypeScene.resolveAnimePose(
+                    actor.copy(rigDefinition = discovered), discovered)
+            }
+        })
+        val migrated = UnderTreeScene.upgradeUntouchedDemoComposition(retargeted)
+        for (actorId in listOf(UnderTreeScene.FIRST_STUDENT_ID, UnderTreeScene.SECOND_STUDENT_ID)) {
+            val before = retargeted.actors.single { it.id == actorId }
+            val after = migrated.actors.single { it.id == actorId }
+            assertTrue(after.rig!!.joints.keys.all { it.startsWith("real-skin/") })
+            assertEquals(before.rig!!.morphWeights, after.rig!!.morphWeights)
+            assertNotEquals(before.rig.joints, after.rig.joints)
+            assertEquals(before.rig.joints.keys, after.rig.joints.keys)
+        }
+        val encoded = SceneProjectCodec.encode(migrated)
+        assertEquals(migrated, SceneProjectCodec.decode(encoded))
+    }
+
     @Test fun detailedOakReplacesOnlyUntouchedOldDemoTree() {
         val latest = UnderTreeScene.create()
         val oldTree = PrototypeScene.starterAssets().first { it.asset?.assetId == "starter.mise.tree" }

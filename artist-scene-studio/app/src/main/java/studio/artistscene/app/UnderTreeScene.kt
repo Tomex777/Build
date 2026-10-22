@@ -42,8 +42,8 @@ object UnderTreeScene {
             id = FIRST_STUDENT_ID,
             name = "Classmate A",
             transform = Transform(
-                position = Vec3(-0.73f, 0f, -0.13f),
-                rotationEulerDegrees = Vec3(y = 164f),
+                position = Vec3(-0.65f, 0f, -0.13f),
+                rotationEulerDegrees = Vec3(y = 197f),
             ),
             appearance = CharacterAppearanceSettings(
                 hairStyle = HairStyle.NONE,
@@ -52,10 +52,13 @@ object UnderTreeScene {
                 hairGravityStrength = 1f,
                 hairWindStrength = .10f,
             ),
-            // Shoulders lowered from the imported T-pose; one elbow loosely bent while chatting.
+            // Imported VRoid faces -Z. Turning the body just past 180° brings the face
+            // toward the +Z camera AND slightly toward the other student (+X).
+            // Keep head yaw modest: both eyes remain legible in three-quarter view.
+            // Arms lower naturally from the original T-pose.
             rig = RigPose(joints = mapOf(
                 "figure/spine" to Vec3(z = -3f),
-                "figure/head" to Vec3(y = -18f, z = 4f),
+                "figure/head" to Vec3(y = 9f, z = 4f),
                 "figure/upperarm-l" to Vec3(x = -7f, z = 79f),
                 "figure/lowerarm-l" to Vec3(x = -8f, z = 10f),
                 "figure/upperarm-r" to Vec3(x = 10f, z = -58f),
@@ -75,8 +78,8 @@ object UnderTreeScene {
             id = SECOND_STUDENT_ID,
             name = "Classmate B",
             transform = Transform(
-                position = Vec3(0.70f, 0f, -0.09f),
-                rotationEulerDegrees = Vec3(y = 198f),
+                position = Vec3(0.63f, 0f, -0.09f),
+                rotationEulerDegrees = Vec3(y = 163f),
             ),
             appearance = CharacterAppearanceSettings(
                 hairStyle = HairStyle.NONE,
@@ -85,10 +88,12 @@ object UnderTreeScene {
                 hairGravityStrength = 1f,
                 hairWindStrength = .05f,
             ),
-            // Natural listening posture: head turned, lowered arms and mild hip counterbalance.
+            // Mirrored inward-facing posture: the original male VRoid also faces -Z;
+            // turning to 163° exposes his face to +Z while his gaze points -X.
+            // Keep his independently editable arm/hip pose and bone rig.
             rig = RigPose(joints = mapOf(
                 "figure/spine" to Vec3(x = 3f, z = 2f),
-                "figure/head" to Vec3(y = 18f, z = -3f),
+                "figure/head" to Vec3(y = -9f, z = -3f),
                 "figure/upperarm-l" to Vec3(x = 12f, z = 73f),
                 "figure/lowerarm-l" to Vec3(x = 6f, z = 14f),
                 "figure/upperarm-r" to Vec3(x = 10f, z = -79f),
@@ -145,6 +150,10 @@ object UnderTreeScene {
                 SceneCamera(
                     id = "camera-main",
                     name = "Under the tree",
+                    // A real API26 320×640 frame showed full horizontal T-pose arms
+                    // touching BOTH viewport edges. Keep the existing 6m/55°
+                    // portrait camera until native pose application lowers them;
+                    // a tighter zoom would crop genuine model geometry.
                     position = Vec3(0.14f, 1.82f, 6.0f),
                     target = Vec3(0f, 1.60f, -0.35f),
                     verticalFovDegrees = 55f,
@@ -159,6 +168,130 @@ object UnderTreeScene {
                 description = "Two anime-style high-school classmates talking in the shade of a tree. Posed and editable in Mise.",
                 tags = listOf("anime", "school", "two characters", "outdoors"),
             ),
+        )
+    }
+
+    /**
+     * Older installs have this scene already saved; changing [create] alone
+     * cannot update it. Migrate ONLY the exact untouched sample composition,
+     * including its stock camera and original two stock skinned poses.
+     *
+     * Runtime glTF binding replaces semantic joint IDs with the real model's
+     * rig IDs. Compare the *original authored rotations*, not the IDs, to
+     * avoid silently replacing a user's saved pose after the first render.
+     * This method is deliberately separate so startup can gate it once with
+     * a new migration preference after Agent 1 owns MainActivity wiring.
+     */
+    fun upgradeUntouchedDemoComposition(scene: SceneProject): SceneProject {
+        if (scene.id != PROJECT_ID || scene.tracks.isNotEmpty() ||
+            scene.savedPoses.isNotEmpty() || scene.referenceImages.isNotEmpty()
+        ) return scene
+
+        val expectedIds = setOf(TREE_ID, FIRST_STUDENT_ID, SECOND_STUDENT_ID,
+            "schoolyard-sun", "schoolyard-sky-fill")
+        if (scene.actors.size != expectedIds.size ||
+            scene.actors.map { it.id }.toSet() != expectedIds
+        ) return scene
+        val legacyCamera = SceneCamera(
+            id = "camera-main", name = "Under the tree",
+            position = Vec3(0.14f, 1.82f, 6.0f),
+            target = Vec3(0f, 1.60f, -0.35f),
+            verticalFovDegrees = 55f,
+        )
+        if (scene.cameras != listOf(legacyCamera) ||
+            scene.activeCameraId != legacyCamera.id
+        ) return scene
+
+        val fresh = create()
+        // Conservative migration: lighting, world, timeline presentation and
+        // project descriptors may be deliberate artistic decisions too.
+        // Timestamps change on every save, so compare user-visible metadata.
+        if (scene.world != fresh.world || scene.timeline != fresh.timeline ||
+            scene.metadata.description != fresh.metadata.description ||
+            scene.metadata.tags != fresh.metadata.tags
+        ) return scene
+        val stockNonStudents = fresh.actors.filterNot {
+            it.id == FIRST_STUDENT_ID || it.id == SECOND_STUDENT_ID
+        }
+        val currentNonStudents = scene.actors.filterNot {
+            it.id == FIRST_STUDENT_ID || it.id == SECOND_STUDENT_ID
+        }
+        if (currentNonStudents != stockNonStudents) return scene
+        val replacement = mutableMapOf<String, Actor>()
+        data class LegacyHead(val yaw: Float, val z: Float)
+        val originals = mapOf(
+            FIRST_STUDENT_ID to LegacyHead(-18f, 4f),
+            SECOND_STUDENT_ID to LegacyHead(18f, -3f),
+        )
+        for ((actorId, originalHead) in originals) {
+            val actor = scene.actors.firstOrNull { it.id == actorId } ?: return scene
+            val target = fresh.actors.first { it.id == actorId }
+            val oldBodyYaw = if (actorId == FIRST_STUDENT_ID) 164f else 198f
+            val oldPosition = if (actorId == FIRST_STUDENT_ID)
+                Vec3(-0.73f, 0f, -0.13f) else Vec3(0.70f, 0f, -0.09f)
+            val oldTransform = target.transform.copy(
+                position = oldPosition,
+                rotationEulerDegrees = Vec3(y = oldBodyYaw),
+            )
+            // A source-backed model name is required. Imported models and
+            // renamed, hidden, locked, attached or adjusted student actors
+            // must remain exactly as the artist left them.
+            if (actor.asset != target.asset ||
+                actor.name != target.name || !actor.visible || actor.locked ||
+                actor.parentId != null || actor.parentBoneId != null ||
+                actor.transform != oldTransform ||
+                actor.material != target.material ||
+                actor.physics != target.physics ||
+                actor.appearance != target.appearance ||
+                actor.animation != target.animation ||
+                (actor.metadata - CharacterDemoStyling.INITIAL_EXPRESSION_KEY) !=
+                (target.metadata - CharacterDemoStyling.INITIAL_EXPRESSION_KEY)
+            ) return scene
+
+            val pose = actor.rig ?: return scene
+            val baseline = target.rig!!.joints.mapValues { (id, rotation) ->
+                if (id == "figure/head") Vec3(y = originalHead.yaw, z = originalHead.z)
+                else rotation
+            }
+            // Reject even *swapped* arm/head rotations. Comparing sets alone
+            // loses joint identity and could overwrite an artist-authored
+            // expression or a deliberately changed head pose.
+            val sourceBonesBySemanticId = mapOf(
+                "figure/spine" to "J_Bip_C_Spine",
+                "figure/head" to "J_Bip_C_Head",
+                "figure/upperarm-l" to "J_Bip_L_UpperArm",
+                "figure/lowerarm-l" to "J_Bip_L_LowerArm",
+                "figure/upperarm-r" to "J_Bip_R_UpperArm",
+                "figure/lowerarm-r" to "J_Bip_R_LowerArm",
+                "figure/thigh-l" to "J_Bip_L_UpperLeg",
+                "figure/thigh-r" to "J_Bip_R_UpperLeg",
+            )
+            val discoveredBones = actor.rigDefinition?.bones.orEmpty()
+            val expectedRigById = mutableMapOf<String, Vec3>()
+            baseline.forEach { (semanticId, rotation) ->
+                val rigId = when {
+                    semanticId in pose.joints -> semanticId
+                    else -> discoveredBones.firstOrNull {
+                        it.name == sourceBonesBySemanticId[semanticId]
+                    }?.id ?: return scene
+                }
+                if (expectedRigById.put(rigId, rotation) != null) return scene
+            }
+            if (pose.joints != expectedRigById) return scene
+            val headId = expectedRigById.keys.firstOrNull {
+                it == "figure/head" || discoveredBones.any { bone ->
+                    bone.id == it && bone.name == "J_Bip_C_Head"
+                }
+            } ?: return scene
+            replacement[actorId] = actor.copy(
+                transform = target.transform,
+                rig = pose.copy(joints = pose.joints +
+                    (headId to target.rig.joints.getValue("figure/head"))),
+            )
+        }
+        return scene.copy(
+            actors = scene.actors.map { replacement[it.id] ?: it },
+            cameras = fresh.cameras,
         )
     }
 
