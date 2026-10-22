@@ -50,6 +50,15 @@ const jpg=await sharp(source).jpeg().toBuffer();
 const jr=await watermarkStaticImage({input:jpg,channelId:a,displayName:'Channel A',
   sharpLibrary:sharp,renderText:renderer});
 assert.equal((await sharp(jr.buffer).metadata()).format,'jpeg');
+// EXIF orientation must be reflected in overlay placement and output size;
+// a 900x500 JPEG with orientation=6 becomes 500x900 before composition.
+const orientedSource=await sharp({create:{width:900,height:500,channels:3,background:'#eeffee'}})
+  .jpeg().withMetadata({orientation:6}).toBuffer();
+const orientedResult=await watermarkStaticImage({input:orientedSource,channelId:a,
+  displayName:'Channel A',sharpLibrary:sharp,renderText:renderer,position:'top-right'});
+const orientedMeta=await sharp(orientedResult.buffer).metadata();
+assert.equal(orientedMeta.width,500);
+assert.equal(orientedMeta.height,900);
 const webp=await sharp(source).webp().toBuffer();
 const wr=await watermarkStaticImage({input:webp,channelId:a,displayName:'Channel A',
   sharpLibrary:sharp,renderText:renderer});
