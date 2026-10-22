@@ -86,15 +86,15 @@ function normalizeNews(record,source,{now=Date.now(),maxAgeDays=14}={}){
  const normalized=tokens(title).filter(t=>!['the','a','an','of','for','on','in','new','from','and','to'].includes(t));
  const explicitKey=typeof record.storyKey==='string'&&/^[A-Za-z0-9:._-]{4,120}$/.test(record.storyKey)?record.storyKey:null;
  const fingerprint=identifier('story',explicitKey||((show||'general').toLowerCase()+'|'+event+'|'+normalized.slice(0,10).sort().join(' ')));
- return Object.freeze({id:identifier('news',url),kind:'news',title,summary,publishedAt:new Date(published).toISOString(),show,tags,verification,requiresReview:verification!=='official',fingerprint,
+ return Object.freeze({id:identifier('news',url),kind:'news',title,summary,publishedAt:new Date(published).toISOString(),show,tags,spoiler:record.spoiler===true,eventDate:Number.isFinite(Date.parse(record.eventDate||''))?new Date(record.eventDate).toISOString():null,verification,requiresReview:verification!=='official',fingerprint,
  source:{id:String(source.id||''),name:String(source.name||''),url,provider:source.provider||'rss',attributionRequired:true},autoEligible:verification==='official'});
 }
-function chooseNews(items,{enabled=false,interests=[],shows=[],now=Date.now(),limit=4}={}){
+function chooseNews(items,{enabled=false,interests=[],shows=[],includeSpoilers=false,now=Date.now(),limit=4}={}){
  if(!enabled)return [];
  const wanted=new Set(interests.filter(x=>SIMPLE_TAGS.has(x))),followed=new Set(shows.map(x=>tokens(x).join(' ')).filter(Boolean));
  const unique=new Map();
  for(const item of items){
- if(!item||item.kind!=='news')continue;
+ if(!item||item.kind!=='news'||(item.spoiler&&includeSpoilers!==true))continue;
  const match=(!wanted.size&&!followed.size)||item.tags.some(t=>wanted.has(t))||followed.has(tokens(item.show).join(' '));
  if(!match)continue;
  const key=item.fingerprint,prior=unique.get(key);
