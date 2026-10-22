@@ -7,7 +7,7 @@ fs.mkdirSync(output,{recursive:true});
 const chan='120363282083849178@newsletter',other='120363282083849179@newsletter';
 let linked=false,connected=false,down=false,configUnavailable=false,batchNumber=0,publishAttempts=0;
 let settings={revision:1,modules:{memes:false,news:false,anonymous:false,ai:false},
- memes:{mode:'review',categories:[],dailyLimit:1},news:{mode:'review',interests:[],spoilers:'avoid'},capabilities:{ai:false}};
+ memes:{mode:'review',categories:[],dailyLimit:1},news:{mode:'review',interests:[],spoilers:'avoid'},branding:{signatureEnabled:false,posterName:'',watermarkEnabled:false,watermarkOpacity:0.2,watermarkPosition:'bottom-right'},capabilities:{ai:false}};
 let decisions={},jobs=[];
 function crc(bytes){let n=0xffffffff;for(const b of bytes){n^=b;for(let i=0;i<8;i++)n=n&1?0xedb88320^(n>>>1):n>>>1;}return(n^0xffffffff)>>>0}
 function png(seed){
@@ -52,6 +52,10 @@ const server=http.createServer(async(req,res)=>{
      }
      if(patch.memes){if(!Array.isArray(patch.memes.categories)||!patch.memes.categories.length)return send(res,400,{error:'Pick categories'});settings.memes=patch.memes}
      if(patch.news){if(!Array.isArray(patch.news.interests)||!patch.news.interests.length)return send(res,400,{error:'Pick interests'});settings.news=patch.news}
+     if(patch.branding){
+       if(typeof patch.branding.signatureEnabled!=='boolean'||typeof patch.branding.watermarkEnabled!=='boolean'||(patch.branding.signatureEnabled&&!patch.branding.posterName))return send(res,400,{error:'Poster name required'});
+       settings.branding=patch.branding;
+     }
      settings={...settings,revision:settings.revision+1};return send(res,200,settings);
    }
    if(action==='channel:memes:current')return current?send(res,200,current):send(res,404,{error:'No active review'});
@@ -64,6 +68,12 @@ const server=http.createServer(async(req,res)=>{
        previewData:fixtures[i],caption:'Caption for '+n
      })),decisions:[]};
      return send(res,200,current);
+   }
+   if(action==='channel:post:preview'){
+     const candidate=current?.batchId===q.batchId?current.candidates.find(c=>c.id===q.candidateId):null;
+     if(!candidate)return send(res,404,{error:'Candidate not found'});
+     const name=settings.branding?.signatureEnabled?settings.branding.posterName:'';
+     return send(res,200,{previewData:candidate.previewData,formattedCaption:q.caption+(name?'\n> '+name:'')});
    }
    if(action==='channel:memes:review'){
      const matching=current?.batchId===q.batchId&&current.candidates.some(c=>c.id===q.candidateId);
@@ -137,12 +147,25 @@ async function main(){
    await page.waitForFunction(()=>document.querySelector('#saveMemes')?.disabled===false && document.querySelector('#memeMode')?.value==='automatic');
    assert.equal(settings.memes.mode,'automatic');
    assert.deepEqual(settings.memes.categories,['relatable']);
+   assert.equal(await page.locator('#watermarkName').textContent(),'K-Drama 🌙 Zone','Watermark source is exact verified Unicode/emoji display name');
+   await page.locator('#signatureEnabled').check({force:true});
+   await page.locator('#posterName').fill('QA Owner');
+   await page.locator('#watermarkEnabled').check({force:true});
+   await page.getByRole('button',{name:'Save branding'}).click();
+   await page.waitForFunction(()=>document.querySelector('#saveBranding')?.disabled===false);
+   assert.equal(settings.branding.posterName,'QA Owner');
+   assert.equal(settings.branding.watermarkEnabled,true);
    await page.getByRole('button',{name:'Find memes'}).click();
    await page.locator('.review-card').first().waitFor();
    assert.equal(await page.locator('.review-card').count(),4,'Real batch has four sourced images');
    assert.equal(await page.locator('.review-art img').count(),4);
    const cards=page.locator('.review-card');
    await cards.nth(0).locator('textarea').fill('Caption edited by owner');
+   await cards.nth(0).getByRole('button',{name:'Preview post'}).click();
+   await page.locator('#postPreview[open]').waitFor();
+   assert.match(await page.locator('#postPreviewContent').textContent(),/> QA Owner/,'Human caption attribution is separate from channel watermark');
+   await page.screenshot({path:path.join(output,'channels-A-preview-dialog.jpg'),fullPage:false});
+   await page.getByRole('button',{name:'Close preview'}).click();
    await cards.nth(0).getByRole('button',{name:'Approve'}).click();
    await cards.nth(0).getByText('Approved', {exact:true}).waitFor();
    await cards.nth(1).getByRole('button',{name:'Decline'}).click();
