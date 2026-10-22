@@ -145,7 +145,7 @@ class SessionStatePersistence(private val baseDir: File) {
         // 1. Check in-memory cache.
         if (forgottenTabs.contains(tabId)) return null
         durableStateCache[tabId]?.let { cached ->
-            if (!canRestore(cached, expectedUrl)) return null
+            if (!canRestore(cached, tabId, expectedUrl)) return null
             return try {
                 GeckoSession.SessionState.fromString(String(cached.sessionStateBytes, Charsets.UTF_8))
             } catch (e: Exception) {
@@ -173,7 +173,7 @@ class SessionStatePersistence(private val baseDir: File) {
                 try {
                     val stateJson = statesObj.getJSONObject(tabId)
                     val omniState = AnnieSessionState.fromJson(stateJson)
-                    if (!canRestore(omniState, null)) return@forEach
+                    if (!canRestore(omniState, tabId, null)) return@forEach
                     val geckoState = GeckoSession.SessionState.fromString(String(omniState.sessionStateBytes, Charsets.UTF_8))
                         ?: return@forEach
                     durableStateCache[tabId] = omniState
@@ -310,7 +310,8 @@ class SessionStatePersistence(private val baseDir: File) {
     }
 
     /** No private or unrelated URL may be restored as an existing normal tab. */
-    private fun canRestore(state: AnnieSessionState, expectedUrl: String?): Boolean =
+    private fun canRestore(state: AnnieSessionState, expectedTabId: String, expectedUrl: String?): Boolean =
+        state.tabId == expectedTabId &&
         state.schemaVersion == AnnieSessionState.CURRENT_SCHEMA_VERSION &&
         !state.metadata.isIncognito &&
         (expectedUrl == null || state.metadata.url == expectedUrl)
@@ -326,7 +327,7 @@ class SessionStatePersistence(private val baseDir: File) {
             if (!statesObj.has(tabId)) return null
             val stateJson = statesObj.getJSONObject(tabId)
             val omniState = AnnieSessionState.fromJson(stateJson)
-            if (!canRestore(omniState, expectedUrl)) return null
+            if (!canRestore(omniState, tabId, expectedUrl)) return null
             durableStateCache[tabId] = omniState
             GeckoSession.SessionState.fromString(String(omniState.sessionStateBytes, Charsets.UTF_8))
         } catch (e: Exception) {
