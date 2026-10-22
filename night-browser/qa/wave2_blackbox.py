@@ -662,7 +662,7 @@ class Device:
         self.click("Tabs")
         before = self.regular_count()
         private = next((n for n in self.ui() if re.search(
-            r"\\bPrivate\\s+\\d+\\b",
+            r"\bPrivate\s+\d+\b",
             n.get("text", "") or n.get("content-desc", ""))), None)
         if private is None:
             raise AssertionError("Private filter unavailable for external intent isolation")
