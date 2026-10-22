@@ -231,27 +231,27 @@ function updateReview(){
  const count=approved().length;
  $('reviewSummary').hidden=!batch&&!count;
  $('approvedCount').textContent=count+' approved'+(count===MAX_APPROVED?' · selection full':'');
- $('publishApproved').disabled=!count||reviewBusy||selectionUncertain||trayEditing||captionDirty.size>0||config?.modules?.memes!==true;
- $('scheduleButton').disabled=!count||reviewBusy||selectionUncertain||trayEditing||captionDirty.size>0||config?.modules?.memes!==true;
- $('nextBatch').disabled=reviewBusy||selectionUncertain||trayEditing||captionDirty.size>0||config?.modules?.memes!==true;
- $('findMemes').disabled=reviewBusy||selectionUncertain||trayEditing||captionDirty.size>0||config?.modules?.memes!==true;
+ $('publishApproved').disabled=!count||reviewBusy||configBusy||selectionUncertain||trayEditing||captionDirty.size>0||config?.modules?.memes!==true;
+ $('scheduleButton').disabled=!count||reviewBusy||configBusy||selectionUncertain||trayEditing||captionDirty.size>0||config?.modules?.memes!==true;
+ $('nextBatch').disabled=reviewBusy||configBusy||selectionUncertain||trayEditing||captionDirty.size>0||config?.modules?.memes!==true;
+ $('findMemes').disabled=reviewBusy||configBusy||selectionUncertain||trayEditing||captionDirty.size>0||config?.modules?.memes!==true;
  for(const button of document.querySelectorAll('#selectedPosts button.selected-action'))
-   button.disabled=reviewBusy||selectionUncertain||trayEditing||config?.modules?.memes!==true;
+   button.disabled=reviewBusy||configBusy||selectionUncertain||trayEditing||config?.modules?.memes!==true;
  for(const card of document.querySelectorAll('.review-card')){
    const candidateId=card.dataset.candidate;
    const c=batch?.candidates?.find(item=>item.id===candidateId);
    const selectedAlready=approved().some(item=>item.batchId===batch?.batchId&&item.candidateId===candidateId);
    const previewButton=card.querySelector('[data-post-preview]');
-   if(previewButton)previewButton.disabled=reviewBusy||config?.modules?.memes!==true;
+   if(previewButton)previewButton.disabled=reviewBusy||configBusy||config?.modules?.memes!==true;
    for(const button of card.querySelectorAll('[data-review-action]')){
      const act=button.dataset.reviewAction;
-     button.disabled=reviewBusy||selectionUncertain||trayEditing||config?.modules?.memes!==true
+     button.disabled=reviewBusy||configBusy||selectionUncertain||trayEditing||config?.modules?.memes!==true
        ||(act==='approved'&&(!licensable(c)||card.dataset.previewFailed==='true'||(count>=MAX_APPROVED&&!selectedAlready)));
    }
+   const status=card.querySelector('.decision');
    if(c&&count>=MAX_APPROVED&&!selectedAlready&&licensable(c)){
-     const status=card.querySelector('.decision');
      if(status&&!status.textContent)status.textContent='Selection full — post or remove one before approving';
-   }
+   }else if(status?.textContent==='Selection full — post or remove one before approving')status.textContent='';
  }
 }
 function paintSelection(){
@@ -270,7 +270,7 @@ function paintSelection(){
    preview.setAttribute('aria-label','Preview '+item.title+' post');
    remove.setAttribute('aria-label','Remove '+item.title+' from approved selection');
    edit.addEventListener('click',()=>{
-     if(trayEditing||reviewBusy||selectionUncertain)return;
+     if(trayEditing||reviewBusy||configBusy||selectionUncertain)return;
      trayEditing=true;
      const editor=make('textarea','text-input textarea selected-editor');
      editor.maxLength=1800;editor.value=item.caption;editor.setAttribute('aria-label','Edit approved caption for '+item.title);
@@ -287,7 +287,7 @@ function paintSelection(){
  }
 }
 async function updateSelectedCaption(item,caption){
- if(reviewBusy||!trayEditing||selectionUncertain||!selection||config?.modules?.memes!==true)return;
+ if(reviewBusy||configBusy||!trayEditing||selectionUncertain||!selection||config?.modules?.memes!==true)return;
  reviewBusy=true;updateReview();
  try{
    const result=await api('channel:memes:review',{batchId:item.batchId,candidateId:item.candidateId,decision:'approved',caption,expectedSelectionRevision:selection.revision});
@@ -304,7 +304,7 @@ async function updateSelectedCaption(item,caption){
  }finally{reviewBusy=false;trayEditing=false;paintSelection();updateReview();}
 }
 async function removeSelected(item,button){
- if(reviewBusy||trayEditing||selectionUncertain||!selection||config?.modules?.memes!==true)return;
+ if(reviewBusy||configBusy||trayEditing||selectionUncertain||!selection||config?.modules?.memes!==true)return;
  reviewBusy=true;setBusy(button,true);updateReview();
  try{
    const result=await api('channel:memes:review',{batchId:item.batchId,candidateId:item.candidateId,decision:'skipped',caption:item.caption,expectedSelectionRevision:selection.revision});
@@ -367,7 +367,7 @@ function paintReview(){
  paintSelection();updateReview();
 }
 async function findMemes(next){
- if(reviewBusy||!channel||config?.modules?.memes!==true)return;
+ if(reviewBusy||configBusy||!channel||config?.modules?.memes!==true)return;
  if(trayEditing){note('Save or cancel the approved caption edit first.',true,'reviewNotice');return;}
  if(selectionUncertain){note('Reload to verify the approved selection before finding more memes.',true,'reviewNotice');return;}
  if(captionDirty.size){note('Approve, decline, or skip edited captions before finding another batch.',true,'reviewNotice');return;}
@@ -385,7 +385,7 @@ async function findMemes(next){
  finally{reviewBusy=false;setBusy($('findMemes'),false);paintSelection();updateReview();}
 }
 async function previewPost(candidate,caption,batchId=batch?.batchId){
- if(!batchId||config?.modules?.memes!==true)return;
+ if(!batchId||configBusy||config?.modules?.memes!==true)return;
  const dialog=$('postPreview'),body=$('postPreviewContent');
  body.replaceChildren(make('p','config-note','Requesting the actual formatted post from NIGHT…'));
  if(!dialog.open)dialog.showModal();
@@ -405,7 +405,7 @@ async function previewPost(candidate,caption,batchId=batch?.batchId){
  }
 }
 async function decide(candidate,decision,caption,card,status,actions){
- if(reviewBusy||trayEditing||selectionUncertain||!batch||!selection||config?.modules?.memes!==true
+ if(reviewBusy||configBusy||trayEditing||selectionUncertain||!batch||!selection||config?.modules?.memes!==true
     ||(decision==='approved'&&(!licensable(candidate)
       ||(approved().length>=MAX_APPROVED&&!approved().some(i=>i.batchId===batch.batchId&&i.candidateId===candidate.id)))))return;
  reviewBusy=true;
@@ -441,7 +441,7 @@ function localToUTC(input){
  return d.toISOString();
 }
 async function publish(mode){
- if(reviewBusy||trayEditing||selectionUncertain||!selection||!approved().length||captionDirty.size>0||config?.modules?.memes!==true)return;
+ if(reviewBusy||configBusy||trayEditing||selectionUncertain||!selection||!approved().length||captionDirty.size>0||config?.modules?.memes!==true)return;
  let schedule={};
  if(mode==='schedule'){
    try{schedule={scheduledAt:localToUTC($('scheduleAt').value),timezone:Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC',spacingMinutes:Number($('spacingMinutes').value)}}catch(error){note(errorMessage(error),true,'reviewNotice');return;}
