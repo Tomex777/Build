@@ -129,7 +129,7 @@ async function main(){
    assert.equal(settings.modules.memes,false,'Cannot enable memes without configured categories');
    await page.locator('#memeCategories input[value="relatable"]').check({force:true});
    await page.locator('[data-module="memes"]').check({force:true});
-   await page.waitForFunction(()=>document.querySelector('[data-module="memes"]')?.checked===true);
+   await page.waitForFunction(()=>document.querySelector('[data-module="memes"]')?.checked===true && document.querySelector('#saveMemes')?.disabled===false);
    assert.equal(settings.modules.memes,true,'Module change written to signed backend');
    await page.locator('#memeMode').selectOption('automatic');
    await page.locator('#memeDaily').selectOption('2');
