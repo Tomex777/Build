@@ -64,11 +64,15 @@ internal val CANVAS_LIFECYCLE_BOOTSTRAP = """
     function TrackedAudioContext() {
       var context = Reflect.construct(NativeAudio, arguments, NativeAudio);
       audioContexts.add(context);
-      var originalClose = context.close.bind(context);
-      context.close = function () {
-        audioContexts.delete(context);
-        return originalClose();
-      };
+      try {
+        var originalClose = context.close.bind(context);
+        context.close = function () {
+          audioContexts.delete(context);
+          return originalClose();
+        };
+      } catch (_) {
+        // A read-only close() must not prevent construction of the Canvas sound.
+      }
       if (paused && context.state === 'running') {
         suspendedAudioContexts.push(context);
         var action = context.suspend();
@@ -76,9 +80,14 @@ internal val CANVAS_LIFECYCLE_BOOTSTRAP = """
       }
       return context;
     }
-    TrackedAudioContext.prototype = NativeAudio.prototype;
-    Object.setPrototypeOf(TrackedAudioContext, NativeAudio);
-    window[name] = TrackedAudioContext;
+    try {
+      TrackedAudioContext.prototype = NativeAudio.prototype;
+      Object.setPrototypeOf(TrackedAudioContext, NativeAudio);
+      window[name] = TrackedAudioContext;
+    } catch (_) {
+      // Keep the rest of the Canvas scheduler alive on older WebViews whose
+      // AudioContext constructor cannot be replaced.
+    }
   }
   trackAudioConstructor('AudioContext');
   trackAudioConstructor('webkitAudioContext');
