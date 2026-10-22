@@ -68,4 +68,20 @@ fun main() {
         }
     }
     println("PASS crater variation, terrain bounds and finite values")
+    var distinct = 0
+    for (n in -120..120) {
+        val x = n * .00076
+        val z = n * .00093
+        val moon = FineRegolithRelief.moon(x, z)
+        val mars = FineRegolithRelief.mars(x, z)
+        require(moon.isFinite() && mars.isFinite())
+        require(abs(moon) < .000055 && abs(mars) < .000055) {
+            "Meter-scale geology is too steep/chunky"
+        }
+        require(abs(moon - FineRegolithRelief.moon(x + .0000001, z)) < .000003)
+        require(abs(mars - FineRegolithRelief.mars(x + .0000001, z)) < .000003)
+        if (abs(moon - mars) > .0000001) distinct++
+    }
+    require(distinct > 110) { "Near-field Mars/Moon regolith too similar" }
+    println("PASS Mars/Moon 1-mesh geological relief: smooth, finite and body-specific")
 }
