@@ -229,6 +229,15 @@ class Device:
         wait_hit(path, previous)
         return "Clicked page link and fixture observed " + path
 
+    def navigate_history(self, direction, expected_title):
+        button = self.find(direction)
+        if button is None:
+            raise AssertionError("Missing native Gecko history control: " + direction)
+        if button.get("enabled", "true").lower() == "false":
+            raise AssertionError("Gecko history control disabled after real link traversal: " + direction)
+        self.click(direction)
+        return self.verify_title(expected_title)
+
     def verify_title(self, title):
         # The fixture records a request at HTTP accept, before Gecko commits
         # HTML. Leaving WEB immediately releases GeckoView and can suspend its
@@ -795,11 +804,11 @@ class Device:
                   prerequisites=("C08",), screenshot=True)
         self.test("C10", "Touch child link C", lambda: self.link("/branch/c", "Visit C"),
                   prerequisites=("C09",))
-        self.test("C11", "Back returns to branch A", lambda: (
-                  self.click("Back"), self.verify_title("NIGHT QA BRANCH A")),
+        self.test("C11", "Back returns to branch A", lambda:
+                  self.navigate_history("Back", "NIGHT QA BRANCH A"),
                   prerequisites=("C10",), screenshot=True)
-        self.test("C12", "Forward returns to branch C", lambda: (
-                  self.click("Forward"), self.verify_title("NIGHT QA BRANCH C")),
+        self.test("C12", "Forward returns to branch C", lambda:
+                  self.navigate_history("Forward", "NIGHT QA BRANCH C"),
                   prerequisites=("C11",))
         self.test("C13", "Bookmark test site", lambda: (
                   self.go("/"), self.click("More"), self.click("Bookmark page")),
