@@ -118,7 +118,13 @@ class MainActivity : ComponentActivity() {
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
-        if (hasFocus) applyImmersiveMode()
+        if (hasFocus) {
+            applyImmersiveMode()
+        } else {
+            // Suspend held motion immediately on notification shade, system
+            // dialog or incoming call, even when onPause has not run yet.
+            activeGlView?.cancelSurfaceControls()
+        }
     }
 
     @Suppress("DEPRECATION")
@@ -270,6 +276,13 @@ private fun EndlessApp(
     var historySpeedIndex by remember { mutableIntStateOf(initialHistorySpeedIndex.coerceIn(0, 3)) }
     var cosmicScale by remember { mutableStateOf(CosmicScale.fromKey(initialCosmicScaleKey)) }
     var scalePickerOpen by remember { mutableStateOf(false) }
+
+    // The galactic-scale scenes entirely cover the solar renderer. Preserve
+    // orbital clock continuity at low frequency rather than redrawing an
+    // invisible full-resolution planet scene at the screen's full refresh.
+    LaunchedEffect(glView, cosmicScale) {
+        glView?.setSceneOccluded(cosmicScale != CosmicScale.SOLAR_SYSTEM)
+    }
 
     fun applyHistoryDomain(nextDomain: String) {
         historyDomain = nextDomain.takeIf { it in DeepTimeHistory.domains } ?: "System"

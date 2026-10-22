@@ -6,6 +6,7 @@ on:
       - endless-android-ci
       - endless-realism-20261013
       - feature/endless-grounded-walking-20261020
+      - feature/endless-controls-qa-20261022
   workflow_dispatch:
 
 concurrency:
@@ -346,6 +347,12 @@ jobs:
         shell: bash
         run: python3 endless_ci/check_gas_giant_visuals.py artifacts/endless-m5-runtime/screenshots
 
+      - name: Verify captured Android 36 touch controls evidence
+        shell: bash
+        run: |
+          python3 -m unittest discover -s endless_ci -p 'test_check_surface_control_evidence.py' -v
+          python3 endless_ci/check_surface_control_evidence.py artifacts/endless-m5-runtime/screenshots --sdk 36
+
       - name: Upload Endless API 36 emulator evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -358,6 +365,10 @@ jobs:
         env:
           API26_EVIDENCE_DIR: artifacts/endless-api26-runtime
         run: bash "$GITHUB_WORKSPACE/endless_ci/start-emulator-api26.sh" "$GITHUB_WORKSPACE/endless_ci/runtime-smoke-api26.sh" "$ENDLESS_PROJECT"
+
+      - name: Verify captured Android 26 touch controls evidence
+        shell: bash
+        run: python3 endless_ci/check_surface_control_evidence.py artifacts/endless-api26-runtime/screenshots --sdk 26
 
       - name: Upload Endless API 26 emulator evidence
         if: always()

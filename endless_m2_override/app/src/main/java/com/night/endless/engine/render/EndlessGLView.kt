@@ -20,6 +20,20 @@ class EndlessGLView(
     private var lastLookX = 0f
     private var lastLookY = 0f
     private var frameTickerActive = false
+    private var sceneOccluded = false
+    private var lastFrameRequestNanos = 0L
+
+    /**
+     * When the full-screen galactic/cosmic view covers the 3D solar system,
+     * preserve a low-rate orbital clock without burning a full GLES render
+     * every display refresh behind opaque Compose content.
+     */
+    fun setSceneOccluded(occluded: Boolean) {
+        if (sceneOccluded == occluded) return
+        sceneOccluded = occluded
+        lastFrameRequestNanos = 0L // First visible frame resumes immediately.
+        if (occluded) cancelSurfaceControls()
+    }
 
     // Drive GLES from display vsync, not a busy GL-thread spin loop.
     // This keeps the rendering thread asleep between display opportunities,
@@ -28,7 +42,12 @@ class EndlessGLView(
     private val frameTicker = object : Choreographer.FrameCallback {
         override fun doFrame(frameTimeNanos: Long) {
             if (!frameTickerActive || !isAttachedToWindow) return
-            requestRender()
+            if (RendererFramePacing.shouldRequest(
+                    sceneOccluded, lastFrameRequestNanos, frameTimeNanos
+                )) {
+                lastFrameRequestNanos = frameTimeNanos
+                requestRender()
+            }
             Choreographer.getInstance().postFrameCallback(this)
         }
     }
@@ -42,6 +61,7 @@ class EndlessGLView(
 
     private fun stopFrameTicker() {
         frameTickerActive = false
+        lastFrameRequestNanos = 0L
         Choreographer.getInstance().removeFrameCallback(frameTicker)
     }
 
@@ -95,15 +115,29 @@ class EndlessGLView(
 
     private fun handleSurfaceTouch(event: MotionEvent): Boolean {
         when (event.actionMasked) {
-            MotionEvent.ACTION_DOWN -> beginSurfacePointer(event, 0)
+            MotionEvent.ACTION_DOWN -> {
+                // ACTION_DOWN starts a *new* gesture stream. If Android lost an
+                // old CANCEL (system gesture, display rotation, overlay), do
+                // not let its stale pointer continue to walk or aim.
+                if (movePointerId != MotionEvent.INVALID_POINTER_ID ||
+                    lookPointerId != MotionEvent.INVALID_POINTER_ID) cancelSurfaceControls()
+                beginSurfacePointer(event, 0)
+            }
             MotionEvent.ACTION_POINTER_DOWN ->
                 beginSurfacePointer(event, event.actionIndex)
             MotionEvent.ACTION_MOVE -> {
                 val stickIndex = event.findPointerIndex(movePointerId)
-                if (stickIndex >= 0) updateStick(
-                    event.getX(stickIndex), event.getY(stickIndex)
-                )
+                if (stickIndex >= 0) {
+                    updateStick(event.getX(stickIndex), event.getY(stickIndex))
+                } else if (movePointerId != MotionEvent.INVALID_POINTER_ID) {
+                    // Pointer-ID reuse/loss happens around interrupted
+                    // multi-touch streams. Never leave walking held.
+                    resetSurfaceMovement()
+                }
                 val lookIndex = event.findPointerIndex(lookPointerId)
+                if (lookIndex < 0 && lookPointerId != MotionEvent.INVALID_POINTER_ID) {
+                    lookPointerId = MotionEvent.INVALID_POINTER_ID
+                }
                 if (lookIndex >= 0) {
                     val x = event.getX(lookIndex)
                     val y = event.getY(lookIndex)
@@ -114,7 +148,23 @@ class EndlessGLView(
             }
             MotionEvent.ACTION_POINTER_UP -> {
                 val leavingId = event.getPointerId(event.actionIndex)
-                if (leavingId == movePointerId) resetSurfaceMovement()
+                if (leavingId == movePointerId) {
+                    // A second left thumb may already be resting on the
+                    // physical stick. Transfer movement to it without an
+                    // ACTION_DOWN gap; never capture a right-side look finger.
+                    resetSurfaceMovement()
+                    for (i in 0 until event.pointerCount) {
+                        if (i == event.actionIndex ||
+                            event.getPointerId(i) == lookPointerId ||
+                            !SurfaceJoystickMath.isInMoveZone(
+                                event.getX(i), event.getY(i), height,
+                                resources.displayMetrics.density
+                            )) continue
+                        movePointerId = event.getPointerId(i)
+                        updateStick(event.getX(i), event.getY(i))
+                        break
+                    }
+                }
                 if (leavingId == lookPointerId) {
                     lookPointerId = MotionEvent.INVALID_POINTER_ID
                     // Another unassigned finger can keep aiming without a jump.
@@ -151,8 +201,18 @@ class EndlessGLView(
         super.onDetachedFromWindow()
     }
 
+    override fun onWindowFocusChanged(hasWindowFocus: Boolean) {
+        super.onWindowFocusChanged(hasWindowFocus)
+        if (!hasWindowFocus) {
+            // Notification shade, system dialogs and gesture navigation can
+            // remove touch focus without delivering ACTION_CANCEL.
+            cancelSurfaceControls()
+        }
+    }
+
     override fun onPause() {
         stopFrameTicker()
+        cancelSurfaceControls()
         super.onPause()
     }
 
