@@ -150,7 +150,8 @@ class MainActivity : ComponentActivity() {
     }
 
     @Composable
-    private fun GameActions(revision: Int, wide: Boolean, update: () -> Unit) {
+    private fun GameActions(revision: Int, wide: Boolean,
+                            update: () -> Unit, chooseZone: () -> Unit) {
         val solved=revision.let { game.solved }
         if(wide) {
             Column(verticalArrangement=Arrangement.spacedBy(6.dp)) {
@@ -158,6 +159,10 @@ class MainActivity : ComponentActivity() {
                     modifier=Modifier.fillMaxWidth()) { Text("Choose photo",fontSize=12.sp) }
                 OutlinedButton(onClick={update()},
                     modifier=Modifier.fillMaxWidth()) { Text("New puzzle",fontSize=12.sp) }
+                if(game.zoneCount>1) OutlinedButton(onClick=chooseZone,
+                    modifier=Modifier.fillMaxWidth()) {
+                    Text("Zone ${game.activeZone+1}/${game.zoneCount}",fontSize=12.sp)
+                }
                 OutlinedButton(
                     onClick={game.preview=!game.preview;store.save(game);refresh()},
                     modifier=Modifier.fillMaxWidth()) {
@@ -174,6 +179,13 @@ class MainActivity : ComponentActivity() {
                     modifier=Modifier.fillMaxWidth()) { Text("Center board",fontSize=12.sp) }
             }
         } else {
+            Column {
+            if(game.zoneCount>1) {
+                OutlinedButton(onClick=chooseZone,modifier=Modifier.fillMaxWidth()) {
+                    Text("Zone ${game.activeZone+1}/${game.zoneCount}  ·  ${game.zoneName(game.activeZone)}  ·  ${game.zoneRemaining(game.activeZone)} pieces remaining",
+                        fontSize=12.sp)
+                }
+            }
             Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(6.dp)) {
                 OutlinedButton(
                     onClick={game.preview=!game.preview;store.save(game);refresh()},
@@ -191,6 +203,7 @@ class MainActivity : ComponentActivity() {
                     modifier=Modifier.weight(1f)) {
                     Text("Center",fontSize=12.sp,maxLines=1)
                 }
+            }
             }
         }
     }
@@ -210,6 +223,7 @@ class MainActivity : ComponentActivity() {
     private fun JigsawScreen() {
         var revision by remember { mutableIntStateOf(0) }
         var difficultyPicker by remember { mutableStateOf(false) }
+        var zonePicker by remember { mutableStateOf(false) }
         refresh={ revision++ }
         val landscape=LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
         if(game.setLandscape(landscape)) {
@@ -234,7 +248,7 @@ class MainActivity : ComponentActivity() {
                             else "Mountain · illustration",fontSize=11.sp,
                             color=muted,maxLines=1,overflow=TextOverflow.Ellipsis)
                         Progress(revision)
-                        GameActions(revision,true,{difficultyPicker=true})
+                        GameActions(revision,true,{difficultyPicker=true},{zonePicker=true})
                         Text("Drag · Zoom · Pan",fontSize=11.sp,color=muted)
                     }
                 }
@@ -269,7 +283,7 @@ class MainActivity : ComponentActivity() {
                         difficultyPicker=true
                     }
                     Spacer(Modifier.height(8.dp))
-                    GameActions(revision,false,{difficultyPicker=true})
+                    GameActions(revision,false,{difficultyPicker=true},{zonePicker=true})
                     Spacer(Modifier.height(4.dp))
                     Text("Drag pieces · Pinch to zoom · Pan empty space",
                         color=muted,fontSize=11.sp,
@@ -277,6 +291,32 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+
+        if(zonePicker && game.zoneCount>1) AlertDialog(
+            onDismissRequest={zonePicker=false},
+            title={Text("Work on a section")},
+            text={
+                Column(Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement=Arrangement.spacedBy(5.dp)) {
+                    Text("Organize large puzzles into sections. All completed pieces remain on the board.",
+                        color=muted,fontSize=13.sp)
+                    (0 until game.zoneCount).forEach { zone ->
+                        OutlinedButton(onClick={
+                            game.selectZone(zone)
+                            store.save(game)
+                            revision++
+                            zonePicker=false
+                            board?.focusZone()
+                        },modifier=Modifier.fillMaxWidth()) {
+                            Text("${zone+1}. ${game.zoneName(zone)} · ${game.zoneRemaining(zone)} left")
+                        }
+                    }
+                }
+            },
+            confirmButton={TextButton(onClick={zonePicker=false}) {
+                Text("Close")
+            }}
+        )
 
         if(difficultyPicker) AlertDialog(
             onDismissRequest={difficultyPicker=false},
