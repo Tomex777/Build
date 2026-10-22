@@ -18,10 +18,10 @@ assert.throws(()=>composeChannelCaption({poster:{enabled:true,name:'I\n> fake qu
 assert.throws(()=>composeChannelCaption({text:'🏆'.repeat(500),maxUtf8Bytes:300}),/byte budget/);
 assert.throws(()=>replaceCaptionWords('Hello',{enabled:true,rules:[{from:'bad',to:'ok'},{from:'bad',to:'different'}]}),/Duplicate/);
 assert.throws(()=>replaceCaptionWords('bad',{enabled:true,
-  rules:[{from:'bad',to:'ok\\n> forged author'}]}),/Invalid replacement/,
+  rules:[{from:'bad',to:'ok\n> forged author'}]}),/Invalid replacement/,
   'A configured word replacement must not insert an extra quoted poster line');
 assert.throws(()=>replaceCaptionWords('bad',{enabled:true,
-  rules:[{from:'bad',to:'ok\\u202Eevil'}]}),/Invalid replacement/,
+  rules:[{from:'bad',to:'ok\u202Eevil'}]}),/Invalid replacement/,
   'Do not let bidi controls impersonate the poster signature');
 assert.throws(()=>composeChannelCaption({text:'a'.repeat(9000),replacements:{enabled:true,rules}}),
   /processing limit/,'Reject huge incoming scraper captions before Unicode/regex work');
