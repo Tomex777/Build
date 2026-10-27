@@ -50,6 +50,11 @@ test('non-owner command is silently denied in group and DM', () => {
   assert.equal(gate.routeMessage(sock, msg(OTHER, '.play song'), checks).allowed, false);
 });
 
+test('a secondary entry in the legacy owner list is denied by the private gate', () => {
+  const secondaryChecks = { isOwner: () => true, resolveOwnerJid: () => OTHER };
+  assert.equal(gate.routeMessage(sock, msg(OTHER, '.play song'), secondaryChecks).allowed, false);
+});
+
 test('ordinary text and AI-style prompts are denied even from owner', () => {
   assert.equal(gate.routeMessage(sock, msg(OWNER, 'hello Private Night'), checks).allowed, false);
   assert.equal(gate.routeMessage(sock, msg(GROUP, '@Private Night what do you think?', { participant: OWNER }), checks).allowed, false);
