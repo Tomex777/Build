@@ -67,6 +67,27 @@ function jidEquals(a, b) {
   return normal(a) === normal(b);
 }
 
+// ownerNumber may historically contain more than one trusted number. Private
+// Night intentionally honors only the first real phone number in that list.
+// Placeholder entries (for example, '91xxxxxxxxxxx') are ignored. This keeps
+// legacy owner checks from accidentally granting another person access.
+function configuredPrimaryOwnerJid() {
+  const configured = Array.isArray(config.ownerNumber) ? config.ownerNumber : [config.ownerNumber];
+  for (const item of configured) {
+    const digits = String(item || '').split('@')[0].replace(/[^0-9]/g, '');
+    if (digits.length >= 10 && digits.length <= 15) return `${digits}@s.whatsapp.net`;
+  }
+  return null;
+}
+
+function resolvePrimaryOwnerJid(sender, checks = {}) {
+  if (typeof checks.isOwner !== 'function' || !checks.isOwner(sender)) return null;
+  if (typeof checks.resolveOwnerJid !== 'function') return null;
+  const resolved = checks.resolveOwnerJid(sender);
+  const primary = configuredPrimaryOwnerJid();
+  return resolved && primary && jidEquals(resolved, primary) ? primary : null;
+}
+
 /**
  * The owner identity resolver is supplied by handler.js so WhatsApp LID
  * senders resolve to the configured phone number, not an ambiguous LID.
@@ -78,17 +99,11 @@ function routeMessage(sock, msg, checks = {}) {
   }
 
   const sender = senderJid(sock, msg);
-  if (typeof checks.isOwner !== 'function' || !checks.isOwner(sender)) {
-    return { allowed: false };
-  }
+  const ownerJid = resolvePrimaryOwnerJid(sender, checks);
+  if (!ownerJid) return { allowed: false };
 
   const command = isCommand(msg);
   const interactive = isInteractiveReply(msg);
-  const ownerJid = typeof checks.resolveOwnerJid === 'function'
-    ? checks.resolveOwnerJid(sender)
-    : null;
-  if (!ownerJid) return { allowed: false };
-
   const isGroup = from.endsWith('@g.us');
   const isOwnerDm = !isGroup && jidEquals(from, ownerJid);
 
@@ -120,10 +135,7 @@ function isAllowed(sock, msg, checks = {}) {
   const from = msg?.key?.remoteJid || '';
   if (!from || from.endsWith('@g.us')) return false;
   const sender = senderJid(sock, msg);
-  if (typeof checks.isOwner !== 'function' || !checks.isOwner(sender)) return false;
-  const ownerJid = typeof checks.resolveOwnerJid === 'function'
-    ? checks.resolveOwnerJid(sender)
-    : null;
+  const ownerJid = resolvePrimaryOwnerJid(sender, checks);
   if (!ownerJid || !jidEquals(from, ownerJid)) return false;
   return isCommand(msg) || isInteractiveReply(msg);
 }
