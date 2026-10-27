@@ -1,20 +1,21 @@
 # Private Night bot patch
 
-This is an overlay patch for the **separate Private Night WhatsApp bot** supplied as a `Bot/` ZIP. It is not MSCC and does not modify other apps in the repository.
+This overlay is for the **separate Private Night WhatsApp bot** supplied as a `Bot/` ZIP. It is not MSCC and does not modify other apps in this repository.
 
-## Privacy behavior
+## Required behavior
 - Only the configured primary owner may run commands; other people are ignored silently.
-- Owner commands posted in groups or other people's DMs are redirected to the owner's configured WhatsApp DM. Results, replies, quoted messages, and command reactions must not leak into the original chat.
-- The owner's own DM remains the only place where command output is visible.
+- Owner commands posted in groups or another person's DM are rerouted to the owner's configured WhatsApp DM. The original chat must not receive the result, a reply, quote, or reaction.
+- Commands in the owner's own DM run there normally.
 - Group events and ordinary AI/free-chat replies are disabled.
-- The gate is internal code and adds no menu/command entry. `.mode public` cannot disable it.
-- Branding is changed to **Private Night**. Legacy identifiers required to read existing saved sessions remain for compatibility.
+- The gate is internal and adds no command/menu entry. `.mode public` cannot disable it.
+- Branding is **Private Night**. Legacy identifiers needed for reading existing sessions remain for compatibility.
 
-## Files
-- `PRIVATE_NIGHT_PATCH.zip`: patch diff plus the gate implementation and tests. Apply the diff to the matching standalone bot snapshot.
-- The source archive provided separately contains the integrated changes.
+## Branch contents
+- `core/privateGate.js`: the owner-only routing gate.
+- `tests/privateGate.test.js`: focused tests for routing, denial, private buttons, and output isolation.
+- The integrated source archive and patch diff are supplied as separate downloadable artifacts in the accompanying task response. They contain the changes to the standalone bot's `index.js`, `handler.js`, config, branding, and merged nested patch.
 
-## Tests and known input limitation
-Run `node --test tests/privateGate.test.js` from the bot root; the included privacy-gate tests pass. JavaScript syntax checks pass. The supplied bot ZIP is missing its `modules/` directory even though the entry point references it, so the full process could not be startup-tested from that input alone. Restore the matching modules before deploying.
+This repository's `main` branch did not contain the standalone bot source tree, so this branch is an overlay rather than a replacement for unrelated apps. Nothing was merged into `main`.
 
-This is an overlay on a new branch because `main` does not contain the standalone bot source tree. No unrelated app was overwritten and nothing was merged to `main`.
+## Checks and limitation
+Run `node --test tests/privateGate.test.js` from the bot root; all seven included tests pass. All JavaScript files in the supplied source were syntax-checked. The supplied ZIP is missing the `modules/` directory that `index.js`/ `handler.js` reference, so live startup could not be verified from this input alone. Restore those matching module files before deployment.
